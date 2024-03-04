@@ -12,6 +12,21 @@ from autopilot import ss as apss
 CD = 0.0002
 
 
+vm = np.array([0, .5, .5])
+z = np.array([0, 0, 1])
+R = np.array([vm, np.cross(vm, z), z,
+])
+Rt = scipy.linalg.inv(R)
+time = np.linspace(0, 2, 50)
+p = [[*(Rt @ np.array([0, np.sin(t), 0]))] for t in time]
+p = np.array(p)
+fig = plt.figure(figsize = (10,10))
+ax = plt.axes(projection='3d')
+print(p)
+# ax.plot(p[:, 0], p[:, 1], p[:, 2])
+# plt.show()
+quit()
+
 class ID:
     def __init__(self, state_array: list[str]) -> None:
         assert isinstance(state_array, list)
