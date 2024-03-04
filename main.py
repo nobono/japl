@@ -6,45 +6,47 @@ from scipy import constants
 from scipy.integrate import solve_ivp
 from scipy.integrate._ivp.base import OdeSolver
 from autopilot import ss as apss
+from ambiance import Atmosphere
 
 
 
 A = np.array([
-    [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],       # xvel
-    [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],       # yvel
-    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],       # zvel
+    [0, 0, 0,   1, 0, 0,    0, 0, 0,    0, 0, 0],       # xvel
+    [0, 0, 0,   0, 1, 0,    0, 0, 0,    0, 0, 0],       # yvel
+    [0, 0, 0,   0, 0, 1,    0, 0, 0,    0, 0, 0],       # zvel
 
-    [0, 0, 0, 0, 0, 0, apss.C[0][0], 0, 0, apss.C[0][1], 0, 0], # xacc
-    [0, 0, 0, 0, 0, 0, 0, apss.C[0][0], 0, 0, apss.C[0][1], 0], # yacc
-    [0, 0, 0, 0, 0, 0, 0, 0, apss.C[0][0], 0, 0, apss.C[0][1]], # zacc
+    [0, 0, 0,   0, 0, 0,    apss.C[0][0], 0, 0,    apss.C[0][1], 0, 0], # xacc
+    [0, 0, 0,   0, 0, 0,    0, apss.C[0][0], 0,    0, apss.C[0][1], 0], # yacc
+    [0, 0, 0,   0, 0, 0,    0, 0, apss.C[0][0],    0, 0, apss.C[0][1]], # zacc
 
-    [0, 0, 0, 0, 0, 0, apss.A[0][0], 0, 0, apss.A[0][1], 0, 0], # xacc_cmd
-    [0, 0, 0, 0, 0, 0, 0, apss.A[0][0], 0, 0, apss.A[0][1], 0], # yacc_cmd
-    [0, 0, 0, 0, 0, 0, 0, 0, apss.A[0][0], 0, 0, apss.A[0][1]], # zacc_cmd
+    [0, 0, 0,   0, 0, 0,    apss.A[0][0], 0, 0,    apss.A[0][1], 0, 0], # xacc_cmd
+    [0, 0, 0,   0, 0, 0,    0, apss.A[0][0], 0,    0, apss.A[0][1], 0], # yacc_cmd
+    [0, 0, 0,   0, 0, 0,    0, 0, apss.A[0][0],    0, 0, apss.A[0][1]], # zacc_cmd
 
-    [0, 0, 0, 0, 0, 0, apss.A[1][0], 0, 0, apss.A[1][1], 0, 0], # xacc_cmd_dot
-    [0, 0, 0, 0, 0, 0, 0, apss.A[1][0], 0, 0, apss.A[1][1], 0], # yacc_cmd_dot
-    [0, 0, 0, 0, 0, 0, 0, 0, apss.A[1][0], 0, 0, apss.A[1][1]], # zacc_cmd_dot
+    [0, 0, 0,   0, 0, 0,    apss.A[1][0], 0, 0,    apss.A[1][1], 0, 0], # xacc_cmd_dot
+    [0, 0, 0,   0, 0, 0,    0, apss.A[1][0], 0,    0, apss.A[1][1], 0], # yacc_cmd_dot
+    [0, 0, 0,   0, 0, 0,    0, 0, apss.A[1][0],    0, 0, apss.A[1][1]], # zacc_cmd_dot
     ])
 
+# [ax, ay, az, ux, uy, uz]
 B = np.array([
-    [0, 0, 0],
-    [0, 0, 0],
-    [0, 0, 0],
-    [0, 0, 0],
-    [0, 0, 0],
-    [0, 0, 0],
-    [*apss.B[0], 0, 0],
-    [0, *apss.B[0], 0],
-    [0, 0, *apss.B[0]],
-    [*apss.B[1], 0, 0],
-    [0, *apss.B[1], 0],
-    [0, 0, *apss.B[1]],
+    [0, 0, 0,   0, 0, 0],
+    [0, 0, 0,   0, 0, 0],
+    [0, 0, 0,   0, 0, 0],
+    [1, 0, 0,   0, 0, 0],
+    [0, 1, 0,   0, 0, 0],
+    [0, 0, 1,   0, 0, 0],
+    [0, 0, 0,   *apss.B[0], 0, 0],
+    [0, 0, 0,   0, *apss.B[0], 0],
+    [0, 0, 0,   0, 0, *apss.B[0]],
+    [0, 0, 0,   *apss.B[1], 0, 0],
+    [0, 0, 0,   0, *apss.B[1], 0],
+    [0, 0, 0,   0, 0, *apss.B[1]],
     ])
 
 C = np.eye(12)
 
-D = np.zeros((12, 3))
+D = np.zeros((12, 6))
 
 ss = ct.ss(A, B, C, D)
 
@@ -114,11 +116,12 @@ def guidance(t, X, r_targ):
 
 
 def dynamics(t, X, ss, r_targ):
-    # pos, vel, ac, ac_dot = X
-    ucmd = guidance(t, X, r_targ)
-    U = ucmd
+    ac = guidance(t, X, r_targ)
+    ac = [0, 5030, 0]
+    CD = 0.4
+    U = np.array([-(CD*X[3]**2), -(CD*X[4]**2), -(CD*X[5]**2),
+                  *ac])
     Xdot = ss.A @ X + ss.B @ U
-    # Xdot[5] = -constants.g
     return Xdot
 
 
@@ -193,12 +196,14 @@ ax.set_xlabel("E")
 ax.set_ylabel("N")
 ax.set_zlabel("D")
 
-# fig2, (ax2, ax3) = plt.subplots(2, figsize=(10, 8))
+fig2, (ax2, ax3, ax4) = plt.subplots(3, figsize=(10, 8))
 # ax2.plot(y[:, 0], y[:, 1])
 # ax2.set_title("xy")
 
-# ax3.plot(y[:, 1], y[:, 5])
-# ax3.set_title("yvel")
+ax3.plot(y[:, 1], y[:, 4])
+ax3.set_title("yvel")
+ax4.plot(y[:, 1], y[:, 5])
+ax4.set_title("zvel")
 
 plt.show()
 
