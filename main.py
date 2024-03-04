@@ -12,20 +12,6 @@ from autopilot import ss as apss
 CD = 0.0002
 
 
-vm = np.array([0, .5, .5])
-z = np.array([0, 0, 1])
-R = np.array([vm, np.cross(vm, z), z,
-])
-Rt = scipy.linalg.inv(R)
-time = np.linspace(0, 2, 50)
-p = [[*(Rt @ np.array([0, np.sin(t), 0]))] for t in time]
-p = np.array(p)
-fig = plt.figure(figsize = (10,10))
-ax = plt.axes(projection='3d')
-print(p)
-# ax.plot(p[:, 0], p[:, 1], p[:, 2])
-# plt.show()
-quit()
 
 class ID:
     def __init__(self, state_array: list[str]) -> None:
@@ -99,6 +85,14 @@ def autopilot(X, u, ss):
     return Xdot
 
 
+def weave_maneuver(t, X):
+    vm = np.array([0, .5, .5])
+    z = np.array([0, 0, 1])
+    R = np.array([vm, np.cross(vm, z), z])
+    Rt = scipy.linalg.inv(R)
+    new_vec = Rt @ np.array([0, 1, 0])
+
+
 def guidance(t, X):
     ucmd = np.array([0, 1])
     return ucmd
@@ -115,7 +109,7 @@ def dynamics(t, X, ss):
 
 x0 = np.array([0, 0, 2, 0, 0, 0, 0, 0])
 t_span = [0, 40]
-sol = solve_ivp(dynamics, t_span=t_span, t_eval=np.linspace(*t_span, 1000), y0=x0, args=(ss,))
+sol = solve_ivp(dynamics, t_span=t_span, t_eval=np.linspace(*t_span, 1000), y0=x0, args=(ss,)) #type:ignore
 t = sol['t']
 y = sol['y'].T
 
@@ -135,32 +129,3 @@ ax2.set_title("yvel")
 
 plt.show()
 
-
-
-##############################
-# x0 = np.array([0, 0])
-# u = np.array([1])
-# sol = scipy.integrate.odeint(autopilot, x0, t, args=(u, ap_ss_obsv,))
-# print(sol)
-# t0 = 0.
-# u0 = 0.
-# y_out = [0.]
-# state_out = np.array([x0])
-# for _t in t:
-#     u = np.sin(_t)
-#     tt, yy, state = ct.forced_response(ap_ss, T=[t0, _t], U=[u0, u], X0=x0, return_x=True, transpose=True) #type:ignore
-#     y_out += [yy[-1]]
-#     state_out = np.append(state_out, [state[-1]], axis=0)
-#     t0 = _t
-#     u0 = u
-#     x0 = state[-1]
-
-
-# tt, yy, state = ct.forced_response(ap_ss, T=t, U=[0]*100 + [1]*900, X0=x0, return_x=True, transpose=True) #type:ignore
-# yy = (ap_ss.C @ sol.T)
-# plt.plot(t, sol[:, 0])
-# plt.plot(t, sol[:, 1])
-# # plt.plot(t, sol[:, 1])
-# plt.show()
-# quit()
-##############################
