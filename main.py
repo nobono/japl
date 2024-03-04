@@ -9,30 +9,6 @@ from autopilot import ss as apss
 
 
 
-CD = 0.0002
-
-
-
-class ID:
-    def __init__(self, state_array: list[str]) -> None:
-        assert isinstance(state_array, list)
-        for i, state in enumerate(state_array):
-            self.__setattr__(state, i)
-
-
-class State:
-    def __init__(self, sol, t) -> None:
-        self.t = t
-        self.xpos = sol[:, 0]
-        self.ypos = sol[:, 1]
-        self.xvel = sol[:, 2]
-        self.yvel = sol[:, 3]
-        self.xacc = sol[:, 4]
-        self.yacc = sol[:, 5]
-        self.xjerk = sol[:, 6]
-        self.yjerk = sol[:, 7]
-
-
 A = np.array([
     [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],       # xvel
     [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],       # yvel
@@ -110,8 +86,9 @@ def popup_maneuver(t, X):
 def guidance(t, X):
     ucmd = np.array([0, 0, 0])
     # ac = weave_maneuver(t, X)
-    ac = popup_maneuver(t, X)
-    return ucmd + ac
+    ac_man = popup_maneuver(t, X)
+    ac = ucmd + ac_man
+    return ac
 
 
 def dynamics(t, X, ss):
@@ -129,6 +106,8 @@ t_span = [0, 40]
 x0 = np.zeros((12))
 x0[:3] = np.array([0, 0, 4e3])    #R0
 x0[3:6] = np.array([0, 2, 0])   #V0
+
+targ_R0 = np.array([0, 50e3, 0])
 ####################################
 
 
