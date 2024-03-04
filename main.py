@@ -2,12 +2,21 @@ import numpy as np
 import control as ct
 import matplotlib.pyplot as plt
 import scipy
+from scipy import constants
+from scipy.integrate import solve_ivp
+from scipy.integrate._ivp.base import OdeSolver
+from tf import ss as apss
 
 
 
-
-g = -9.81
 CD = 0.0002
+
+
+class ID:
+    def __init__(self, state_array: list[str]) -> None:
+        assert isinstance(state_array, list)
+        for i, state in enumerate(state_array):
+            self.__setattr__(state, i)
 
 
 class State:
@@ -17,20 +26,24 @@ class State:
         self.ypos = sol[:, 1]
         self.xvel = sol[:, 2]
         self.yvel = sol[:, 3]
+        self.xacc = sol[:, 4]
+        self.yacc = sol[:, 5]
+        # self.xjerk = sol[:, 6]
+        # self.yjerk = sol[:, 7]
 
 
 A = np.array([
-    [0, 0, 1, 0],
-    [0, 0, 0, 1],
-    [0, 0, 0, 0],
-    [0, 0, 0, 0],
+    [0, 1, 0, 0],
+    [0, 0, *apss.C[0]],
+    [0, 0, *apss.A[0]],
+    [0, 0, *apss.A[1]],
     ])
 
 B = np.array([
-    [0, 0],
-    [0, 0],
-    [1, 0],
-    [0, 1],
+    [0],
+    [0],
+    apss.B[0],
+    apss.B[1],
     ])
 
 C = np.array([
@@ -41,62 +54,64 @@ C = np.array([
     ])
 
 D = np.array([
-    [0, 0],
-    [0, 0],
-    [0, 0],
-    [0, 0],
+    [0],
+    [0],
+    [0],
+    [0],
     ])
 
 ss = ct.ss(A, B, C, D)
 
-#########
-wapar = 5
-zetapar = .6
-# ap_tf = ct.tf([1], [1/wapar**2, 2*zetapar/wapar, 1])
-ap_ss = ct.tf2ss([1], [1/wapar**2, 2*zetapar/wapar, 1])
-ap_ss_obsv, TM = ct.observable_form(ap_ss)
-am_perp_ss = ct.parallel(ap_ss, ap_ss, ap_ss)
-#########
 
-def ss_dynamics(X, t, u, ss):
-    u = np.array([0])
+def autopilot(X, u, ss):
     Xdot = ss.A @ X + ss.B @ u
     return Xdot
 
 
-def autopilot(X, t, u, ss):
-    Xdot = ss.A @ X + ss.B @ u
-    return Xdot
-
-
-def guidance(X, t):
-    xpos, ypos, xvel, yvel = X
-    # u = [1, 1]
-    ucmd = [0, 0]
-    ucmd[1] = -np.sin(0.1 * t)
+def guidance(t, X):
+    ucmd = [1]
     return ucmd
 
 
-def dynamics(X, t, ss):
-    xpos, ypos, xvel, yvel = X
-    ucmd = guidance(X, t)
-    U = np.array([0, np.sin(0.1 * t)])
-    y_axis_ap = np.array([0, 0])
-    ap_ret = autopilot(y_axis_ap, t, [ucmd[1]], ap_ss_obsv)
-    U[1] = ap_ss.C @ ap_ret.T
-    # U[0] += -(CD * xvel**2)
-    # U[1] += g - (CD * yvel**2)
+def dynamics(t, X, ss):
+    pos, vel, ac, ac_dot = X
+    ucmd = guidance(t, X)
+    U = ucmd
+
     Xdot = ss.A @ X + ss.B @ U
+    # Xdot[1] = -constants.g
     return Xdot
 
 
-t = np.linspace(0, 10, 1000)
+x0 = np.array([0, 0, 0, 0])
+t_span = [0, 10]
+sol = solve_ivp(dynamics, t_span=t_span, t_eval=np.linspace(*t_span, 1000), y0=x0, args=(ss,))
+t = sol['t']
+y = sol['y'].T
+
+# state = State(y, t)
+# velmag = [scipy.linalg.norm(i) for i in y[:, 2:4]]
+
+
+fig, (ax, ax2, ax3) = plt.subplots(3, figsize=(10, 8))
+ax.plot(t, y[:, 0])
+ax.set_title("pos")
+
+ax2.plot(t, y[:, 1])
+ax2.set_title("vel")
+
+ax3.plot(t, y[:, 2])
+ax3.set_title("ac")
+
+plt.show()
+
+
 
 ##############################
-x0 = np.array([0, 0])
-u = np.array([1])
-sol = scipy.integrate.odeint(autopilot, x0, t, args=(u, ap_ss_obsv,))
-print(sol)
+# x0 = np.array([0, 0])
+# u = np.array([1])
+# sol = scipy.integrate.odeint(autopilot, x0, t, args=(u, ap_ss_obsv,))
+# print(sol)
 # t0 = 0.
 # u0 = 0.
 # y_out = [0.]
@@ -113,31 +128,9 @@ print(sol)
 
 # tt, yy, state = ct.forced_response(ap_ss, T=t, U=[0]*100 + [1]*900, X0=x0, return_x=True, transpose=True) #type:ignore
 # yy = (ap_ss.C @ sol.T)
-plt.plot(t, sol[:, 0])
-plt.plot(t, sol[:, 1])
+# plt.plot(t, sol[:, 0])
+# plt.plot(t, sol[:, 1])
 # # plt.plot(t, sol[:, 1])
-plt.show()
-quit()
+# plt.show()
+# quit()
 ##############################
-
-
-x0 = np.array([0, 0, 2, 0])
-sol = scipy.integrate.odeint(dynamics, x0, t, args=(ss,))
-state = State(sol, t)
-velmag = [scipy.linalg.norm(i) for i in sol[:, 2:4]]
-
-
-fig, (ax, ax2) = plt.subplots(2, figsize=(10, 8))
-ax.plot(state.t, state.ypos)
-ax.plot(state.t, [100 * np.sin(0.1 * i) for i in state.t], '--')
-ax.set_title("XY")
-
-ax2.plot(state.t, state.yvel)
-ax2.set_title("Vel Mag")
-
-# ax.plot(t, sol[:, 0])
-
-plt.show()
-
-
-
