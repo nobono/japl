@@ -7,8 +7,8 @@ import numpy as np
 
 
 
-wapar = 6
-zetapar = .1
+wapar = 25
+zetapar = .2
 ss = ct.tf2ss([1], [1/wapar**2, 2*zetapar/wapar, 1])
 ss, TM = ct.observable_form(ss)
 
