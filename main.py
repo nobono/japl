@@ -28,8 +28,8 @@ class State:
         self.yvel = sol[:, 3]
         self.xacc = sol[:, 4]
         self.yacc = sol[:, 5]
-        # self.xjerk = sol[:, 6]
-        # self.yjerk = sol[:, 7]
+        self.xjerk = sol[:, 6]
+        self.yjerk = sol[:, 7]
 
 
 A = np.array([
