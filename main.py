@@ -33,31 +33,47 @@ class State:
 
 
 A = np.array([
-    [0, 1, 0, 0],
-    [0, 0, *apss.C[0]],
-    [0, 0, *apss.A[0]],
-    [0, 0, *apss.A[1]],
+    [0, 0, 1, 0, 0, 0, 0, 0],       # xvel
+    [0, 0, 0, 1, 0, 0, 0, 0],       # yvel
+    [0, 0, 0, 0, apss.C[0][0], 0, apss.C[0][1], 0], # xacc
+    [0, 0, 0, 0, 0, apss.C[0][0], 0, apss.C[0][1]], # yacc
+    [0, 0, 0, 0, apss.A[0][0], 0, apss.A[0][1], 0], # xacc_cmd
+    [0, 0, 0, 0, 0, apss.A[0][0], 0, apss.A[0][1]], # yacc_cmd
+    [0, 0, 0, 0, apss.A[1][0], 0, apss.A[1][1], 0], # xacc_cmd_dot
+    [0, 0, 0, 0, 0, apss.A[1][0], 0, apss.A[1][1]], # yacc_cmd_dot
     ])
 
 B = np.array([
-    [0],
-    [0],
-    [*apss.B[0]],
-    [*apss.B[1]],
+    [0, 0],
+    [0, 0],
+    [0, 0],
+    [0, 0],
+    [*apss.B[0], 0],
+    [0, *apss.B[0]],
+    [*apss.B[1], 0],
+    [0, *apss.B[1]],
     ])
 
 C = np.array([
-    [1, 0, 0, 0],
-    [0, 1, 0, 0],
-    [0, 0, 1, 0],
-    [0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 0, 0, 0, 0, 0, 0],
+    [0, 0, 1, 0, 0, 0, 0, 0],
+    [0, 0, 0, 1, 0, 0, 0, 0],
+    [0, 0, 0, 0, 1, 0, 0, 0],
+    [0, 0, 0, 0, 0, 1, 0, 0],
+    [0, 0, 0, 0, 0, 0, 1, 0],
+    [0, 0, 0, 0, 0, 0, 0, 1],
     ])
 
 D = np.array([
-    [0],
-    [0],
-    [0],
-    [0],
+    [0, 0],
+    [0, 0],
+    [0, 0],
+    [0, 0],
+    [0, 0],
+    [0, 0],
+    [0, 0],
+    [0, 0],
     ])
 
 ss = ct.ss(A, B, C, D)
@@ -69,22 +85,21 @@ def autopilot(X, u, ss):
 
 
 def guidance(t, X):
-    ucmd = [1]
+    ucmd = np.array([0, 1])
     return ucmd
 
 
 def dynamics(t, X, ss):
-    pos, vel, ac, ac_dot = X
+    # pos, vel, ac, ac_dot = X
     ucmd = guidance(t, X)
     U = ucmd
-
     Xdot = ss.A @ X + ss.B @ U
     # Xdot[1] = -constants.g
     return Xdot
 
 
-x0 = np.array([0, 0, 0, 0])
-t_span = [0, 10]
+x0 = np.array([0, 0, 2, 0, 0, 0, 0, 0])
+t_span = [0, 40]
 sol = solve_ivp(dynamics, t_span=t_span, t_eval=np.linspace(*t_span, 1000), y0=x0, args=(ss,))
 t = sol['t']
 y = sol['y'].T
@@ -94,14 +109,14 @@ y = sol['y'].T
 
 
 fig, (ax, ax2, ax3) = plt.subplots(3, figsize=(10, 8))
-ax.plot(t, y[:, 0])
-ax.set_title("pos")
+ax.plot(y[:, 0], y[:, 1])
+ax.set_title("xy")
 
-ax2.plot(t, y[:, 1])
-ax2.set_title("vel")
+ax2.plot(y[:, 0], y[:, 3])
+ax2.set_title("yvel")
 
-ax3.plot(t, y[:, 2])
-ax3.set_title("ac")
+# ax3.plot(t, y[:, 5])
+# ax3.set_title("ac")
 
 plt.show()
 
