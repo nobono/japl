@@ -42,8 +42,8 @@ A = np.array([
 B = np.array([
     [0],
     [0],
-    apss.B[0],
-    apss.B[1],
+    [*apss.B[0]],
+    [*apss.B[1]],
     ])
 
 C = np.array([
