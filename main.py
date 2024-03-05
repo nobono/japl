@@ -1,3 +1,8 @@
+import os
+import sys
+lib_path = os.path.join(os.getcwd(), "lib")
+sys.path.append(lib_path)
+
 import numpy as np
 import control as ct
 import matplotlib.pyplot as plt
@@ -201,7 +206,7 @@ hit_target_event.terminal = True
 sol = solve_ivp(
         dynamics,
         t_span=t_span,
-        t_eval=np.linspace(t_span[0], t_span[1], 10000),
+        t_eval=np.linspace(t_span[0], t_span[1], 5000),
         y0=x0,
         args=(ss, targ_R0),
         events=[
