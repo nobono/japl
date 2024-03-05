@@ -96,7 +96,7 @@ def atmosphere_model(t, X):
     return np.array([xfd, yfd, zfd])
 
 
-def guidance(t, X, r_targ):
+def guidance_func(t, X, r_targ):
     GLIMIT = 14.0
     rm = X[:3]
     vm = X[3:6]
@@ -112,8 +112,8 @@ def guidance(t, X, r_targ):
     return ac
 
 
-def dynamics(t, X, ss, r_targ):
-    ac = guidance(t, X, r_targ)
+def dynamics_func(t, X, ss, r_targ):
+    ac = guidance_func(t, X, r_targ)
     # ac = [0, 3, 0]
     fd = atmosphere_model(t, X)
     U = np.array([*fd, *ac])
@@ -162,7 +162,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     sol = solve_ivp(
-            dynamics,
+            dynamics_func,
             t_span=t_span,
             t_eval=np.linspace(t_span[0], t_span[1], 5000),
             y0=x0,
