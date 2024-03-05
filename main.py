@@ -1,8 +1,11 @@
+import cProfile
 import os
 import sys
 lib_path = os.path.join(os.getcwd(), "lib")
 sys.path.append(lib_path)
 
+import argparse
+import time
 import numpy as np
 import control as ct
 import matplotlib.pyplot as plt
@@ -12,8 +15,10 @@ from scipy.linalg import norm
 from scipy.integrate import solve_ivp
 from scipy.integrate._ivp.base import OdeSolver
 from autopilot import ss as apss
-from ambiance import Atmosphere
+from atmosphere import Atmosphere
 
+
+atmosphere = Atmosphere()
 
 
 A = np.array([
@@ -58,23 +63,19 @@ ss = ct.ss(A, B, C, D)
 
 
 def unitize(vec):
-    vec = np.asarray(vec)
-    return vec / norm(vec)
+    norm = np.sqrt(vec[0]**2 + vec[1]**2 + vec[2]**2)
+    return vec / norm
 
 
-def create_Rt(xx, yy, zz):
-    mat = np.array([xx, yy, zz])
-    return scipy.linalg.inv(mat)
+def inv(mat):
+    return np.linalg.inv(mat)
 
 
 def weave_maneuver(t, X):
     vm = unitize(X[3:6])
     base2 = [0, 0, 1]
-    Rt = create_Rt(
-            vm,
-            np.cross(vm, base2),
-            base2
-            )
+    mat = np.array([vm, np.cross(vm, base2), base2])
+    Rt = inv(mat)
     ac = np.array([0, np.sin(0.5 * t), 0])
     return Rt @ ac
 
@@ -143,12 +144,14 @@ def atmosphere_model(t, X):
     rm = X[:3]
     vm = X[3:6]
     ATMOS_BOUNDS = [-5e3, 81e3]
-    atmos = Atmosphere(min(max((rm[2] / 1000.0), ATMOS_BOUNDS[0]), ATMOS_BOUNDS[1]))
+    # atmos = Atmosphere(min(max((rm[2] / 1000.0), ATMOS_BOUNDS[0]), ATMOS_BOUNDS[1]))
+    alt_bounded = min(max((rm[2] / 1000.0), ATMOS_BOUNDS[0]), ATMOS_BOUNDS[1])
+    density = atmosphere.density(alt_bounded)
     CD = 0.45
     A = .25**2
-    xfd = -(0.5 * CD * A * atmos.density[0] * vm[0])
-    yfd = -(0.5 * CD * A * atmos.density[0] * vm[1])
-    zfd = -(0.5 * CD * A * atmos.density[0] * vm[2])
+    xfd = -(0.5 * CD * A * density * vm[0])
+    yfd = -(0.5 * CD * A * density * vm[1])
+    zfd = -(0.5 * CD * A * density * vm[2])
     return np.array([xfd, yfd, zfd])
 
 
@@ -203,56 +206,72 @@ hit_target_event.terminal = True
 ####################################
 
 
-sol = solve_ivp(
-        dynamics,
-        t_span=t_span,
-        t_eval=np.linspace(t_span[0], t_span[1], 5000),
-        y0=x0,
-        args=(ss, targ_R0),
-        events=[
-            hit_target_event,
-            hit_ground_event,
-            ]
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--3d",
+        dest="plot_3d",
+        action="store_true",
         )
+    parser.add_argument(
+        "-p",
+        dest="plot",
+        action="store_true",
+    )
+    args = parser.parse_args()
 
-t = sol['t']
-y = sol['y'].T
+    sol = solve_ivp(
+            dynamics,
+            t_span=t_span,
+            t_eval=np.linspace(t_span[0], t_span[1], 5000),
+            y0=x0,
+            args=(ss, targ_R0),
+            events=[
+                hit_target_event,
+                hit_ground_event,
+                ]
+            )
 
-# state = State(y, t)
-# velmag = [scipy.linalg.norm(i) for i in y[:, 2:4]]
+    t = sol['t']
+    y = sol['y'].T
+
+    # state = State(y, t)
+    # velmag = [scipy.linalg.norm(i) for i in y[:, 2:4]]
 
 
-# fig, (ax, ax2, ax3) = plt.subplots(3, figsize=(10, 8))
-# ax.plot(y[:, 1], y[:, 2])
-# ax.set_title("xy")
+    # fig, (ax, ax2, ax3) = plt.subplots(3, figsize=(10, 8))
+    # ax.plot(y[:, 1], y[:, 2])
+    # ax.set_title("xy")
 
-# ax2.plot(y[:, 1], y[:, 5])
-# ax2.set_title("yvel")
+    # ax2.plot(y[:, 1], y[:, 5])
+    # ax2.set_title("yvel")
 
-# ax3.plot(t, y[:, 5])
-# ax3.set_title("ac")
+    # ax3.plot(t, y[:, 5])
+    # ax3.set_title("ac")
 
-r_pop1 = np.array([0, 7e3, 90])
-r_pop2 = np.array([0, 9e3, 10])
+    r_pop1 = np.array([0, 7e3, 90])
+    r_pop2 = np.array([0, 9e3, 10])
 
-# 3D Plot
-fig = plt.figure(figsize=(10, 8))
-ax = plt.axes(projection='3d')
-ax.plot3D(y[:, 0], y[:, 1], y[:, 2])
-ax.plot3D(*targ_R0, marker='.')
-ax.plot3D(*r_pop1, marker='.', color='green')
-ax.plot3D(*r_pop2, marker='.', color='red')
-ax.set_xlabel("E")
-ax.set_ylabel("N")
-ax.set_zlabel("D")
+    if args.plot_3d:
+        # 3D Plot
+        fig = plt.figure(figsize=(10, 8))
+        ax = plt.axes(projection='3d')
+        ax.plot3D(y[:, 0], y[:, 1], y[:, 2])
+        ax.plot3D(*targ_R0, marker='.')
+        ax.plot3D(*r_pop1, marker='.', color='green')
+        ax.plot3D(*r_pop2, marker='.', color='red')
+        ax.set_xlabel("E")
+        ax.set_ylabel("N")
+        ax.set_zlabel("D")
 
-fig2, (ax2, ax3, ax4) = plt.subplots(3, figsize=(10, 8))
-ax2.plot(y[:, 1], y[:, 2])
-ax2.set_title("y")
-ax3.plot(y[:, 1], y[:, 4])
-ax3.set_title("yvel")
-ax4.plot(y[:, 1], y[:, 5])
-ax4.set_title("zvel")
+    if args.plot:
+        fig2, (ax2, ax3, ax4) = plt.subplots(3, figsize=(10, 8))
+        ax2.plot(y[:, 1], y[:, 2])
+        ax2.set_title("y")
+        ax3.plot(y[:, 1], y[:, 4])
+        ax3.set_title("yvel")
+        ax4.plot(y[:, 1], y[:, 5])
+        ax4.set_title("zvel")
 
-plt.show()
+    plt.show()
 
