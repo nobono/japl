@@ -20,3 +20,16 @@ class State:
         self.yacc = sol[:, 5]
         self.xjerk = sol[:, 6]
         self.yjerk = sol[:, 7]
+
+
+def bound(val, lower, upper):
+    return min(max((val), lower), upper)
+
+
+def unitize(vec):
+    norm = np.sqrt(vec[0]**2 + vec[1]**2 + vec[2]**2)
+    return vec / norm
+
+
+def inv(mat):
+    return np.linalg.inv(mat)

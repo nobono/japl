@@ -4,27 +4,47 @@ import sys
 lib_path = os.path.join(os.getcwd(), "lib")
 sys.path.append(lib_path)
 
+# ---------------------------------------------------
+
 import argparse
-import time
 import numpy as np
 import control as ct
 import matplotlib.pyplot as plt
-import scipy
-from scipy import constants
+
+# ---------------------------------------------------
+
 from scipy.linalg import norm
 from scipy.integrate import solve_ivp
-from scipy.integrate._ivp.base import OdeSolver
+
+# ---------------------------------------------------
+
+from util import unitize
+from util import inv
+from util import bound
+
+# ---------------------------------------------------
+
 from autopilot import ss as apss
 from atmosphere import Atmosphere
 
+# ---------------------------------------------------
+
+import guidance
+from maneuvers import Maneuvers
+
+# ---------------------------------------------------
+
+
 
 atmosphere = Atmosphere()
+maneuvers = Maneuvers()
+
 
 
 A = np.array([
-    [0, 0, 0,   1, 0, 0,    0, 0, 0,    0, 0, 0],       # xvel
-    [0, 0, 0,   0, 1, 0,    0, 0, 0,    0, 0, 0],       # yvel
-    [0, 0, 0,   0, 0, 1,    0, 0, 0,    0, 0, 0],       # zvel
+    [0, 0, 0,   1, 0, 0,    0, 0, 0,    0, 0, 0], # xvel
+    [0, 0, 0,   0, 1, 0,    0, 0, 0,    0, 0, 0], # yvel
+    [0, 0, 0,   0, 0, 1,    0, 0, 0,    0, 0, 0], # zvel
 
     [0, 0, 0,   0, 0, 0,    apss.C[0][0], 0, 0,    apss.C[0][1], 0, 0], # xacc
     [0, 0, 0,   0, 0, 0,    0, apss.C[0][0], 0,    0, apss.C[0][1], 0], # yacc
@@ -62,90 +82,11 @@ D = np.zeros((12, 6))
 ss = ct.ss(A, B, C, D)
 
 
-def unitize(vec):
-    norm = np.sqrt(vec[0]**2 + vec[1]**2 + vec[2]**2)
-    return vec / norm
-
-
-def inv(mat):
-    return np.linalg.inv(mat)
-
-
-def weave_maneuver(t, X):
-    vm = unitize(X[3:6])
-    base2 = [0, 0, 1]
-    mat = np.array([vm, np.cross(vm, base2), base2])
-    Rt = inv(mat)
-    ac = np.array([0, np.sin(0.5 * t), 0])
-    return Rt @ ac
-
-
-gd_phase = 0
-
-def popup_maneuver(t, X, r_targ, ac):
-    # vm = unitize(X[3:6])
-    # base2 = [1, 0, 0]
-    # Rt = create_Rt(
-    #         vm,
-    #         np.cross(vm, base2),
-    #         base2
-    #         )
-    # ac = np.zeros((3,))
-    # ac[1] = -1*np.sin(.3 * t)
-    # return Rt @ ac
-    START_POP_RANGE = 6.5e3
-    STOP_POP_ALT = 90
-    START_DIVE_RANGE = 8e3
-    STOP_DIVE_ALT = 30 # 60
-    rm = X[:3]
-    vm = X[3:6]
-    global gd_phase
-    match gd_phase:
-        case 0 :
-            r_pop = np.array([0, START_POP_RANGE, 90])
-            ac = ac + pronav(X, r_pop, np.array([0, 0, 0]), N=4)
-            if rm[2] >= STOP_POP_ALT:
-                gd_phase += 1
-        case 1 :
-            r_pop = np.array([0, START_DIVE_RANGE, 10])
-            ac = ac + pronav(X, r_pop, np.array([0, 0, 0]), N=3)
-            if rm[2] <= STOP_DIVE_ALT:
-                gd_phase += 1
-        case 2 :
-            # Kp = 80.0
-            # Kp_rz = 0.0006
-            # rz_err = Kp_rz * (max(min(10 - rm[2], 10), -10) / 10)
-            # vmd_hat = unitize([0, 1, rz_err])
-            # vm_hat = unitize(vm)
-            # vm_err = vmd_hat - vm_hat
-            # ac = ac + Kp * vm_err
-            r_pop = np.array([0, 13e3, 10])
-            ac = ac + pronav(X, r_pop, np.array([0, 0, 0]), N=40)
-            if rm[1] > 12e3:
-                gd_phase += 1
-        case 3 :
-            ac = ac + pronav(X, r_targ, np.array([0, 0, 0]), N=4)
-        case _ :
-            pass
-    return ac
-
-
-def pronav(X, r_targ, v_targ, N=4.0):
-    rm = X[:3]
-    vm = X[3:6]
-    v_r = v_targ - vm
-    r = r_targ - rm
-    omega = np.cross(r, v_r) / np.dot(r, r)
-    ac = N * np.cross(v_r, omega)
-    return ac
-
-
 def atmosphere_model(t, X):
     rm = X[:3]
     vm = X[3:6]
     ATMOS_BOUNDS = [-5e3, 81e3]
-    # atmos = Atmosphere(min(max((rm[2] / 1000.0), ATMOS_BOUNDS[0]), ATMOS_BOUNDS[1]))
-    alt_bounded = min(max((rm[2] / 1000.0), ATMOS_BOUNDS[0]), ATMOS_BOUNDS[1])
+    alt_bounded = bound(rm[2] / 1000, *ATMOS_BOUNDS)
     density = atmosphere.density(alt_bounded)
     CD = 0.45
     A = .25**2
@@ -164,7 +105,7 @@ def guidance(t, X, r_targ):
     # ac_man = popup_maneuver(t, X)
 
     if 5e3 < rm[1]:
-        ac = popup_maneuver(t, X, r_targ, ac)
+        ac = maneuvers.popup_maneuver(t, X, r_targ, ac)
 
     if norm(ac) > GLIMIT:
         ac = unitize(ac) * GLIMIT
@@ -235,19 +176,7 @@ if __name__ == "__main__":
     t = sol['t']
     y = sol['y'].T
 
-    # state = State(y, t)
     # velmag = [scipy.linalg.norm(i) for i in y[:, 2:4]]
-
-
-    # fig, (ax, ax2, ax3) = plt.subplots(3, figsize=(10, 8))
-    # ax.plot(y[:, 1], y[:, 2])
-    # ax.set_title("xy")
-
-    # ax2.plot(y[:, 1], y[:, 5])
-    # ax2.set_title("yvel")
-
-    # ax3.plot(t, y[:, 5])
-    # ax3.set_title("ac")
 
     r_pop1 = np.array([0, 7e3, 90])
     r_pop2 = np.array([0, 9e3, 10])
