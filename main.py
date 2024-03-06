@@ -43,9 +43,7 @@ maneuvers = Maneuvers()
 
 
 
-def atmosphere_model(t, X):
-    rm = X[:3]
-    vm = X[3:6]
+def atmosphere_model(rm, vm):
     ATMOS_BOUNDS = [-5e3, 81e3]
     alt_bounded = bound(rm[2] / 1000, *ATMOS_BOUNDS)
     density = atmosphere.density(alt_bounded)
@@ -66,7 +64,7 @@ def guidance_func(t, X, r_targ):
     # ac_man = popup_maneuver(t, X)
 
     if 5e3 < rm[1]:
-        ac = maneuvers.popup_maneuver(t, X, r_targ, ac)
+        ac = ac + maneuvers.popup_maneuver(rm, vm, r_targ)
 
     if norm(ac) > GLIMIT:
         ac = unitize(ac) * GLIMIT
@@ -74,9 +72,11 @@ def guidance_func(t, X, r_targ):
 
 
 def dynamics_func(t, X, ss, r_targ):
+    rm = X[:3]
+    vm = X[3:6]
     ac = guidance_func(t, X, r_targ)
     # ac = [0, 3, 0]
-    fd = atmosphere_model(t, X)
+    fd = atmosphere_model(rm, vm)
     U = np.array([*fd, *ac])
     Xdot = ss.A @ X + ss.B @ U
     return Xdot

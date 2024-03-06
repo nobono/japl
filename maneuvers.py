@@ -24,7 +24,7 @@ class Maneuvers:
         return Rt @ ac
 
 
-    def popup_maneuver(self, t, X, r_targ, ac):
+    def popup_maneuver(self, rm, vm, r_targ):
         #######################
         # OLD
         #######################
@@ -43,17 +43,15 @@ class Maneuvers:
         STOP_POP_ALT = 90
         START_DIVE_RANGE = 8e3
         STOP_DIVE_ALT = 30 # 60
-        rm = X[:3]
-        vm = X[3:6]
         match self.gd_phase:
             case 0 :
                 r_pop = np.array([0, START_POP_RANGE, 90])
-                ac = ac + guidance.pronav(X, r_pop, np.array([0, 0, 0]), N=4)
+                ac = guidance.pronav(rm, vm, r_pop, np.array([0, 0, 0]), N=4)
                 if rm[2] >= STOP_POP_ALT:
                     self.gd_phase += 1
             case 1 :
                 r_pop = np.array([0, START_DIVE_RANGE, 10])
-                ac = ac + guidance.pronav(X, r_pop, np.array([0, 0, 0]), N=3)
+                ac = guidance.pronav(rm, vm, r_pop, np.array([0, 0, 0]), N=3)
                 if rm[2] <= STOP_DIVE_ALT:
                     self.gd_phase += 1
             case 2 :
@@ -69,11 +67,12 @@ class Maneuvers:
                 # ac = ac + Kp * vm_err
                 #######################
                 r_pop = np.array([0, 13e3, 10])
-                ac = ac + guidance.pronav(X, r_pop, np.array([0, 0, 0]), N=40)
+                ac = guidance.pronav(rm, vm, r_pop, np.array([0, 0, 0]), N=40)
                 if rm[1] > 12e3:
                     self.gd_phase += 1
             case 3 :
-                ac = ac + guidance.pronav(X, r_targ, np.array([0, 0, 0]), N=4)
+                ac = guidance.pronav(rm, vm, r_targ, np.array([0, 0, 0]), N=4)
             case _ :
+                ac = np.array([0, 0, 0])
                 pass
         return ac
