@@ -1,6 +1,7 @@
 import cProfile
 import os
 import sys
+from tqdm import tqdm
 lib_path = os.path.join(os.getcwd(), "lib")
 sys.path.append(lib_path)
 
@@ -22,6 +23,7 @@ from util import unitize
 from util import bound
 from util import create_C_rot
 from util import inv
+from util import check_for_events
 
 # ---------------------------------------------------
 
@@ -39,6 +41,10 @@ from maneuvers import Maneuvers
 
 from dynamics import FirstOrderInput
 from dynamics import SecondOrderInput
+
+# ---------------------------------------------------
+
+from output import OutputManager
 
 # ---------------------------------------------------
 
@@ -91,7 +97,7 @@ def guidance_uo_dive_func(t, rm, vm, r_targ):
         case 0 :
             # Entry
             ac = np.zeros((3,))
-            if r_range >= START_ASCEND_RANGE:
+            if r_range <= START_ASCEND_RANGE:
                 gd_phase += 1
         case 1 :
             # Ascend
@@ -100,8 +106,6 @@ def guidance_uo_dive_func(t, rm, vm, r_targ):
             ac_alt = K_D * (ascend_rate - alt_dot)
             C_i_v = create_C_rot(vm)
             ac = C_i_v @ np.array([0, 0, ac_alt])
-            # ac = guidance.p_controller(ASCEND_SPEED, norm(vm), gain=K_SPEED) * unitize(vm)
-            # ac = ac + guidance.pronav(rm, vm, r_targ)
             if r_alt >= START_DIVE_ALT:
                 gd_phase += 1
         case 2 :
@@ -112,26 +116,25 @@ def guidance_uo_dive_func(t, rm, vm, r_targ):
             ac_alt = K_D * (ascend_rate - alt_dot)
             C_i_v = create_C_rot(vm)
             ac = C_i_v @ np.array([0, 0, ac_alt])
-            # ac = guidance.p_controller()
-            if r_alt >= STOP_DIVE_ALT:
-                gd_phase += 1
-        case 3 :
-            # Level
-            K_D *= 7.0
-            ALTD = 20.0
-            ac = np.zeros((3,))
-            alt_dot = vm[2]
-            ascend_rate = K_P * (ALTD - r_alt)
-            ac_alt = K_D * (ascend_rate - alt_dot)
-            C_i_v = create_C_rot(vm)
-            ac = C_i_v @ np.array([0, 0, ac_alt])
-            # ac = guidance.p_controller()
+            # if r_alt >= STOP_DIVE_ALT:
+            #     gd_phase += 1
+        # case 3 :
+        #     # Level
+        #     K_D *= 7.0
+        #     ALTD = 20.0
+        #     ac = np.zeros((3,))
+        #     alt_dot = vm[2]
+        #     ascend_rate = K_P * (ALTD - r_alt)
+        #     ac_alt = K_D * (ascend_rate - alt_dot)
+        #     C_i_v = create_C_rot(vm)
+        #     ac = C_i_v @ np.array([0, 0, ac_alt])
+        #     # ac = guidance.p_controller()
         case _ :
             ac = np.zeros((3,))
             raise Exception("unhandled event")
 
     GLIMIT = 14.0
-    if norm(ac) > GLIMIT:
+    if norm(ac) > (GLIMIT * constants.g):
         ac = unitize(ac) * GLIMIT
     return ac
 
@@ -163,7 +166,8 @@ def dynamics_func(t, X, ss, r_targ):
 
 # Inits
 ####################################
-t_span = [0, 300]
+t_span = [0, 200]
+dt = 0.01
 
 x0 = ss.get_init_state()
 x0[:3] = np.array([0, 50e3, 10])    #R0
@@ -202,48 +206,64 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    sol = solve_ivp(
-            dynamics_func,
-            t_span=t_span,
-            t_eval=np.linspace(t_span[0], t_span[1], 5000),
-            y0=x0,
-            args=(ss, targ_R0),
-            events=[
-                hit_target_event,
-                hit_ground_event,
-                ],
-            atol=1e-3,
-            rtol=1e-3,
-            )
+    t_array = np.linspace(t_span[0], t_span[1], int(t_span[1]/dt))
+    T = np.zeros(t_array.shape)
+    Y = np.zeros((t_array.shape[0], x0.shape[0]))
+    T[0] = t_span[0]
+    Y[0] = x0
 
-    t = sol['t']
-    y = sol['y'].T
+    ##########################
+    # sol = solve_ivp(
+    #         dynamics_func,
+    #         t_span=t_span,
+    #         t_eval=t_array,
+    #         y0=x0,
+    #         args=(ss, targ_R0),
+    #         events=[
+    #             hit_target_event,
+    #             hit_ground_event,
+    #             ],
+    #         rtol=1e-3,
+    #         atol=1e-6,
+    #         )
+    # t = sol['t']
+    # y = sol['y'].T
+    # r_pop1 = np.array([0, 47e3, 90])
+    # r_pop2 = np.array([0, 45e3, 10])
+    # OutputManager(args, t, y, [r_pop1, r_pop2]).plots()
+    ##########################
 
-    # velmag = [scipy.linalg.norm(i) for i in y[:, 2:4]]
+    for istep, (tstep_prev, tstep) in tqdm(enumerate(zip(t_array, t_array[1:])),
+                                           total=len(t_array)):
+
+        sol = solve_ivp(
+                dynamics_func,
+                t_span=(tstep_prev, tstep),
+                t_eval=[tstep],
+                y0=x0,
+                args=(ss, targ_R0),
+                events=[
+                    hit_target_event,
+                    hit_ground_event,
+                    ],
+                rtol=1e-3,
+                atol=1e-6,
+                )
+
+        # check for stop event
+        if check_for_events(sol['t_events']):
+            # truncate output arrays
+            T = T[:istep + 1]
+            Y = Y[:istep + 1]
+            break
+        else:
+            # store output
+            t = sol['t'][0]
+            y = sol['y'].T[0]
+            T[istep + 1] = t
+            Y[istep + 1] = y
+            x0 = Y[istep + 1]
 
     r_pop1 = np.array([0, 47e3, 90])
     r_pop2 = np.array([0, 45e3, 10])
-
-    if args.plot_3d:
-        # 3D Plot
-        fig = plt.figure(figsize=(10, 8))
-        ax = plt.axes(projection='3d')
-        ax.plot3D(y[:, 0], y[:, 1], y[:, 2])
-        ax.plot3D(*targ_R0, marker='.')
-        ax.plot3D(*r_pop1, marker='.', color='green')
-        ax.plot3D(*r_pop2, marker='.', color='red')
-        ax.set_xlabel("E")
-        ax.set_ylabel("N")
-        ax.set_zlabel("D")
-
-    if args.plot:
-        fig2, (ax2, ax3, ax4) = plt.subplots(3, figsize=(10, 8))
-        ax2.plot(y[:, 1], y[:, 2])
-        ax2.set_title("z")
-        ax3.plot(y[:, 1], y[:, 4])
-        ax3.set_title("yvel")
-        ax4.plot(y[:, 1], y[:, 5])
-        ax4.set_title("zvel")
-
-    plt.show()
-
+    OutputManager(args, T, Y, [r_pop1, r_pop2]).plots()

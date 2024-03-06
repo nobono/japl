@@ -43,3 +43,10 @@ def create_C_rot(vm):
         np.cross(vm, bvec2),
         bvec2
         ]))
+
+
+def check_for_events(t_events):
+    for event in t_events:
+        if len(event):
+            return True
+    return False
