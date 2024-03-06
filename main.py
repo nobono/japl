@@ -19,8 +19,9 @@ from scipy import constants
 # ---------------------------------------------------
 
 from util import unitize
-from util import inv
 from util import bound
+from util import create_C_rot
+from util import inv
 
 # ---------------------------------------------------
 
@@ -62,31 +63,64 @@ def atmosphere_model(rm, vm):
 
 
 def guidance_popup_func(t, rm, vm, r_targ):
-    GLIMIT = 14.0
     ac = unitize(vm) * 3.5
 
     if 5e3 < rm[1]:
         ac = ac + maneuvers.popup_maneuver(rm, vm, r_targ)
 
+    GLIMIT = 14.0
     if norm(ac) > GLIMIT:
         ac = unitize(ac) * GLIMIT
     return ac
 
 
+gd_phase = 0
 def guidance_uo_dive_func(t, rm, vm, r_targ):
-    GLIMIT = 14.0
     ASCEND_SPEED = 400.0
+    START_ASCEND_RANGE = 45e3
+    ASCEND_RATE_LIMIT = 50.0
+    START_DIVE_ALT = 5000.0
+    STOP_DIVE_ALT = 60.0
     K_SPEED = 0.05
-    ac = guidance.p_controller(ASCEND_SPEED, norm(vm), gain=K_SPEED) * unitize(vm)
-    ac = ac + guidance.pronav(rm, vm, r_targ)
+    K_P = 0.05
+    K_D = 0.06
+    r_range = norm(rm)
+    r_alt = rm[2]
+    global gd_phase
+    match gd_phase:
+        case 0 :
+            ac = np.zeros((3,))
+            if r_range >= START_ASCEND_RANGE:
+                gd_phase += 1
+        case 1 :
+            alt_dot = vm[2]
+            ascend_rate = max(K_P * (START_DIVE_ALT - r_alt), -ASCEND_RATE_LIMIT)
+            ac_alt = K_D * (ascend_rate - alt_dot)
+            C_i_v = create_C_rot(vm)
+            ac = C_i_v @ np.array([0, 0, ac_alt])
+            # ac = guidance.p_controller(ASCEND_SPEED, norm(vm), gain=K_SPEED) * unitize(vm)
+            # ac = ac + guidance.pronav(rm, vm, r_targ)
+            if r_alt >= START_DIVE_ALT:
+                gd_phase += 1
+        case 2 :
+            ac = np.zeros((3,))
+            alt_dot = vm[2]
+            ascend_rate = min(K_P * (STOP_DIVE_ALT - r_alt), ASCEND_RATE_LIMIT)
+            ac_alt = K_D * (ascend_rate - alt_dot)
+            C_i_v = create_C_rot(vm)
+            ac = C_i_v @ np.array([0, 0, ac_alt])
+            # ac = guidance.p_controller()
+        case _ :
+            ac = np.zeros((3,))
+            raise Exception("unhandled event")
 
+    GLIMIT = 14.0
     if norm(ac) > GLIMIT:
         ac = unitize(ac) * GLIMIT
     return ac
 
 
 def guidance_func(t, rm, vm, r_targ):
-    GLIMIT = 14.0
     ATTACK_SPEED = 400.0
     K_spd = 0.05
 
@@ -94,6 +128,7 @@ def guidance_func(t, rm, vm, r_targ):
     ac = spd_err * K_spd * unitize(vm)
     ac = ac + guidance.pronav(rm, vm, r_targ)
 
+    GLIMIT = 14.0
     if norm(ac) > GLIMIT:
         ac = unitize(ac) * GLIMIT
     return ac
@@ -102,7 +137,8 @@ def guidance_func(t, rm, vm, r_targ):
 def dynamics_func(t, X, ss, r_targ):
     rm = X[:3]
     vm = X[3:6]
-    ac = guidance_func(t, rm, vm, r_targ)
+    # ac = guidance_func(t, rm, vm, r_targ)
+    ac = guidance_uo_dive_func(t, rm, vm, r_targ)
     a_drag = np.zeros((3,)) #atmosphere_model(rm, vm)
     U = np.array([*a_drag, *ac])
     Xdot = ss.A @ X + ss.B @ U
@@ -114,10 +150,10 @@ def dynamics_func(t, X, ss, r_targ):
 t_span = [0, 200]
 
 x0 = ss.get_init_state()
-x0[:3] = np.array([0, 0, 1e3])    #R0
-x0[3:6] = np.array([0, 200, 0])   #V0
+x0[:3] = np.array([0, 50e3, 10])    #R0
+x0[3:6] = np.array([0, -200, 0])   #V0
 
-targ_R0 = np.array([0, 50e3, 0])
+targ_R0 = np.array([0, 0, 0])
 ####################################
 
 
@@ -160,8 +196,8 @@ if __name__ == "__main__":
                 hit_target_event,
                 hit_ground_event,
                 ],
-            atol=1e-6,
-            rtol=1e-6,
+            atol=1e-3,
+            rtol=1e-3,
             )
 
     t = sol['t']
@@ -169,8 +205,8 @@ if __name__ == "__main__":
 
     # velmag = [scipy.linalg.norm(i) for i in y[:, 2:4]]
 
-    r_pop1 = np.array([0, 7e3, 90])
-    r_pop2 = np.array([0, 9e3, 10])
+    r_pop1 = np.array([0, 47e3, 90])
+    r_pop2 = np.array([0, 45e3, 10])
 
     if args.plot_3d:
         # 3D Plot

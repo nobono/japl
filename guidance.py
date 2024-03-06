@@ -22,3 +22,9 @@ def PN(vm, vd) -> np.ndarray:
 def p_controller(desired, value, gain):
     return gain * (desired - value)
 
+
+def pd_controller(rd, rm, vd, vm, kp, kd):
+    ac = kp * (rd - rm)
+    ac = ac + kd * (vd - vm)
+    return ac
+

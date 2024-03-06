@@ -39,9 +39,9 @@ class Maneuvers:
         # ac[1] = -1*np.sin(.3 * t)
         # return Rt @ ac
         #######################
-        START_POP_RANGE = 6.5e3
+        START_POP_RANGE = 49e3
         STOP_POP_ALT = 90
-        START_DIVE_RANGE = 8e3
+        START_DIVE_RANGE = 47e3
         STOP_DIVE_ALT = 30 # 60
         match self.gd_phase:
             case 0 :
@@ -66,13 +66,13 @@ class Maneuvers:
                 # vm_err = vmd_hat - vm_hat
                 # ac = ac + Kp * vm_err
                 #######################
-                r_pop = np.array([0, 13e3, 10])
+                r_pop = np.array([0, 44e3, 10])
                 ac = guidance.pronav(rm, vm, r_pop, np.array([0, 0, 0]), N=40)
-                if rm[1] > 12e3:
+                if rm[1] > 43e3:
                     self.gd_phase += 1
             case 3 :
                 ac = guidance.pronav(rm, vm, r_targ, np.array([0, 0, 0]), N=4)
             case _ :
                 ac = np.array([0, 0, 0])
-                pass
+                raise Exception("unhandled event")
         return ac

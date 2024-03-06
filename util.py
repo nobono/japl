@@ -33,3 +33,13 @@ def unitize(vec):
 
 def inv(mat):
     return np.linalg.inv(mat)
+
+
+def create_C_rot(vm):
+    vm = unitize(vm)
+    bvec2 = np.array([0, 0, 1])
+    return inv(np.array([
+        vm,
+        np.cross(vm, bvec2),
+        bvec2
+        ]))
