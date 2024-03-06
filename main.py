@@ -89,10 +89,12 @@ def guidance_uo_dive_func(t, rm, vm, r_targ):
     global gd_phase
     match gd_phase:
         case 0 :
+            # Entry
             ac = np.zeros((3,))
             if r_range >= START_ASCEND_RANGE:
                 gd_phase += 1
         case 1 :
+            # Ascend
             alt_dot = vm[2]
             ascend_rate = max(K_P * (START_DIVE_ALT - r_alt), -ASCEND_RATE_LIMIT)
             ac_alt = K_D * (ascend_rate - alt_dot)
@@ -103,9 +105,23 @@ def guidance_uo_dive_func(t, rm, vm, r_targ):
             if r_alt >= START_DIVE_ALT:
                 gd_phase += 1
         case 2 :
+            # Descend
             ac = np.zeros((3,))
             alt_dot = vm[2]
             ascend_rate = min(K_P * (STOP_DIVE_ALT - r_alt), ASCEND_RATE_LIMIT)
+            ac_alt = K_D * (ascend_rate - alt_dot)
+            C_i_v = create_C_rot(vm)
+            ac = C_i_v @ np.array([0, 0, ac_alt])
+            # ac = guidance.p_controller()
+            if r_alt >= STOP_DIVE_ALT:
+                gd_phase += 1
+        case 3 :
+            # Level
+            K_D *= 7.0
+            ALTD = 20.0
+            ac = np.zeros((3,))
+            alt_dot = vm[2]
+            ascend_rate = K_P * (ALTD - r_alt)
             ac_alt = K_D * (ascend_rate - alt_dot)
             C_i_v = create_C_rot(vm)
             ac = C_i_v @ np.array([0, 0, ac_alt])
@@ -147,7 +163,7 @@ def dynamics_func(t, X, ss, r_targ):
 
 # Inits
 ####################################
-t_span = [0, 200]
+t_span = [0, 300]
 
 x0 = ss.get_init_state()
 x0[:3] = np.array([0, 50e3, 10])    #R0
