@@ -7,9 +7,13 @@ import numpy as np
 
 
 
-wapar = 25
-zetapar = .1
-ss = ct.tf2ss([1], [1/wapar**2, 2*zetapar/wapar, 1])
+# wapar = 25
+# zetapar = .1
+# ss = ct.tf2ss([1], [1/wapar**2, 2*zetapar/wapar, 1])
+# ss, TM = ct.observable_form(ss)
+
+tau = 0.25
+ss = ct.tf2ss([1], [tau, 1])
 ss, TM = ct.observable_form(ss)
 
 

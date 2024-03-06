@@ -32,12 +32,13 @@ from maneuvers import Maneuvers
 
 # ---------------------------------------------------
 
-from dynamics import ss
+from dynamics import FirstOrderInput
+from dynamics import SecondOrderInput
 
 # ---------------------------------------------------
 
 
-
+ss = FirstOrderInput()
 atmosphere = Atmosphere()
 maneuvers = Maneuvers()
 
@@ -68,6 +69,7 @@ def guidance_func(t, X, r_targ):
 
     if norm(ac) > GLIMIT:
         ac = unitize(ac) * GLIMIT
+    ac = np.array([0,0,1])
     return ac
 
 
@@ -85,7 +87,7 @@ def dynamics_func(t, X, ss, r_targ):
 # Inits
 ####################################
 t_span = [0, 200]
-x0 = np.zeros((12))
+x0 = ss.get_init_state()
 x0[:3] = np.array([0, 0, 10])    #R0
 x0[3:6] = np.array([0, 200, 0])   #V0
 
@@ -157,7 +159,7 @@ if __name__ == "__main__":
     if args.plot:
         fig2, (ax2, ax3, ax4) = plt.subplots(3, figsize=(10, 8))
         ax2.plot(y[:, 1], y[:, 2])
-        ax2.set_title("y")
+        ax2.set_title("z")
         ax3.plot(y[:, 1], y[:, 4])
         ax3.set_title("yvel")
         ax4.plot(y[:, 1], y[:, 5])
