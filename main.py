@@ -252,7 +252,7 @@ if __name__ == "__main__":
 
         # check for stop event
         if check_for_events(sol['t_events']):
-            # truncate output arrays
+            # truncate output arrays if early stoppage
             T = T[:istep + 1]
             Y = Y[:istep + 1]
             break
