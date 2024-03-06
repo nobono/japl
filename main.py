@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 
 from scipy.linalg import norm
 from scipy.integrate import solve_ivp
+from scipy import constants
 
 # ---------------------------------------------------
 
@@ -28,6 +29,9 @@ from atmosphere import Atmosphere
 # ---------------------------------------------------
 
 import guidance
+
+# ---------------------------------------------------
+
 from maneuvers import Maneuvers
 
 # ---------------------------------------------------
@@ -50,36 +54,57 @@ def atmosphere_model(rm, vm):
     density = atmosphere.density(alt_bounded)
     CD = 0.45
     A = .25**2
-    xfd = -(0.5 * CD * A * density * vm[0])
-    yfd = -(0.5 * CD * A * density * vm[1])
-    zfd = -(0.5 * CD * A * density * vm[2])
+    MASS = 1.0
+    xfd = -(0.5 * CD * A * density * vm[0]) / MASS
+    yfd = -(0.5 * CD * A * density * vm[1]) / MASS
+    zfd = -(0.5 * CD * A * density * vm[2]) / MASS
     return np.array([xfd, yfd, zfd])
 
 
-def guidance_func(t, X, r_targ):
+def guidance_popup_func(t, rm, vm, r_targ):
     GLIMIT = 14.0
-    rm = X[:3]
-    vm = X[3:6]
     ac = unitize(vm) * 3.5
-    # ac = weave_maneuver(t, X)
-    # ac_man = popup_maneuver(t, X)
 
     if 5e3 < rm[1]:
         ac = ac + maneuvers.popup_maneuver(rm, vm, r_targ)
 
     if norm(ac) > GLIMIT:
         ac = unitize(ac) * GLIMIT
-    ac = np.array([0,0,1])
+    return ac
+
+
+def guidance_uo_dive_func(t, rm, vm, r_targ):
+    GLIMIT = 14.0
+    ASCEND_SPEED = 400.0
+    K_SPEED = 0.05
+    ac = guidance.p_controller(ASCEND_SPEED, norm(vm), gain=K_SPEED) * unitize(vm)
+    ac = ac + guidance.pronav(rm, vm, r_targ)
+
+    if norm(ac) > GLIMIT:
+        ac = unitize(ac) * GLIMIT
+    return ac
+
+
+def guidance_func(t, rm, vm, r_targ):
+    GLIMIT = 14.0
+    ATTACK_SPEED = 400.0
+    K_spd = 0.05
+
+    spd_err = ATTACK_SPEED - norm(vm)
+    ac = spd_err * K_spd * unitize(vm)
+    ac = ac + guidance.pronav(rm, vm, r_targ)
+
+    if norm(ac) > GLIMIT:
+        ac = unitize(ac) * GLIMIT
     return ac
 
 
 def dynamics_func(t, X, ss, r_targ):
     rm = X[:3]
     vm = X[3:6]
-    ac = guidance_func(t, X, r_targ)
-    # ac = [0, 3, 0]
-    fd = atmosphere_model(rm, vm)
-    U = np.array([*fd, *ac])
+    ac = guidance_func(t, rm, vm, r_targ)
+    a_drag = np.zeros((3,)) #atmosphere_model(rm, vm)
+    U = np.array([*a_drag, *ac])
     Xdot = ss.A @ X + ss.B @ U
     return Xdot
 
@@ -87,8 +112,9 @@ def dynamics_func(t, X, ss, r_targ):
 # Inits
 ####################################
 t_span = [0, 200]
+
 x0 = ss.get_init_state()
-x0[:3] = np.array([0, 0, 10])    #R0
+x0[:3] = np.array([0, 0, 1e3])    #R0
 x0[3:6] = np.array([0, 200, 0])   #V0
 
 targ_R0 = np.array([0, 50e3, 0])
@@ -133,7 +159,9 @@ if __name__ == "__main__":
             events=[
                 hit_target_event,
                 hit_ground_event,
-                ]
+                ],
+            atol=1e-6,
+            rtol=1e-6,
             )
 
     t = sol['t']
