@@ -14,6 +14,7 @@ class Maneuvers:
         self.gd_phase = 0
 
 
+    @staticmethod
     def weave_maneuver(t, X):
         vm = unitize(X[3:6])
         base2 = [0, 0, 1]
