@@ -134,7 +134,7 @@ def guidance_uo_dive_func(t, rm, vm, r_targ):
 
     GLIMIT = 14.0
     if norm(ac) > (GLIMIT * constants.g):
-        ac = unitize(ac) * GLIMIT
+        ac = unitize(ac) * (GLIMIT * constants.g)
     return ac
 
 
@@ -147,8 +147,8 @@ def guidance_func(t, rm, vm, r_targ):
     ac = ac + guidance.pronav(rm, vm, r_targ)
 
     GLIMIT = 14.0
-    if norm(ac) > GLIMIT:
-        ac = unitize(ac) * GLIMIT
+    if norm(ac) > (GLIMIT * constants.g):
+        ac = unitize(ac) * (GLIMIT * constants.g)
     return ac
 
 
