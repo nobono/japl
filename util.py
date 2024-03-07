@@ -45,6 +45,25 @@ def create_C_rot(vm):
         ]))
 
 
+def create_rot_mat(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Uses Rodriguez Rotation formula"""
+    assert len(a) == len(b)
+    N = len(a)
+    rot_axis = np.cross(a, b)
+    rot_ang = np.dot(a, b)
+    S = skew(a)
+    R = np.eye(N) + S + (S @ S) * ((1 - rot_ang) / (np.linalg.norm(rot_axis)**2))
+    return R
+
+
+def skew(vec: np.ndarray):
+    return np.array([
+        [0, -vec[2], vec[1]],
+        [vec[2], 0, -vec[0]],
+        [-vec[1], vec[0], 0]
+    ])
+
+
 def check_for_events(t_events):
     for event in t_events:
         if len(event):
