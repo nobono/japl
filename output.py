@@ -1,7 +1,9 @@
+import os
 import matplotlib.pyplot as plt
 
 
 class OutputManager:
+    dir = "./data"
     
 
     def __init__(self, args, t, y, points: list=[]) -> None:
@@ -26,6 +28,8 @@ class OutputManager:
             ax.set_xlabel("E")
             ax.set_ylabel("N")
             ax.set_zlabel("D")
+            if self.args.save:
+                fig.savefig(os.path.join(self.dir, "3d.png"))
 
         if self.args.plot:
             fig2, (ax2, ax3, ax4) = plt.subplots(3, figsize=(10, 8))
@@ -35,5 +39,7 @@ class OutputManager:
             ax3.set_title("yvel")
             ax4.plot(self.y[:, 1], self.y[:, 5])
             ax4.set_title("zvel")
+            if self.args.save:
+                fig2.savefig(os.path.join(self.dir, "p.png"))
 
         plt.show()

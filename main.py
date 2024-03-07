@@ -116,19 +116,18 @@ def guidance_uo_dive_func(t, rm, vm, r_targ):
             ac_alt = K_D * (ascend_rate - alt_dot)
             C_i_v = create_C_rot(vm)
             ac = C_i_v @ np.array([0, 0, ac_alt])
-            # if r_alt >= STOP_DIVE_ALT:
-            #     gd_phase += 1
-        # case 3 :
-        #     # Level
-        #     K_D *= 7.0
-        #     ALTD = 20.0
-        #     ac = np.zeros((3,))
-        #     alt_dot = vm[2]
-        #     ascend_rate = K_P * (ALTD - r_alt)
-        #     ac_alt = K_D * (ascend_rate - alt_dot)
-        #     C_i_v = create_C_rot(vm)
-        #     ac = C_i_v @ np.array([0, 0, ac_alt])
-        #     # ac = guidance.p_controller()
+            if r_alt >= STOP_DIVE_ALT:
+                gd_phase += 1
+        case 3 :
+            # Level
+            K_D *= 7.0
+            ALTD = 20.0
+            ac = np.zeros((3,))
+            alt_dot = vm[2]
+            ascend_rate = K_P * (ALTD - r_alt)
+            ac_alt = K_D * (ascend_rate - alt_dot)
+            C_i_v = create_C_rot(vm)
+            ac = C_i_v @ np.array([0, 0, ac_alt])
         case _ :
             ac = np.zeros((3,))
             raise Exception("unhandled event")
@@ -202,6 +201,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "-p",
         dest="plot",
+        action="store_true",
+    )
+    parser.add_argument(
+        "-s",
+        dest="save",
         action="store_true",
     )
     args = parser.parse_args()
