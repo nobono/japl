@@ -1,7 +1,20 @@
 import numpy as np
+
+# ---------------------------------------------------
+
 from util import unitize
 from util import inv
+from util import create_C_rot
+from util import bound
+
+# ---------------------------------------------------
+
 import guidance
+
+# ---------------------------------------------------
+
+from scipy import constants
+from scipy.linalg import norm
 
 # ---------------------------------------------------
 
@@ -24,55 +37,117 @@ class Maneuvers:
         return Rt @ ac
 
 
-    def popup_maneuver(self, rm, vm, r_targ):
-        #######################
-        # OLD
-        #######################
-        # vm = unitize(X[3:6])
-        # base2 = [1, 0, 0]
-        # Rt = create_Rt(
-        #         vm,
-        #         np.cross(vm, base2),
-        #         base2
-        #         )
+    def uo_dive(self, rm, vm, r_targ):
         # ac = np.zeros((3,))
-        # ac[1] = -1*np.sin(.3 * t)
-        # return Rt @ ac
-        #######################
-        START_POP_RANGE = 49e3
-        STOP_POP_ALT = 90
-        START_DIVE_RANGE = 47e3
-        STOP_DIVE_ALT = 30 # 60
+        CRUISE_ALT = 500.0
+        ALT_RATE_LIMIT = 10.0
+        r_alt = rm[2]
+
         match self.gd_phase:
             case 0 :
-                r_pop = np.array([0, START_POP_RANGE, 90])
-                ac = guidance.pronav(rm, vm, r_pop, np.array([0, 0, 0]), N=4)
-                if rm[2] >= STOP_POP_ALT:
+                # Entry
+                K_P = 0.2
+                K_D = 0.8
+                alt_dot = vm[2]
+                ascend_rate = K_P * (CRUISE_ALT - r_alt)
+                ac_alt = K_D * (ascend_rate - alt_dot)
+                ac_alt = bound(ac_alt, -ALT_RATE_LIMIT, ALT_RATE_LIMIT)
+                C_i_v = create_C_rot(vm)
+                ac = C_i_v @ np.array([0, 0, ac_alt])
+                # if r_range <= START_ASCEND_RANGE:
+                #     self.gd_phase += 1
+            case _ :
+                ac = np.zeros((3,))
+                raise Exception("unhandled event")
+
+        GLIMIT = 14.0
+        if norm(ac) > GLIMIT:
+            ac = unitize(ac) * GLIMIT
+        return ac
+
+
+    def popup(self, rm, vm, r_targ):
+        ASCEND_SPEED = 400.0
+        CRUISE_ALT = 10.0
+        START_ASCEND_RANGE = 45e3
+        ASCEND_RATE_LIMIT = 200.0
+        START_DIVE_ALT = 200.0
+        #####################
+        START_ASCEND_RANGE_2 = 32e3
+        ASCEND_RATE_LIMIT_2 = 200.0
+        START_DIVE_ALT_2 = 120.0
+        #####################
+        START_TERMINAL_RANGE = 8e3
+        #####################
+        K_P = 0.05
+        K_D = 0.06
+        r_range = norm(rm)
+        r_alt = rm[2]
+        match self.gd_phase:
+            case 0 :
+                # Entry
+                K_P *= 2.0
+                K_D *= 3
+                alt_dot = vm[2]
+                ascend_rate = max(K_P * (CRUISE_ALT - r_alt), -ASCEND_RATE_LIMIT)
+                ac_alt = K_D * (ascend_rate - alt_dot)
+                C_i_v = create_C_rot(vm)
+                ac = C_i_v @ np.array([0, 0, ac_alt])
+                if r_range <= START_ASCEND_RANGE:
                     self.gd_phase += 1
             case 1 :
-                r_pop = np.array([0, START_DIVE_RANGE, 10])
-                ac = guidance.pronav(rm, vm, r_pop, np.array([0, 0, 0]), N=3)
-                if rm[2] <= STOP_DIVE_ALT:
+                # Ascend
+                K_P *= 2.0
+                K_D *= 3
+                alt_dot = vm[2]
+                ascend_rate = max(K_P * (START_DIVE_ALT - r_alt), -ASCEND_RATE_LIMIT)
+                ac_alt = K_D * (ascend_rate - alt_dot)
+                C_i_v = create_C_rot(vm)
+                ac = C_i_v @ np.array([0, 0, ac_alt])
+                if r_alt >= START_DIVE_ALT:
                     self.gd_phase += 1
             case 2 :
-                #######################
-                # OLD
-                #######################
-                # Kp = 80.0
-                # Kp_rz = 0.0006
-                # rz_err = Kp_rz * (max(min(10 - rm[2], 10), -10) / 10)
-                # vmd_hat = unitize([0, 1, rz_err])
-                # vm_hat = unitize(vm)
-                # vm_err = vmd_hat - vm_hat
-                # ac = ac + Kp * vm_err
-                #######################
-                r_pop = np.array([0, 44e3, 10])
-                ac = guidance.pronav(rm, vm, r_pop, np.array([0, 0, 0]), N=40)
-                if rm[1] > 43e3:
+                # Descend
+                K_P *= 3.5
+                K_D *= 10.0
+                ac = np.zeros((3,))
+                alt_dot = vm[2]
+                ascend_rate = min(K_P * (CRUISE_ALT - r_alt), ASCEND_RATE_LIMIT)
+                ac_alt = K_D * (ascend_rate - alt_dot)
+                C_i_v = create_C_rot(vm)
+                ac = C_i_v @ np.array([0, 0, ac_alt])
+                if r_range <= START_ASCEND_RANGE_2:
                     self.gd_phase += 1
             case 3 :
-                ac = guidance.pronav(rm, vm, r_targ, np.array([0, 0, 0]), N=4)
+                # Ascend
+                K_P *= 3.0
+                K_D *= 3
+                alt_dot = vm[2]
+                ascend_rate = max(K_P * (START_DIVE_ALT_2 - r_alt), -ASCEND_RATE_LIMIT_2)
+                ac_alt = K_D * (ascend_rate - alt_dot)
+                C_i_v = create_C_rot(vm)
+                ac = C_i_v @ np.array([0, 0, ac_alt])
+                if r_alt >= START_DIVE_ALT_2:
+                    self.gd_phase += 1
+            case 4 :
+                # Descend
+                K_P *= 3.5
+                K_D *= 10.0
+                ac = np.zeros((3,))
+                alt_dot = vm[2]
+                ascend_rate = min(K_P * (CRUISE_ALT - r_alt), ASCEND_RATE_LIMIT_2)
+                ac_alt = K_D * (ascend_rate - alt_dot)
+                C_i_v = create_C_rot(vm)
+                ac = C_i_v @ np.array([0, 0, ac_alt])
+                if r_range <= START_TERMINAL_RANGE:
+                    self.gd_phase += 1
+            case 5 :
+                ac = guidance.pronav(rm, vm, r_targ, np.zeros((3,)), N=4)
             case _ :
-                ac = np.array([0, 0, 0])
+                ac = np.zeros((3,))
                 raise Exception("unhandled event")
+
+        GLIMIT = 14.0
+        if norm(ac) > (GLIMIT * constants.g):
+            ac = unitize(ac) * (GLIMIT * constants.g)
         return ac
