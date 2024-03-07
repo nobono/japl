@@ -68,7 +68,7 @@ def atmosphere_model(rm, vm):
     return np.array([xfd, yfd, zfd])
 
 
-def guidance_popup_func(t, rm, vm, r_targ):
+def guidance_uo_dive_func(t, rm, vm, r_targ):
     ac = unitize(vm) * 3.5
 
     if 5e3 < rm[1]:
@@ -81,7 +81,7 @@ def guidance_popup_func(t, rm, vm, r_targ):
 
 
 gd_phase = 0
-def guidance_uo_dive_func(t, rm, vm, r_targ):
+def guidance_popup_func(t, rm, vm, r_targ):
     ASCEND_SPEED = 400.0
     START_ASCEND_RANGE = 45e3
     ASCEND_RATE_LIMIT = 100.0
