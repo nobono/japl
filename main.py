@@ -24,6 +24,7 @@ from util import bound
 from util import create_C_rot
 from util import inv
 from util import check_for_events
+from util import read_config_file
 
 # ---------------------------------------------------
 
@@ -139,7 +140,15 @@ if __name__ == "__main__":
         dest="save",
         action="store_true",
     )
+    parser.add_argument(
+        "-i",
+        dest="input",
+        type=str,
+    )
     args = parser.parse_args()
+
+    # Load config file
+    config = read_config_file("template.yaml")
 
     t_array = np.linspace(t_span[0], t_span[1], int(t_span[1]/dt))
     T = np.zeros(t_array.shape)

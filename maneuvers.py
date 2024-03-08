@@ -27,6 +27,10 @@ class Maneuvers:
         self.gd_phase = 0
 
 
+    def test(rm, vm, r_targ):
+
+
+
     @staticmethod
     def weave_maneuver(t, X):
         vm = unitize(X[3:6])
@@ -38,7 +42,6 @@ class Maneuvers:
 
 
     def uo_dive(self, rm, vm, r_targ):
-        # ac = np.zeros((3,))
         CRUISE_ALT = 500.0
         ALT_RATE_LIMIT = 10.0
         r_alt = rm[2]
@@ -61,8 +64,8 @@ class Maneuvers:
                 raise Exception("unhandled event")
 
         GLIMIT = 14.0
-        if norm(ac) > GLIMIT:
-            ac = unitize(ac) * GLIMIT
+        if norm(ac) > (GLIMIT * constants.g):
+            ac = unitize(ac) * (GLIMIT * constants.g)
         return ac
 
 

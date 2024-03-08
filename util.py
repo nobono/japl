@@ -1,4 +1,8 @@
+import os
+import yaml
 import numpy as np
+
+CONFIGS_DIR = os.path.join(os.getcwd(), "configs")
 
 
 
@@ -20,6 +24,16 @@ class State:
         self.yacc = sol[:, 5]
         self.xjerk = sol[:, 6]
         self.yjerk = sol[:, 7]
+
+
+def read_config_file(filename: str):
+    with open(os.path.join(CONFIGS_DIR, filename), "r") as f:
+        try:
+            data = yaml.safe_load(f)
+        except yaml.YAMLError as e:
+            raise Exception(e)
+    return data
+
 
 
 def bound(val, lower, upper):
