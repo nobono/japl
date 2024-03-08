@@ -14,7 +14,7 @@ class OutputManager:
         # velmag = [scipy.linalg.norm(i) for i in y[:, 2:4]]
 
 
-    def plots(self):
+    def plots(self, x_axis: str=""):
         if self.args.plot_3d:
             # 3D Plot
             fig = plt.figure(figsize=(10, 8))
@@ -32,14 +32,32 @@ class OutputManager:
                 fig.savefig(os.path.join(self.dir, "3d.png"))
 
         if self.args.plot:
-            fig2, (ax2, ax3, ax4) = plt.subplots(3, figsize=(10, 8))
-            ax2.plot(self.y[:, 1], self.y[:, 2])
-            ax2.set_title("z")
-            ax3.plot(self.y[:, 1], self.y[:, 4])
-            ax3.set_title("yvel")
-            ax4.plot(self.y[:, 1], self.y[:, 5])
-            ax4.set_title("zvel")
+            fig, (ax, ax2, ax3) = plt.subplots(3, figsize=(10, 8))
+            fig.tight_layout()
+            plt.subplots_adjust(bottom=0.07, hspace=0.4)
+
+            # Choice of X-axis plot
+            match x_axis:
+                case 't' :
+                    X = self.t
+                    xlabel = 't (s)'
+                case 'N' :
+                    X = self.y[:, 1]
+                    xlabel = 'N (m)'
+                case _ :
+                    X = self.y[:, 1]
+                    xlabel = 'N (m)'
+
+            ax.plot(X, self.y[:, 2])
+            ax.set_title("z")
+            ax.set_xlabel(xlabel)
+            ax2.plot(X, self.y[:, 4])
+            ax2.set_title("yvel")
+            ax2.set_xlabel(xlabel)
+            ax3.plot(X, self.y[:, 5])
+            ax3.set_title("zvel")
+            ax3.set_xlabel(xlabel)
             if self.args.save:
-                fig2.savefig(os.path.join(self.dir, "p.png"))
+                fig.savefig(os.path.join(self.dir, "p.png"))
 
         plt.show()

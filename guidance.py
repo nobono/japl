@@ -1,6 +1,7 @@
 import numpy as np
 from util import unitize
-from scipy.linalg import norm
+from util import norm
+from util import bound
 
 
 
@@ -12,10 +13,12 @@ def pronav(rm, vm, r_targ, v_targ=np.zeros((3,)), N=4.0):
     return ac
 
 
-def PN(vm, vd) -> np.ndarray:
+def PN(vd, vm) -> np.ndarray:
     vm_hat = unitize(vm) 
     vd_hat = unitize(vd)
     ac = np.cross(np.arcsin(np.cross(vm_hat, vd_hat)) / norm(vm), vd_hat)
+    # ac_hat = unitize(vd - vm)
+    # np.arcsin(norm(np.cross(vm_hat, vd_hat)))
     return ac
 
 
@@ -23,8 +26,10 @@ def p_controller(desired, value, gain):
     return gain * (desired - value)
 
 
-def pd_controller(rd, rm, vd, vm, kp, kd):
-    ac = kp * (rd - rm)
-    ac = ac + kd * (vd - vm)
-    return ac
+def pd_controller(desired, value, rate, KP, KD, bounds: list=[]):
+    desired_rate = KP * (desired - value)
+    if len(bounds) == 2:
+        desired_rate = bound(desired_rate, bounds[0], bounds[1])
+    out = KD * (desired_rate - rate)
+    return out
 

@@ -35,6 +35,9 @@ def read_config_file(filename: str):
     return data
 
 
+def norm(vec: np.ndarray) -> float:
+    return np.linalg.norm(vec) #type:ignore
+
 
 def bound(val, lower, upper):
     return min(max((val), lower), upper)

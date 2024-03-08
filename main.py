@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 
 # ---------------------------------------------------
 
-from scipy.linalg import norm
 from scipy.integrate import solve_ivp
 from scipy import constants
 
@@ -25,6 +24,7 @@ from util import create_C_rot
 from util import inv
 from util import check_for_events
 from util import read_config_file
+from util import norm
 
 # ---------------------------------------------------
 
@@ -70,42 +70,21 @@ def atmosphere_model(rm, vm):
 
 
 def guidance_func(t, rm, vm, r_targ):
-    ATTACK_SPEED = 400.0
-    K_spd = 0.05
-
-    spd_err = ATTACK_SPEED - norm(vm)
-    ac = spd_err * K_spd * unitize(vm)
-    ac = ac + guidance.pronav(rm, vm, r_targ)
-
-    GLIMIT = 14.0
-    if norm(ac) > (GLIMIT * constants.g):
-        ac = unitize(ac) * (GLIMIT * constants.g)
+    # ac = guidance_func(rm, vm, r_targ)
+    # ac = maneuvers.popup(rm, vm, r_targ)
+    # ac = maneuvers.uo_dive(rm, vm, r_targ)
+    ac = maneuvers.test(t, rm, vm, r_targ)
     return ac
 
 
 def dynamics_func(t, X, ss, r_targ):
     rm = X[:3]
     vm = X[3:6]
-    # ac = guidance_func(rm, vm, r_targ)
-    # ac = maneuvers.popup(rm, vm, r_targ)
-    ac = maneuvers.uo_dive(rm, vm, r_targ)
+    ac = guidance_func(t, rm, vm, r_targ)
     a_drag = np.zeros((3,)) #atmosphere_model(rm, vm)
     U = np.array([*a_drag, *ac])
     Xdot = ss.A @ X + ss.B @ U
     return Xdot
-
-
-# Inits
-####################################
-t_span = [0, 50]
-dt = 0.01
-
-x0 = ss.get_init_state()
-x0[:3] = np.array([0, 50e3, 1e3])    #R0
-x0[3:6] = np.array([0, -200, 0])   #V0
-
-targ_R0 = np.array([0, 0, 0])
-####################################
 
 
 # Events
@@ -149,6 +128,18 @@ if __name__ == "__main__":
 
     # Load config file
     config = read_config_file("template.yaml")
+
+    # Inits
+    ####################################
+    t_span = [0, 100]
+    dt = 0.01
+
+    x0 = ss.get_init_state()
+    x0[:3] = np.array([0, 50e3, 5e3])    #R0
+    x0[3:6] = np.array([0, -200, 0])   #V0
+
+    targ_R0 = np.array([0, 0, 0])
+    ####################################
 
     t_array = np.linspace(t_span[0], t_span[1], int(t_span[1]/dt))
     T = np.zeros(t_array.shape)
@@ -210,4 +201,4 @@ if __name__ == "__main__":
 
     r_pop1 = np.array([0, 47e3, 90])
     r_pop2 = np.array([0, 45e3, 10])
-    OutputManager(args, T, Y, [r_pop1, r_pop2]).plots()
+    OutputManager(args, T, Y, [r_pop1, r_pop2]).plots(x_axis='t')

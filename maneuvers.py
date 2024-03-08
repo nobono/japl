@@ -14,7 +14,7 @@ import guidance
 # ---------------------------------------------------
 
 from scipy import constants
-from scipy.linalg import norm
+from util import norm
 
 # ---------------------------------------------------
 
@@ -27,7 +27,46 @@ class Maneuvers:
         self.gd_phase = 0
 
 
-    def test(rm, vm, r_targ):
+    def next_phase_condition(self, value: bool) -> None:
+        if value:
+            self.gd_phase += 1
+
+
+    def test(self, t, rm: np.ndarray, vm, r_targ):
+        START_DIVE_RANGE = 45e3
+        ALT_RATE_LIMIT = 1000.0
+        CRUISE_ALT = 4e3
+        ALT_TIME_CONST = 30.0 # (s)
+
+        r_range = norm(rm)
+        alt = rm[2]
+        alt_dot = vm[2]
+        C_i_v = create_C_rot(vm)
+
+        match self.gd_phase:
+            case 0 :
+                ac = np.zeros((3,))
+                # self.next_phase_condition(r_range <= START_DIVE_RANGE)
+                self.next_phase_condition(t >= 0.)
+            case 1 :
+                # Descend
+                # KP = 1.0 / ALT_TIME_CONST
+                # KD = 0.7
+                # bounds = [-ALT_RATE_LIMIT, ALT_RATE_LIMIT]
+                # ac_alt = guidance.pd_controller(CRUISE_ALT, alt, alt_dot, KP, KD, bounds=bounds)
+                # ac = C_i_v @ np.array([0, 0, ac_alt])
+                #################
+                KP = 1.0 / ALT_TIME_CONST
+                vd = np.array([0, 0, 0])
+                ac = guidance.PN(vd, vm)
+            case _ :
+                ac = np.zeros((3,))
+                raise Exception("unhandled event")
+
+        GLIMIT = 14.0
+        if norm(ac) > (GLIMIT * constants.g):
+            ac = unitize(ac) * (GLIMIT * constants.g)
+        return ac
 
 
 
