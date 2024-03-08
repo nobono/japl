@@ -1,8 +1,5 @@
 import control as ct
-from scipy.integrate import solve_ivp
-from scipy.integrate._ivp.base import OdeSolver
 import matplotlib.pyplot as plt
-import scipy
 import numpy as np
 
 

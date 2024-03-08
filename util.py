@@ -62,18 +62,36 @@ def create_C_rot(vm):
         ]))
 
 
-def create_rot_mat(a: np.ndarray, b: np.ndarray) -> np.ndarray:
-    """Uses Rodriguez Rotation formula"""
-    assert len(a) == len(b)
-    N = len(a)
-    rot_axis = np.cross(a, b)
-    rot_ang = np.dot(a, b)
-    S = skew(a)
-    R = np.eye(N) + S + (S @ S) * ((1 - rot_ang) / (np.linalg.norm(rot_axis)**2))
+def rodriguez_axis_angle(axis: np.ndarray, ang: float) -> np.ndarray:
+    """Uses Rodriguez Rotation formula and returns a 
+    rotation matrix"""
+    N = len(axis)
+    S = skew(axis)
+    R = np.eye(N) + np.sin(ang) * S + (1 - np.cos(ang)) * (S @ S)
     return R
 
 
+def create_rot_from_vecs(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Uses Rodriguez Rotation formula to create rotation
+    matrix between two vectors"""
+    assert len(a) > 1
+    assert len(a) == len(b)
+    N = len(a)
+    axis = np.cross(a, b)
+    ang = np.dot(a, b)
+    S = skew(unitize(axis))
+    R = np.eye(N) + norm(axis) * S + (1 - ang) * (S @ S)
+    return R
+
+
+def create_rot_mat(vm: np.ndarray):
+    """creates rotation matrix from velocity vector
+    (vehicle body rotation matrix)"""
+    return create_rot_from_vecs(np.array([0, 1, 0]), vm)
+
+
 def skew(vec: np.ndarray):
+    """creates skew matrix from vector"""
     return np.array([
         [0, -vec[2], vec[1]],
         [vec[2], 0, -vec[0]],
