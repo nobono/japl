@@ -5,6 +5,7 @@ from util import unitize
 from util import skew
 from numpy.linalg import norm
 import mpmath
+from util import create_C_rot
 
 
 
@@ -19,7 +20,11 @@ mat = np.array([
     zz
 ]).T
 
-inv1 = np.linalg.inv(mat)
-r = inv1 @ np.array([0, 1, 0])
-print(r)
-print(norm(r))
+# inv1 = np.linalg.inv(mat)
+# r = inv1 @ np.array([0, 1, 0])
+# print(r)
+# print(norm(r))
+
+C = create_C_rot(vm)
+print(C @ np.array([0, 3, 0]))
+     

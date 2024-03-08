@@ -49,6 +49,11 @@ from output import OutputManager
 
 # ---------------------------------------------------
 
+from events import hit_ground_event
+from events import hit_target_event
+
+# ---------------------------------------------------
+
 
 ss = FirstOrderInput()
 atmosphere = Atmosphere()
@@ -87,20 +92,6 @@ def dynamics_func(t, X, ss, r_targ):
     return Xdot
 
 
-# Events
-####################################
-def hit_ground_event(t, X, ss, r_targ):
-    return X[2]
-hit_ground_event.terminal = True
-
-def hit_target_event(t, X, ss, r_targ):
-    rm = X[:3]
-    hit_dist = r_targ - rm
-    return  hit_dist[0] + hit_dist[1] + hit_dist[2]
-    
-hit_target_event.terminal = True
-####################################
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -131,11 +122,11 @@ if __name__ == "__main__":
 
     # Inits
     ####################################
-    t_span = [0, 100]
+    t_span = [0, 300]
     dt = 0.01
 
     x0 = ss.get_init_state()
-    x0[:3] = np.array([0, 50e3, 5e3])    #R0
+    x0[:3] = np.array([0, 50e3, 10])    #R0
     x0[3:6] = np.array([0, -200, 0])   #V0
 
     targ_R0 = np.array([0, 0, 0])
@@ -147,36 +138,55 @@ if __name__ == "__main__":
     T[0] = t_span[0]
     Y[0] = x0
 
-    for istep, (tstep_prev, tstep) in tqdm(enumerate(zip(t_array, t_array[1:])),
-                                           total=len(t_array)):
+    ##############################
+    sol = solve_ivp(
+            dynamics_func,
+            t_span=t_span,
+            t_eval=t_array,
+            y0=x0,
+            args=(ss, targ_R0),
+            events=[
+                hit_target_event,
+                hit_ground_event,
+                ],
+            rtol=1e-3,
+            atol=1e-6,
+            max_step=0.2,
+            )
+    T = sol['t']
+    Y = sol['y'].T
+    ##############################
+     
+    # for istep, (tstep_prev, tstep) in tqdm(enumerate(zip(t_array, t_array[1:])),
+    #                                        total=len(t_array)):
 
-        sol = solve_ivp(
-                dynamics_func,
-                t_span=(tstep_prev, tstep),
-                t_eval=[tstep],
-                y0=x0,
-                args=(ss, targ_R0),
-                events=[
-                    hit_target_event,
-                    hit_ground_event,
-                    ],
-                rtol=1e-3,
-                atol=1e-6,
-                )
+    #     sol = solve_ivp(
+    #             dynamics_func,
+    #             t_span=(tstep_prev, tstep),
+    #             t_eval=[tstep],
+    #             y0=x0,
+    #             args=(ss, targ_R0),
+    #             events=[
+    #                 hit_target_event,
+    #                 hit_ground_event,
+    #                 ],
+    #             rtol=1e-3,
+    #             atol=1e-6,
+    #             )
 
-        # check for stop event
-        if check_for_events(sol['t_events']):
-            # truncate output arrays if early stoppage
-            T = T[:istep + 1]
-            Y = Y[:istep + 1]
-            break
-        else:
-            # store output
-            t = sol['t'][0]
-            y = sol['y'].T[0]
-            T[istep + 1] = t
-            Y[istep + 1] = y
-            x0 = Y[istep + 1]
+    #     # check for stop event
+    #     if check_for_events(sol['t_events']):
+    #         # truncate output arrays if early stoppage
+    #         T = T[:istep + 1]
+    #         Y = Y[:istep + 1]
+    #         break
+    #     else:
+    #         # store output
+    #         t = sol['t'][0]
+    #         y = sol['y'].T[0]
+    #         T[istep + 1] = t
+    #         Y[istep + 1] = y
+    #         x0 = Y[istep + 1]
 
     # r_pop1 = np.array([0, 47e3, 90])
     # r_pop2 = np.array([0, 45e3, 10])

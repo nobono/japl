@@ -50,15 +50,15 @@ class Maneuvers:
                 self.next_phase_condition(t >= 0.)
             case 1 :
                 # Descend
-                # KP = 1.0 / ALT_TIME_CONST
-                # KD = 0.7
-                # bounds = [-ALT_RATE_LIMIT, ALT_RATE_LIMIT]
-                # ac_alt = guidance.pd_controller(CRUISE_ALT, alt, alt_dot, KP, KD, bounds=bounds)
-                # ac = C_i_v @ np.array([0, 0, ac_alt])
-                #################
                 KP = 1.0 / ALT_TIME_CONST
-                vd = np.array([0, 0, 0])
-                ac = guidance.PN(vd, vm)
+                KD = 0.7
+                bounds = [-ALT_RATE_LIMIT, ALT_RATE_LIMIT]
+                ac_alt = guidance.pd_controller(CRUISE_ALT, alt, alt_dot, KP, KD, bounds=bounds)
+                ac = C_i_v @ np.array([0, 0, ac_alt])
+                #################
+                # KP = 1.0 / ALT_TIME_CONST
+                # vd = np.array([0, 0, 0])
+                # ac = guidance.PN(vd, vm)
             case _ :
                 ac = np.zeros((3,))
                 raise Exception("unhandled event")
@@ -108,7 +108,7 @@ class Maneuvers:
         return ac
 
 
-    def popup(self, rm, vm, r_targ):
+    def popup_maneuver(self, rm, vm, r_targ):
         ASCEND_SPEED = 400.0
         CRUISE_ALT = 10.0
         START_ASCEND_RANGE = 45e3
