@@ -147,27 +147,6 @@ if __name__ == "__main__":
     T[0] = t_span[0]
     Y[0] = x0
 
-    ##########################
-    # sol = solve_ivp(
-    #         dynamics_func,
-    #         t_span=t_span,
-    #         t_eval=t_array,
-    #         y0=x0,
-    #         args=(ss, targ_R0),
-    #         events=[
-    #             hit_target_event,
-    #             hit_ground_event,
-    #             ],
-    #         rtol=1e-3,
-    #         atol=1e-6,
-    #         )
-    # t = sol['t']
-    # y = sol['y'].T
-    # r_pop1 = np.array([0, 47e3, 90])
-    # r_pop2 = np.array([0, 45e3, 10])
-    # OutputManager(args, t, y, [r_pop1, r_pop2]).plots()
-    ##########################
-
     for istep, (tstep_prev, tstep) in tqdm(enumerate(zip(t_array, t_array[1:])),
                                            total=len(t_array)):
 
@@ -199,6 +178,7 @@ if __name__ == "__main__":
             Y[istep + 1] = y
             x0 = Y[istep + 1]
 
-    r_pop1 = np.array([0, 47e3, 90])
-    r_pop2 = np.array([0, 45e3, 10])
-    OutputManager(args, T, Y, [r_pop1, r_pop2]).plots(x_axis='t')
+    # r_pop1 = np.array([0, 47e3, 90])
+    # r_pop2 = np.array([0, 45e3, 10])
+    plot_points = []
+    OutputManager(args, T, Y, plot_points).plots(x_axis='t')
