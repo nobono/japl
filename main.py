@@ -22,7 +22,6 @@ from util import unitize
 from util import bound
 from util import create_C_rot
 from util import inv
-from util import check_for_events
 from util import read_config_file
 from util import norm
 
@@ -51,6 +50,7 @@ from output import OutputManager
 
 from events import hit_ground_event
 from events import hit_target_event
+from events import check_for_events
 
 # ---------------------------------------------------
 

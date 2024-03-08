@@ -98,9 +98,3 @@ def skew(vec: np.ndarray):
         [-vec[1], vec[0], 0]
     ])
 
-
-def check_for_events(t_events):
-    for event in t_events:
-        if len(event):
-            return True
-    return False

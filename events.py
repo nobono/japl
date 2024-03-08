@@ -13,3 +13,10 @@ def hit_target_event(t, X, ss, r_targ):
     
 hit_target_event.terminal = True
 
+
+def check_for_events(t_events):
+    for event in t_events:
+        if len(event):
+            return True
+    return False
+
