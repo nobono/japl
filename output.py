@@ -37,7 +37,7 @@ class OutputManager:
                 fig.savefig(os.path.join(self.dir, "3d.png"))
 
         if self.args.plot:
-            fig, (ax, ax2, ax3, ax4) = plt.subplots(4, figsize=(12, 10))
+            fig, axs = plt.subplots(3, figsize=(12, 10), squeeze=True)
             fig.tight_layout()
             plt.subplots_adjust(left=0.06, bottom=0.07, hspace=0.4)
 
@@ -53,21 +53,21 @@ class OutputManager:
                     X = self.y[:, 1]
                     xlabel = 'N (m)'
 
-            ax.set_title("yz")
-            ax.plot(X, self.y[:, 2])
-            ax.set_xlabel(xlabel)
+            axs[0].set_title("yz")
+            axs[0].plot(X, self.y[:, 2])
+            axs[0].set_xlabel(xlabel)
 
-            ax2.set_title("xy")
-            ax2.plot(X, self.y[:, 0])
-            ax2.set_xlabel(xlabel)
+            axs[1].set_title("xy")
+            axs[1].plot(X, self.y[:, 0])
+            axs[1].set_xlabel(xlabel)
 
-            ax3.set_title("velmag")
-            ax3.plot(X, self.velmag)
-            ax3.set_xlabel(xlabel)
+            axs[2].set_title("velmag")
+            axs[2].plot(X, self.velmag)
+            axs[2].set_xlabel(xlabel)
 
-            ax4.set_title("theta")
-            ax4.plot(X, self.theta)
-            # ax4.set_xlabel(xlabel)
+            # axs[3].set_title("theta")
+            # axs[3].plot(X, self.theta)
+
             if self.args.save:
                 fig.savefig(os.path.join(self.dir, "p.png"))
 

@@ -33,7 +33,7 @@ class Maneuvers:
 
 
     def test(self, t, rm: np.ndarray, vm, r_targ):
-        START_DIVE_RANGE = 45e3
+        START_DIVE_RANGE = 40e3
         ALT_RATE_LIMIT = 1000.0
         CRUISE_ALT = 4e3
         ALT_TIME_CONST = 30.0 # (s)
@@ -53,8 +53,11 @@ class Maneuvers:
                 KP = 1.0 / ALT_TIME_CONST
                 KD = 0.7
                 bounds = [-ALT_RATE_LIMIT, ALT_RATE_LIMIT]
-                ac_alt = guidance.pd_controller(CRUISE_ALT, alt, alt_dot, KP, KD, bounds=bounds)
-                ac = C_i_v @ np.array([0, 0, ac_alt])
+                # ac_alt = guidance.pd_controller(CRUISE_ALT, alt, alt_dot, KP, KD, bounds=bounds)
+                # ac = C_i_v @ np.array([0, 0, ac_alt])
+                desired_rate = KP * (CRUISE_ALT - alt)
+                desired_rate = bound(desired_rate, bounds[0], bounds[1])
+                ac = np.array([0, 0, desired_rate])
                 #################
                 # KP = 1.0 / ALT_TIME_CONST
                 # vd = np.array([0, 0, 0])
@@ -63,9 +66,9 @@ class Maneuvers:
                 ac = np.zeros((3,))
                 raise Exception("unhandled event")
 
-        GLIMIT = 14.0
-        if norm(ac) > (GLIMIT * constants.g):
-            ac = unitize(ac) * (GLIMIT * constants.g)
+        # GLIMIT = 14.0
+        # if norm(ac) > (GLIMIT * constants.g):
+        #     ac = unitize(ac) * (GLIMIT * constants.g)
         return ac
 
 

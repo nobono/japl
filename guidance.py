@@ -3,6 +3,7 @@ from util import unitize
 from util import norm
 from util import bound
 from util import vec_proj
+from scipy import constants
 
 
 
@@ -14,7 +15,7 @@ def pronav(rm, vm, r_targ, v_targ=np.zeros((3,)), N=4.0):
     return ac
 
 
-def PN(vd, vm, G_LIMIT, bounds: list=[]) -> np.ndarray:
+def PN(vd, vm, TC, bounds: list=[]) -> np.ndarray:
     """
     @args
     vd - desired velocity vector
@@ -32,7 +33,7 @@ def PN(vd, vm, G_LIMIT, bounds: list=[]) -> np.ndarray:
 
     ang = np.arccos(np.dot(vd_hat, vm_hat))
     ac_hat = unitize(np.cross(vm_hat, unitize(rot_axis)))
-    turn_accel = ang * (norm(vm) / G_LIMIT)
+    turn_accel = ang * (norm(vm) /  TC)
     if len(bounds) == 2:
         turn_accel = bound(turn_accel, bounds[0], bounds[1])
     ac = ac_hat * turn_accel

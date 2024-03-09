@@ -79,10 +79,38 @@ def guidance_func(t, rm, vm, r_targ, config):
     # ac = guidance_func(rm, vm, r_targ)
     # ac = maneuvers.popup(rm, vm, r_targ)
     # ac = maneuvers.uo_dive(rm, vm, r_targ)
-    # ac = maneuvers.test(t, rm, vm, r_targ)
+    vd = maneuvers.test(t, rm, vm, r_targ)
     # ac = maneuvers.weave_maneuver(t, vm)
-    ac = guidance.PN(np.array([0, 1, 0]), vm, 1, bounds=[-(GLIMIT * constants.g), (GLIMIT * constants.g)])
-    if norm(ac) > (GLIMIT * constants.g):
+    # vd = np.array([0, -1, 50 * np.sin(0.1 * t)])
+    ac = guidance.PN(vd, vm, 1,
+                     bounds=[-(GLIMIT * constants.g), (GLIMIT * constants.g)])
+    ################################
+    # alt_des = 50 * np.sin(.2 * t) + rm[2]
+    # ALT_RATE_LIMIT = 1000.0
+    # ALT_TIME_CONST = 10.0 # (s)
+    # KP = 1.0 / ALT_TIME_CONST
+    # KD = 0.7
+    # alt = rm[2]
+    # alt_dot = vm[2]
+    # C_i_v = create_C_rot(vm)
+    # bounds = [-ALT_RATE_LIMIT, ALT_RATE_LIMIT]
+    # ac_alt = guidance.pd_controller(alt_des, alt, alt_dot, KP, KD, bounds=bounds)
+    # ac = C_i_v @ np.array([0, 0, ac_alt])
+    # #####
+    # x_des = 50 * np.cos(.2 * t) + rm[0]
+    # ALT_RATE_LIMIT = 1000.0
+    # ALT_TIME_CONST = 10.0 # (s)
+    # KP = 1.0 / ALT_TIME_CONST
+    # KD = 0.7
+    # x = rm[0]
+    # x_dot = vm[0]
+    # C_i_v = create_C_rot(vm)
+    # bounds = [-ALT_RATE_LIMIT, ALT_RATE_LIMIT]
+    # x_alt = guidance.pd_controller(x_des, x, x_dot, KP, KD, bounds=bounds)
+    # ac = ac + C_i_v @ np.array([0, x_alt, 0])
+    ################################
+
+    if (norm(ac) - (GLIMIT * constants.g)) > 1e-8:
         ac = unitize(ac) * (GLIMIT * constants.g)
     return ac
 
@@ -130,12 +158,16 @@ if __name__ == "__main__":
 
     # Inits
     ####################################
-    t_span = [0, 150]
-    dt = 0.01
+    # t_span = [0, 5]
+    # dt = 0.01
+    t_span = config.get("t_span", [0, 200])
+    dt = config.get("dt", 0.01)
 
     x0 = ss.get_init_state()
-    x0[:3] = np.array([0, 50e3, 10])    #R0
-    x0[3:6] = np.array([0, -200, 0])   #V0
+    # x0[:3] = np.array([0, 50e3, 10])    #R0
+    # x0[3:6] = np.array([0, -200, 0])   #V0
+    x0[:3] = config.get("R0", np.array([0, 50e3, 10]))
+    x0[3:6] = config.get("V0", np.array([0, -200, 0]))
 
     targ_R0 = np.array([0, 0, 0])
     ####################################
