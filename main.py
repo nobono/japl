@@ -79,11 +79,11 @@ def guidance_func(t, rm, vm, r_targ, config):
     # ac = guidance_func(rm, vm, r_targ)
     # ac = maneuvers.popup(rm, vm, r_targ)
     # ac = maneuvers.uo_dive(rm, vm, r_targ)
-    vd = maneuvers.test(t, rm, vm, r_targ)
+    ac = maneuvers.test(t, rm, vm, r_targ)
     # ac = maneuvers.weave_maneuver(t, vm)
     # vd = np.array([0, -1, 50 * np.sin(0.1 * t)])
-    ac = guidance.PN(vd, vm, 1,
-                     bounds=[-(GLIMIT * constants.g), (GLIMIT * constants.g)])
+    # ac = guidance.PN(vd, vm, 1,
+    #                  bounds=[-(GLIMIT * constants.g), (GLIMIT * constants.g)])
     ################################
     # alt_des = 50 * np.sin(.2 * t) + rm[2]
     # ALT_RATE_LIMIT = 1000.0
