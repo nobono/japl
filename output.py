@@ -1,5 +1,8 @@
 import os
 import matplotlib.pyplot as plt
+from util import norm
+from util import unitize
+import numpy as np
 
 
 class OutputManager:
@@ -11,7 +14,9 @@ class OutputManager:
         self.t = t
         self.y = y
         self.points = points
-        # velmag = [scipy.linalg.norm(i) for i in y[:, 2:4]]
+        self.velmag = [norm(i) for i in y[:, 3:6]]
+        yy = np.array([0, -1, 0])
+        self.theta = [np.degrees(np.arccos(np.dot(yy, unitize(vm)))) for vm in y[:, 3:6]]
 
 
     def plots(self, x_axis: str=""):
@@ -32,9 +37,9 @@ class OutputManager:
                 fig.savefig(os.path.join(self.dir, "3d.png"))
 
         if self.args.plot:
-            fig, (ax, ax2, ax3) = plt.subplots(3, figsize=(10, 8))
+            fig, (ax, ax2, ax3, ax4) = plt.subplots(4, figsize=(12, 10))
             fig.tight_layout()
-            plt.subplots_adjust(bottom=0.07, hspace=0.4)
+            plt.subplots_adjust(left=0.06, bottom=0.07, hspace=0.4)
 
             # Choice of X-axis plot
             match x_axis:
@@ -48,15 +53,21 @@ class OutputManager:
                     X = self.y[:, 1]
                     xlabel = 'N (m)'
 
+            ax.set_title("yz")
             ax.plot(X, self.y[:, 2])
-            ax.set_title("z")
             ax.set_xlabel(xlabel)
-            ax2.plot(X, self.y[:, 4])
-            ax2.set_title("yvel")
+
+            ax2.set_title("xy")
+            ax2.plot(X, self.y[:, 0])
             ax2.set_xlabel(xlabel)
-            ax3.plot(X, self.y[:, 5])
-            ax3.set_title("zvel")
+
+            ax3.set_title("velmag")
+            ax3.plot(X, self.velmag)
             ax3.set_xlabel(xlabel)
+
+            ax4.set_title("theta")
+            ax4.plot(X, self.theta)
+            # ax4.set_xlabel(xlabel)
             if self.args.save:
                 fig.savefig(os.path.join(self.dir, "p.png"))
 

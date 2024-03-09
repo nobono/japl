@@ -98,3 +98,8 @@ def skew(vec: np.ndarray):
         [-vec[1], vec[0], 0]
     ])
 
+
+def vec_proj(a: np.ndarray, b: np.ndarray):
+    """vector projection of vec a onto vec b"""
+    return unitize(b) * (np.dot(a, b) / norm(b))
+

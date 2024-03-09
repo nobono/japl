@@ -74,18 +74,23 @@ def atmosphere_model(rm, vm):
     return np.array([xfd, yfd, zfd])
 
 
-def guidance_func(t, rm, vm, r_targ):
+def guidance_func(t, rm, vm, r_targ, config):
+    GLIMIT = 14.0
     # ac = guidance_func(rm, vm, r_targ)
     # ac = maneuvers.popup(rm, vm, r_targ)
     # ac = maneuvers.uo_dive(rm, vm, r_targ)
-    ac = maneuvers.test(t, rm, vm, r_targ)
+    # ac = maneuvers.test(t, rm, vm, r_targ)
+    # ac = maneuvers.weave_maneuver(t, vm)
+    ac = guidance.PN(np.array([0, 1, 0]), vm, 1, bounds=[-(GLIMIT * constants.g), (GLIMIT * constants.g)])
+    if norm(ac) > (GLIMIT * constants.g):
+        ac = unitize(ac) * (GLIMIT * constants.g)
     return ac
 
 
-def dynamics_func(t, X, ss, r_targ):
+def dynamics_func(t, X, ss, r_targ, config):
     rm = X[:3]
     vm = X[3:6]
-    ac = guidance_func(t, rm, vm, r_targ)
+    ac = guidance_func(t, rm, vm, r_targ, config)
     a_drag = np.zeros((3,)) #atmosphere_model(rm, vm)
     U = np.array([*a_drag, *ac])
     Xdot = ss.A @ X + ss.B @ U
@@ -114,15 +119,18 @@ if __name__ == "__main__":
         "-i",
         dest="input",
         type=str,
+        default="",
     )
     args = parser.parse_args()
 
     # Load config file
-    config = read_config_file("template.yaml")
+    config = {}
+    if args.input:
+        config = read_config_file(args.input)
 
     # Inits
     ####################################
-    t_span = [0, 300]
+    t_span = [0, 150]
     dt = 0.01
 
     x0 = ss.get_init_state()
@@ -144,7 +152,7 @@ if __name__ == "__main__":
             t_span=t_span,
             t_eval=t_array,
             y0=x0,
-            args=(ss, targ_R0),
+            args=(ss, targ_R0, config),
             events=[
                 hit_target_event,
                 hit_ground_event,
@@ -191,4 +199,4 @@ if __name__ == "__main__":
     # r_pop1 = np.array([0, 47e3, 90])
     # r_pop2 = np.array([0, 45e3, 10])
     plot_points = []
-    OutputManager(args, T, Y, plot_points).plots(x_axis='t')
+    OutputManager(args, T, Y, plot_points).plots(x_axis='x')

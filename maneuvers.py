@@ -71,10 +71,10 @@ class Maneuvers:
 
 
     @staticmethod
-    def weave_maneuver(t, X):
-        vm = unitize(X[3:6])
+    def weave_maneuver(t, vm):
+        vm_hat = unitize(vm)
         base2 = [0, 0, 1]
-        mat = np.array([vm, np.cross(vm, base2), base2])
+        mat = np.array([vm_hat, np.cross(vm_hat, base2), base2])
         Rt = inv(mat)
         ac = np.array([0, np.sin(0.5 * t), 0])
         return Rt @ ac
@@ -94,8 +94,10 @@ class Maneuvers:
                 ascend_rate = K_P * (CRUISE_ALT - r_alt)
                 ac_alt = K_D * (ascend_rate - alt_dot)
                 ac_alt = bound(ac_alt, -ALT_RATE_LIMIT, ALT_RATE_LIMIT)
-                C_i_v = create_C_rot(vm)
-                ac = C_i_v @ np.array([0, 0, ac_alt])
+                ac = np.zeros((3,))
+                ac[2] += ac_alt
+                # C_i_v = create_C_rot(vm)
+                # ac = C_i_v @ np.array([0, 0, ac_alt])
                 # if r_range <= START_ASCEND_RANGE:
                 #     self.gd_phase += 1
             case _ :
