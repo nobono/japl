@@ -1,6 +1,6 @@
 init:
   dt: 0.01
-  t_span: [0, 25]
+  t_span: [0, 50]
   R0: [0, 50e3, 10e3]
   V0: [0, -200, 0]
 
@@ -21,10 +21,20 @@ guidance:
     #     KD: 1.0
     ################################
     0:
-      # PN:
-      #   TIME_CONST: 20.0
-      #   VEL_DESIRED: [0, -10, 10]
+      PN:
+        TIME_CONST: 20.0
+        # VEL_HAT_DESIRED: [0, -cos(2), 1]
+        AXIS: [-1, 0, 0] # (axis of rotation)
+        ANGLE: 20.0     # (deg)
       speed_controller:
         TIME_CONST: 5.0
         VALUE: speed
         DESIRED: 300.0
+
+plot:
+  YZ:
+    x_axis: 'north'
+    y_axis: 'alt'
+  Speed:
+    x_axis: 'north'
+    y_axis: 'speed'

@@ -3,6 +3,7 @@ from util import unitize
 from util import norm
 from util import bound
 from util import vec_proj
+from util import rodriguez_axis_angle
 from scipy import constants
 
 
@@ -32,13 +33,20 @@ class Guidance:
         vm - velocity vector
         G_LIMIT - 
         """
-        vd = args.get("VEL_DESIRED", None)
-        if vd is None:
-            raise Exception("guidance.PN() required VEL_DESIRED argument")
         TIME_CONST = args.get("TIME_CONST", None)
         if TIME_CONST is None:
             raise Exception("guidance.PN() required TIME_CONST argument")
+
         vm = state.get("vm")
+        if "ANGLE" in args and "AXIS" in args:
+            axis = unitize(np.asarray(args.get("AXIS")))
+            ang = np.radians(args.get("ANGLE"))
+            R = rodriguez_axis_angle(axis, ang)
+            vd = R @ vm
+        else:
+            vd = args.get("VEL_HAT_DESIRED", None)
+            if vd is None:
+                raise Exception("guidance.PN() required VEL_HAT_DESIRED argument")
 
         bounds = args.get("bounds", [])
         vm_hat = unitize(vm) 

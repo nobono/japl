@@ -280,4 +280,5 @@ if __name__ == "__main__":
     # r_pop1 = np.array([0, 47e3, 90])
     # r_pop2 = np.array([0, 45e3, 10])
     plot_points = []
-    OutputManager(args, T, Y, plot_points).plots(x_axis='x')
+    plot_config = config.get("plot", {})
+    OutputManager(args, plot_config, T, Y, plot_points).plots()

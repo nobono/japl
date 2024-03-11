@@ -9,8 +9,9 @@ class OutputManager:
     dir = "./data"
     
 
-    def __init__(self, args, t, y, points: list=[]) -> None:
+    def __init__(self, args, config, t, y, points: list=[]) -> None:
         self.args = args
+        self.config = config
         self.t = t
         self.y = y
         self.points = points
@@ -19,7 +20,7 @@ class OutputManager:
         self.theta = [np.degrees(np.arccos(np.dot(yy, unitize(vm)))) for vm in y[:, 3:6]]
 
 
-    def plots(self, x_axis: str=""):
+    def plots(self):
         if self.args.plot_3d:
             # 3D Plot
             fig = plt.figure(figsize=(10, 8))
@@ -37,36 +38,91 @@ class OutputManager:
                 fig.savefig(os.path.join(self.dir, "3d.png"))
 
         if self.args.plot:
-            fig, axs = plt.subplots(3, figsize=(10, 8), squeeze=True)
+            num_plots = len(self.config)
+            fig, axs = plt.subplots(num_plots, figsize=(10, 8), squeeze=True)
             fig.tight_layout()
-            plt.subplots_adjust(left=0.06, bottom=0.07, hspace=0.4)
+            plt.subplots_adjust(left=0.08, bottom=0.07, hspace=0.4)
 
-            # Choice of X-axis plot
-            match x_axis:
-                case 't' :
-                    X = self.t
-                    xlabel = 't (s)'
-                case 'N' :
-                    X = self.y[:, 1]
-                    xlabel = 'N (m)'
-                case _ :
-                    X = self.y[:, 1]
-                    xlabel = 'N (m)'
+            for iax, nplot in enumerate(self.config):
+                title = nplot
+                x_axis = self.config[nplot].get("x_axis", "")
+                y_axis = self.config[nplot].get("y_axis", "")
+                # Choice of X-axis plot
+                match x_axis.lower():
+                    case 'time' :
+                        X = self.t
+                        xlabel = 't (s)'
+                    case 'alt' :
+                        X = self.y[:, 2]
+                        xlabel = 'Alt (m)'
+                    case 'north' :
+                        X = self.y[:, 1]
+                        xlabel = 'N (m)'
+                    case 'east' :
+                        X = self.y[:, 0]
+                        xlabel = 'E (m)'
+                    case 'alt_dot' :
+                        X = self.y[:, 5]
+                        xlabel = 'Alt (m/s)'
+                    case 'north_dot' :
+                        X = self.y[:, 4]
+                        xlabel = 'N (m/s)'
+                    case 'east_dot' :
+                        X = self.y[:, 3]
+                        xlabel = 'E (m/s)'
+                    case _ :
+                        X = self.y[:, 1]
+                        xlabel = 'N (m)'
 
-            axs[0].set_title("yz")
-            axs[0].plot(X, self.y[:, 2])
-            axs[0].set_xlabel(xlabel)
+                # Choice of X-axis plot
+                match y_axis.lower():
+                    case 'alt' :
+                        Y = self.y[:, 2]
+                        ylabel = 'Alt (m)'
+                    case 'north' :
+                        Y = self.y[:, 1]
+                        ylabel = 'N (m)'
+                    case 'east' :
+                        Y = self.y[:, 0]
+                        ylabel = 'E (m)'
+                    case 'alt_dot' :
+                        y = self.y[:, 5]
+                        ylabel = 'Alt (m/s)'
+                    case 'north_dot' :
+                        Y = self.y[:, 4]
+                        ylabel = 'N (m/s)'
+                    case 'east_dot' :
+                        Y = self.y[:, 3]
+                        ylabel = 'E (m/s)'
+                    case 'speed' :
+                        Y = self.velmag
+                        ylabel = 'Speed (m/s)'
+                    case _ :
+                        Y = self.y[:, 1]
+                        ylabel = 'N (m)'
 
-            axs[1].set_title("xy")
-            axs[1].plot(X, self.y[:, 0])
-            axs[1].set_xlabel(xlabel)
+                if num_plots > 1:
+                    axs[iax].set_title(title)
+                    axs[iax].plot(X, Y)
+                    axs[iax].set_xlabel(xlabel)
+                    axs[iax].set_ylabel(ylabel)
+                else:
+                    axs.set_title(title)
+                    axs.plot(X, Y)
+                    axs.set_xlabel(xlabel)
+                    axs.set_ylabel(ylabel)
 
-            axs[2].set_title("velmag")
-            axs[2].plot(X, self.velmag)
-            axs[2].set_xlabel(xlabel)
 
-            # axs[3].set_title("theta")
-            # axs[3].plot(X, self.theta)
+                # axs[1].set_title("xy")
+                # axs[1].plot(X, self.y[:, 0])
+                # axs[1].set_xlabel(xlabel)
+
+                # axs[2].set_title("velmag")
+                # axs[2].plot(X, self.velmag)
+                # axs[2].set_xlabel(xlabel)
+
+                # axs[3].set_title("theta")
+                # axs[3].plot(X, self.theta)
 
             if self.args.save:
                 fig.savefig(os.path.join(self.dir, "p.png"))
