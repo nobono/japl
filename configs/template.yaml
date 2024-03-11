@@ -1,35 +1,64 @@
 init:
   dt: 0.01
-  t_span: [0, 50]
-  R0: [0, 50e3, 10e3]
+  t_span: [0, 200]
+  R0: [0, 60e3, 1]
+
   V0: [0, -200, 0]
 
 guidance:
   phase:
+    0:
+      alt_controller:
+        DESIRED_ALT: 10.0
+        ALT_TIME_CONST: 10.0 # (s)
+        KD: 0.7
+      condition_next: range <= 40000
+    1:
+      # alt_controller:
+      #   DESIRED_ALT: 200.0
+      #   ALT_TIME_CONST: 5.0 # (s)
+      #   KD: 0.1
+      PN:
+        TIME_CONST: 20.0
+        VEL_HAT_DESIRED: [0, -cos(radians(80)), sin(radians(80))]
+      condition_next: alt >= 199.0
+    2:
+      # alt_controller:
+      #   DESIRED_ALT: 10.0
+      #   ALT_TIME_CONST: 10.0 # (s)
+      #   KD: 0.5
+      PN:
+        TIME_CONST: 20.0
+        VEL_HAT_DESIRED: [0, -cos(radians(60)), -sin(radians(60))]
+      condition_next: alt <= 50.0
+    3:
+      alt_controller:
+        DESIRED_ALT: 10.0
+        ALT_TIME_CONST: 3.0 # (s)
+        KD: 0.5
+    ################################
     # 0:
     #   alt_controller:
     #     ALT_RATE_LIMIT: 1000.0
-    #     DESIRED_ALT: 4e3
-    #     ALT_TIME_CONST: 20.0 # (s)
-    #     KD: 1.0
-    #     condition_next: range <= 40e3
-    # 1:
-    #   alt_controller:
-    #     ALT_RATE_LIMIT: 1000.0
-    #     DESIRED_ALT: 200
+    #     DESIRED_ALT: 5010
     #     ALT_TIME_CONST: 30.0 # (s)
-    #     KD: 1.0
-    ################################
-    0:
-      PN:
-        TIME_CONST: 20.0
-        # VEL_HAT_DESIRED: [0, -cos(2), 1]
-        AXIS: [-1, 0, 0] # (axis of rotation)
-        ANGLE: 20.0     # (deg)
-      speed_controller:
-        TIME_CONST: 5.0
-        VALUE: speed
-        DESIRED: 300.0
+    #     KD: 0.1
+    #   speed_controller:
+    #     TIME_CONST: 5.0
+    #     VALUE: speed
+    #     DESIRED: 200.0
+    #   condition_next: alt >= 5000
+    #   # condition_next: range <= 45000
+    # 1:
+    #   PN:
+    #     TIME_CONST: 10.0
+    #     VEL_HAT_DESIRED: [0, -cos(radians(15)), -sin(radians(15))]
+    #   condition_next: range <= 10000
+    # 2:
+    #   speed_controller:
+    #     TIME_CONST: 30.0
+    #     VALUE: speed
+    #     DESIRED: 100.0
 
 plot:
   YZ:

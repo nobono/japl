@@ -81,12 +81,14 @@ def guidance_func(t, rm, vm, r_targ, config):
 
     if "guidance" in config:
         gd_phase = config["guidance"]["phase"][guidance.phase_id]
+        gd_condition_next = gd_phase.get("condition_next")
         for func_name in gd_phase:
+            if func_name == "condition_next":
+                continue
             gd_func = guidance.__getattribute__(func_name)
             # if gd_func is None:
             #     raise Exception(f"Guidance class has no member {func_name}")
             gd_args = gd_phase[func_name]
-            gd_condition_next = gd_args.get("condition_next", None)
 
             # State pkg
             if "POS_DESIRED" in gd_args:
@@ -215,8 +217,8 @@ if __name__ == "__main__":
     dt = float(init.get("dt", 0.01))
 
     x0 = ss.get_init_state()
-    x0[:3] = np.asarray(config.get("R0", np.array([0, 50e3, 10])))
-    x0[3:6] = np.asarray(config.get("V0", np.array([0, -200, 0])))
+    x0[:3] = np.asarray(init.get("R0", np.array([0, 50e3, 10])))
+    x0[3:6] = np.asarray(init.get("V0", np.array([0, -200, 0])))
 
     targ_R0 = np.array([0, 0, 0])
     ####################################

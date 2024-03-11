@@ -7,6 +7,17 @@ from util import rodriguez_axis_angle
 from scipy import constants
 
 
+# for eval
+sin = np.sin
+cos = np.cos
+tan = np.tan
+atan = np.arctan
+atan2 = np.arctan2
+acos = np.arccos
+asin = np.arcsin
+degrees = np.degrees
+radians = np.radians
+
 
 class Guidance:
 
@@ -38,15 +49,20 @@ class Guidance:
             raise Exception("guidance.PN() required TIME_CONST argument")
 
         vm = state.get("vm")
-        if "ANGLE" in args and "AXIS" in args:
-            axis = unitize(np.asarray(args.get("AXIS")))
-            ang = np.radians(args.get("ANGLE"))
-            R = rodriguez_axis_angle(axis, ang)
-            vd = R @ vm
-        else:
-            vd = args.get("VEL_HAT_DESIRED", None)
-            if vd is None:
-                raise Exception("guidance.PN() required VEL_HAT_DESIRED argument")
+        if "VEL_HAT_DESIRED" in args:
+            _vd = args.get("VEL_HAT_DESIRED")
+            if isinstance(_vd, str):
+                vd = eval(_vd)
+            else:
+                vd = []
+                for i in _vd:
+                    if isinstance(i, str):
+                        vd.append(eval(i))
+                    else:
+                        vd.append(i)
+                vd = np.asarray(vd)
+        if vd is None:
+            raise Exception("guidance.PN() required VEL_HAT_DESIRED argument")
 
         bounds = args.get("bounds", [])
         vm_hat = unitize(vm) 
@@ -86,20 +102,34 @@ class Guidance:
 
     @staticmethod
     def alt_controller(t, state: dict, args: dict, **kwargs):
-        ALT_RATE_LIMIT = float(args["ALT_RATE_LIMIT"])
+        # ALT_RATE_LIMIT = float(args["ALT_RATE_LIMIT"])
         DESIRED_ALT = float(args["DESIRED_ALT"])
         ALT_TIME_CONST = float(args["ALT_TIME_CONST"])
-        KP = 1.0 / ALT_TIME_CONST
+        # KP = 1.0 / ALT_TIME_CONST
         KD = float(args["KD"])
 
         alt = state["alt"]
         alt_dot = state["alt_dot"]
-        # C_i_v = create_C_rot(state["vm"])
+        vm = state["vm"]
+        speed = state["speed"]
 
-        bounds = [-ALT_RATE_LIMIT, ALT_RATE_LIMIT]
-        ac_alt = Guidance.pd_controller(DESIRED_ALT, alt, alt_dot, KP, KD, bounds=bounds)
+        # bounds = [-ALT_RATE_LIMIT, ALT_RATE_LIMIT]
+        # ac_alt = Guidance.pd_controller(DESIRED_ALT, alt, alt_dot, KP, KD, bounds=bounds)
         # ac = C_i_v @ np.array([0, 0, ac_alt])
-        ac = np.array([0, 0, ac_alt])
+        # ac = np.array([0, 0, ac_alt])
+        ####
+        K_ANG = 1.0 / ALT_TIME_CONST # (rad / s)
+        ang_err = (K_ANG / speed) * (DESIRED_ALT - alt)
+        ang_err = bound(ang_err, -radians(90), radians(90))
+        azimuth_proj = unitize(np.array([vm[0], vm[1], 0]))
+        zz = np.array([0, 0, 1])
+        rot_axis = unitize(np.cross(azimuth_proj, zz))
+        R = rodriguez_axis_angle(rot_axis, ang_err)
+        vd = R @ azimuth_proj
+        args["TIME_CONST"] = args["KD"]
+        args["VEL_HAT_DESIRED"] = vd
+        ac = Guidance.PN(t, state, args, **kwargs)
+        ####
         return ac
 
 
