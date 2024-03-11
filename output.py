@@ -37,7 +37,7 @@ class OutputManager:
                 fig.savefig(os.path.join(self.dir, "3d.png"))
 
         if self.args.plot:
-            fig, axs = plt.subplots(3, figsize=(12, 10), squeeze=True)
+            fig, axs = plt.subplots(3, figsize=(10, 8), squeeze=True)
             fig.tight_layout()
             plt.subplots_adjust(left=0.06, bottom=0.07, hspace=0.4)
 

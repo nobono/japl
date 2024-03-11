@@ -10,7 +10,7 @@ from util import create_rot_mat
 
 # ---------------------------------------------------
 
-import guidance
+from guidance import Guidance
 
 # ---------------------------------------------------
 
@@ -25,12 +25,12 @@ class Maneuvers:
     
 
     def __init__(self) -> None:
-        self.gd_phase = 0
+        self.phase_id = 0
 
 
     def next_phase_condition(self, value: bool) -> None:
         if value:
-            self.gd_phase += 1
+            self.phase_id += 1
 
 
     def test(self, t, rm: np.ndarray, vm, r_targ, config):
@@ -44,7 +44,7 @@ class Maneuvers:
         alt_dot = vm[2]
         C_i_v = create_C_rot(vm)
 
-        match self.gd_phase:
+        match self.phase_id:
             case 0 :
                 ac = np.zeros((3,))
                 # self.next_phase_condition(r_range <= START_DIVE_RANGE)
@@ -73,24 +73,6 @@ class Maneuvers:
         return ac
 
 
-    def climb(self, t, state: dict, args: dict, **kwargs):
-        ALT_RATE_LIMIT = float(args["ALT_RATE_LIMIT"])
-        DESIRED_ALT = float(args["DESIRED_ALT"])
-        ALT_TIME_CONST = float(args["ALT_TIME_CONST"])
-        KP = 1.0 / ALT_TIME_CONST
-        KD = float(args["KD"])
-
-        alt = state["alt"]
-        alt_dot = state["alt_dot"]
-        # C_i_v = create_C_rot(state["vm"])
-
-        bounds = [-ALT_RATE_LIMIT, ALT_RATE_LIMIT]
-        ac_alt = guidance.pd_controller(DESIRED_ALT, alt, alt_dot, KP, KD, bounds=bounds)
-        # ac = C_i_v @ np.array([0, 0, ac_alt])
-        ac = np.array([0, 0, ac_alt])
-        return ac
-
-
     @staticmethod
     def weave_maneuver(t, vm):
         vm_hat = unitize(vm)
@@ -106,7 +88,7 @@ class Maneuvers:
         ALT_RATE_LIMIT = 10.0
         r_alt = rm[2]
 
-        match self.gd_phase:
+        match self.phase_id:
             case 0 :
                 # Entry
                 K_P = 0.2
@@ -120,7 +102,7 @@ class Maneuvers:
                 # C_i_v = create_C_rot(vm)
                 # ac = C_i_v @ np.array([0, 0, ac_alt])
                 # if r_range <= START_ASCEND_RANGE:
-                #     self.gd_phase += 1
+                #     self.phase_id += 1
             case _ :
                 ac = np.zeros((3,))
                 raise Exception("unhandled event")
@@ -148,7 +130,7 @@ class Maneuvers:
         K_D = 0.06
         r_range = norm(rm)
         r_alt = rm[2]
-        match self.gd_phase:
+        match self.phase_id:
             case 0 :
                 # Entry
                 K_P *= 2.0
@@ -159,7 +141,7 @@ class Maneuvers:
                 C_i_v = create_C_rot(vm)
                 ac = C_i_v @ np.array([0, 0, ac_alt])
                 if r_range <= START_ASCEND_RANGE:
-                    self.gd_phase += 1
+                    self.phase_id += 1
             case 1 :
                 # Ascend
                 K_P *= 2.0
@@ -170,7 +152,7 @@ class Maneuvers:
                 C_i_v = create_C_rot(vm)
                 ac = C_i_v @ np.array([0, 0, ac_alt])
                 if r_alt >= START_DIVE_ALT:
-                    self.gd_phase += 1
+                    self.phase_id += 1
             case 2 :
                 # Descend
                 K_P *= 3.5
@@ -182,7 +164,7 @@ class Maneuvers:
                 C_i_v = create_C_rot(vm)
                 ac = C_i_v @ np.array([0, 0, ac_alt])
                 if r_range <= START_ASCEND_RANGE_2:
-                    self.gd_phase += 1
+                    self.phase_id += 1
             case 3 :
                 # Ascend
                 K_P *= 3.0
@@ -193,7 +175,7 @@ class Maneuvers:
                 C_i_v = create_C_rot(vm)
                 ac = C_i_v @ np.array([0, 0, ac_alt])
                 if r_alt >= START_DIVE_ALT_2:
-                    self.gd_phase += 1
+                    self.phase_id += 1
             case 4 :
                 # Descend
                 K_P *= 3.5
@@ -205,9 +187,9 @@ class Maneuvers:
                 C_i_v = create_C_rot(vm)
                 ac = C_i_v @ np.array([0, 0, ac_alt])
                 if r_range <= START_TERMINAL_RANGE:
-                    self.gd_phase += 1
+                    self.phase_id += 1
             case 5 :
-                ac = guidance.pronav(rm, vm, r_targ, np.zeros((3,)), N=4)
+                ac = Guidance.pronav(rm, vm, r_targ, np.zeros((3,)), N=4)
             case _ :
                 ac = np.zeros((3,))
                 raise Exception("unhandled event")

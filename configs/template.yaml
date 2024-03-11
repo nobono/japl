@@ -7,8 +7,8 @@ init:
 guidance:
   phase:
     0:
-      type: maneuver
-      name: climb
+      type: guidance
+      name: alt_controller
       args:
         ALT_RATE_LIMIT: 1000.0
         DESIRED_ALT: 4e3
@@ -16,8 +16,8 @@ guidance:
         KD: 1.0
       condition_next: range <= 40e3
     1:
-      type: maneuver
-      name: climb
+      type: guidance
+      name: alt_controller
       args:
         ALT_RATE_LIMIT: 1000.0
         DESIRED_ALT: 200

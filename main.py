@@ -31,7 +31,7 @@ from atmosphere import Atmosphere
 
 # ---------------------------------------------------
 
-import guidance
+from guidance import Guidance
 
 # ---------------------------------------------------
 
@@ -57,6 +57,7 @@ from events import check_for_events
 
 ss = FirstOrderInput()
 atmosphere = Atmosphere()
+guidance = Guidance()
 maneuver = Maneuvers()
 
 
@@ -74,16 +75,14 @@ def atmosphere_model(rm, vm):
     return np.array([xfd, yfd, zfd])
 
 
-gd_phase = 0
 def guidance_func(t, rm, vm, r_targ, config):
-    global gd_phase
     GLIMIT = 14.0
     if "guidance" in config:
-        phase = config["guidance"]["phase"][gd_phase]
-        gd_type = phase["type"]
-        gd_name = phase["name"]
-        gd_args = phase["args"]
-        gd_condition_next = phase.get("condition_next", None)
+        gd_phase = config["guidance"]["phase"][guidance.phase_id]
+        gd_type = gd_phase["type"]
+        gd_name = gd_phase["name"]
+        gd_args = gd_phase["args"]
+        gd_condition_next = gd_phase.get("condition_next", None)
 
         gd_obj = globals().get(gd_type)
         gd_func = gd_obj.__getattribute__(gd_name)
@@ -112,9 +111,9 @@ def guidance_func(t, rm, vm, r_targ, config):
         if gd_condition_next and eval(gd_condition_next):
             # check if next phase is defined
             # else hold current phase
-            next_phase = gd_phase + 1
+            next_phase = guidance.phase_id + 1
             if next_phase in config["guidance"]["phase"]:
-                gd_phase += 1
+                guidance.phase_id += 1
 
     # ac = np.zeros((3,))
     #####################
