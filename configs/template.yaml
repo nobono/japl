@@ -1,17 +1,26 @@
-dt: 0.01
-t_span:
-  - 0
-  - 200
-R0:
-  - 0
-  - 50e3
-  - 10e3
-
-V0:
-  - 0
-  - -200
-  - 0
-
+init:
+  dt: 0.01
+  t_span: [0, 200]
+  R0: [0, 50e3, 10e3]
+  V0: [0, -200, 0]
 
 guidance:
-  type: 
+  phase:
+    0:
+      type: maneuver
+      name: climb
+      args:
+        ALT_RATE_LIMIT: 1000.0
+        DESIRED_ALT: 4e3
+        ALT_TIME_CONST: 30.0 # (s)
+        KD: 1.0
+      condition_next: range <= 40e3
+    1:
+      type: maneuver
+      name: climb
+      args:
+        ALT_RATE_LIMIT: 1000.0
+        DESIRED_ALT: 200
+        ALT_TIME_CONST: 30.0 # (s)
+        KD: 1.0
+      # condition_next: range <= 30e3

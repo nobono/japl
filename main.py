@@ -57,7 +57,7 @@ from events import check_for_events
 
 ss = FirstOrderInput()
 atmosphere = Atmosphere()
-maneuvers = Maneuvers()
+maneuver = Maneuvers()
 
 
 
@@ -74,14 +74,59 @@ def atmosphere_model(rm, vm):
     return np.array([xfd, yfd, zfd])
 
 
+gd_phase = 0
 def guidance_func(t, rm, vm, r_targ, config):
+    global gd_phase
     GLIMIT = 14.0
+    if "guidance" in config:
+        phase = config["guidance"]["phase"][gd_phase]
+        gd_type = phase["type"]
+        gd_name = phase["name"]
+        gd_args = phase["args"]
+        gd_condition_next = phase.get("condition_next", None)
+
+        gd_obj = globals().get(gd_type)
+        gd_func = gd_obj.__getattribute__(gd_name)
+
+        # State pkg
+        range = norm(rm)
+        east = rm[0]
+        north = rm[1]
+        alt = rm[2]
+        east_dot = vm[0]
+        north_dot = vm[1]
+        alt_dot = vm[2]
+        state = {
+                "rm": rm,
+                "vm": vm,
+                "range": range,
+                "alt": alt,
+                "alt_dot": alt_dot,
+                "north": north,
+                "east": east,
+                "north_dot": north_dot,
+                "east_dot": east_dot,
+                }
+        ac = gd_func(t, state, gd_args, r_targ=r_targ)
+
+        if gd_condition_next and eval(gd_condition_next):
+            # check if next phase is defined
+            # else hold current phase
+            next_phase = gd_phase + 1
+            if next_phase in config["guidance"]["phase"]:
+                gd_phase += 1
+
+    # ac = np.zeros((3,))
+    #####################
     # ac = guidance_func(rm, vm, r_targ)
-    # ac = maneuvers.popup(rm, vm, r_targ)
-    # ac = maneuvers.uo_dive(rm, vm, r_targ)
-    ac = maneuvers.test(t, rm, vm, r_targ)
-    # ac = maneuvers.weave_maneuver(t, vm)
+    # ac = maneuver.popup(rm, vm, r_targ)
+    # ac = maneuver.uo_dive(rm, vm, r_targ)
+    # ac = maneuver.test(t, rm, vm, r_targ, config)
+    # ac = maneuver.weave_maneuver(t, vm)
+    # ac = maneuver.climb(t, rm, vm, r_targ, config)
     # vd = np.array([0, -1, 50 * np.sin(0.1 * t)])
+    ########################
+    # vd = np.array([np.sin(0.1 * t), -1, np.cos(0.1 * t)])
     # ac = guidance.PN(vd, vm, 1,
     #                  bounds=[-(GLIMIT * constants.g), (GLIMIT * constants.g)])
     ################################
@@ -160,8 +205,9 @@ if __name__ == "__main__":
     ####################################
     # t_span = [0, 5]
     # dt = 0.01
-    t_span = config.get("t_span", [0, 200])
-    dt = config.get("dt", 0.01)
+    init = config.get('init', None)
+    t_span = init.get("t_span", [0, 200])
+    dt = init.get("dt", 0.01)
 
     x0 = ss.get_init_state()
     # x0[:3] = np.array([0, 50e3, 10])    #R0

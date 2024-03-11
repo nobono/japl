@@ -27,7 +27,8 @@ class State:
 
 
 def read_config_file(filename: str):
-    with open(os.path.join(CONFIGS_DIR, filename), "r") as f:
+    # with open(os.path.join(CONFIGS_DIR, filename), "r") as f:
+    with open(filename, "r") as f:
         try:
             data = yaml.safe_load(f)
         except yaml.YAMLError as e:
