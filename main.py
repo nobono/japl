@@ -77,36 +77,44 @@ def atmosphere_model(rm, vm):
 
 def guidance_func(t, rm, vm, r_targ, config):
     GLIMIT = 14.0
+    ac = np.zeros((3,))
+
     if "guidance" in config:
         gd_phase = config["guidance"]["phase"][guidance.phase_id]
-        gd_type = gd_phase["type"]
-        gd_name = gd_phase["name"]
-        gd_args = gd_phase["args"]
-        gd_condition_next = gd_phase.get("condition_next", None)
+        for func_name in gd_phase:
+            gd_func = guidance.__getattribute__(func_name)
+            # if gd_func is None:
+            #     raise Exception(f"Guidance class has no member {func_name}")
+            gd_args = gd_phase[func_name]
+            gd_condition_next = gd_args.get("condition_next", None)
 
-        gd_obj = globals().get(gd_type)
-        gd_func = gd_obj.__getattribute__(gd_name)
+            # State pkg
+            if "POS_DESIRED" in gd_args:
+                gd_args["POS_DESIRED"] = np.asarray(gd_args["POS_DESIRED"])
+            if "VEL_DESIRED" in gd_args:
+                gd_args["VEL_DESIRED"] = np.asarray(gd_args["VEL_DESIRED"])
 
-        # State pkg
-        range = norm(rm)
-        east = rm[0]
-        north = rm[1]
-        alt = rm[2]
-        east_dot = vm[0]
-        north_dot = vm[1]
-        alt_dot = vm[2]
-        state = {
-                "rm": rm,
-                "vm": vm,
-                "range": range,
-                "alt": alt,
-                "alt_dot": alt_dot,
-                "north": north,
-                "east": east,
-                "north_dot": north_dot,
-                "east_dot": east_dot,
-                }
-        ac = gd_func(t, state, gd_args, r_targ=r_targ)
+            range = norm(rm)
+            speed = norm(vm)
+            east = rm[0]
+            north = rm[1]
+            alt = rm[2]
+            east_dot = vm[0]
+            north_dot = vm[1]
+            alt_dot = vm[2]
+            state = {
+                    "rm": rm,
+                    "vm": vm,
+                    "range": range,
+                    "speed": speed,
+                    "alt": alt,
+                    "alt_dot": alt_dot,
+                    "north": north,
+                    "east": east,
+                    "north_dot": north_dot,
+                    "east_dot": east_dot,
+                    }
+            ac += gd_func(t, state, gd_args, r_targ=r_targ, ac=ac)
 
         if gd_condition_next and eval(gd_condition_next):
             # check if next phase is defined
@@ -202,17 +210,13 @@ if __name__ == "__main__":
 
     # Inits
     ####################################
-    # t_span = [0, 5]
-    # dt = 0.01
     init = config.get('init', None)
     t_span = init.get("t_span", [0, 200])
-    dt = init.get("dt", 0.01)
+    dt = float(init.get("dt", 0.01))
 
     x0 = ss.get_init_state()
-    # x0[:3] = np.array([0, 50e3, 10])    #R0
-    # x0[3:6] = np.array([0, -200, 0])   #V0
-    x0[:3] = config.get("R0", np.array([0, 50e3, 10]))
-    x0[3:6] = config.get("V0", np.array([0, -200, 0]))
+    x0[:3] = np.asarray(config.get("R0", np.array([0, 50e3, 10])))
+    x0[3:6] = np.asarray(config.get("V0", np.array([0, -200, 0])))
 
     targ_R0 = np.array([0, 0, 0])
     ####################################

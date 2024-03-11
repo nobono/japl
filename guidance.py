@@ -24,13 +24,23 @@ class Guidance:
 
 
     @staticmethod
-    def PN(vd, vm, TC, bounds: list=[]) -> np.ndarray:
+    # def PN(t, vd, vm, TC, bounds: list=[]) -> np.ndarray:
+    def PN(t, state: dict, args: dict, **kwargs) -> np.ndarray:
         """
         @args
         vd - desired velocity vector
         vm - velocity vector
         G_LIMIT - 
         """
+        vd = args.get("VEL_DESIRED", None)
+        if vd is None:
+            raise Exception("guidance.PN() required VEL_DESIRED argument")
+        TIME_CONST = args.get("TIME_CONST", None)
+        if TIME_CONST is None:
+            raise Exception("guidance.PN() required TIME_CONST argument")
+        vm = state.get("vm")
+
+        bounds = args.get("bounds", [])
         vm_hat = unitize(vm) 
         vd_hat = unitize(vd)
         rot_axis = np.cross(vd_hat, vm_hat)
@@ -40,9 +50,9 @@ class Guidance:
             elif abs(vd_hat[1]) > 0 or abs(vd_hat[0]) > 0:
                 rot_axis = np.array([0, 0, 1])
 
-        ang = np.arccos(np.dot(vd_hat, vm_hat))
+        ang = np.arccos(bound(np.dot(vd_hat, vm_hat), -1.0, 1.0))
         ac_hat = unitize(np.cross(vm_hat, unitize(rot_axis)))
-        turn_accel = ang * (norm(vm) /  TC)
+        turn_accel = ang * (norm(vm) /  TIME_CONST)
         if len(bounds) == 2:
             turn_accel = bound(turn_accel, bounds[0], bounds[1])
         ac = ac_hat * turn_accel
@@ -51,7 +61,6 @@ class Guidance:
         # ac = ac_hat * norm(vm)
         ###################################
         return ac
-
 
     @staticmethod
     def p_controller(desired, value, gain):
@@ -84,3 +93,19 @@ class Guidance:
         # ac = C_i_v @ np.array([0, 0, ac_alt])
         ac = np.array([0, 0, ac_alt])
         return ac
+
+
+    @staticmethod
+    def speed_controller(t, state, args, **kwargs):
+        desired = args.get("DESIRED")
+        value = state.get(args.get("VALUE"))
+        ac = kwargs.get("ac")
+        vm = state.get("vm")
+        if "GAIN" in args:
+            gain = args.get("GAIN")
+        elif "TIME_CONST" in args:
+            gain = 1.0 / args.get("TIME_CONST")
+        else:
+            raise Exception("GAIN or TIME_CONST must be an argument to guidance.p_controller()")
+        accel_mag = gain * (desired - value)
+        return unitize(vm) * accel_mag

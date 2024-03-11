@@ -1,26 +1,30 @@
 init:
   dt: 0.01
-  t_span: [0, 200]
+  t_span: [0, 25]
   R0: [0, 50e3, 10e3]
   V0: [0, -200, 0]
 
 guidance:
   phase:
+    # 0:
+    #   alt_controller:
+    #     ALT_RATE_LIMIT: 1000.0
+    #     DESIRED_ALT: 4e3
+    #     ALT_TIME_CONST: 20.0 # (s)
+    #     KD: 1.0
+    #     condition_next: range <= 40e3
+    # 1:
+    #   alt_controller:
+    #     ALT_RATE_LIMIT: 1000.0
+    #     DESIRED_ALT: 200
+    #     ALT_TIME_CONST: 30.0 # (s)
+    #     KD: 1.0
+    ################################
     0:
-      type: guidance
-      name: alt_controller
-      args:
-        ALT_RATE_LIMIT: 1000.0
-        DESIRED_ALT: 4e3
-        ALT_TIME_CONST: 20.0 # (s)
-        KD: 1.0
-      condition_next: range <= 40e3
-    1:
-      type: guidance
-      name: alt_controller
-      args:
-        ALT_RATE_LIMIT: 1000.0
-        DESIRED_ALT: 200
-        ALT_TIME_CONST: 30.0 # (s)
-        KD: 1.0
-      # condition_next: range <= 30e3
+      # PN:
+      #   TIME_CONST: 20.0
+      #   VEL_DESIRED: [0, -10, 10]
+      speed_controller:
+        TIME_CONST: 5.0
+        VALUE: speed
+        DESIRED: 300.0
