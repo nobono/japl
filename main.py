@@ -154,7 +154,7 @@ def guidance_func(t, rm, vm, r_targ, config):
     # ac = ac + C_i_v @ np.array([0, x_alt, 0])
     ################################
 
-    if (norm(ac) - (GLIMIT * constants.g)) > 1e-8:
+    if (norm(ac) - (GLIMIT * constants.g)) > 1e-10:
         ac = unitize(ac) * (GLIMIT * constants.g)
     return ac
 
