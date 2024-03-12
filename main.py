@@ -76,7 +76,7 @@ def atmosphere_model(rm, vm):
 
 
 def guidance_func(t, rm, vm, r_targ, config):
-    GLIMIT = 14.0
+    GLIMIT = float(config.get("GLIMIT", 14.0))
 
     ac = guidance.run(t, rm, vm, r_targ, config)
 

@@ -5,6 +5,9 @@ init:
   V0: [0, -1, 1]
 
 
+G_LIMIT: 14.0
+
+
 guidance:
   phase:
     0:

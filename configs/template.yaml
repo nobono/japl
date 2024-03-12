@@ -2,8 +2,11 @@ init:
   dt: 0.01
   t_span: [0, 400]
   R0: [0, 60e3, 1]
-
   V0: [0, -1, 1]
+
+
+G_LIMIT: 14.0
+
 
 guidance:
   phase:
