@@ -27,7 +27,14 @@ class Guidance:
 
 
     @staticmethod
-    def pronav(rm, vm, r_targ, v_targ=np.zeros((3,)), N=4.0):
+    def pronav(t, state: dict, args:dict, **kwargs):
+        # rm, vm, r_targ, v_targ=np.zeros((3,)), N=4.0
+        rm = state["rm"]
+        vm = state["vm"]
+        r_targ = kwargs["r_targ"]
+        v_targ = kwargs["v_targ"]
+        N = args["N"]
+
         v_r = v_targ - vm
         r = r_targ - rm
         omega = np.cross(r, v_r) / np.dot(r, r)
