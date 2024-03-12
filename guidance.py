@@ -158,6 +158,3 @@ class Guidance:
         accel_mag = gain * (desired - value)
         return unitize(vm) * accel_mag
     
-    @staticmethod
-    def burn_at_g(t, state, args, **kwargs):
-        vm = state.get("vm")
