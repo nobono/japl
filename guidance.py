@@ -120,11 +120,13 @@ class Guidance:
         vm = state.get("vm")
         speed = state.get("speed")
 
+        # old method
+        ###################
         # bounds = [-ALT_RATE_LIMIT, ALT_RATE_LIMIT]
         # ac_alt = Guidance.pd_controller(DESIRED_ALT, alt, alt_dot, KP, KD, bounds=bounds)
         # ac = C_i_v @ np.array([0, 0, ac_alt])
         # ac = np.array([0, 0, ac_alt])
-        ####
+        ###################
         K_ANG = 1.0 / ALT_TIME_CONST # (rad / s)
         ang_err = (K_ANG / speed) * (DESIRED_ALT - alt)
         ang_err = bound(ang_err, -radians(90), radians(90))
@@ -139,7 +141,6 @@ class Guidance:
         PN_args["TIME_CONST"] = args.get("KD")
         PN_args["VEL_HAT_DESIRED"] = vd
         ac = Guidance.PN(t, state, PN_args, **kwargs)
-        ####
         return ac
 
 
@@ -157,4 +158,10 @@ class Guidance:
             raise Exception("GAIN or TIME_CONST must be an argument to guidance.p_controller()")
         accel_mag = gain * (desired - value)
         return unitize(vm) * accel_mag
-    
+
+
+    @staticmethod
+    def burn_at_g(t, state, args, **kwargs):
+        vm = state.get("vm")
+        burn_G = args.get("G")
+        return unitize(vm) * burn_G
