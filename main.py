@@ -80,45 +80,6 @@ def guidance_func(t, rm, vm, r_targ, config):
 
     ac = guidance.run(t, rm, vm, r_targ, config)
 
-    # ac = np.zeros((3,))
-    #####################
-    # ac = guidance_func(rm, vm, r_targ)
-    # ac = maneuver.popup(rm, vm, r_targ)
-    # ac = maneuver.uo_dive(rm, vm, r_targ)
-    # ac = maneuver.test(t, rm, vm, r_targ, config)
-    # ac = maneuver.weave_maneuver(t, vm)
-    # ac = maneuver.climb(t, rm, vm, r_targ, config)
-    # vd = np.array([0, -1, 50 * np.sin(0.1 * t)])
-    ########################
-    # vd = np.array([np.sin(0.1 * t), -1, np.cos(0.1 * t)])
-    # ac = guidance.PN(vd, vm, 1,
-    #                  bounds=[-(GLIMIT * constants.g), (GLIMIT * constants.g)])
-    ################################
-    # alt_des = 50 * np.sin(.2 * t) + rm[2]
-    # ALT_RATE_LIMIT = 1000.0
-    # ALT_TIME_CONST = 10.0 # (s)
-    # KP = 1.0 / ALT_TIME_CONST
-    # KD = 0.7
-    # alt = rm[2]
-    # alt_dot = vm[2]
-    # C_i_v = create_C_rot(vm)
-    # bounds = [-ALT_RATE_LIMIT, ALT_RATE_LIMIT]
-    # ac_alt = guidance.pd_controller(alt_des, alt, alt_dot, KP, KD, bounds=bounds)
-    # ac = C_i_v @ np.array([0, 0, ac_alt])
-    # #####
-    # x_des = 50 * np.cos(.2 * t) + rm[0]
-    # ALT_RATE_LIMIT = 1000.0
-    # ALT_TIME_CONST = 10.0 # (s)
-    # KP = 1.0 / ALT_TIME_CONST
-    # KD = 0.7
-    # x = rm[0]
-    # x_dot = vm[0]
-    # C_i_v = create_C_rot(vm)
-    # bounds = [-ALT_RATE_LIMIT, ALT_RATE_LIMIT]
-    # x_alt = guidance.pd_controller(x_des, x, x_dot, KP, KD, bounds=bounds)
-    # ac = ac + C_i_v @ np.array([0, x_alt, 0])
-    ################################
-
     if (norm(ac) - (GLIMIT * constants.g)) > 1e-10:
         ac = unitize(ac) * (GLIMIT * constants.g)
     return ac
