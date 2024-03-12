@@ -3,51 +3,31 @@ init:
   t_span: [0, 400]
   R0: [0, 60e3, 1]
 
-  V0: [0, -2, 0]
+  V0: [0, -1, 1]
 
 guidance:
   phase:
     0:
       alt_controller:
-        DESIRED_ALT: 10.0
-        TIME_CONST: 10.0 # (s)
-        KD: 0.7
+        DESIRED_ALT: 3e3
+        TIME_CONST: 30.0 # (s)
+        KD: 0.5
       speed_controller:
         TIME_CONST: 5.0
         VALUE: speed
         DESIRED: 200.0
-      condition_next: range <= 40e3
+      # condition_next: range <= 30e3
+      condition_next: t >= 80.0
     1:
       PN:
-        TIME_CONST: 30.0
-        VEL_HAT_DESIRED: [0, -cos(radians(10)), sin(radians(10))]
-      condition_next: alt >= 100.0
-    2:
-      alt_controller:
-        DESIRED_ALT: 10.0
-        TIME_CONST: 3.0 # (s)
-        KD: 0.5
-      condition_next: range <= 20e3
-    3:
-      PN:
-        TIME_CONST: 20.0
-        VEL_HAT_DESIRED: [0, -cos(radians(10)), sin(radians(10))]
-      condition_next: alt >= 65.0
-    4:
-      alt_controller:
-        DESIRED_ALT: 10.0
-        TIME_CONST: 3.0 # (s)
-        KD: 0.5
-      speed_controller:
-        TIME_CONST: 5.0
-        VALUE: speed
-        DESIRED: 1000.0
-      condition_next: range <= 10e3
-    5:
-      pronav:
-        TARGET: [0, 0, 0]
-        TARGET_DOT: [0, 0, 0]
-        N: 4.0
+        TIME_CONST: 15.0
+        VEL_HAT_DESIRED: "[sin(0.1 * (t - 80.0)), -1, cos(0.1 * (t - 80.0))]"
+      # condition_next: range <= 2e3
+    # 5:
+    #   pronav:
+    #     TARGET: [0, 0, 0]
+    #     TARGET_DOT: [0, 0, 0]
+    #     N: 4.0
 
     ################################
     # 0:

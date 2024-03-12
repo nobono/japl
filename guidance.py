@@ -50,11 +50,15 @@ class Guidance:
         vm - velocity vector
         G_LIMIT - 
         """
-        TIME_CONST = args.get("TIME_CONST", None)
-        if TIME_CONST is None:
-            raise Exception("guidance.PN() required TIME_CONST argument")
-
+        range = float(state.get("range"))
+        alt = float(state.get("alt"))
+        speed = float(state.get("speed"))
+        rm = state.get("rm")
         vm = state.get("vm")
+
+        bounds = args.get("bounds", [])
+        TIME_CONST = float(args.get("TIME_CONST"))
+        # eval desired velocity vector from config file
         if "VEL_HAT_DESIRED" in args:
             _vd = args.get("VEL_HAT_DESIRED")
             if isinstance(_vd, str):
@@ -67,10 +71,7 @@ class Guidance:
                     else:
                         vd.append(i)
                 vd = np.asarray(vd)
-        if vd is None:
-            raise Exception("guidance.PN() required VEL_HAT_DESIRED argument")
 
-        bounds = args.get("bounds", [])
         vm_hat = unitize(vm) 
         vd_hat = unitize(vd)
         rot_axis = np.cross(vd_hat, vm_hat)

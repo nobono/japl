@@ -3,7 +3,7 @@ init:
   t_span: [0, 400]
   R0: [0, 60e3, 1]
 
-  V0: [0, -2, 0]
+  V0: [0, -1, 1]
 
 guidance:
   phase:
@@ -48,30 +48,6 @@ guidance:
         TARGET: [0, 0, 0]
         TARGET_DOT: [0, 0, 0]
         N: 4.0
-
-    ################################
-    # 0:
-    #   alt_controller:
-    #     ALT_RATE_LIMIT: 1000.0
-    #     DESIRED_ALT: 5010
-    #     ALT_TIME_CONST: 30.0 # (s)
-    #     KD: 0.1
-    #   speed_controller:
-    #     TIME_CONST: 5.0
-    #     VALUE: speed
-    #     DESIRED: 200.0
-    #   condition_next: alt >= 5000
-    #   # condition_next: range <= 45000
-    # 1:
-    #   PN:
-    #     TIME_CONST: 10.0
-    #     VEL_HAT_DESIRED: [0, -cos(radians(15)), -sin(radians(15))]
-    #   condition_next: range <= 10000
-    # 2:
-    #   speed_controller:
-    #     TIME_CONST: 30.0
-    #     VALUE: speed
-    #     DESIRED: 100.0
 
 plot:
   YZ:
