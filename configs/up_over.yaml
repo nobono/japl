@@ -2,8 +2,8 @@ init:
   dt: 0.01
   t_span: [0, 400]
   R0: [0, 40e3, 1]
-
   V0: [0, -1, 1]
+
 
 guidance:
   phase:
@@ -29,6 +29,7 @@ guidance:
         TIME_CONST: 30.0
         VALUE: speed
         DESIRED: 100.0
+
 
 plot:
   YZ:

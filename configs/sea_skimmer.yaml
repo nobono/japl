@@ -2,18 +2,18 @@ init:
   dt: 0.01
   t_span: [0, 400]
   R0: [0, 60e3, 1]
-
   V0: [0, -1, 1]
+
 
 guidance:
   phase:
     0:
       alt_controller:
         DESIRED_ALT: 10.0
-        TIME_CONST: 10.0 # (s)
-        KD: 0.7
+        TIME_CONST: 5.0 # (s)
+        KD: 0.1
       speed_controller:
-        TIME_CONST: 5.0
+        TIME_CONST: 15.0
         VALUE: speed
         DESIRED: 200.0
       condition_next: range <= 40e3
@@ -48,6 +48,7 @@ guidance:
         TARGET: [0, 0, 0]
         TARGET_DOT: [0, 0, 0]
         N: 4.0
+
 
 plot:
   YZ:

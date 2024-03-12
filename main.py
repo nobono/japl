@@ -77,56 +77,8 @@ def atmosphere_model(rm, vm):
 
 def guidance_func(t, rm, vm, r_targ, config):
     GLIMIT = 14.0
-    ac = np.zeros((3,))
 
-    if "guidance" in config:
-        gd_phase = config["guidance"]["phase"][guidance.phase_id]
-        gd_condition_next = gd_phase.get("condition_next")
-        for func_name in gd_phase:
-            if func_name == "condition_next":
-                continue
-            gd_func = guidance.__getattribute__(func_name)
-            # if gd_func is None:
-            #     raise Exception(f"Guidance class has no member {func_name}")
-            gd_args = gd_phase[func_name]
-
-            # State pkg
-            if "POS_DESIRED" in gd_args:
-                gd_args["POS_DESIRED"] = np.asarray(gd_args["POS_DESIRED"])
-            if "VEL_DESIRED" in gd_args:
-                gd_args["VEL_DESIRED"] = np.asarray(gd_args["VEL_DESIRED"])
-
-            range = norm(rm)
-            speed = norm(vm)
-            east = rm[0]
-            north = rm[1]
-            alt = rm[2]
-            east_dot = vm[0]
-            north_dot = vm[1]
-            alt_dot = vm[2]
-            state = {
-                    "rm": rm,
-                    "vm": vm,
-                    "range": range,
-                    "speed": speed,
-                    "alt": alt,
-                    "alt_dot": alt_dot,
-                    "north": north,
-                    "east": east,
-                    "north_dot": north_dot,
-                    "east_dot": east_dot,
-                    }
-            v_targ = np.zeros((3,))
-            ac += gd_func(t, state, gd_args, ac=ac)
-
-        if gd_condition_next and eval(gd_condition_next):
-            # check if next phase is defined
-            # else hold current phase
-            next_phase = guidance.phase_id + 1
-            if next_phase in config["guidance"]["phase"]:
-                guidance.phase_id += 1
-
-        del gd_args
+    ac = guidance.run(t, rm, vm, r_targ, config)
 
     # ac = np.zeros((3,))
     #####################

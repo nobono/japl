@@ -1,0 +1,39 @@
+init:
+  dt: 0.01
+  t_span: [0, 400]
+  R0: [0, 60e3, 1]
+  V0: [0, -1, 1]
+
+
+guidance:
+  phase:
+    0:
+      alt_controller:
+        DESIRED_ALT: 3e3
+        TIME_CONST: 30.0 # (s)
+        KD: 0.5
+      speed_controller:
+        TIME_CONST: 5.0
+        VALUE: speed
+        DESIRED: 200.0
+      # condition_next: range <= 30e3
+      condition_next: t >= 80.0
+    1:
+      PN:
+        TIME_CONST: 15.0
+        VEL_HAT_DESIRED: "[sin(0.1 * (t - 80.0)), -1, cos(0.1 * (t - 80.0))]"
+      # condition_next: range <= 2e3
+    # 5:
+    #   pronav:
+    #     TARGET: [0, 0, 0]
+    #     TARGET_DOT: [0, 0, 0]
+    #     N: 4.0
+
+
+plot:
+  YZ:
+    x_axis: 'north'
+    y_axis: 'alt'
+  Speed:
+    x_axis: 'north'
+    y_axis: 'speed'
