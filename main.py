@@ -127,6 +127,8 @@ def guidance_func(t, rm, vm, r_targ, config):
             if next_phase in config["guidance"]["phase"]:
                 guidance.phase_id += 1
 
+        del gd_args
+
     # ac = np.zeros((3,))
     #####################
     # ac = guidance_func(rm, vm, r_targ)

@@ -111,14 +111,14 @@ class Guidance:
     def alt_controller(t, state: dict, args: dict, **kwargs):
         # ALT_RATE_LIMIT = float(args["ALT_RATE_LIMIT"])
         DESIRED_ALT = float(args["DESIRED_ALT"])
-        ALT_TIME_CONST = float(args["ALT_TIME_CONST"])
+        ALT_TIME_CONST = float(args["TIME_CONST"])
         # KP = 1.0 / ALT_TIME_CONST
         KD = float(args["KD"])
 
-        alt = state["alt"]
-        alt_dot = state["alt_dot"]
-        vm = state["vm"]
-        speed = state["speed"]
+        alt = state.get("alt")
+        alt_dot = state.get("alt_dot")
+        vm = state.get("vm")
+        speed = state.get("speed")
 
         # bounds = [-ALT_RATE_LIMIT, ALT_RATE_LIMIT]
         # ac_alt = Guidance.pd_controller(DESIRED_ALT, alt, alt_dot, KP, KD, bounds=bounds)
@@ -133,9 +133,12 @@ class Guidance:
         rot_axis = unitize(np.cross(azimuth_proj, zz))
         R = rodriguez_axis_angle(rot_axis, ang_err)
         vd = R @ azimuth_proj
-        args["TIME_CONST"] = args["KD"]
-        args["VEL_HAT_DESIRED"] = vd
-        ac = Guidance.PN(t, state, args, **kwargs)
+
+        # pass to PN
+        PN_args = {}
+        PN_args["TIME_CONST"] = args.get("KD")
+        PN_args["VEL_HAT_DESIRED"] = vd
+        ac = Guidance.PN(t, state, PN_args, **kwargs)
         ####
         return ac
 
@@ -154,3 +157,7 @@ class Guidance:
             raise Exception("GAIN or TIME_CONST must be an argument to guidance.p_controller()")
         accel_mag = gain * (desired - value)
         return unitize(vm) * accel_mag
+    
+    @staticmethod
+    def burn_at_g(t, state, args, **kwargs):
+        vm = state.get("vm")
