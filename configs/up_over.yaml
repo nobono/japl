@@ -1,9 +1,9 @@
 init:
   dt: 0.01
-  t_span: [0, 200]
-  R0: [0, 35e3, 1]
+  t_span: [0, 400]
+  R0: [0, 40e3, 1]
 
-  V0: [0, -1, 0]
+  V0: [0, -1, 1]
 
 guidance:
   phase:
@@ -24,8 +24,9 @@ guidance:
     0:
       alt_controller:
         DESIRED_ALT: 5010
-        ALT_TIME_CONST: 30.0 # (s)
-        KD: 0.1
+        TIME_CONST: 15.0 # (s)
+        ANGLE_LIMIT_DEG: 40.0 # (deg)
+        KD: 0.3
       speed_controller:
         TIME_CONST: 5.0
         VALUE: speed

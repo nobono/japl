@@ -108,8 +108,9 @@ class Guidance:
 
     @staticmethod
     def alt_controller(t, state: dict, args: dict, **kwargs):
-        DESIRED_ALT = float(args["DESIRED_ALT"])
-        ALT_TIME_CONST = float(args["TIME_CONST"])
+        DESIRED_ALT = float(args.get("DESIRED_ALT"))
+        ANGLE_LIMIT_DEG = float(args.get("ANGLE_LIMIT_DEG", 90.0))
+        ALT_TIME_CONST = float(args.get("TIME_CONST"))
         K_ANG = 1.0 / ALT_TIME_CONST # (rad / s)
 
         alt = state.get("alt")
@@ -125,8 +126,9 @@ class Guidance:
         # ac = C_i_v @ np.array([0, 0, ac_alt])
         # ac = np.array([0, 0, ac_alt])
         ###################
+        ang_bound = np.radians(ANGLE_LIMIT_DEG)
         ang_err = (K_ANG / speed) * (DESIRED_ALT - alt)
-        ang_err = bound(ang_err, -radians(90), radians(90))
+        ang_err = bound(ang_err, -ang_bound, ang_bound)
         azimuth_proj = unitize(np.array([vm[0], vm[1], 0]))
         zz = np.array([0, 0, 1])
         rot_axis = unitize(np.cross(azimuth_proj, zz))
