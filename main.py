@@ -117,8 +117,7 @@ def guidance_func(t, rm, vm, r_targ, config):
                     "east_dot": east_dot,
                     }
             v_targ = np.zeros((3,))
-            ac += gd_func(t, state, gd_args,
-                          r_targ=r_targ, v_targ=v_targ, ac=ac)
+            ac += gd_func(t, state, gd_args, ac=ac)
 
         if gd_condition_next and eval(gd_condition_next):
             # check if next phase is defined
