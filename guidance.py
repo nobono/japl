@@ -147,7 +147,7 @@ class Guidance:
     @staticmethod
     def speed_controller(t, state, args, **kwargs):
         desired = args.get("DESIRED")
-        value = state.get(args.get("VALUE"))
+        value = state.get("speed")
         ac = kwargs.get("ac")
         vm = state.get("vm")
         if "GAIN" in args:
@@ -169,12 +169,35 @@ class Guidance:
 
     def run(self, t, rm, vm, r_targ, config):
         ac = np.zeros((3,))
+        range = norm(rm)
+        speed = norm(vm)
+        east = rm[0]
+        north = rm[1]
+        alt = rm[2]
+        east_dot = vm[0]
+        north_dot = vm[1]
+        alt_dot = vm[2]
+        state = {
+                "rm": rm,
+                "vm": vm,
+                "range": range,
+                "speed": speed,
+                "alt": alt,
+                "alt_dot": alt_dot,
+                "north": north,
+                "east": east,
+                "north_dot": north_dot,
+                "east_dot": east_dot,
+                }
+        v_targ = np.zeros((3,))
 
         if "guidance" in config:
             gd_phase = config["guidance"]["phase"][self.phase_id]
             gd_condition_next = gd_phase.get("condition_next")
             for func_name in gd_phase:
                 if func_name == "condition_next":
+                    continue
+                elif func_name == "enable_drag":
                     continue
                 gd_func = self.__getattribute__(func_name)
                 # if gd_func is None:
@@ -187,27 +210,6 @@ class Guidance:
                 if "VEL_DESIRED" in gd_args:
                     gd_args["VEL_DESIRED"] = np.asarray(gd_args["VEL_DESIRED"])
 
-                range = norm(rm)
-                speed = norm(vm)
-                east = rm[0]
-                north = rm[1]
-                alt = rm[2]
-                east_dot = vm[0]
-                north_dot = vm[1]
-                alt_dot = vm[2]
-                state = {
-                        "rm": rm,
-                        "vm": vm,
-                        "range": range,
-                        "speed": speed,
-                        "alt": alt,
-                        "alt_dot": alt_dot,
-                        "north": north,
-                        "east": east,
-                        "north_dot": north_dot,
-                        "east_dot": east_dot,
-                        }
-                v_targ = np.zeros((3,))
                 ac += gd_func(t, state, gd_args, ac=ac)
 
             if gd_condition_next and eval(gd_condition_next):

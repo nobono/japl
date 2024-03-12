@@ -88,8 +88,14 @@ def guidance_func(t, rm, vm, r_targ, config):
 def dynamics_func(t, X, ss, r_targ, config):
     rm = X[:3]
     vm = X[3:6]
+    atmos_drag_enable = config["guidance"]["phase"][guidance.phase_id].get("enable_drag", False)
+
     ac = guidance_func(t, rm, vm, r_targ, config)
-    a_drag = np.zeros((3,)) #atmosphere_model(rm, vm)
+
+    if atmos_drag_enable:
+        a_drag = atmosphere_model(rm, vm)
+    else:
+        a_drag = np.zeros((3,))
     U = np.array([*a_drag, *ac])
     Xdot = ss.A @ X + ss.B @ U
     return Xdot
