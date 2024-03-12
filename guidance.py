@@ -109,11 +109,9 @@ class Guidance:
 
     @staticmethod
     def alt_controller(t, state: dict, args: dict, **kwargs):
-        # ALT_RATE_LIMIT = float(args["ALT_RATE_LIMIT"])
         DESIRED_ALT = float(args["DESIRED_ALT"])
         ALT_TIME_CONST = float(args["TIME_CONST"])
-        # KP = 1.0 / ALT_TIME_CONST
-        KD = float(args["KD"])
+        K_ANG = 1.0 / ALT_TIME_CONST # (rad / s)
 
         alt = state.get("alt")
         alt_dot = state.get("alt_dot")
@@ -122,12 +120,12 @@ class Guidance:
 
         # old method
         ###################
+        # KD = float(args["KD"])
         # bounds = [-ALT_RATE_LIMIT, ALT_RATE_LIMIT]
         # ac_alt = Guidance.pd_controller(DESIRED_ALT, alt, alt_dot, KP, KD, bounds=bounds)
         # ac = C_i_v @ np.array([0, 0, ac_alt])
         # ac = np.array([0, 0, ac_alt])
         ###################
-        K_ANG = 1.0 / ALT_TIME_CONST # (rad / s)
         ang_err = (K_ANG / speed) * (DESIRED_ALT - alt)
         ang_err = bound(ang_err, -radians(90), radians(90))
         azimuth_proj = unitize(np.array([vm[0], vm[1], 0]))
