@@ -56,36 +56,51 @@ class Guidance:
         rm = state.get("rm")
         vm = state.get("vm")
 
-        bounds = args.get("bounds", [])
+        BOUNDS = args.get("BOUNDS", [])
         TIME_CONST = float(args.get("TIME_CONST")) #type:ignore
+        VEL_DESIRED = args.get("DESIRED") #type:ignore
+        ROT_AXIS = args.get("ROT_AXIS")
+
         # eval desired velocity vector from config file
-        if "VEL_HAT_DESIRED" in args:
-            _vd: np.ndarray = args.get("VEL_HAT_DESIRED") #type:ignore
-            if isinstance(_vd, str):
-                vd = eval(_vd)
-            else:
-                vd = []
-                for i in _vd:
-                    if isinstance(i, str):
-                        vd.append(eval(i))
-                    else:
-                        vd.append(i)
-                vd = np.asarray(vd)
+        if isinstance(VEL_DESIRED, str):
+            vd = eval(VEL_DESIRED)
+        else:
+            vd = []
+            for i in VEL_DESIRED: #type:ignore
+                if isinstance(i, str):
+                    vd.append(eval(i))
+                else:
+                    vd.append(i)
+            vd = np.asarray(vd)
 
         vm_hat = unitize(vm) 
-        vd_hat = unitize(vd) #type:ignore
-        rot_axis = np.cross(vd_hat, vm_hat) #type:ignore
-        if norm(rot_axis) == 0.0:   # edge case when vd & vm are parallel
-            if abs(vd_hat[2]) > 0:
-                rot_axis = np.array([1, 0, 0])
-            elif abs(vd_hat[1]) > 0 or abs(vd_hat[0]) > 0:
-                rot_axis = np.array([0, 0, 1])
+        vd_hat = unitize(vd)
 
-        ang = np.arccos(bound(np.dot(vd_hat, vm_hat), -1.0, 1.0)) #type:ignore
+        if ROT_AXIS:
+            rot_axis = np.asarray(ROT_AXIS)
+            # project vd and vm hat
+            vd_hat = unitize([vd_hat[0], vd_hat[1], 0])
+            vm_hat = unitize([vm_hat[0], vm_hat[1], 0])
+            # vd_hat = unitize(np.cross(vd_hat, rot_axis))
+            # vm_hat = unitize(np.cross(vm_hat, rot_axis))
+        else:
+            rot_axis = np.cross(vd_hat, vm_hat) #type:ignore
+            if norm(rot_axis) == 0.0:   # edge case when vd & vm are parallel
+                if abs(vd_hat[2]) > 0:
+                    rot_axis = np.array([1, 0, 0])
+                elif abs(vd_hat[1]) > 0 or abs(vd_hat[0]) > 0:
+                    rot_axis = np.array([0, 0, 1])
+
+        # ang = np.arccos(bound(np.dot(vd_hat, vm_hat), -1.0, 1.0)) #type:ignore
+        ang = bound(np.arccos(np.dot(vd_hat, vm_hat)), -np.pi, np.pi) #type:ignore
         ac_hat = unitize(np.cross(vm_hat, unitize(rot_axis))) #type:ignore
         turn_accel = ang * (norm(vm) /  TIME_CONST) #type:ignore
-        if len(bounds) == 2:
-            turn_accel = bound(turn_accel, bounds[0], bounds[1])
+        # if state.get("rm")[0] <= -13_000:
+        #     pass
+        # if np.degrees(ang) <= 11.35:
+        #     pass
+        if len(BOUNDS) == 2:
+            turn_accel = bound(turn_accel, BOUNDS[0], BOUNDS[1])
         ac = ac_hat * turn_accel
         ###################################
         # ac = np.cross(np.arcsin(np.cross(vm_hat, vd_hat)) / norm(vm), vd_hat)
@@ -139,7 +154,7 @@ class Guidance:
         # pass to PN
         PN_args = {}
         PN_args["TIME_CONST"] = args.get("KD")
-        PN_args["VEL_HAT_DESIRED"] = vd
+        PN_args["DESIRED"] = vd
         ac = Guidance.PN(t, state, PN_args, **kwargs)
         return ac
 

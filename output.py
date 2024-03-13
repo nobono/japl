@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from util import norm
 from util import unitize
 import numpy as np
+from scipy import constants
 
 
 class OutputManager:
@@ -16,6 +17,8 @@ class OutputManager:
         self.y = y
         self.points = points
         self.velmag = [norm(i) for i in y[:, 3:6]]
+        self.accmag = [norm(i) for i in y[:, 6:9]]
+        self.G = [i / constants.g for i in self.accmag]
         yy = np.array([0, -1, 0])
         self.theta = [np.degrees(np.arccos(np.dot(yy, unitize(vm)))) for vm in y[:, 3:6]]
 
@@ -24,7 +27,7 @@ class OutputManager:
         if self.args.plot_3d:
             # 3D Plot
             fig = plt.figure(figsize=(10, 8))
-            ax = plt.axes(projection='3d')
+            ax = plt.axes(projection='3d', aspect='equal')
             ax.plot3D(self.y[:, 0], self.y[:, 1], self.y[:, 2])
             # ax.plot3D(*targ_R0, marker='.')
             # ax.plot3D(*r_pop1, marker='.', color='green')
@@ -86,17 +89,32 @@ class OutputManager:
                         Y = self.y[:, 0]
                         ylabel = 'E (m)'
                     case 'alt_dot' :
-                        y = self.y[:, 5]
-                        ylabel = 'Alt (m/s)'
+                        Y = self.y[:, 5]
+                        ylabel = 'Alt vel (m/s)'
                     case 'north_dot' :
                         Y = self.y[:, 4]
-                        ylabel = 'N (m/s)'
+                        ylabel = 'N vel (m/s)'
                     case 'east_dot' :
                         Y = self.y[:, 3]
-                        ylabel = 'E (m/s)'
+                        ylabel = 'E vel (m/s)'
                     case 'speed' :
                         Y = self.velmag
                         ylabel = 'Speed (m/s)'
+                    case 'alt_dot_dot' :
+                        Y = self.y[:, 8]
+                        ylabel = 'Alt acc (m/s^2)'
+                    case 'north_dot_dot' :
+                        Y = self.y[:, 7]
+                        ylabel = 'North acc (m/s^2)'
+                    case 'east_dot_dot' :
+                        Y = self.y[:, 6]
+                        ylabel = 'East acc (m/s^2)'
+                    case 'accel' :
+                        Y = self.accmag
+                        ylabel = 'accel mag (m/s^2)'
+                    case 'g' :
+                        Y = self.G
+                        ylabel = 'Gs'
                     case _ :
                         Y = self.y[:, 1]
                         ylabel = 'N (m)'
