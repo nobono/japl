@@ -143,18 +143,6 @@ class OutputManager:
                     axs.set_xlabel(xlabel)
                     axs.set_ylabel(ylabel)
 
-
-                # axs[1].set_title("xy")
-                # axs[1].plot(X, self.y[:, 0])
-                # axs[1].set_xlabel(xlabel)
-
-                # axs[2].set_title("velmag")
-                # axs[2].plot(X, self.velmag)
-                # axs[2].set_xlabel(xlabel)
-
-                # axs[3].set_title("theta")
-                # axs[3].plot(X, self.theta)
-
             if self.args.save:
                 fig.savefig(os.path.join(self.dir, "p.png"))
 
