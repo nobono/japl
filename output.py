@@ -88,6 +88,7 @@ class OutputManager:
 
             # Setup sliders
             ax_zlim = fig.add_axes([0.25, 0.0, 0.65, 0.03]) #type:ignore
+
             slider_zlim = Slider(
                     ax=ax_zlim,
                     label="zlim",
@@ -96,12 +97,12 @@ class OutputManager:
                     valinit=1.0,
                     )
 
-            def update(val):
+            def update_zlim(val):
                 zlim = ax.get_zlim()
                 ax.set_zlim([zlim[0], val])
                 fig.canvas.draw_idle()
 
-            slider_zlim.on_changed(update)
+            slider_zlim.on_changed(update_zlim)
 
             # scale x-axis same as y-axis
             ylim = ax.get_ylim()
