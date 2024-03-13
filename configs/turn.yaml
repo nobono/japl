@@ -22,10 +22,10 @@ guidance:
         TIME_CONST: 20
         ROT_AXIS: [0, 0, 1]
         G_LIMIT: [-3, 3]
-      # alt_controller:
-      #   DESIRED_ALT: 70
-      #   TIME_CONST: 20.0 # (s)
-      #   KD: 0.5
+      alt_controller:
+        DESIRED_ALT: 70
+        TIME_CONST: 20.0 # (s)
+        KD: 0.5
 
 plot:
   YZ:
