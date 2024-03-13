@@ -29,6 +29,13 @@ class OutputManager:
             fig = plt.figure(figsize=(10, 8))
             ax = plt.axes(projection='3d', aspect='equal')
             ax.plot3D(self.y[:, 0], self.y[:, 1], self.y[:, 2])
+
+            # scale x-axis same as y-axis
+            ylim = ax.get_ylim()
+            xlim = ax.get_xlim()
+            ylim_delta = abs(ylim[0] - ylim[1])
+            ax.set_xlim(xlim[0] - ylim_delta/2, xlim[1] + ylim_delta/2)
+
             # ax.plot3D(*targ_R0, marker='.')
             # ax.plot3D(*r_pop1, marker='.', color='green')
             # ax.plot3D(*r_pop2, marker='.', color='red')

@@ -2,7 +2,7 @@ init:
   dt: 0.01
   t_span: [0, 1000]
   R0: [0, 50e3, 10]
-  V0: [0, -200, 50]
+  V0: [0, -200, 0]
 
 
 G_LIMIT: 14.0
@@ -21,7 +21,11 @@ guidance:
         DESIRED: [0, 1, 0]
         TIME_CONST: 20
         ROT_AXIS: [0, 0, 1]
-        G_LIMIT: [-2, 2]
+        G_LIMIT: [-3, 3]
+      # alt_controller:
+      #   DESIRED_ALT: 70
+      #   TIME_CONST: 20.0 # (s)
+      #   KD: 0.5
 
 plot:
   YZ:
