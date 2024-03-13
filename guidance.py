@@ -53,8 +53,8 @@ class Guidance:
         range = float(state.get("range")) #type:ignore
         alt = float(state.get("alt")) #type:ignore
         speed = float(state.get("speed")) #type:ignore
-        rm = state.get("rm")
-        vm = state.get("vm")
+        rm = np.asarray(state.get("rm"))
+        vm = np.asarray(state.get("vm"))
 
         G_LIMIT = args.get("G_LIMIT", [])
         TIME_CONST = float(args.get("TIME_CONST")) #type:ignore
@@ -92,7 +92,9 @@ class Guidance:
                     rot_axis = np.array([0, 0, 1])
 
         # ang = np.arccos(bound(np.dot(vd_hat, vm_hat), -1.0, 1.0)) #type:ignore
-        ang = bound(np.arccos(np.dot(vd_hat, vm_hat)), -np.pi, np.pi) #type:ignore
+        vd_vm_dot = bound(np.dot(vd_hat, vm_hat), -1.0, 1.0) # protect against invalid arccos
+        ang = bound(np.arccos(vd_vm_dot), -np.pi, np.pi) #type:ignore
+        print("dot", np.dot(vd_hat, vm_hat))
         ac_hat = unitize(np.cross(vm_hat, unitize(rot_axis))) #type:ignore
         turn_accel = ang * (norm(vm) /  TIME_CONST) #type:ignore
         # if state.get("rm")[0] <= -13_000:
