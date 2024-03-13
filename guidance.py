@@ -56,7 +56,7 @@ class Guidance:
         rm = state.get("rm")
         vm = state.get("vm")
 
-        BOUNDS = args.get("BOUNDS", [])
+        G_LIMIT = args.get("G_LIMIT", [])
         TIME_CONST = float(args.get("TIME_CONST")) #type:ignore
         VEL_DESIRED = args.get("DESIRED") #type:ignore
         ROT_AXIS = args.get("ROT_AXIS")
@@ -99,8 +99,8 @@ class Guidance:
         #     pass
         # if np.degrees(ang) <= 11.35:
         #     pass
-        if len(BOUNDS) == 2:
-            turn_accel = bound(turn_accel, BOUNDS[0], BOUNDS[1])
+        if len(G_LIMIT) == 2:
+            turn_accel = bound(turn_accel, G_LIMIT[0] * constants.g, G_LIMIT[1] * constants.g)
         ac = ac_hat * turn_accel
         ###################################
         # ac = np.cross(np.arcsin(np.cross(vm_hat, vd_hat)) / norm(vm), vd_hat)

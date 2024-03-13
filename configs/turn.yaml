@@ -21,6 +21,7 @@ guidance:
         DESIRED: [0, 1, 0]
         TIME_CONST: 20
         ROT_AXIS: [0, 0, 1]
+        G_LIMIT: [-2, 2]
 
 plot:
   YZ:
