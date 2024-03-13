@@ -32,7 +32,7 @@ class Guidance:
         vm = np.asarray(state.get("vm"))
         r_targ = np.asarray(args.get("TARGET"))
         v_targ = np.asarray(args.get("TARGET_DOT"))
-        N = float(args.get( "N" ))
+        N = float(args.get("N", 4.0))
 
         v_r = v_targ - vm
         r = r_targ - rm
@@ -50,17 +50,17 @@ class Guidance:
         vm - velocity vector
         G_LIMIT - 
         """
-        range = float(state.get("range"))
-        alt = float(state.get("alt"))
-        speed = float(state.get("speed"))
+        range = float(state.get("range")) #type:ignore
+        alt = float(state.get("alt")) #type:ignore
+        speed = float(state.get("speed")) #type:ignore
         rm = state.get("rm")
         vm = state.get("vm")
 
         bounds = args.get("bounds", [])
-        TIME_CONST = float(args.get("TIME_CONST"))
+        TIME_CONST = float(args.get("TIME_CONST")) #type:ignore
         # eval desired velocity vector from config file
         if "VEL_HAT_DESIRED" in args:
-            _vd = args.get("VEL_HAT_DESIRED")
+            _vd: np.ndarray = args.get("VEL_HAT_DESIRED") #type:ignore
             if isinstance(_vd, str):
                 vd = eval(_vd)
             else:
@@ -73,17 +73,17 @@ class Guidance:
                 vd = np.asarray(vd)
 
         vm_hat = unitize(vm) 
-        vd_hat = unitize(vd)
-        rot_axis = np.cross(vd_hat, vm_hat)
+        vd_hat = unitize(vd) #type:ignore
+        rot_axis = np.cross(vd_hat, vm_hat) #type:ignore
         if norm(rot_axis) == 0.0:   # edge case when vd & vm are parallel
             if abs(vd_hat[2]) > 0:
                 rot_axis = np.array([1, 0, 0])
             elif abs(vd_hat[1]) > 0 or abs(vd_hat[0]) > 0:
                 rot_axis = np.array([0, 0, 1])
 
-        ang = np.arccos(bound(np.dot(vd_hat, vm_hat), -1.0, 1.0))
-        ac_hat = unitize(np.cross(vm_hat, unitize(rot_axis)))
-        turn_accel = ang * (norm(vm) /  TIME_CONST)
+        ang = np.arccos(bound(np.dot(vd_hat, vm_hat), -1.0, 1.0)) #type:ignore
+        ac_hat = unitize(np.cross(vm_hat, unitize(rot_axis))) #type:ignore
+        turn_accel = ang * (norm(vm) /  TIME_CONST) #type:ignore
         if len(bounds) == 2:
             turn_accel = bound(turn_accel, bounds[0], bounds[1])
         ac = ac_hat * turn_accel
@@ -109,9 +109,9 @@ class Guidance:
 
     @staticmethod
     def alt_controller(t, state: dict, args: dict, **kwargs):
-        DESIRED_ALT = float(args.get("DESIRED_ALT"))
+        DESIRED_ALT = float(args.get("DESIRED_ALT")) #type:ignore
         ANGLE_LIMIT_DEG = float(args.get("ANGLE_LIMIT_DEG", 90.0))
-        ALT_TIME_CONST = float(args.get("TIME_CONST"))
+        ALT_TIME_CONST = float(args.get("TIME_CONST")) #type:ignore
         K_ANG = 1.0 / ALT_TIME_CONST # (rad / s)
 
         alt = state.get("alt")
@@ -128,9 +128,9 @@ class Guidance:
         # ac = np.array([0, 0, ac_alt])
         ###################
         ang_bound = np.radians(ANGLE_LIMIT_DEG)
-        ang_err = (K_ANG / speed) * (DESIRED_ALT - alt)
+        ang_err = (K_ANG / speed) * (DESIRED_ALT - alt) #type:ignore
         ang_err = bound(ang_err, -ang_bound, ang_bound)
-        azimuth_proj = unitize(np.array([vm[0], vm[1], 0]))
+        azimuth_proj = unitize(np.array([vm[0], vm[1], 0])) #type:ignore
         zz = np.array([0, 0, 1])
         rot_axis = unitize(np.cross(azimuth_proj, zz))
         R = rodriguez_axis_angle(rot_axis, ang_err)
