@@ -177,7 +177,7 @@ class Guidance:
 
 
     @staticmethod
-    def burn_at_g(t, state, args, **kwargs):
+    def accelerate(t, state, args, **kwargs):
         vm = state.get("vm")
         burn_G = args.get("G")
         return unitize(vm) * (burn_G * constants.g)

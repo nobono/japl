@@ -1,8 +1,8 @@
 init:
   dt: 0.01
-  t_span: [0, 1000]
+  t_span: [0, 400]
   R0: [0, 20e3, 1]
-  V0: [0, -200, 0]
+  V0: [0, -200, 1]
 
 
 G_LIMIT: 14.0
@@ -17,12 +17,12 @@ guidance:
       #   KD: 0.5
       condition_next: range <= 15e3
     1:
-    #   alt_controller:
-    #     DESIRED_ALT: 71
-    #     TIME_CONST: 5.0 # (s)
-    #     KD: 0.5
-    #   condition_next: alt >= 70
-    # 2:
+      alt_controller:
+        DESIRED_ALT: 71
+        TIME_CONST: 5.0 # (s)
+        KD: 0.5
+      condition_next: alt >= 70
+    2:
       PN:
         DESIRED: [0, 1, 0]
         TIME_CONST: 20
@@ -30,8 +30,13 @@ guidance:
         G_LIMIT: [-3, 3]
       alt_controller:
         DESIRED_ALT: 70
-        TIME_CONST: 5.0 # (s)
+        TIME_CONST: 20.0 # (s)
         KD: 0.5
+      condition_next: t >= 200
+    3:
+      accelerate:
+        G: 1.0
+
 
 plot:
   YZ:
@@ -41,7 +46,7 @@ plot:
   #   x_axis: 'north'
   #   y_axis: 'east'
   Speed:
-    x_axis: 'north'
+    x_axis: 'time'
     y_axis: 'speed'
   G:
     x_axis: 'time'
