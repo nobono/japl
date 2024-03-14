@@ -1,41 +1,35 @@
 import numpy as np
 import sympy as sp
-import scipy.linalg
-from util import unitize
-from util import skew
-from numpy.linalg import norm
-import mpmath
-from util import create_C_rot
-from util import create_rot_mat
-from util import rodriguez_rot
+import control as ct
 
 
 
-vm = np.array([0, 1, 1])
-vmh = unitize(vm)
-xx = np.array([1, 0, 0])
-yy = np.array([0, 1, 0])
-zz = np.array([0, 0, 1])
+wapar = 25
+zetapar = .1
+tf = ct.tf([1], [1/wapar**2, 2*zetapar/wapar, 1])
+ss = ct.tf2ss(tf)
+ss, TM = ct.observable_form(ss)
+# ss.set_states(states=["acc", "jerk"])
+# ss.set_inputs(inputs=["acc_cmd"])
 
-mat = np.array([
-    vmh,
-    np.cross(vmh, zz),
-    zz
-]).T
 
-# inv1 = np.linalg.inv(mat)
-# r = inv1 @ np.array([0, 1, 0])
-# print(r)
-# print(norm(r))
+A = np.array([
+    [0, 1],
+    [0, 0],
+    ])
+B = np.array([
+    [0],
+    [1],
+    ])
+C = np.eye(2)
+D = np.zeros((2, 1))
+basess = ct.ss(A, B, C, D)
 
-C = create_C_rot(vm)
-# print(C @ np.array([0, 3, 0]))
+ss_app = ct.append(basess, tf)
+Q = np.array([
+    [1, ],
+    [2, ],
+    ])
+# ret = ct.connect(ss_app, Q, inputv=, outputv=)
+ct.interconnect
 
-C = create_rot_mat(yy, vmh)
-# print(C)
-# C = rodriguez_rot(-xx, np.radians(45))
-# print(np.cos(np.radians(45)))
-# print(C)
-print("----")
-print(C @ np.array([0, 1, 0]))
-     

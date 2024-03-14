@@ -92,3 +92,38 @@ class FirstOrderInput(LinearIOSystem):
 
     def get_init_state(self):
         return np.zeros((self.A.shape[0],)) #type:ignore
+
+
+
+class BaseSystem(LinearIOSystem):
+
+    def __init__(self, *args, **kwargs):
+        A = np.array([
+            [0, 0, 0,   1, 0, 0], # xvel
+            [0, 0, 0,   0, 1, 0], # yvel
+            [0, 0, 0,   0, 0, 1], # zvel
+
+            [0, 0, 0,   0, 0, 0], # xacc
+            [0, 0, 0,   0, 0, 0], # yacc
+            [0, 0, 0,   0, 0, 0], # zacc
+            ])
+
+        # [ax, ay, az]
+        # inputs add columns
+        B = np.array([
+            [0, 0, 0],
+            [0, 0, 0],
+            [0, 0, 0],
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 0, 1],
+            ])
+        ct.ss
+
+        C = np.eye(9)
+        D = np.zeros((9, 6))
+        super().__init__(StateSpace(A, B, C, D, *args, init_namedio=True, **kwargs))
+
+
+    def get_init_state(self):
+        return np.zeros((self.A.shape[0],)) #type:ignore
