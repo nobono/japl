@@ -12,19 +12,17 @@ guidance:
   phase:
     0:
       alt_controller:
-        DESIRED_ALT: 3e3
+        DESIRED: 3e3
         TIME_CONST: 30.0 # (s)
         KD: 0.5
       speed_controller:
-        TIME_CONST: 5.0
-        VALUE: speed
         DESIRED: 200.0
-      # condition_next: range <= 30e3
+        TIME_CONST: 5.0
       condition_next: t >= 80.0
     1:
       PN:
+        DESIRED: "[sin(0.1 * (t - 80.0)), -1, cos(0.1 * (t - 80.0))]"
         TIME_CONST: 15.0
-        VEL_HAT_DESIRED: "[sin(0.1 * (t - 80.0)), -1, cos(0.1 * (t - 80.0))]"
       # condition_next: range <= 2e3
     # 5:
     #   pronav:

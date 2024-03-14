@@ -12,26 +12,24 @@ guidance:
   phase:
     0:
       alt_controller:
-        DESIRED_ALT: 5010
+        DESIRED: 5010
         TIME_CONST: 15.0 # (s)
         ANGLE_LIMIT_DEG: 40.0 # (deg)
         KD: 0.3
       speed_controller:
-        TIME_CONST: 5.0
-        VALUE: speed
         DESIRED: 200.0
+        TIME_CONST: 5.0
       condition_next: alt >= 5000
       # condition_next: range <= 45000
     1:
       PN:
+        DESIRED: [0, -cos(radians(15)), -sin(radians(15))]
         TIME_CONST: 10.0
-        VEL_HAT_DESIRED: [0, -cos(radians(15)), -sin(radians(15))]
       condition_next: range <= 10000
     2:
       speed_controller:
-        TIME_CONST: 30.0
-        VALUE: speed
         DESIRED: 100.0
+        TIME_CONST: 30.0
 
 
 plot:

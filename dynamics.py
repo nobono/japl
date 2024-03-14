@@ -120,9 +120,17 @@ class BaseSystem(LinearIOSystem):
             ])
         ct.ss
 
-        C = np.eye(9)
-        D = np.zeros((9, 6))
-        super().__init__(StateSpace(A, B, C, D, *args, init_namedio=True, **kwargs))
+        C = np.eye(6)
+        D = np.zeros((6, 3))
+        state_labels = ["xpos", "ypos", "zpos", "xvel", "yvel", "zvel"]
+        output_labels = ["xpos", "ypos", "zpos", "xvel", "yvel", "zvel"]
+        input_labels = ["xacc", "yacc", "zacc"]
+        super().__init__(StateSpace(A, B, C, D, *args, init_namedio=True,
+                                    states=state_labels,
+                                    inputs=input_labels,
+                                    outputs=output_labels,
+                                    name="dynamics",
+                                    ))
 
 
     def get_init_state(self):

@@ -125,7 +125,7 @@ class Guidance:
 
     @staticmethod
     def alt_controller(t, state: dict, args: dict, **kwargs):
-        DESIRED_ALT = float(args.get("DESIRED_ALT")) #type:ignore
+        DESIRED_ALT = float(args.get("DESIRED")) #type:ignore
         ANGLE_LIMIT_DEG = float(args.get("ANGLE_LIMIT_DEG", 90.0))
         ALT_TIME_CONST = float(args.get("TIME_CONST")) #type:ignore
         K_ANG = 1.0 / ALT_TIME_CONST # (rad / s)

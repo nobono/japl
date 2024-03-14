@@ -21,7 +21,7 @@ guidance:
       condition_next: range <= 15e3
     1:
       alt_controller:
-        DESIRED_ALT: 71
+        DESIRED: 71
         TIME_CONST: 5.0 # (s)
         KD: 0.5
       condition_next: alt >= 70
@@ -32,7 +32,7 @@ guidance:
         ROT_AXIS: [0, 0, 1]
         G_LIMIT: [-3, 3]
       alt_controller:
-        DESIRED_ALT: 70
+        DESIRED: 70
         TIME_CONST: 20.0 # (s)
         KD: 0.5
       condition_next: t >= 200
