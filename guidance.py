@@ -17,6 +17,7 @@ acos = np.arccos
 asin = np.arcsin
 degrees = np.degrees
 radians = np.radians
+pi = np.pi
 
 
 class Guidance:

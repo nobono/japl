@@ -135,3 +135,13 @@ class BaseSystem(LinearIOSystem):
 
     def get_init_state(self):
         return np.zeros((self.A.shape[0],)) #type:ignore
+    
+
+    def add_system(self, ss):
+        state_labels = self.state_labels
+        input_labels = self.input_labels
+        output_labels = self.output_labels
+        self = ct.append(self, ss)
+        self.set_states(state_labels + ss.state_labels)
+        self.set_inputs(input_labels + ss.input_labels)
+        self.set_outputs(output_labels + ss.output_labels)
