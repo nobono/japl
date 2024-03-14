@@ -84,7 +84,7 @@ class OutputManager:
             ax.plot3D(self.y[:, 0], self.y[:, 1], self.y[:, 2])
             ax.set_xlabel("E")
             ax.set_ylabel("N")
-            ax.set_zlabel("D")
+            ax.set_zlabel("U")
 
             # Setup sliders
             ax_zlim = fig.add_axes([0.25, 0.0, 0.65, 0.03]) #type:ignore
