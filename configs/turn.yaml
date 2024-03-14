@@ -1,8 +1,8 @@
 init:
   dt: 0.01
-  t_span: [0, 400]
+  t_span: [0, 200]
   R0: [0, 20e3, 1]
-  V0: [0, -200, 1]
+  V0: [0, -1, 0]
 
 
 G_LIMIT: 14.0
@@ -15,6 +15,9 @@ guidance:
       #   DESIRED_ALT: 3e3
       #   TIME_CONST: 30.0 # (s)
       #   KD: 0.5
+      speed_controller:
+        DESIRED: 200
+        TIME_CONST: 5
       condition_next: range <= 15e3
     1:
       alt_controller:
