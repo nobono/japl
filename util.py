@@ -121,10 +121,11 @@ def vec_proj(a: np.ndarray, b: np.ndarray):
     return unitize(b) * (np.dot(a, b) / norm(b))
 
 
-def array_from_yaml(value: Any, state: dict):
+def array_from_yaml(value: Any, var_context: list[dict]):
     # extract values from state
-    for key, val in state.items():
-        locals()[key] = val
+    for context in var_context:
+        for key, val in context.items():
+            locals()[key] = val
     # eval list or each index of list
     if isinstance(value, str):
         vd = eval(value)

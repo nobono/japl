@@ -54,11 +54,17 @@ from events import check_for_events
 
 # ---------------------------------------------------
 
-
-ss = FirstOrderInput()
-atmosphere = Atmosphere()
-guidance = Guidance()
-maneuver = Maneuvers()
+# for eval
+sin = np.sin
+cos = np.cos
+tan = np.tan
+atan = np.arctan
+atan2 = np.arctan2
+acos = np.arccos
+asin = np.arcsin
+degrees = np.degrees
+radians = np.radians
+pi = np.pi
 
 
 
@@ -132,8 +138,22 @@ if __name__ == "__main__":
     if args.input:
         config = read_config_file(args.input)
 
+    config_vars = config["guidance"].get("vars") # if VARS defined, update in globals()
+    if config_vars:
+        for key, val in config_vars.items():
+            try:
+                config_vars[key] = eval(val)
+            except:
+                pass
+            # globals().update(config_vars)
+
     # Inits
     ####################################
+    ss = FirstOrderInput()
+    atmosphere = Atmosphere()
+    guidance = Guidance()
+    maneuver = Maneuvers()
+
     init = config.get('init', None)
     t_span = init.get("t_span", [0, 200])
     dt = float(init.get("dt", 0.01))

@@ -6,6 +6,7 @@ from util import vec_proj
 from util import rodriguez_axis_angle
 from util import array_from_yaml
 from scipy import constants
+from typing import Optional
 
 
 
@@ -18,10 +19,11 @@ class Guidance:
 
     @staticmethod
     def pronav(t, state: dict, args:dict, **kwargs):
+        var_context = [state, kwargs.get("config_vars", {})]
         rm = np.asarray(state.get("rm"))
         vm = np.asarray(state.get("vm"))
-        r_targ = array_from_yaml(args.get("TARGET"), state)
-        v_targ = array_from_yaml(args.get("TARGET_DOT", [0, 0, 0]), state)
+        r_targ = array_from_yaml(args.get("TARGET"), var_context)
+        v_targ = array_from_yaml(args.get("TARGET_DOT", [0, 0, 0]), var_context)
         N = float(args.get("N", 4.0))
 
         v_r = v_targ - vm
@@ -40,19 +42,15 @@ class Guidance:
         vm - velocity vector
         G_LIMIT - 
         """
-        range = float(state.get("range")) #type:ignore
-        alt = float(state.get("alt")) #type:ignore
-        speed = float(state.get("speed")) #type:ignore
-        rm = np.asarray(state.get("rm"))
-        vm = np.asarray(state.get("vm"))
-
         G_LIMIT = args.get("G_LIMIT", [])
         TIME_CONST = float(args.get("TIME_CONST")) #type:ignore
         VEL_DESIRED = args.get("DESIRED") #type:ignore
         ROT_AXIS = args.get("ROT_AXIS")
 
         # eval desired velocity vector from config file
-        vd = array_from_yaml(VEL_DESIRED, state)
+        var_context = [state, kwargs.get("config_vars", {})]
+        vm = np.asarray(state.get("vm"))
+        vd = array_from_yaml(VEL_DESIRED, var_context)
 
         vm_hat = unitize(vm) 
         vd_hat = unitize(vd)
@@ -72,15 +70,10 @@ class Guidance:
                 elif abs(vd_hat[1]) > 0 or abs(vd_hat[0]) > 0:
                     rot_axis = np.array([0, 0, 1])
 
-        # ang = np.arccos(bound(np.dot(vd_hat, vm_hat), -1.0, 1.0)) #type:ignore
         vd_vm_dot = bound(np.dot(vd_hat, vm_hat), -1.0, 1.0) # protect against invalid arccos
         ang = bound(np.arccos(vd_vm_dot), -np.pi, np.pi) #type:ignore
         ac_hat = unitize(np.cross(vm_hat, unitize(rot_axis))) #type:ignore
         turn_accel = ang * (norm(vm) /  TIME_CONST) #type:ignore
-        # if state.get("rm")[0] <= -13_000:
-        #     pass
-        # if np.degrees(ang) <= 11.35:
-        #     pass
         if len(G_LIMIT) == 2:
             turn_accel = bound(turn_accel, G_LIMIT[0] * constants.g, G_LIMIT[1] * constants.g)
         ac = ac_hat * turn_accel
@@ -89,6 +82,7 @@ class Guidance:
         # ac = ac_hat * norm(vm)
         ###################################
         return ac
+
 
     @staticmethod
     def p_controller(desired, value, gain):
@@ -188,16 +182,21 @@ class Guidance:
                 }
         v_targ = np.zeros((3,))
 
+        ignores = ["condition_next", "enable_drag"]
+
         if "guidance" in config:
+            gd_vars = config["guidance"]["vars"]
+            globals().update(gd_vars)
+
             gd_phase = config["guidance"]["phase"][self.phase_id]
             gd_condition_next = gd_phase.get("condition_next")
             for func_name in gd_phase:
-                if func_name in ["condition_next", "enable_drag"]:
+                if func_name in ignores:
                     continue
                 gd_func = self.__getattribute__(func_name)
                 gd_args = gd_phase[func_name]
 
-                ac += gd_func(t, state, gd_args, ac=ac)
+                ac += gd_func(t, state, gd_args, ac=ac, config_vars=gd_vars)
 
             if gd_condition_next and eval(gd_condition_next):
                 # check if next phase is defined
