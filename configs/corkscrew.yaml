@@ -1,6 +1,6 @@
 init:
   dt: 0.01
-  t_span: [0, 200]
+  t_span: [0, 400]
   R0: [0, 60e3, 10e3]
   V0: [0, -100, 0]
 
@@ -11,15 +11,15 @@ G_LIMIT: 14.0
 guidance:
   phase:
     0:
-      condition_next: t >= 10.0
+      condition_next: range <= 40e3
     1:
       PN:
         DESIRED: [1, 0, 0]
         TIME_CONST: 2.0
-      condition_next: t >= 11.0
+      condition_next: rm[0] >= 2e3
     2:
       PN:
-        DESIRED: "[cos(0.1 * t + pi/8), -1, sin(0.1 * t + pi/8)]"
+        DESIRED: "[3 * cos(0.001 * rm[1] - 41e3), -1, 3 * sin(0.001 * rm[1] - 41e3)]"
         TIME_CONST: 5.0
       # speed_controller:
       #   DESIRED: 200.0
@@ -36,6 +36,9 @@ plot:
   YZ:
     x_axis: 'north'
     y_axis: 'alt'
+  XY:
+    x_axis: 'north'
+    y_axis: 'east'
   Speed:
     x_axis: 'north'
     y_axis: 'speed'

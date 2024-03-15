@@ -1,8 +1,22 @@
 import os
 import yaml
 import numpy as np
+from typing import Any
 
 CONFIGS_DIR = os.path.join(os.getcwd(), "configs")
+
+
+# for eval
+sin = np.sin
+cos = np.cos
+tan = np.tan
+atan = np.arctan
+atan2 = np.arctan2
+acos = np.arccos
+asin = np.arcsin
+degrees = np.degrees
+radians = np.radians
+pi = np.pi
 
 
 
@@ -105,4 +119,22 @@ def skew(vec: np.ndarray):
 def vec_proj(a: np.ndarray, b: np.ndarray):
     """vector projection of vec a onto vec b"""
     return unitize(b) * (np.dot(a, b) / norm(b))
+
+
+def array_from_yaml(value: Any, state: dict):
+    # extract values from state
+    for key, val in state.items():
+        locals()[key] = val
+    # eval list or each index of list
+    if isinstance(value, str):
+        vd = eval(value)
+    else:
+        vd = []
+        for i in value: #type:ignore
+            if isinstance(i, str):
+                vd.append(eval(i))
+            else:
+                vd.append(i)
+        vd = np.asarray(vd)
+    return vd
 

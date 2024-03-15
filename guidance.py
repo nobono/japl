@@ -4,20 +4,9 @@ from util import norm
 from util import bound
 from util import vec_proj
 from util import rodriguez_axis_angle
+from util import array_from_yaml
 from scipy import constants
 
-
-# for eval
-sin = np.sin
-cos = np.cos
-tan = np.tan
-atan = np.arctan
-atan2 = np.arctan2
-acos = np.arccos
-asin = np.arcsin
-degrees = np.degrees
-radians = np.radians
-pi = np.pi
 
 
 class Guidance:
@@ -31,8 +20,8 @@ class Guidance:
     def pronav(t, state: dict, args:dict, **kwargs):
         rm = np.asarray(state.get("rm"))
         vm = np.asarray(state.get("vm"))
-        r_targ = np.asarray(args.get("TARGET"))
-        v_targ = np.asarray(args.get("TARGET_DOT"))
+        r_targ = array_from_yaml(args.get("TARGET"), state)
+        v_targ = array_from_yaml(args.get("TARGET_DOT"), state)
         N = float(args.get("N", 4.0))
 
         v_r = v_targ - vm
@@ -63,16 +52,7 @@ class Guidance:
         ROT_AXIS = args.get("ROT_AXIS")
 
         # eval desired velocity vector from config file
-        if isinstance(VEL_DESIRED, str):
-            vd = eval(VEL_DESIRED)
-        else:
-            vd = []
-            for i in VEL_DESIRED: #type:ignore
-                if isinstance(i, str):
-                    vd.append(eval(i))
-                else:
-                    vd.append(i)
-            vd = np.asarray(vd)
+        vd = array_from_yaml(VEL_DESIRED, state)
 
         vm_hat = unitize(vm) 
         vd_hat = unitize(vd)
