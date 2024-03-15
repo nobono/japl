@@ -68,7 +68,7 @@ pi = np.pi
 
 
 
-def atmosphere_model(rm, vm):
+def atmosphere_drag(rm, vm):
     ATMOS_BOUNDS = [-5e3, 81e3]
     alt_bounded = bound(rm[2] / 1000, *ATMOS_BOUNDS)
     density = atmosphere.density(alt_bounded)
@@ -79,6 +79,13 @@ def atmosphere_model(rm, vm):
     yfd = -(0.5 * CD * A * density * vm[1]) / MASS
     zfd = -(0.5 * CD * A * density * vm[2]) / MASS
     return np.array([xfd, yfd, zfd])
+
+
+def atmosphere_gravity(rm):
+    ATMOS_BOUNDS = [-5e3, 81e3]
+    alt_bounded = bound(rm[2] / 1000, *ATMOS_BOUNDS)
+    grav_accel = atmosphere.grav_accel(alt_bounded)
+    return grav_accel
 
 
 def guidance_func(t, rm, vm, r_targ, config):
@@ -95,14 +102,18 @@ def dynamics_func(t, X, ss, r_targ, config):
     rm = X[:3]
     vm = X[3:6]
     atmos_drag_enable = config["guidance"]["phase"][guidance.phase_id].get("enable_drag", False)
+    gravity_enable = config["guidance"]["phase"][guidance.phase_id].get("enable_gravity", False)
 
     ac = guidance_func(t, rm, vm, r_targ, config)
 
+    # External Accelerations
+    acc_ext = np.zeros((3,))
     if atmos_drag_enable:
-        a_drag = atmosphere_model(rm, vm)
-    else:
-        a_drag = np.zeros((3,))
-    U = np.array([*a_drag, *ac])
+        acc_ext += atmosphere_drag(rm, vm)
+    if gravity_enable:
+        acc_ext += atmosphere_gravity(rm) * np.array([0, 0, -1])
+
+    U = np.array([*acc_ext, *ac])
     Xdot = ss.A @ X + ss.B @ U
     return Xdot
 

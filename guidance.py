@@ -182,10 +182,10 @@ class Guidance:
                 }
         v_targ = np.zeros((3,))
 
-        ignores = ["condition_next", "enable_drag"]
+        ignores = ["condition_next", "enable_drag", "enable_gravity"]
 
         if "guidance" in config:
-            gd_vars = config["guidance"]["vars"]
+            gd_vars = config["guidance"].get("vars", {})
             globals().update(gd_vars)
 
             gd_phase = config["guidance"]["phase"][self.phase_id]
