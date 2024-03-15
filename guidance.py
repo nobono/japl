@@ -21,7 +21,7 @@ class Guidance:
         rm = np.asarray(state.get("rm"))
         vm = np.asarray(state.get("vm"))
         r_targ = array_from_yaml(args.get("TARGET"), state)
-        v_targ = array_from_yaml(args.get("TARGET_DOT"), state)
+        v_targ = array_from_yaml(args.get("TARGET_DOT", [0, 0, 0]), state)
         N = float(args.get("N", 4.0))
 
         v_r = v_targ - vm
@@ -192,9 +192,7 @@ class Guidance:
             gd_phase = config["guidance"]["phase"][self.phase_id]
             gd_condition_next = gd_phase.get("condition_next")
             for func_name in gd_phase:
-                if func_name == "condition_next":
-                    continue
-                elif func_name == "enable_drag":
+                if func_name in ["condition_next", "enable_drag"]:
                     continue
                 gd_func = self.__getattribute__(func_name)
                 # if gd_func is None:
