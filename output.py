@@ -93,13 +93,13 @@ class OutputManager:
                     ax=ax_zlim,
                     label="zlim",
                     valmin = 5.0,
-                    valmax=30e3,
+                    valmax=20e3,
                     valinit=1.0,
                     )
 
             def update_zlim(val):
                 zlim = ax.get_zlim()
-                ax.set_zlim([zlim[0], val])
+                ax.set_zlim([0, val])
                 fig.canvas.draw_idle()
 
             slider_zlim.on_changed(update_zlim)
@@ -107,8 +107,10 @@ class OutputManager:
             # scale x-axis same as y-axis
             ylim = ax.get_ylim()
             xlim = ax.get_xlim()
+            zlim = ax.get_zlim()
             ylim_delta = abs(ylim[0] - ylim[1])
             ax.set_xlim(xlim[0] - ylim_delta/2, xlim[1] + ylim_delta/2)
+            ax.set_zlim(zlim[0] - ylim_delta/2, zlim[1] + ylim_delta/2)
 
             # Plot user-specified points
             for point in self.points:
