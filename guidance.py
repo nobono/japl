@@ -195,15 +195,7 @@ class Guidance:
                 if func_name in ["condition_next", "enable_drag"]:
                     continue
                 gd_func = self.__getattribute__(func_name)
-                # if gd_func is None:
-                #     raise Exception(f"Guidance class has no member {func_name}")
                 gd_args = gd_phase[func_name]
-
-                # State pkg
-                if "POS_DESIRED" in gd_args:
-                    gd_args["POS_DESIRED"] = np.asarray(gd_args["POS_DESIRED"])
-                if "VEL_DESIRED" in gd_args:
-                    gd_args["VEL_DESIRED"] = np.asarray(gd_args["VEL_DESIRED"])
 
                 ac += gd_func(t, state, gd_args, ac=ac)
 
