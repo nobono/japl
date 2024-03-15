@@ -25,7 +25,7 @@ guidance:
       condition_next: rm[0] >= 1e3
     2:
       PN:
-        DESIRED: "[MAG * cos(0.001 * rm[1] - START_RANGE + OFFSET), -1, MAG * sin(0.001 * rm[1] - START_RANGE + OFFSET)]"
+        DESIRED: "[MAG * cos(0.001 * north - START_RANGE + OFFSET), -1, MAG * sin(0.001 * north - START_RANGE + OFFSET)]"
         TIME_CONST: 5.0
       speed_controller:
         DESIRED: 200.0
