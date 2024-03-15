@@ -30,4 +30,4 @@ SS = BaseSystem()
 # # ret = ct.connect(ss_app, Q, inputv=, outputv=)
 # ct.interconnect([SS, ss],
 #                 connections=["dynamics.xacc", "autopilot.xacc_cmd"])
-
+SS.add_system(ss)

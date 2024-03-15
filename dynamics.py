@@ -137,11 +137,30 @@ class BaseSystem(LinearIOSystem):
         return np.zeros((self.A.shape[0],)) #type:ignore
     
 
-    def add_system(self, ss):
+    def add_system(self, ss: LinearIOSystem):
+        # check for labels
+        assert ss.nstates == len(ss.state_labels)
+        assert ss.ninputs == len(ss.input_labels)
+        assert ss.noutputs == len(ss.output_labels)
+
+        # extend to matrices
+        new_nstates = self.nstates + ss.nstates
+        self.A = np.hstack((self.A, np.zeros((self.nstates, ss.nstates))))
+        self.A = np.vstack((self.A, np.zeros((ss.nstates, new_nstates))))
+        self.C = np.eye(new_nstates)
+        self.B = np.vstack((self.B, np.zeros((ss.nstates, self.ninputs))))
+        self.D = np.vstack((self.D, np.zeros((ss.nstates, self.ninputs))))
+
+        assert self.A.shape[0] == self.A.shape[1]
+        assert self.A.shape == self.C.shape
+        assert self.A.shape[0] == self.B.shape[0]
+        assert self.A.shape[0] == self.D.shape[0]
+        assert self.B.shape[1] == self.D.shape[1]
+
         state_labels = self.state_labels
         input_labels = self.input_labels
         output_labels = self.output_labels
-        self = ct.append(self, ss)
+        # self = ct.append(self, ss)
         self.set_states(state_labels + ss.state_labels)
         self.set_inputs(input_labels + ss.input_labels)
         self.set_outputs(output_labels + ss.output_labels)
