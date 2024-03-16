@@ -16,8 +16,11 @@ ss, TM = ct.observable_form(ss)
 
 SS = BaseSystem()
 
+def func(*args, **kwargs):
+    print(len(args))
+    print(len((kwargs)))
 
-
+func(1, 2)
 
 # ss_app = ct.append(SS, ss)
 # ss_app.set_states(SS.state_labels + ss.state_labels)
@@ -30,4 +33,4 @@ SS = BaseSystem()
 # # ret = ct.connect(ss_app, Q, inputv=, outputv=)
 # ct.interconnect([SS, ss],
 #                 connections=["dynamics.xacc", "autopilot.xacc_cmd"])
-SS.add_system(ss)
+SS.add_system(ss, connections={})

@@ -98,46 +98,48 @@ class FirstOrderInput(LinearIOSystem):
 class BaseSystem(LinearIOSystem):
 
     def __init__(self, *args, **kwargs):
-        A = np.array([
-            [0, 0, 0,   1, 0, 0], # xvel
-            [0, 0, 0,   0, 1, 0], # yvel
-            [0, 0, 0,   0, 0, 1], # zvel
+        if len(args) == 4:
+            super().__init__(
+                StateSpace(*args, init_namedio=True, name="dynamics")
+            )
+        elif len(args) == 0:
+            A = np.array([
+                [0, 0, 0,   1, 0, 0], # xvel
+                [0, 0, 0,   0, 1, 0], # yvel
+                [0, 0, 0,   0, 0, 1], # zvel
 
-            [0, 0, 0,   0, 0, 0], # xacc
-            [0, 0, 0,   0, 0, 0], # yacc
-            [0, 0, 0,   0, 0, 0], # zacc
-            ])
-
-        # [ax, ay, az]
-        # inputs add columns
-        B = np.array([
-            [0, 0, 0],
-            [0, 0, 0],
-            [0, 0, 0],
-            [1, 0, 0],
-            [0, 1, 0],
-            [0, 0, 1],
-            ])
-        ct.ss
-
-        C = np.eye(6)
-        D = np.zeros((6, 3))
-        state_labels = ["xpos", "ypos", "zpos", "xvel", "yvel", "zvel"]
-        output_labels = ["xpos", "ypos", "zpos", "xvel", "yvel", "zvel"]
-        input_labels = ["xacc", "yacc", "zacc"]
-        super().__init__(StateSpace(A, B, C, D, *args, init_namedio=True,
-                                    states=state_labels,
-                                    inputs=input_labels,
-                                    outputs=output_labels,
-                                    name="dynamics",
-                                    ))
+                [0, 0, 0,   0, 0, 0], # xacc
+                [0, 0, 0,   0, 0, 0], # yacc
+                [0, 0, 0,   0, 0, 0], # zacc
+                ])
+            # [ax, ay, az]
+            # inputs add columns
+            B = np.array([
+                [0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 0],
+                [1, 0, 0],
+                [0, 1, 0],
+                [0, 0, 1],
+                ])
+            C = np.eye(6)
+            D = np.zeros((6, 3))
+            state_labels = ["xpos", "ypos", "zpos", "xvel", "yvel", "zvel"]
+            output_labels = ["xpos", "ypos", "zpos", "xvel", "yvel", "zvel"]
+            input_labels = ["xacc", "yacc", "zacc"]
+            super().__init__(StateSpace(A, B, C, D, *args, init_namedio=True,
+                                        states=state_labels,
+                                        inputs=input_labels,
+                                        outputs=output_labels,
+                                        name="dynamics",
+                                        ))
 
 
     def get_init_state(self):
         return np.zeros((self.A.shape[0],)) #type:ignore
     
 
-    def add_system(self, ss: LinearIOSystem):
+    def add_system(self, ss: LinearIOSystem, connections: dict={}):
         # check for labels
         assert ss.nstates == len(ss.state_labels)
         assert ss.ninputs == len(ss.input_labels)
@@ -164,3 +166,6 @@ class BaseSystem(LinearIOSystem):
         self.set_states(state_labels + ss.state_labels)
         self.set_inputs(input_labels + ss.input_labels)
         self.set_outputs(output_labels + ss.output_labels)
+
+        # make connections
+        for 
