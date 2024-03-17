@@ -16,7 +16,10 @@ zetapar = .1
 tf = ct.tf([1], [1/wapar**2, 2*zetapar/wapar, 1])
 ss = ct.tf2ss(tf)
 ss, TM = ct.observable_form(ss)
-ss = ct.series(ss, ss, ss)
+# ss = ct.series(ss, ss, ss)
+ss.set_states(states)
+ss.set_inputs(inputs)
+ss.set_outputs(outputs)
 
 
 SS = BaseSystem()
@@ -39,6 +42,7 @@ def func(*args, **kwargs):
 # ct.interconnect([SS, ss],
 #                 connections=["dynamics.xacc", "autopilot.xacc_cmd"])
 connections = {
-        "output": "xacc"
+        "output": ["xacc"],
+        "state": ["xacc"]
         }
 SS.add_system(ss, connections=connections)
