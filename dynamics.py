@@ -139,7 +139,12 @@ class BaseSystem(LinearIOSystem):
         return np.zeros((self.A.shape[0],)) #type:ignore
     
 
-    def add_system(self, ss: LinearIOSystem, connections: dict={}):
+    def add_system(self, ss: StateSpace, connections: dict={}):
+        """
+        @params:
+            ss - system
+            connections - mapping of {input: output} connections
+        """
         # check for labels
         assert ss.nstates == len(ss.state_labels)
         assert ss.ninputs == len(ss.input_labels)
@@ -168,4 +173,4 @@ class BaseSystem(LinearIOSystem):
         self.set_outputs(output_labels + ss.output_labels)
 
         # make connections
-        for 
+        # for 

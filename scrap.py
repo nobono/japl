@@ -6,12 +6,17 @@ from dynamics import BaseSystem
 
 
 
+name = "autopilot"
+states = ["xacc", "xjerk"]
+inputs = ["xacc_cmd"]
+outputs = ["xacc"]
+
 wapar = 25
 zetapar = .1
-tf = ct.tf([1], [1/wapar**2, 2*zetapar/wapar, 1],
-           inputs=["xacc_cmd"], outputs=["xacc"], name="autopilot")
-ss = ct.tf2ss(tf, states=["xacc", "xjerk"], name="autopilot")
+tf = ct.tf([1], [1/wapar**2, 2*zetapar/wapar, 1])
+ss = ct.tf2ss(tf)
 ss, TM = ct.observable_form(ss)
+ss = ct.series(ss, ss, ss)
 
 
 SS = BaseSystem()
@@ -20,7 +25,7 @@ def func(*args, **kwargs):
     print(len(args))
     print(len((kwargs)))
 
-func(1, 2)
+# func(1, 2)
 
 # ss_app = ct.append(SS, ss)
 # ss_app.set_states(SS.state_labels + ss.state_labels)
@@ -33,4 +38,7 @@ func(1, 2)
 # # ret = ct.connect(ss_app, Q, inputv=, outputv=)
 # ct.interconnect([SS, ss],
 #                 connections=["dynamics.xacc", "autopilot.xacc_cmd"])
-SS.add_system(ss, connections={})
+connections = {
+        "output": "xacc"
+        }
+SS.add_system(ss, connections=connections)
