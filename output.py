@@ -3,6 +3,7 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
+from matplotlib.animation import Animation
 
 from util import norm
 from util import unitize
@@ -73,6 +74,9 @@ class OutputManager:
                 label = 'N (m)'
 
         return Y, label
+    
+
+    # def animate(self):
 
 
 
@@ -81,6 +85,14 @@ class OutputManager:
             # 3D Plot
             fig = plt.figure(figsize=(10, 8))
             ax = plt.axes(projection='3d', aspect='equal')
+
+            # animation objs
+            vel_vec = np.dstack([self.y[0, :3], self.y[0, :3] + self.y[0, 3:6]]).squeeze()
+            acc_vec = np.dstack([self.y[0, :3], self.y[0, :3] + self.y[0, 6:9]]).squeeze()
+            vel_vec_marker = ax.plot3D(*vel_vec, color="orange")
+            acc_vec_marker = ax.plot3D(*acc_vec, color="green")
+            pos_marker = ax.plot3D(*self.y[0, :3], marker='.', color="red", markersize=5)
+
             ax.plot3D(self.y[:, 0], self.y[:, 1], self.y[:, 2])
             ax.set_xlabel("E")
             ax.set_ylabel("N")
@@ -88,13 +100,21 @@ class OutputManager:
 
             # Setup sliders
             ax_zlim = fig.add_axes([0.25, 0.0, 0.65, 0.03]) #type:ignore
+            ax_time = fig.add_axes([0.25, 0.03, 0.65, 0.03]) #type:ignore
 
             slider_zlim = Slider(
                     ax=ax_zlim,
                     label="zlim",
-                    valmin = 5.0,
+                    valmin=5.0,
                     valmax=20e3,
                     valinit=1.0,
+                    )
+            slider_time = Slider(
+                    ax=ax_time,
+                    label="time",
+                    valmin=0,
+                    valmax=len(self.t),
+                    valinit=0,
                     )
 
             def update_zlim(val):
@@ -102,7 +122,38 @@ class OutputManager:
                 ax.set_zlim([0, val])
                 fig.canvas.draw_idle()
 
+            def update_pos(val):
+                pos_marker[0]._verts3d = self.y[val, :3]
+
+            def update_vel_vec(val, scale):
+                pos = self.y[val, :3]
+                vel = self.y[val, 3:6]
+                vel_vec = np.dstack([pos, (pos + vel * scale)]).squeeze()
+                vel_vec_marker[0]._verts3d = vel_vec
+
+            def update_acc_vec(val, scale):
+                pos = self.y[val, :3]
+                acc = self.y[val, 6:9]
+                acc_vec = np.dstack([pos, (pos + acc * scale)]).squeeze()
+                acc_vec_marker[0]._verts3d = acc_vec
+
+            def update_time(val):
+                val = int(val)
+                unit_division = 100
+                xlim = ax.get_xlim()
+                ylim = ax.get_ylim()
+                zlim = ax.get_zlim()
+                xlim_scale = abs(xlim[1] - xlim[0]) / unit_division
+                ylim_scale = abs(ylim[1] - ylim[0]) / unit_division
+                zlim_scale = abs(zlim[1] - zlim[0]) / unit_division
+                scale = np.array([xlim_scale, ylim_scale, zlim_scale])
+                update_pos(val)
+                update_vel_vec(val, scale)
+                update_acc_vec(val, scale)
+                fig.canvas.draw_idle()
+
             slider_zlim.on_changed(update_zlim)
+            slider_time.on_changed(update_time)
 
             # scale x-axis same as y-axis
             ylim = ax.get_ylim()
