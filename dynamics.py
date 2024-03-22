@@ -185,7 +185,7 @@ class BaseSystem(LinearIOSystem):
             output_id = self.state_dot_index.get(output)
             for state in ss.state_index.keys():
                 state_id = self.state_index.get(state)
-                self.A[output_id][state_id] = ss.C[]
+                # self.A[output_id][state_id] = ss.C[]
             if not output_id:
                 raise Exception(f"output {output} could not be inserted to state\
                         dynamics matrix. state does not exist.")
