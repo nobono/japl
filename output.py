@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 from matplotlib.animation import Animation
+from matplotlib.widgets import Button
 
 from util import norm
 from util import unitize
@@ -86,6 +87,8 @@ class OutputManager:
             fig = plt.figure(figsize=(10, 8))
             ax = plt.axes(projection='3d', aspect='equal')
 
+            bcamera_tracking = False
+
             # animation objs
             vel_vec = np.dstack([self.y[0, :3], self.y[0, :3] + self.y[0, 3:6]]).squeeze()
             acc_vec = np.dstack([self.y[0, :3], self.y[0, :3] + self.y[0, 6:9]]).squeeze()
@@ -97,6 +100,16 @@ class OutputManager:
             ax.set_xlabel("E")
             ax.set_ylabel("N")
             ax.set_zlabel("U")
+
+            # Buttons
+            ax_tracking = fig.add_axes([0.01, 0.03, 0.15, 0.075])
+            button_camera_track_enable = Button(ax_tracking, "Camera Tracking")
+
+            def enable_tracking_on_click(val):
+                nonlocal bcamera_tracking
+                bcamera_tracking = not bcamera_tracking
+
+            button_camera_track_enable.on_clicked(enable_tracking_on_click)
 
             # Setup sliders
             ax_zlim = fig.add_axes([0.25, 0.0, 0.65, 0.03]) #type:ignore
@@ -143,10 +156,30 @@ class OutputManager:
                 xlim = ax.get_xlim()
                 ylim = ax.get_ylim()
                 zlim = ax.get_zlim()
-                xlim_scale = abs(xlim[1] - xlim[0]) / unit_division
-                ylim_scale = abs(ylim[1] - ylim[0]) / unit_division
-                zlim_scale = abs(zlim[1] - zlim[0]) / unit_division
-                scale = np.array([xlim_scale, ylim_scale, zlim_scale])
+                xlim_len = np.fabs(xlim[1] - xlim[0])
+                ylim_len = np.fabs(ylim[1] - ylim[0])
+                zlim_len = np.fabs(zlim[1] - zlim[0])
+                xlim_scale = xlim_len / unit_division
+                ylim_scale = ylim_len / unit_division
+                zlim_scale = zlim_len / unit_division
+                scale = np.linalg.norm(np.array([xlim_scale, ylim_scale])) / 10
+                ###################################
+                # if camera tracking position
+                ###################################
+                if bcamera_tracking:
+                    pos = self.y[val, :3]
+                    view = ax._get_view()
+                    xscale = xlim_len / 2
+                    yscale = ylim_len / 2
+                    zscale = zlim_len / 2
+                    xview = (pos[0] - xscale, pos[0] + xscale)
+                    yview = (pos[1] - yscale, pos[1] + yscale)
+                    zview = (pos[2] - zscale, pos[2] + zscale)
+                    view[0]['xlim'] = xview
+                    view[0]['ylim'] = yview
+                    view[0]['zlim'] = zview
+                    ax._set_view(view)
+                ###################################
                 update_pos(val)
                 update_vel_vec(val, scale)
                 update_acc_vec(val, scale)

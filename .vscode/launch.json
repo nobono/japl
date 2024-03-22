@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["-i", "C:\\Users\\shindc1\\Documents\\control\\configs\\template.yaml"]
+            "args": ["-i", "C:\\Users\\shindc1\\Documents\\control\\configs\\ballistic.yaml", "-p", "--3d"]
         }
     ]
 }
