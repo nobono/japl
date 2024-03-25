@@ -77,52 +77,128 @@ class OutputManager:
         return Y, label
     
 
-    # def animate(self):
+    def on_key_press(self, event):
+        if event.key == 'a':
+            self.slider_time.set_val(self.slider_time.val - 1)
+        elif event.key == 'd':
+            self.slider_time.set_val(self.slider_time.val + 1)
 
+    def update_zlim(self, val):
+        self.ax_3d.set_zlim([0, val])
+        self.fig_3d.canvas.draw_idle()
+
+
+    def update_pos(self, val):
+        self.pos_marker[0]._verts3d = self.y[val, :3]
+
+
+    def update_vel_vec(self, val, scale):
+        pos = self.y[val, :3]
+        vel = self.y[val, 3:6]
+        vel_vec = np.dstack([pos, (pos + vel * scale)]).squeeze()
+        self.vel_vec_marker[0]._verts3d = vel_vec
+
+
+    def update_acc_vec(self, val, scale):
+        pos = self.y[val, :3]
+        acc = self.y[val, 6:9]
+        acc_vec = np.dstack([pos, (pos + acc * scale)]).squeeze()
+        self.acc_vec_marker[0]._verts3d = acc_vec
+
+
+    def update_camera_tracking(self, pos):
+        view = self.ax_3d._get_view()
+        xlim = self.ax_3d.get_xlim()
+        ylim = self.ax_3d.get_ylim()
+        zlim = self.ax_3d.get_zlim()
+        xlim_len = np.fabs(xlim[1] - xlim[0])
+        ylim_len = np.fabs(ylim[1] - ylim[0])
+        zlim_len = np.fabs(zlim[1] - zlim[0])
+        xscale = xlim_len / 2
+        yscale = ylim_len / 2
+        zscale = zlim_len / 2
+        xview = (pos[0] - xscale, pos[0] + xscale)
+        yview = (pos[1] - yscale, pos[1] + yscale)
+        zview = (pos[2] - zscale, pos[2] + zscale)
+        if len(view) > 2:
+            new_view = (xview, yview, zview, view[3], view[4], view[5])
+            self.ax_3d._set_view(new_view)
+        else:
+            view[0]['xlim'] = xview
+            view[0]['ylim'] = yview
+            view[0]['zlim'] = zview
+            self.ax_3d._set_view(view)
+
+
+    def update_time(self, val):
+        val = int(val)
+        unit_division = 100
+        xlim = self.ax_3d.get_xlim()
+        ylim = self.ax_3d.get_ylim()
+        zlim = self.ax_3d.get_zlim()
+        xlim_len = np.fabs(xlim[1] - xlim[0])
+        ylim_len = np.fabs(ylim[1] - ylim[0])
+        zlim_len = np.fabs(zlim[1] - zlim[0])
+        xlim_scale = xlim_len / unit_division
+        ylim_scale = ylim_len / unit_division
+        zlim_scale = zlim_len / unit_division
+        scale = np.linalg.norm(np.array([xlim_scale, ylim_scale])) / 10.0 #type:ignore
+        # if camera tracking position
+        if self.bcamera_tracking:
+            pos = self.y[val, :3]
+            self.update_camera_tracking(pos)
+        # call update fnncs
+        self.update_pos(val)
+        self.update_vel_vec(val, scale)
+        self.update_acc_vec(val, scale)
+        self.fig_3d.canvas.draw_idle()
+
+
+    def enable_tracking_on_click(self, val):
+        self.bcamera_tracking = not self.bcamera_tracking
 
 
     def plots(self):
         if self.args.plot_3d:
             # 3D Plot
-            fig = plt.figure(figsize=(10, 8))
-            ax = plt.axes(projection='3d', aspect='equal')
+            self.fig_3d = plt.figure(figsize=(10, 8))
+            self.ax_3d = plt.axes(projection='3d', aspect='equal')
 
-            bcamera_tracking = False
+            self.bcamera_tracking = False
 
             # animation objs
-            vel_vec = np.dstack([self.y[0, :3], self.y[0, :3] + self.y[0, 3:6]]).squeeze()
-            acc_vec = np.dstack([self.y[0, :3], self.y[0, :3] + self.y[0, 6:9]]).squeeze()
-            vel_vec_marker = ax.plot3D(*vel_vec, color="orange")
-            acc_vec_marker = ax.plot3D(*acc_vec, color="green")
-            pos_marker = ax.plot3D(*self.y[0, :3], marker='.', color="red", markersize=5)
+            _vel_vec = np.dstack([self.y[0, :3], self.y[0, :3] + self.y[0, 3:6]]).squeeze()
+            _acc_vec = np.dstack([self.y[0, :3], self.y[0, :3] + self.y[0, 6:9]]).squeeze()
+            self.vel_vec_marker = self.ax_3d.plot3D(*_vel_vec, color="orange")
+            self.acc_vec_marker = self.ax_3d.plot3D(*_acc_vec, color="green")
+            self.pos_marker = self.ax_3d.plot3D(*self.y[0, :3], marker='.', color="red", markersize=5)
 
-            ax.plot3D(self.y[:, 0], self.y[:, 1], self.y[:, 2])
-            ax.set_xlabel("E")
-            ax.set_ylabel("N")
-            ax.set_zlabel("U")
+            self.ax_3d.plot3D(self.y[:, 0], self.y[:, 1], self.y[:, 2])
+            self.ax_3d.set_xlabel("E")
+            self.ax_3d.set_ylabel("N")
+            self.ax_3d.set_zlabel("U")
+
+            # Setup keyboard event callback
+            self.fig_3d.canvas.mpl_connect('key_press_event', self.on_key_press)
 
             # Buttons
-            ax_tracking = fig.add_axes([0.01, 0.03, 0.15, 0.075])
+            ax_tracking = self.fig_3d.add_axes((0.01, 0.03, 0.15, 0.075))
             button_camera_track_enable = Button(ax_tracking, "Camera Tracking")
 
-            def enable_tracking_on_click(val):
-                nonlocal bcamera_tracking
-                bcamera_tracking = not bcamera_tracking
-
-            button_camera_track_enable.on_clicked(enable_tracking_on_click)
+            button_camera_track_enable.on_clicked(self.enable_tracking_on_click)
 
             # Setup sliders
-            ax_zlim = fig.add_axes([0.25, 0.0, 0.65, 0.03]) #type:ignore
-            ax_time = fig.add_axes([0.25, 0.03, 0.65, 0.03]) #type:ignore
+            ax_zlim = self.fig_3d.add_axes((0.25, 0.0, 0.65, 0.03))
+            ax_time = self.fig_3d.add_axes((0.25, 0.03, 0.65, 0.03))
 
             slider_zlim = Slider(
                     ax=ax_zlim,
                     label="zlim",
                     valmin=5.0,
                     valmax=20e3,
-                    valinit=1.0,
+                    valinit=self.y[:, 2].max(),
                     )
-            slider_time = Slider(
+            self.slider_time = Slider(
                     ax=ax_time,
                     label="time",
                     valmin=0,
@@ -130,79 +206,22 @@ class OutputManager:
                     valinit=0,
                     )
 
-            def update_zlim(val):
-                zlim = ax.get_zlim()
-                ax.set_zlim([0, val])
-                fig.canvas.draw_idle()
-
-            def update_pos(val):
-                pos_marker[0]._verts3d = self.y[val, :3]
-
-            def update_vel_vec(val, scale):
-                pos = self.y[val, :3]
-                vel = self.y[val, 3:6]
-                vel_vec = np.dstack([pos, (pos + vel * scale)]).squeeze()
-                vel_vec_marker[0]._verts3d = vel_vec
-
-            def update_acc_vec(val, scale):
-                pos = self.y[val, :3]
-                acc = self.y[val, 6:9]
-                acc_vec = np.dstack([pos, (pos + acc * scale)]).squeeze()
-                acc_vec_marker[0]._verts3d = acc_vec
-
-            def update_time(val):
-                val = int(val)
-                unit_division = 100
-                xlim = ax.get_xlim()
-                ylim = ax.get_ylim()
-                zlim = ax.get_zlim()
-                xlim_len = np.fabs(xlim[1] - xlim[0])
-                ylim_len = np.fabs(ylim[1] - ylim[0])
-                zlim_len = np.fabs(zlim[1] - zlim[0])
-                xlim_scale = xlim_len / unit_division
-                ylim_scale = ylim_len / unit_division
-                zlim_scale = zlim_len / unit_division
-                scale = np.linalg.norm(np.array([xlim_scale, ylim_scale])) / 10
-                ###################################
-                # if camera tracking position
-                ###################################
-                if bcamera_tracking:
-                    pos = self.y[val, :3]
-                    view = ax._get_view()
-                    xscale = xlim_len / 2
-                    yscale = ylim_len / 2
-                    zscale = zlim_len / 2
-                    xview = (pos[0] - xscale, pos[0] + xscale)
-                    yview = (pos[1] - yscale, pos[1] + yscale)
-                    zview = (pos[2] - zscale, pos[2] + zscale)
-                    view[0]['xlim'] = xview
-                    view[0]['ylim'] = yview
-                    view[0]['zlim'] = zview
-                    ax._set_view(view)
-                ###################################
-                update_pos(val)
-                update_vel_vec(val, scale)
-                update_acc_vec(val, scale)
-                fig.canvas.draw_idle()
-
-            slider_zlim.on_changed(update_zlim)
-            slider_time.on_changed(update_time)
+            slider_zlim.on_changed(self.update_zlim)
+            self.slider_time.on_changed(self.update_time)
 
             # scale x-axis same as y-axis
-            ylim = ax.get_ylim()
-            xlim = ax.get_xlim()
-            zlim = ax.get_zlim()
+            ylim = self.ax_3d.get_ylim()
+            xlim = self.ax_3d.get_xlim()
             ylim_delta = abs(ylim[0] - ylim[1])
-            ax.set_xlim(xlim[0] - ylim_delta/2, xlim[1] + ylim_delta/2)
-            ax.set_zlim(zlim[0] - ylim_delta/2, zlim[1] + ylim_delta/2)
+            self.ax_3d.set_xlim(xlim[0] - ylim_delta/2, xlim[1] + ylim_delta/2)
 
             # Plot user-specified points
             for point in self.points:
-                ax.plot3D(*point, marker='.')
+                self.ax_3d.plot3D(*point, marker='.')
 
             # Save to output file
             if self.args.save:
-                fig.savefig(os.path.join(self.dir, "3d.png"))
+                self.fig_3d.savefig(os.path.join(self.dir, "3d.png"))
 
         if self.args.plot:
             num_plots = len(self.config)
