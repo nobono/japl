@@ -10,6 +10,8 @@ sys.path.append(lib_path)
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
+import tkinter as tk
+from tkinter import filedialog
 
 # ---------------------------------------------------
 
@@ -148,6 +150,11 @@ if __name__ == "__main__":
     config = {}
     if args.input:
         config = read_config_file(args.input)
+    else:
+        root = tk.Tk()
+        # root.withdraw()
+        file_path = filedialog.askopenfilename()
+        config = read_config_file(file_path)
 
     config_vars = config["guidance"].get("vars") # if VARS defined, update in globals()
     if config_vars:
