@@ -156,6 +156,12 @@ class OutputManager:
 
     def enable_tracking_on_click(self, val):
         self.bcamera_tracking = not self.bcamera_tracking
+        if self.bcamera_tracking:
+            self.button_camera_track_enable.color = "grey"
+            self.button_camera_track_enable.label.set_text("Camera Tracking On")
+        else:
+            self.button_camera_track_enable.color = "white"
+            self.button_camera_track_enable.label.set_text("Camera Tracking Off")
 
 
     def plots(self):
@@ -183,9 +189,9 @@ class OutputManager:
 
             # Buttons
             ax_tracking = self.fig_3d.add_axes((0.01, 0.03, 0.15, 0.075))
-            button_camera_track_enable = Button(ax_tracking, "Camera Tracking")
+            self.button_camera_track_enable = Button(ax_tracking, "Camera Tracking Off")
 
-            button_camera_track_enable.on_clicked(self.enable_tracking_on_click)
+            self.button_camera_track_enable.on_clicked(self.enable_tracking_on_click)
 
             # Setup sliders
             ax_zlim = self.fig_3d.add_axes((0.25, 0.0, 0.65, 0.03))
