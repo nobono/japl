@@ -1,0 +1,66 @@
+init:
+  dt: 0.01
+  t_span: [0, 200]
+  R0: [0, 60e3, 30e3]
+  V0: [0, -200, 0]
+
+
+G_LIMIT: 14.0
+
+
+guidance:
+  vars:
+    CLIMB_ANGLE: radians(60.0)
+  phase:
+    # 0:
+    #   enable_gravity: True
+    0:
+      PN:
+        DESIRED: "[0, -cos(CLIMB_ANGLE), sin(CLIMB_ANGLE)]"
+        # DESIRED: [0, -1, 1]
+        TIME_CONST: 2.0
+      # speed_controller:
+      #   DESIRED: 1000.0
+      #   TIME_CONST: 10.0
+      # enable_gravity: True
+      condition_next: t >= 20
+    1:
+      enable_gravity: True
+    #   condition_next: t >= 400 
+    # 5:
+    #   pronav:
+    #     TARGET: [0, 0, 0]
+    #     TARGET_DOT: [0, 0, 0]
+    #     N: 4.0
+
+    ################################
+    # 0:
+    #   alt_controller:
+    #     ALT_RATE_LIMIT: 1000.0
+    #     DESIRED_ALT: 5010
+    #     ALT_TIME_CONST: 30.0 # (s)
+    #     KD: 0.1
+    #   speed_controller:
+    #     TIME_CONST: 5.0
+    #     VALUE: speed
+    #     DESIRED: 200.0
+    #   condition_next: alt >= 5000
+    #   # condition_next: range <= 45000
+    # 1:
+    #   PN:
+    #     TIME_CONST: 10.0
+    #     VEL_HAT_DESIRED: [0, -cos(radians(15)), -sin(radians(15))]
+    #   condition_next: range <= 10000
+    # 2:
+    #   speed_controller:
+    #     TIME_CONST: 30.0
+    #     VALUE: speed
+    #     DESIRED: 100.0
+
+plot:
+  YZ:
+    x_axis: 'north'
+    y_axis: 'alt'
+  Speed:
+    x_axis: 'north'
+    y_axis: 'speed'
