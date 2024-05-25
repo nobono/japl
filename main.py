@@ -150,11 +150,11 @@ if __name__ == "__main__":
     config = {}
     if args.input:
         config = read_config_file(args.input)
-    else:
-        root = tk.Tk()
-        # root.withdraw()
-        file_path = filedialog.askopenfilename()
-        config = read_config_file(file_path)
+    # else:
+    #     root = tk.Tk()
+    #     # root.withdraw()
+    #     file_path = filedialog.askopenfilename()
+    #     config = read_config_file(file_path)
 
     config_vars = config["guidance"].get("vars") # if VARS defined, update in globals()
     if config_vars:
