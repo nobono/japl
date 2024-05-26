@@ -59,7 +59,8 @@ def bound(val, lower, upper):
 
 
 def unitize(vec):
-    norm = np.sqrt(vec[0]**2 + vec[1]**2 + vec[2]**2)
+    # norm = np.sqrt(vec[0]**2 + vec[1]**2 + vec[2]**2)
+    norm = np.linalg.norm(vec)
     if norm == 0.0:
         return vec
     return vec / norm

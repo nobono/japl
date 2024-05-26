@@ -10,13 +10,17 @@ from util import norm
 from util import unitize
 from scipy import constants
 
+# plt.style.use('seaborn-v0_8-dark')
+plt.style.use('bmh')
+
 
 
 class OutputManager:
     dir = "./data"
     
 
-    def __init__(self, args, config, t, y, points: list=[]) -> None:
+    def __init__(self, args, config, t, y, points: list=[], figsize: tuple=(10, 8)) -> None:
+        self.figsize = figsize
         self.args = args
         self.config = config
         self.t = t
@@ -167,7 +171,7 @@ class OutputManager:
     def plots(self):
         if self.args.plot_3d:
             # 3D Plot
-            self.fig_3d = plt.figure(figsize=(10, 8))
+            self.fig_3d = plt.figure(figsize=self.figsize)
             self.ax_3d = plt.axes(projection='3d', aspect='equal')
 
             self.bcamera_tracking = False
@@ -231,7 +235,7 @@ class OutputManager:
 
         if self.args.plot:
             num_plots = len(self.config)
-            fig, axs = plt.subplots(num_plots, figsize=(10, 8), squeeze=True)
+            fig, axs = plt.subplots(num_plots, figsize=self.figsize, squeeze=True)
             fig.tight_layout()
             plt.subplots_adjust(left=0.08, bottom=0.07, hspace=0.4)
 
