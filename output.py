@@ -31,52 +31,66 @@ class OutputManager:
         self.G = np.asarray([i / constants.g for i in self.accmag])
         yy = np.array([0, -1, 0])
         self.theta = [np.degrees(np.arccos(np.dot(yy, unitize(vm)))) for vm in y[:, 3:6]]
+        self.register = {}
+
+
+    def register_output(self, name: str, id: int, label: str=""):
+        self.register.update({name: {"id": id, "label": label}})
 
 
     def axis_selection(self, name: str) -> tuple[np.ndarray, str]:
-        match name.lower():
-            case 'time' :
-                Y = self.t
-                label = 'Time (s)'
-            case 'alt' :
-                Y = self.y[:, 2]
-                label = 'Alt (m)'
-            case 'north' :
-                Y = self.y[:, 1]
-                label = 'N (m)'
-            case 'east' :
-                Y = self.y[:, 0]
-                label = 'E (m)'
-            case 'alt_dot' :
-                Y = self.y[:, 5]
-                label = 'Alt vel (m/s)'
-            case 'north_dot' :
-                Y = self.y[:, 4]
-                label = 'N vel (m/s)'
-            case 'east_dot' :
-                Y = self.y[:, 3]
-                label = 'E vel (m/s)'
-            case 'speed' :
-                Y = self.velmag
-                label = 'Speed (m/s)'
-            case 'alt_dot_dot' :
-                Y = self.y[:, 8]
-                label = 'Alt acc (m/s^2)'
-            case 'north_dot_dot' :
-                Y = self.y[:, 7]
-                label = 'North acc (m/s^2)'
-            case 'east_dot_dot' :
-                Y = self.y[:, 6]
-                label = 'East acc (m/s^2)'
-            case 'accel' :
-                Y = self.accmag
-                label = 'accel mag (m/s^2)'
-            case 'g' :
-                Y = self.G
-                label = 'Gs'
-            case _ :
-                Y = self.y[:, 1]
-                label = 'N (m)'
+        # match name.lower():
+        #     case 'time' :
+        #         Y = self.t
+        #         label = 'Time (s)'
+        #     case 'alt' :
+        #         Y = self.y[:, 2]
+        #         label = 'Alt (m)'
+        #     case 'north' :
+        #         Y = self.y[:, 1]
+        #         label = 'N (m)'
+        #     case 'east' :
+        #         Y = self.y[:, 0]
+        #         label = 'E (m)'
+        #     case 'alt_dot' :
+        #         Y = self.y[:, 5]
+        #         label = 'Alt vel (m/s)'
+        #     case 'north_dot' :
+        #         Y = self.y[:, 4]
+        #         label = 'N vel (m/s)'
+        #     case 'east_dot' :
+        #         Y = self.y[:, 3]
+        #         label = 'E vel (m/s)'
+        #     case 'speed' :
+        #         Y = self.velmag
+        #         label = 'Speed (m/s)'
+        #     case 'alt_dot_dot' :
+        #         Y = self.y[:, 8]
+        #         label = 'Alt acc (m/s^2)'
+        #     case 'north_dot_dot' :
+        #         Y = self.y[:, 7]
+        #         label = 'North acc (m/s^2)'
+        #     case 'east_dot_dot' :
+        #         Y = self.y[:, 6]
+        #         label = 'East acc (m/s^2)'
+        #     case 'accel' :
+        #         Y = self.accmag
+        #         label = 'accel mag (m/s^2)'
+        #     case 'g' :
+        #         Y = self.G
+        #         label = 'Gs'
+        #     case _ :
+        #         Y = self.y[:, 1]
+        #         label = 'N (m)'
+        if name == "time":
+            Y = self.t
+            label = "Time (s)"
+        else:
+            id = self.register[name]["id"]
+            Y = self.y[:, id]
+            label = self.register[name]["label"]
+            if not label:
+                label = name
 
         return Y, label
     

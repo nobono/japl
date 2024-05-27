@@ -172,6 +172,10 @@ if __name__ == "__main__":
                 "Vel": {
                     "x_axis": "north",
                     "y_axis": "north_dot",
+                    },
+                "Fuel Burn": {
+                    "x_axis": "time",
+                    "y_axis": "fuel_burn",
                     }
                 }
             }
@@ -244,8 +248,8 @@ if __name__ == "__main__":
     ##############################
 
     # plot fuel burn
-    plt.figure()
-    plt.plot(T, Y[:, 6])
+    # plt.figure()
+    # plt.plot(T, Y[:, 6])
      
     # for istep, (tstep_prev, tstep) in tqdm(enumerate(zip(t_array, t_array[1:])),
     #                                        total=len(t_array)):
@@ -282,4 +286,13 @@ if __name__ == "__main__":
     # r_pop2 = np.array([0, 45e3, 10])
     plot_points = []
     plot_config = config.get("plot", {})
-    OutputManager(args, plot_config, T, Y, plot_points, figsize=(6, 5)).plots()
+    output_manager = OutputManager(args, plot_config, T, Y, plot_points, figsize=(10, 8))
+    output_manager.register_output("east",      0, "East (m)")
+    output_manager.register_output("north",     1, "North (m)")
+    output_manager.register_output("alt",       2, "Alt (m)")
+    output_manager.register_output("east_dot",  3, "E vel (m/s)")
+    output_manager.register_output("north_dot", 4, "N vel (m/s)")
+    output_manager.register_output("alt_dot",   5, "Alt vel (m/s)")
+    output_manager.register_output("fuel_burn", 6, "Fuel Burn ")
+    output_manager.plots()
+
