@@ -19,7 +19,7 @@ class OutputManager:
     dir = "./data"
     
 
-    def __init__(self, args, config, t, y, points: list=[], figsize: tuple=(10, 8)) -> None:
+    def __init__(self, args, config, t, y, points: list=[], figsize: tuple[float, float]=(10, 8)) -> None:
         self.figsize = figsize
         self.args = args
         self.config = config

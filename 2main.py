@@ -1,17 +1,10 @@
 import cProfile
-import os
-import sys
-from tqdm import tqdm
-lib_path = os.path.join(os.getcwd(), "lib")
-sys.path.append(lib_path)
+import argparse
 
 # ---------------------------------------------------
 
-import argparse
 import numpy as np
-import matplotlib.pyplot as plt
-import tkinter as tk
-from tkinter import filedialog
+from numpy.linalg import norm
 
 # ---------------------------------------------------
 
@@ -22,10 +15,6 @@ from scipy import constants
 
 from util import unitize
 from util import bound
-from util import create_C_rot
-from util import inv
-from util import read_config_file
-from util import norm
 
 # ---------------------------------------------------
 
@@ -41,8 +30,6 @@ from maneuvers import Maneuvers
 
 # ---------------------------------------------------
 
-from dynamics import FirstOrderInput
-from dynamics import SecondOrderInput
 from control.iosys import StateSpace
 
 # ---------------------------------------------------
@@ -50,24 +37,6 @@ from control.iosys import StateSpace
 from output import OutputManager
 
 # ---------------------------------------------------
-
-from events import hit_ground_event
-from events import hit_target_event
-from events import check_for_events
-
-# ---------------------------------------------------
-
-# for eval
-sin = np.sin
-cos = np.cos
-tan = np.tan
-atan = np.arctan
-atan2 = np.arctan2
-acos = np.arccos
-asin = np.arcsin
-degrees = np.degrees
-radians = np.radians
-pi = np.pi
 
 
 
