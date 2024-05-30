@@ -14,23 +14,23 @@ from scipy import constants
 # ---------------------------------------------------
 
 from util import unitize
-from util import bound
+# from util import bound
 
 # ---------------------------------------------------
 
-from atmosphere import Atmosphere
+# from atmosphere import Atmosphere
 
 # ---------------------------------------------------
 
-from guidance import Guidance
+# from guidance import Guidance
 
 # ---------------------------------------------------
 
-from maneuvers import Maneuvers
+# from maneuvers import Maneuvers
 
 # ---------------------------------------------------
 
-from control.iosys import StateSpace
+# from control.iosys import StateSpace
 
 # ---------------------------------------------------
 
@@ -40,37 +40,37 @@ from output import OutputManager
 
 
 
-def atmosphere_drag(rm, vm):
-    ATMOS_BOUNDS = [-5e3, 81e3]
-    alt_bounded = bound(rm[2] / 1000, *ATMOS_BOUNDS)
-    density = atmosphere.density(alt_bounded)
-    CD = 0.45
-    A = .25**2
-    MASS = 1.0
-    xfd = -(0.5 * CD * A * density * vm[0]) / MASS
-    yfd = -(0.5 * CD * A * density * vm[1]) / MASS
-    zfd = -(0.5 * CD * A * density * vm[2]) / MASS
-    return np.array([xfd, yfd, zfd])
+# def atmosphere_drag(rm, vm):
+#     ATMOS_BOUNDS = [-5e3, 81e3]
+#     alt_bounded = bound(rm[2] / 1000, *ATMOS_BOUNDS)
+#     density = atmosphere.density(alt_bounded)
+#     CD = 0.45
+#     A = .25**2
+#     MASS = 1.0
+#     xfd = -(0.5 * CD * A * density * vm[0]) / MASS
+#     yfd = -(0.5 * CD * A * density * vm[1]) / MASS
+#     zfd = -(0.5 * CD * A * density * vm[2]) / MASS
+#     return np.array([xfd, yfd, zfd])
 
 
-def atmosphere_gravity(rm):
-    ATMOS_BOUNDS = [-5e3, 81e3]
-    alt_bounded = bound(rm[2] / 1000, *ATMOS_BOUNDS)
-    grav_accel = atmosphere.grav_accel(alt_bounded)
-    return grav_accel
+# def atmosphere_gravity(rm):
+#     ATMOS_BOUNDS = [-5e3, 81e3]
+#     alt_bounded = bound(rm[2] / 1000, *ATMOS_BOUNDS)
+#     grav_accel = atmosphere.grav_accel(alt_bounded)
+#     return grav_accel
 
 
-def guidance_func(t, rm, vm, r_targ, config):
-    GLIMIT = float(config.get("GLIMIT", 14.0))
+# def guidance_func(t, rm, vm, r_targ, config):
+#     GLIMIT = float(config.get("GLIMIT", 14.0))
 
-    ac = guidance.run(t, rm, vm, r_targ, config)
+#     ac = guidance.run(t, rm, vm, r_targ, config)
 
-    if (norm(ac) - (GLIMIT * constants.g)) > 1e-10:
-        ac = unitize(ac) * (GLIMIT * constants.g)
-    return ac
+#     if (norm(ac) - (GLIMIT * constants.g)) > 1e-10:
+#         ac = unitize(ac) * (GLIMIT * constants.g)
+#     return ac
 
 
-def dynamics_func(t, X, ss, r_targ, config):
+def dynamics_func(t, X, simobj):
     # rm = X[:3]
     # vm = X[3:6]
     # atmos_drag_enable = config["guidance"]["phase"][guidance.phase_id].get("enable_drag", False)
@@ -95,7 +95,7 @@ def dynamics_func(t, X, ss, r_targ, config):
     burn_const = 0.2
 
     U = np.array([*ac])
-    Xdot = ss.A @ X + ss.B @ U
+    Xdot = simobj.step(X, U)
     Xdot[6] = burn_const * norm(ac)
     return Xdot
 
@@ -132,25 +132,11 @@ if __name__ == "__main__":
     # if args.input:
     #     config = read_config_file(args.input)
 
-    config = {
-            "plot": {
-                "XY": {
-                    "x_axis": "north",
-                    "y_axis": "east",
-                    },
-                "Vel": {
-                    "x_axis": "north",
-                    "y_axis": "north_dot",
-                    },
-                "Fuel Burn": {
-                    "x_axis": "time",
-                    "y_axis": "fuel_burn",
-                    }
-                }
-            }
-
     # Inits
     ####################################
+
+    from japl.Sim.SimObject import SimObject
+    from japl.Sim.Model import Model
 
     A = np.array([
         [0, 0, 0, 1, 0, 0,  0],
@@ -175,10 +161,13 @@ if __name__ == "__main__":
     C = np.eye(len(A))
     D = np.zeros(B.shape)
 
-    ss = StateSpace(A, B, C, D)
-    atmosphere = Atmosphere()
-    guidance = Guidance()
-    maneuver = Maneuvers()
+    model = Model().from_statespace(A, B, C, D)
+    vehicle = SimObject(model=model)
+
+    # ss = StateSpace(A, B, C, D)
+    # atmosphere = Atmosphere()
+    # guidance = Guidance()
+    # maneuver = Maneuvers()
 
     t_span = [0, 100]
     dt = 0.01
@@ -197,12 +186,29 @@ if __name__ == "__main__":
     Y[0] = x0
 
     ##############################
+    config = {
+            "plot": {
+                "XY": {
+                    "x_axis": "x",
+                    "y_axis": "y",
+                    },
+                "Vel": {
+                    "x_axis": "time",
+                    "y_axis": "vy",
+                    },
+                # "Fuel Burn": {
+                #     "x_axis": "time",
+                #     "y_axis": "fuel_burn",
+                #     }
+                }
+            }
+
     sol = solve_ivp(
             dynamics_func,
             t_span=t_span,
             t_eval=t_array,
             y0=x0,
-            args=(ss, targ_R0, config),
+            args=(vehicle,),
             events=[
                 # hit_target_event,
                 # hit_ground_event,
@@ -256,12 +262,12 @@ if __name__ == "__main__":
     plot_points = []
     plot_config = config.get("plot", {})
     output_manager = OutputManager(args, plot_config, T, Y, plot_points, figsize=(10, 8))
-    output_manager.register_output("east",      0, "East (m)")
-    output_manager.register_output("north",     1, "North (m)")
-    output_manager.register_output("alt",       2, "Alt (m)")
-    output_manager.register_output("east_dot",  3, "E vel (m/s)")
-    output_manager.register_output("north_dot", 4, "N vel (m/s)")
-    output_manager.register_output("alt_dot",   5, "Alt vel (m/s)")
-    output_manager.register_output("fuel_burn", 6, "Fuel Burn ")
+    output_manager.register_state("x",         0, "x (m)")
+    output_manager.register_state("y",         1, "y (m)")
+    output_manager.register_state("z",         2, "z (m)")
+    output_manager.register_state("vx",        3, "E vel (m/s)")
+    output_manager.register_state("vy",        4, "N vel (m/s)")
+    output_manager.register_state("vz",        5, "Alt vel (m/s)")
+    output_manager.register_state("fuel_burn", 6, "Fuel Burn ")
     output_manager.plots()
 

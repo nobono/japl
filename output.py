@@ -34,7 +34,7 @@ class OutputManager:
         self.register = {}
 
 
-    def register_output(self, name: str, id: int, label: str=""):
+    def register_state(self, name: str, id: int, label: str=""):
         self.register.update({name: {"id": id, "label": label}})
 
 
