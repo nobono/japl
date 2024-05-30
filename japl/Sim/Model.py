@@ -31,26 +31,33 @@ class Model:
 
     def __init__(self) -> None:
         self._type = ModelType.NotSet
+        self.state_dim = 0
+        self.A = np.array([])
+        self.B = np.array([])
+        self.C = np.array([])
+        self.D = np.array([])
 
 
-    def from_statespace(self,
-                        A: np.ndarray,
+    @staticmethod
+    def from_statespace(A: np.ndarray,
                         B: np.ndarray,
                         C: Optional[np.ndarray],
                         D: Optional[np.ndarray]) -> "Model":
 
-        self._type = ModelType.StateSpace
+        model = Model()
+        model._type = ModelType.StateSpace
 
-        self.A = csr_matrix(A)
-        self.B = B
+        model.A = csr_matrix(A)
+        model.B = B
         if C is not None:
-            self.C = csr_matrix(C)
+            model.C = csr_matrix(C)
         if D is not None:
-            self.D = D
+            model.D = D
+        model.state_dim = model.A.shape[0]
 
-        assert self._pre_sim_checks()
+        assert model._pre_sim_checks()
 
-        return self
+        return model
 
 
     def _pre_sim_checks(self) -> bool:

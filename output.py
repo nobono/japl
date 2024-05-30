@@ -10,6 +10,8 @@ from util import norm
 from util import unitize
 from scipy import constants
 
+from japl.Sim.SimObject import SimObject
+
 # plt.style.use('seaborn-v0_8-dark')
 plt.style.use('bmh')
 
@@ -19,23 +21,19 @@ class OutputManager:
     dir = "./data"
     
 
-    def __init__(self, args, config, t, y, points: list=[], figsize: tuple[float, float]=(10, 8)) -> None:
+    def __init__(self, simobj: SimObject, args, config, t, y, points: list=[], figsize: tuple[float, float]=(10, 8)) -> None:
         self.figsize = figsize
         self.args = args
         self.config = config
         self.t = t
         self.y = y
         self.points = points
-        self.velmag = np.asarray([norm(i) for i in y[:, 3:6]])
-        self.accmag = np.asarray([norm(i) for i in y[:, 6:9]])
-        self.G = np.asarray([i / constants.g for i in self.accmag])
-        yy = np.array([0, -1, 0])
-        self.theta = [np.degrees(np.arccos(np.dot(yy, unitize(vm)))) for vm in y[:, 3:6]]
-        self.register = {}
-
-
-    def register_state(self, name: str, id: int, label: str=""):
-        self.register.update({name: {"id": id, "label": label}})
+        self.register = simobj.register
+        # self.velmag = np.asarray([norm(i) for i in y[:, 3:6]])
+        # self.accmag = np.asarray([norm(i) for i in y[:, 6:9]])
+        # self.G = np.asarray([i / constants.g for i in self.accmag])
+        # yy = np.array([0, -1, 0])
+        # self.theta = [np.degrees(np.arccos(np.dot(yy, unitize(vm)))) for vm in y[:, 3:6]]
 
 
     def axis_selection(self, name: str) -> tuple[np.ndarray, str]:

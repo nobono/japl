@@ -161,8 +161,20 @@ if __name__ == "__main__":
     C = np.eye(len(A))
     D = np.zeros(B.shape)
 
-    model = Model().from_statespace(A, B, C, D)
+    model = Model.from_statespace(A, B, C, D)
     vehicle = SimObject(model=model)
+
+    vehicle.register_state("x",         0, "x (m)")
+    vehicle.register_state("y",         1, "y (m)")
+    vehicle.register_state("z",         2, "z (m)")
+    vehicle.register_state("vx",        3, "xvel (m/s)")
+    vehicle.register_state("vy",        4, "yvel (m/s)")
+    vehicle.register_state("vz",        5, "zvel (m/s)")
+    vehicle.register_state("fuel_burn", 6, "Fuel Burn ")
+
+    x0 = [0, 0, 0]
+    v0 = [0, 0, 0]
+    vehicle.init_state([x0, v0, 0])
 
     # ss = StateSpace(A, B, C, D)
     # atmosphere = Atmosphere()
@@ -172,9 +184,10 @@ if __name__ == "__main__":
     t_span = [0, 100]
     dt = 0.01
 
-    R0 = np.array([0, 0, 0])
-    V0 = np.array([0, 0, 0])
-    x0 = np.concatenate([R0, V0, [0]])
+    # R0 = np.array([0, 0, 0])
+    # V0 = np.array([0, 0, 0])
+    # x0 = np.concatenate([R0, V0, [0]])
+    x0 = vehicle.X0
 
     targ_R0 = np.array([0, 0, 0])
     ####################################
@@ -261,13 +274,6 @@ if __name__ == "__main__":
     # r_pop2 = np.array([0, 45e3, 10])
     plot_points = []
     plot_config = config.get("plot", {})
-    output_manager = OutputManager(args, plot_config, T, Y, plot_points, figsize=(10, 8))
-    output_manager.register_state("x",         0, "x (m)")
-    output_manager.register_state("y",         1, "y (m)")
-    output_manager.register_state("z",         2, "z (m)")
-    output_manager.register_state("vx",        3, "E vel (m/s)")
-    output_manager.register_state("vy",        4, "N vel (m/s)")
-    output_manager.register_state("vz",        5, "Alt vel (m/s)")
-    output_manager.register_state("fuel_burn", 6, "Fuel Burn ")
+    output_manager = OutputManager(vehicle, args, plot_config, T, Y, plot_points, figsize=(10, 8))
     output_manager.plots()
 

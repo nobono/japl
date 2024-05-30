@@ -8,7 +8,7 @@ import numpy as np
 
 # ---------------------------------------------------
 
-from control.iosys import StateSpace
+# from control.iosys import StateSpace
 
 # ---------------------------------------------------
 
@@ -24,27 +24,53 @@ from .UnitCheck import assert_physical_type
 from .Model import Model
 from .Model import ModelType
 
+from japl.Util.Util import flatten_list
+
 
 
 class SimObject:
 
     """This is a base class for simulation objects"""
 
-    def __init__(self, model: Optional[Model] = None, **kwargs) -> None:
+    def __init__(self, model: Model = Model(), **kwargs) -> None:
 
         assert isinstance(model, Model)
         self.name = kwargs.get("name", "SimObject")
         self.color = kwargs.get("color")
         self.model = model
+        self.register = {}
+        self.state_dim = self.model.state_dim
+        self.X0 = np.zeros((self.state_dim,))
 
 
     def _pre_sim_checks(self) -> bool:
-        assert self.model is not None
+
+        msg_header = f"SimObject \"{self.name}\""
+
+        if self.model is None:
+            raise AssertionError(f"{msg_header} has no model")
+
+        if len(self.register) != self.model.A.shape[0]:
+            raise AssertionError(f"{msg_header} register ill-configured")
+
+        if len(self.X0) != self.model.A.shape[0]:
+            raise AssertionError(f"{msg_header} initial state \"X0\" ill-configured")
+
         return True
 
 
     def step(self, X: np.ndarray, U: np.ndarray) -> np.ndarray:
         return self.model.step(X, U)
+
+
+    def register_state(self, name: str, id: int, label: str = "") -> None:
+        self.register.update({name: {"id": id, "label": label}})
+
+
+    def init_state(self, state: np.ndarray|list) -> None:
+        if isinstance(state, list):
+            state = flatten_list(state)
+        self.X0 = np.asarray(state).flatten()
             
 
 
