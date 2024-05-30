@@ -75,7 +75,7 @@ from japl.Model.Model import Model
 #     return ac
 
 
-def dynamics_func(t, X, simobj):
+def dynamics_func(t, X, simobj: SimObject):
     # rm = X[:3]
     # vm = X[3:6]
     # atmos_drag_enable = config["guidance"]["phase"][guidance.phase_id].get("enable_drag", False)
