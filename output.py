@@ -10,7 +10,7 @@ from util import norm
 from util import unitize
 from scipy import constants
 
-from japl.Sim.SimObject import SimObject
+from japl.SimObject.SimObject import SimObject
 
 # plt.style.use('seaborn-v0_8-dark')
 plt.style.use('bmh')

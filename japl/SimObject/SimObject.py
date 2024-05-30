@@ -17,12 +17,12 @@ from astropy.units.quantity import Quantity
 
 # ---------------------------------------------------
 
-from .UnitCheck import assert_physical_type
+from japl.Util.UnitCheck import assert_physical_type
 
 # ---------------------------------------------------
 
-from .Model import Model
-from .Model import ModelType
+from japl.Model.Model import Model
+from japl.Model.Model import ModelType
 
 from japl.Util.Util import flatten_list
 
@@ -41,6 +41,8 @@ class SimObject:
         self.register = {}
         self.state_dim = self.model.state_dim
         self.X0 = np.zeros((self.state_dim,))
+        self.T = np.array([])
+        self.Y = np.array([])
 
 
     def _pre_sim_checks(self) -> bool:
@@ -60,6 +62,7 @@ class SimObject:
 
 
     def step(self, X: np.ndarray, U: np.ndarray) -> np.ndarray:
+        # TODO: accounting for model inputs here?
         return self.model.step(X, U)
 
 
@@ -71,6 +74,12 @@ class SimObject:
         if isinstance(state, list):
             state = flatten_list(state)
         self.X0 = np.asarray(state).flatten()
+
+
+    def _output_data(self, t, y) -> None:
+        """stores solution data from solver into sim object"""
+        self.T = t
+        self.Y = y
             
 
 

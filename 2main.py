@@ -8,7 +8,6 @@ from numpy.linalg import norm
 
 # ---------------------------------------------------
 
-from scipy.integrate import solve_ivp
 from scipy import constants
 
 # ---------------------------------------------------
@@ -35,6 +34,12 @@ from util import unitize
 # ---------------------------------------------------
 
 from output import OutputManager
+
+# ---------------------------------------------------
+
+from japl.Sim.Sim import Sim
+from japl.SimObject.SimObject import SimObject
+from japl.Model.Model import Model
 
 # ---------------------------------------------------
 
@@ -132,11 +137,8 @@ if __name__ == "__main__":
     # if args.input:
     #     config = read_config_file(args.input)
 
-    # Inits
+    # Model
     ####################################
-
-    from japl.Sim.SimObject import SimObject
-    from japl.Sim.Model import Model
 
     A = np.array([
         [0, 0, 0, 1, 0, 0,  0],
@@ -172,6 +174,9 @@ if __name__ == "__main__":
     vehicle.register_state("vz",        5, "zvel (m/s)")
     vehicle.register_state("fuel_burn", 6, "Fuel Burn ")
 
+    # Inits
+    ###############
+
     x0 = [0, 0, 0]
     v0 = [0, 0, 0]
     vehicle.init_state([x0, v0, 0])
@@ -181,24 +186,10 @@ if __name__ == "__main__":
     # guidance = Guidance()
     # maneuver = Maneuvers()
 
-    t_span = [0, 100]
-    dt = 0.01
+    Sim(t_span=[0, 100], dt=0.01, simobjs=[vehicle])()
 
-    # R0 = np.array([0, 0, 0])
-    # V0 = np.array([0, 0, 0])
-    # x0 = np.concatenate([R0, V0, [0]])
-    x0 = vehicle.X0
-
-    targ_R0 = np.array([0, 0, 0])
-    ####################################
-
-    t_array = np.linspace(t_span[0], t_span[1], int(t_span[1]/dt))
-    T = np.zeros(t_array.shape)
-    Y = np.zeros((t_array.shape[0], x0.shape[0]))
-    T[0] = t_span[0]
-    Y[0] = x0
-
-    ##############################
+    # r_pop1 = np.array([0, 47e3, 90])
+    # r_pop2 = np.array([0, 45e3, 10])
     config = {
             "plot": {
                 "XY": {
@@ -209,69 +200,15 @@ if __name__ == "__main__":
                     "x_axis": "time",
                     "y_axis": "vy",
                     },
-                # "Fuel Burn": {
-                #     "x_axis": "time",
-                #     "y_axis": "fuel_burn",
-                #     }
+                "Fuel Burn": {
+                    "x_axis": "time",
+                    "y_axis": "fuel_burn",
+                    }
                 }
             }
 
-    sol = solve_ivp(
-            dynamics_func,
-            t_span=t_span,
-            t_eval=t_array,
-            y0=x0,
-            args=(vehicle,),
-            events=[
-                # hit_target_event,
-                # hit_ground_event,
-                ],
-            rtol=1e-3,
-            atol=1e-6,
-            max_step=0.2,
-            )
-    T = sol['t']
-    Y = sol['y'].T
-
-    ##############################
-
-    # plot fuel burn
-    # plt.figure()
-    # plt.plot(T, Y[:, 6])
-     
-    # for istep, (tstep_prev, tstep) in tqdm(enumerate(zip(t_array, t_array[1:])),
-    #                                        total=len(t_array)):
-
-    #     sol = solve_ivp(
-    #             dynamics_func,
-    #             t_span=(tstep_prev, tstep),
-    #             t_eval=[tstep],
-    #             y0=x0,
-    #             args=(ss, targ_R0),
-    #             events=[
-    #                 hit_target_event,
-    #                 hit_ground_event,
-    #                 ],
-    #             rtol=1e-3,
-    #             atol=1e-6,
-    #             )
-
-    #     # check for stop event
-    #     if check_for_events(sol['t_events']):
-    #         # truncate output arrays if early stoppage
-    #         T = T[:istep + 1]
-    #         Y = Y[:istep + 1]
-    #         break
-    #     else:
-    #         # store output
-    #         t = sol['t'][0]
-    #         y = sol['y'].T[0]
-    #         T[istep + 1] = t
-    #         Y[istep + 1] = y
-    #         x0 = Y[istep + 1]
-
-    # r_pop1 = np.array([0, 47e3, 90])
-    # r_pop2 = np.array([0, 45e3, 10])
+    T = vehicle.T
+    Y = vehicle.Y
     plot_points = []
     plot_config = config.get("plot", {})
     output_manager = OutputManager(vehicle, args, plot_config, T, Y, plot_points, figsize=(10, 8))
