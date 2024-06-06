@@ -163,7 +163,7 @@ if __name__ == "__main__":
     C = np.eye(len(A))
     D = np.zeros(B.shape)
 
-    model = Model.from_statespace(A, B, C, D)
+    model = Model.ss(A, B, C, D)
     vehicle = SimObject(model=model)
 
     vehicle.register_state("x",         0, "x (m)")

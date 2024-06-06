@@ -28,7 +28,7 @@ B = np.array([
     [1],
     ])
 
-vehicle = Model.from_statespace(A, B)
+vehicle = Model.ss(A, B)
 
 
 if __name__ == "__main__":
