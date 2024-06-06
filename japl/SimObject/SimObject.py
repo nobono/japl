@@ -43,27 +43,48 @@ class SimObject:
         self.X0 = np.zeros((self.state_dim,))
         self.T = np.array([])
         self.Y = np.array([])
+        # input array
+        if len(self.model.B.shape) > 1:
+            self.U = np.zeros((self.model.B.shape[1],))
+        else:
+            self.U = np.zeros((len(self.model.B),))
 
 
     def _pre_sim_checks(self) -> bool:
 
         msg_header = f"SimObject \"{self.name}\""
 
+        # check if model exists
         if self.model is None:
             raise AssertionError(f"{msg_header} has no model")
 
+        # check state / output register
         if len(self.register) != self.model.A.shape[0]:
             raise AssertionError(f"{msg_header} register ill-configured")
 
+        # check initial state aray
         if len(self.X0) != self.model.A.shape[0]:
             raise AssertionError(f"{msg_header} initial state \"X0\" ill-configured")
+
+        # check input array, U
+        if len(self.model.B.shape) > 1:
+            if len(self.U) != self.model.B.shape[1]:
+                raise AssertionError(f"{msg_header} input array \"U\" ill-configured")
+        else:
+            if len(self.U) != len(self.model.B):
+                raise AssertionError(f"{msg_header} input array \"U\" ill-configured")
 
         return True
 
 
     def step(self, X: np.ndarray, U: np.ndarray) -> np.ndarray:
         # TODO: accounting for model inputs here?
-        return self.model.step(X, U)
+        self.update(X)
+        return self.model.step(X, self.U)
+
+
+    def update(self, X: np.ndarray):
+        pass
 
 
     def register_state(self, name: str, id: int, label: str = "") -> None:
