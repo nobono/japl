@@ -1,8 +1,8 @@
 import control as ct
 import matplotlib.pyplot as plt
 import numpy as np
-from japl.Model.Model import Model
-from japl.SimObject.SimObject import SimObject
+from japl import Model
+from japl import SimObject
 
 
 

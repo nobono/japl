@@ -37,9 +37,9 @@ from output import OutputManager
 
 # ---------------------------------------------------
 
-from japl.Sim.Sim import Sim
-from japl.SimObject.SimObject import SimObject
-from japl.Model.Model import Model
+from japl import Sim
+from japl import SimObject
+from japl import Model
 
 # ---------------------------------------------------
 
