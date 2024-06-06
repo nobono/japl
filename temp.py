@@ -1,27 +1,85 @@
-import numpy as np
 import control as ct
-import sympy as sp
-from sympy import var
-from sympy import Matrix as Mat
-from scipy import constants
+import matplotlib.pyplot as plt
+import numpy as np
+from japl.Model.Model import Model
+from japl.SimObject.SimObject import SimObject
 
 
 
-m, t = sp.symbols('m, t')
-omega, alpha = sp.symbols('omega, alpha')
-r = sp.MatrixSymbol('r', 3, 1)
-T = sp.MatrixSymbol('T', 3, 1)
-F = sp.MatrixSymbol('F', 3, 1)
-I = sp.MatrixSymbol('I', 3, 3)
-g = sp.MatrixSymbol('g', 3, 1)
+Tend = 1
+dt = 0.001
+N = int(Tend / dt)
+
+omega = 20
+zeta = .8
+ss = ct.tf2ss([1], [1/omega**2, 2*zeta/omega, 1])
+# ss_obs, TM = ct.observable_form(ss)
+
+# tau = 0.1
+# ss = ct.tf2ss([1], [tau, 1])
+# ss_obs, TM = ct.observable_form(ss)
+
+A = np.array([
+    [0, 1],
+    [0, 0],
+    ])
+B = np.array([
+    [0],
+    [1],
+    ])
+# C = np.array([
+#     [0, 0],
+#     [0, 0],
+#     ])
+# D = np.array([1])
+
+vehicle = Model.from_statespace(A, B)
 
 
-# alpha = I^-1 (r x F)
-# alpha = Mat(I.inv()) * Mat(r).cross(F)
+if __name__ == "__main__":
+
+    x = np.array([0, 0])
+    X = np.array([0, 0])
+
+    U = [3] * (N//2) + [-6] * (N//2)
+    # _t = np.linspace(0, Tend, N)
+    # U = np.sin(150*_t)
+
+    T = []
+    Y = []
+    Y_vehicle = []
+    t = 0
 
 
-# print(
-#     sp.Matrix(r).cross(sp.Matrix(F))
-#         )
+    def f(ss, x, u):
+        return (ss.A @ x + ss.B @ u)
 
+
+    for i in range(N):
+
+        t += dt
+        T += [t]
+
+        # update actuator model
+        Y += [ss.C @ x]
+        x_dot = f(ss, x, np.array([U[i]]))
+        x = x_dot * dt + x
+
+        # update vehicle model
+        X_dot = vehicle.step(X, (ss.C @ x))
+        X = X_dot * dt + X
+        Y_vehicle += [X]
+
+
+    Y = np.asarray(Y)
+    Y_vehicle = np.asarray(Y_vehicle)
+
+
+    plt.plot(T, U)
+    plt.plot(T, Y[:, 0], linestyle='-.')
+
+    plt.figure()
+    plt.plot(T, Y_vehicle[:, 0])
+
+    plt.show()
 
