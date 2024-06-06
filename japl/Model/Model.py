@@ -68,6 +68,10 @@ class Model:
 
 
     def _pre_sim_checks(self) -> bool:
+        if len(self.A.shape) < 2:
+            raise AssertionError("Matrix \"A\" must have shape of len 2")
+        if len(self.B.shape) < 2:
+            raise AssertionError("Matrix \"B\" must have shape of len 2")
         if self._type == ModelType.StateSpace:
             assert self.A.shape == self.C.shape
             assert self.B.shape == self.D.shape

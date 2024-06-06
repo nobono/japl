@@ -67,12 +67,8 @@ class SimObject:
             raise AssertionError(f"{msg_header} initial state \"X0\" ill-configured")
 
         # check input array, U
-        if len(self.model.B.shape) > 1:
-            if len(self.U) != self.model.B.shape[1]:
-                raise AssertionError(f"{msg_header} input array \"U\" ill-configured")
-        else:
-            if len(self.U) != len(self.model.B):
-                raise AssertionError(f"{msg_header} input array \"U\" ill-configured")
+        if len(self.U) != self.model.B.shape[1]:
+            raise AssertionError(f"{msg_header} input array \"U\" ill-configured")
 
         return True
 

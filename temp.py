@@ -27,11 +27,6 @@ B = np.array([
     [0],
     [1],
     ])
-# C = np.array([
-#     [0, 0],
-#     [0, 0],
-#     ])
-# D = np.array([1])
 
 vehicle = Model.from_statespace(A, B)
 
