@@ -41,18 +41,25 @@ class Model:
     @staticmethod
     def from_statespace(A: np.ndarray,
                         B: np.ndarray,
-                        C: Optional[np.ndarray],
-                        D: Optional[np.ndarray]) -> "Model":
+                        C: Optional[np.ndarray] = None,
+                        D: Optional[np.ndarray] = None) -> "Model":
 
         model = Model()
         model._type = ModelType.StateSpace
 
         model.A = csr_matrix(A)
         model.B = B
+
         if C is not None:
             model.C = csr_matrix(C)
+        else:
+            model.C = csr_matrix(np.eye(model.A.shape[0]))
+
         if D is not None:
             model.D = D
+        else:
+            model.D = np.zeros_like(model.B)
+
         model.state_dim = model.A.shape[0]
 
         assert model._pre_sim_checks()
