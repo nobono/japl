@@ -114,15 +114,11 @@ if __name__ == "__main__":
     v0 = [0, 0, 0]
     vehicle.init_state([x0, v0, 0])
 
-    # ss = StateSpace(A, B, C, D)
-    # atmosphere = Atmosphere()
-    # guidance = Guidance()
-    # maneuver = Maneuvers()
+    # Sim
+    ###############
 
     Sim(t_span=[0, 100], dt=0.01, simobjs=[vehicle])()
 
-    # r_pop1 = np.array([0, 47e3, 90])
-    # r_pop2 = np.array([0, 45e3, 10])
     config = {
             "plot": {
                 "XY": {
