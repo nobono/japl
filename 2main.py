@@ -108,14 +108,14 @@ if __name__ == "__main__":
     vehicle.register_state("fuel_burn", 6, "Fuel Burn ")
 
     # Inits
-    ###############
+    ####################################
 
     x0 = [0, 0, 0]
     v0 = [0, 0, 0]
     vehicle.init_state([x0, v0, 0])
 
     # Sim
-    ###############
+    ####################################
 
     Sim(t_span=[0, 100], dt=0.01, simobjs=[vehicle])()
 
