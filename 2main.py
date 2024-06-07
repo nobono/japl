@@ -17,22 +17,6 @@ from util import unitize
 
 # ---------------------------------------------------
 
-# from atmosphere import Atmosphere
-
-# ---------------------------------------------------
-
-# from guidance import Guidance
-
-# ---------------------------------------------------
-
-# from maneuvers import Maneuvers
-
-# ---------------------------------------------------
-
-# from control.iosys import StateSpace
-
-# ---------------------------------------------------
-
 from output import OutputManager
 
 # ---------------------------------------------------
@@ -44,58 +28,13 @@ from japl import Model
 # ---------------------------------------------------
 
 
-
-# def atmosphere_drag(rm, vm):
-#     ATMOS_BOUNDS = [-5e3, 81e3]
-#     alt_bounded = bound(rm[2] / 1000, *ATMOS_BOUNDS)
-#     density = atmosphere.density(alt_bounded)
-#     CD = 0.45
-#     A = .25**2
-#     MASS = 1.0
-#     xfd = -(0.5 * CD * A * density * vm[0]) / MASS
-#     yfd = -(0.5 * CD * A * density * vm[1]) / MASS
-#     zfd = -(0.5 * CD * A * density * vm[2]) / MASS
-#     return np.array([xfd, yfd, zfd])
-
-
-# def atmosphere_gravity(rm):
-#     ATMOS_BOUNDS = [-5e3, 81e3]
-#     alt_bounded = bound(rm[2] / 1000, *ATMOS_BOUNDS)
-#     grav_accel = atmosphere.grav_accel(alt_bounded)
-#     return grav_accel
-
-
-# def guidance_func(t, rm, vm, r_targ, config):
-#     GLIMIT = float(config.get("GLIMIT", 14.0))
-
-#     ac = guidance.run(t, rm, vm, r_targ, config)
-
-#     if (norm(ac) - (GLIMIT * constants.g)) > 1e-10:
-#         ac = unitize(ac) * (GLIMIT * constants.g)
-#     return ac
-
-
 def dynamics_func(t, X, simobj: SimObject):
-    # rm = X[:3]
-    # vm = X[3:6]
-    # atmos_drag_enable = config["guidance"]["phase"][guidance.phase_id].get("enable_drag", False)
-    # gravity_enable = config["guidance"]["phase"][guidance.phase_id].get("enable_gravity", False)
-
-    # ac = guidance_func(t, rm, vm, r_targ, config)
-    # ac = np.zeros((3,))
 
     ac = np.array([0, 5, 0])
 
     fuel_burn = X[6]
     if fuel_burn >= 100:
         ac = np.zeros((3,))
-
-    # External Accelerations
-    # acc_ext = np.zeros((3,))
-    # if atmos_drag_enable:
-    #     acc_ext += atmosphere_drag(rm, vm)
-    # if gravity_enable:
-    #     acc_ext += atmosphere_gravity(rm) * np.array([0, 0, -1])
 
     burn_const = 0.2
 
@@ -132,10 +71,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args.plot = True
 
-    # Load config file
-    # config = {}
-    # if args.input:
-    #     config = read_config_file(args.input)
 
     # Model
     ####################################
@@ -160,10 +95,8 @@ if __name__ == "__main__":
 
         [0, 0, 0],
         ])
-    C = np.eye(len(A))
-    D = np.zeros(B.shape)
 
-    model = Model.ss(A, B, C, D)
+    model = Model.ss(A, B)
     vehicle = SimObject(model=model)
 
     vehicle.register_state("x",         0, "x (m)")
