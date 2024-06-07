@@ -43,11 +43,6 @@ class SimObject:
         self.X0 = np.zeros((self.state_dim,))
         self.T = np.array([])
         self.Y = np.array([])
-        # input array
-        if len(self.model.B.shape) > 1:
-            self.U = np.zeros((self.model.B.shape[1],))
-        else:
-            self.U = np.zeros((len(self.model.B),))
 
 
     def _pre_sim_checks(self) -> bool:
@@ -66,17 +61,13 @@ class SimObject:
         if len(self.X0) != self.model.A.shape[0]:
             raise AssertionError(f"{msg_header} initial state \"X0\" ill-configured")
 
-        # check input array, U
-        if len(self.U) != self.model.B.shape[1]:
-            raise AssertionError(f"{msg_header} input array \"U\" ill-configured")
-
         return True
 
 
     def step(self, X: np.ndarray, U: np.ndarray) -> np.ndarray:
         # TODO: accounting for model inputs here?
         self.update(X)
-        return self.model.step(X, self.U)
+        return self.model.step(X, U)
 
 
     def update(self, X: np.ndarray):

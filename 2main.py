@@ -117,7 +117,7 @@ if __name__ == "__main__":
     # Sim
     ####################################
 
-    Sim(t_span=[0, 100], dt=0.01, simobjs=[vehicle])()
+    Sim(t_span=[0, 100], dt=0.01, simobjs=[vehicle], step_solve=True)()
 
     config = {
             "plot": {
@@ -138,8 +138,9 @@ if __name__ == "__main__":
 
     T = vehicle.T
     Y = vehicle.Y
+    print(T[-1])
     plot_points = []
     plot_config = config.get("plot", {})
-    output_manager = OutputManager(vehicle, args, plot_config, T, Y, plot_points, figsize=(10, 8))
+    output_manager = OutputManager(vehicle, args, plot_config, T, Y, plot_points, figsize=(8, 6))
     output_manager.plots()
 
