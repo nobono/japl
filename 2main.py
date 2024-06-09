@@ -97,7 +97,7 @@ if __name__ == "__main__":
         ])
 
     model = Model.ss(A, B)
-    vehicle = SimObject(model=model)
+    vehicle = SimObject(model=model, size=1)
 
     vehicle.register_state("x",         0, "x (m)")
     vehicle.register_state("y",         1, "y (m)")
@@ -116,8 +116,11 @@ if __name__ == "__main__":
 
     # Sim
     ####################################
+    # import matplotlib.pyplot as plt
+    # fig, ax = plt.subplots(figsize=(8, 6))
+    # plt.scatter(0, 0)
 
-    Sim(t_span=[0, 100], dt=0.01, simobjs=[vehicle], step_solve=True)()
+    sim = Sim(t_span=[0, 100], dt=0.01, simobjs=[vehicle], step_solve=True)()
 
     config = {
             "plot": {
@@ -141,6 +144,6 @@ if __name__ == "__main__":
     print(T[-1])
     plot_points = []
     plot_config = config.get("plot", {})
-    output_manager = OutputManager(vehicle, args, plot_config, T, Y, plot_points, figsize=(8, 6))
-    output_manager.plots()
+    # output_manager = OutputManager(vehicle, args, plot_config, T, Y, plot_points, figsize=(8, 6))
+    # output_manager.plots()
 

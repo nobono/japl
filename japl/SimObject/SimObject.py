@@ -25,6 +25,7 @@ from japl.Model.Model import Model
 from japl.Model.Model import ModelType
 
 from japl.Util.Util import flatten_list
+from matplotlib.patches import Circle
 
 
 
@@ -37,12 +38,14 @@ class SimObject:
         assert isinstance(model, Model)
         self.name = kwargs.get("name", "SimObject")
         self.color = kwargs.get("color")
+        self.size = kwargs.get("size", 1)
         self.model = model
         self.register = {}
         self.state_dim = self.model.state_dim
         self.X0 = np.zeros((self.state_dim,))
         self.T = np.array([])
         self.Y = np.array([])
+        self.patch = Circle((0, 0), radius=self.size)
 
 
     def _pre_sim_checks(self) -> bool:
