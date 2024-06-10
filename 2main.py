@@ -97,7 +97,7 @@ if __name__ == "__main__":
         ])
 
     model = Model.ss(A, B)
-    vehicle = SimObject(model=model, size=1)
+    vehicle = SimObject(model=model, size=.1)
 
     vehicle.register_state("x",         0, "x (m)")
     vehicle.register_state("y",         1, "y (m)")
@@ -120,7 +120,7 @@ if __name__ == "__main__":
     # fig, ax = plt.subplots(figsize=(8, 6))
     # plt.scatter(0, 0)
 
-    sim = Sim(t_span=[0, 1], dt=.01, simobjs=[vehicle], anim_solve=True)()
+    sim = Sim(t_span=[0, 10], dt=.1, simobjs=[vehicle], anim_solve=True)()
 
     config = {
             "plot": {

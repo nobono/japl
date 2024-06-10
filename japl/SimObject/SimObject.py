@@ -26,6 +26,7 @@ from japl.Model.Model import ModelType
 
 from japl.Util.Util import flatten_list
 from matplotlib.patches import Circle
+from matplotlib.lines import Line2D
 
 
 
@@ -46,6 +47,7 @@ class SimObject:
         self.T = np.array([])
         self.Y = np.array([])
         self.patch = Circle((0, 0), radius=self.size)
+        self.trace = Line2D([0], [0])
 
 
     def _pre_sim_checks(self) -> bool:
