@@ -66,8 +66,9 @@ class Sim:
         ac = np.array([0, 0, -constants.g])
 
         fuel_burn = X[6]
-        if fuel_burn >= 100:
-            ac = np.zeros((3,))
+        if fuel_burn < 100:
+            ac[0] += 20
+            ac[2] += 40
 
         burn_const = 0.4
 

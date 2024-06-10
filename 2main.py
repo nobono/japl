@@ -1,25 +1,14 @@
 import cProfile
 import argparse
 
-# ---------------------------------------------------
-
 import numpy as np
 from numpy.linalg import norm
 
-# ---------------------------------------------------
-
 from scipy import constants
 
-# ---------------------------------------------------
-
 from util import unitize
-# from util import bound
-
-# ---------------------------------------------------
 
 from output import OutputManager
-
-# ---------------------------------------------------
 
 from japl import Sim
 from japl import SimObject
@@ -109,25 +98,25 @@ if __name__ == "__main__":
     vehicle.register_state("vz",        5, "zvel (m/s)")
     vehicle.register_state("fuel_burn", 6, "Fuel Burn ")
 
-    vehicle.plot.state_select = {"x": 0, "y": 2}
+    vehicle.plot.state_select = {"x": "x", "y": "z"}
 
     # Inits
     ####################################
 
     x0 = [0, 0, 1]
-    v0 = [4, 0, 20]
+    v0 = [0, 0, 0]
     vehicle.init_state([x0, v0, 0])
 
     # Sim
     ####################################
 
     sim = Sim(
-            t_span=[0, 4],
+            t_span=[0, 50],
             dt=.01,
             simobjs=[vehicle],
             events=[],
             animate=1,
-            aspect="equal",
+            aspect="auto",
             )
     sim.run()
 

@@ -51,10 +51,7 @@ class SimObject:
         self.X0 = np.zeros((self.state_dim,))
         self.Y = np.array([])
         self.__T = np.array([])
-        # self.patch = Circle((0, 0), radius=self.size)
-        # self.trace = Line2D([0], [0])
-        # self.plot_data_select = [
-        #         ]
+
         self.plot = PlotInterface(
                 state_select={},
                 size=self.size,
@@ -132,7 +129,7 @@ class SimObject:
             if state_slice.lower() in ['t', 'time']:
                 return self.__T[:index]
             elif state_slice in self.register:
-                return self.Y[:index, self.register[state_slice]]
+                return self.Y[:index, self.register[state_slice]["id"]]
             else:
                 return np.array([])
         else:
