@@ -97,7 +97,7 @@ if __name__ == "__main__":
         ])
 
     model = Model.ss(A, B)
-    vehicle = SimObject(model=model, size=.1)
+    vehicle = SimObject(model=model, size=.01, color='tab:blue')
 
     vehicle.register_state("x",         0, "x (m)")
     vehicle.register_state("y",         1, "y (m)")
@@ -106,6 +106,8 @@ if __name__ == "__main__":
     vehicle.register_state("vy",        4, "yvel (m/s)")
     vehicle.register_state("vz",        5, "zvel (m/s)")
     vehicle.register_state("fuel_burn", 6, "Fuel Burn ")
+
+    vehicle.plot.state_select = {"x": 0, "y": 1}
 
     # Inits
     ####################################
@@ -116,11 +118,8 @@ if __name__ == "__main__":
 
     # Sim
     ####################################
-    # import matplotlib.pyplot as plt
-    # fig, ax = plt.subplots(figsize=(8, 6))
-    # plt.scatter(0, 0)
 
-    sim = Sim(t_span=[0, 10], dt=.1, simobjs=[vehicle], anim_solve=True)()
+    sim = Sim(t_span=[0, 10], dt=.01, simobjs=[vehicle], anim_solve=True, aspect="equal")()
 
     config = {
             "plot": {
@@ -139,7 +138,7 @@ if __name__ == "__main__":
                 }
             }
 
-    T = vehicle.T
+    T = sim.T
     Y = vehicle.Y
     print(T[-1])
     plot_points = []

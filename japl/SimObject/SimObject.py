@@ -30,6 +30,16 @@ from matplotlib.lines import Line2D
 
 
 
+class PlotInterface:
+
+    """This is a class for interfacing SimObject data with the plotter."""
+
+    def __init__(self, size: float, state_select: dict, color: Optional[str] = None) -> None:
+        self.patch = Circle((0, 0), radius=size, color=color)
+        self.trace = Line2D([0], [0], color=color)
+        self.state_select = state_select
+
+
 class SimObject:
 
     """This is a base class for simulation objects"""
@@ -44,10 +54,17 @@ class SimObject:
         self.register = {}
         self.state_dim = self.model.state_dim
         self.X0 = np.zeros((self.state_dim,))
-        self.T = np.array([])
         self.Y = np.array([])
-        self.patch = Circle((0, 0), radius=self.size)
-        self.trace = Line2D([0], [0])
+        self.__T = np.array([])
+        # self.patch = Circle((0, 0), radius=self.size)
+        # self.trace = Line2D([0], [0])
+        # self.plot_data_select = [
+        #         ]
+        self.plot = PlotInterface(
+                state_select={},
+                size=self.size,
+                color=self.color
+                )
 
 
     def _pre_sim_checks(self) -> bool:
@@ -89,12 +106,30 @@ class SimObject:
         self.X0 = np.asarray(state).flatten()
 
 
-    def _output_data(self, t, y) -> None:
+    def _output_data(self, y) -> None:
         """stores solution data from solver into sim object"""
-        self.T = t
         self.Y = y
+
+
+    def get_data(self, t_index: int, state_slice: tuple[int, int]|int|str) -> np.ndarray:
+        """This method returns state data from the SimObject."""
+
+        if isinstance(state_slice, tuple) or isinstance(state_slice, list):
+            return self.Y[:t_index, state_slice[0]:state_slice[1]]
+        elif isinstance(state_slice, int):
+            return self.Y[:t_index, state_slice]
+        elif isinstance(state_slice, str) and state_slice.lower() in ['t', 'time']:
+            return self.__T[:t_index]
+        else:
+            return np.array([])
             
 
+    def _set_T_array_ref(self, _T) -> None:
+        """This method is used to reference the internal __T time array to the 
+        Sim class Time array 'T'. This method exists to avoid redundant time arrays in
+        various SimObjects."""
+
+        self.__T = _T
 
 # class MassObject(SimObject):
 
