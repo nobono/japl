@@ -13,6 +13,8 @@ from scipy.integrate import solve_ivp
 
 from functools import partial
 
+from scipy import constants
+
 # ---------------------------------------------------
 
 from matplotlib import patches
@@ -60,7 +62,8 @@ class Sim:
 
 
     def step(self, t, X, simobj):
-        ac = np.array([3*np.cos(2 * t), .5*np.sin(1 * t), 0])
+        # ac = np.array([3, .5*np.sin(1 * t), 0])
+        ac = np.array([0, 0, 0])
 
         fuel_burn = X[6]
         if fuel_burn >= 100:
@@ -127,6 +130,7 @@ class Sim:
             # pre-allocate output arrays
             self.T = np.zeros((self.Nt, ))
             simobj.Y = np.zeros((self.Nt, len(simobj.X0)))
+            simobj.Y[0] = simobj.X0
             simobj._set_T_array_ref(self.T) # simobj.T reference to sim.T
 
             # try to set animation frame intervals to real time

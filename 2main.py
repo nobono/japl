@@ -97,7 +97,7 @@ if __name__ == "__main__":
         ])
 
     model = Model.ss(A, B)
-    vehicle = SimObject(model=model, size=.01, color='tab:blue')
+    vehicle = SimObject(model=model, size=0, color='tab:blue')
 
     vehicle.register_state("x",         0, "x (m)")
     vehicle.register_state("y",         1, "y (m)")
@@ -113,7 +113,7 @@ if __name__ == "__main__":
     ####################################
 
     x0 = [0, 0, 0]
-    v0 = [0, 0, 0]
+    v0 = [20, 20, 0]
     vehicle.init_state([x0, v0, 0])
 
     # Sim
@@ -124,7 +124,7 @@ if __name__ == "__main__":
             dt=.01,
             simobjs=[vehicle],
             animate=1,
-            aspect="equal")
+            aspect="auto")
     sim.run()
 
     config = {
