@@ -1,5 +1,7 @@
 # ---------------------------------------------------
 from typing import Callable
+from typing import Generator
+from typing import Optional
 
 from tqdm import tqdm
 
@@ -9,13 +11,14 @@ from japl.SimObject.SimObject import SimObject
 
 from scipy.integrate import solve_ivp
 
+from functools import partial
+
 # ---------------------------------------------------
 
 from matplotlib import patches
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 from matplotlib.animation import FuncAnimation
-import time
 
 
 
@@ -26,14 +29,18 @@ class Sim:
                  dt: float,
                  simobjs: list[SimObject],
                  events: list = [],
-                 step_solve: bool = False,
+                 anim_solve: bool = False,
                  ) -> None:
         self.t_span = t_span
         self.dt = dt
         self.simobjs = simobjs
         self.events = events
-        self.step_solve = step_solve # choice of iterating solver over each dt step
+        self.anim_solve = anim_solve # choice of iterating solver over each dt step
 
+        # setup time array
+        self.istep = 0
+        self.Nt = int(self.t_span[1] / self.dt)
+        self.t_array = np.linspace(self.t_span[0], self.t_span[1], self.Nt + 1)
 
     # def _setup(self):
 
@@ -76,10 +83,6 @@ class Sim:
         simobj = self.simobjs[0]
         # x0 = simobj.X0
 
-        # setup time array
-        Nt = int(self.t_span[1] / self.dt)
-        t_array = np.linspace(self.t_span[0], self.t_span[1], Nt)
-
         # pre-allocate output arrays
         # simobj.T = np.zeros(t_array.shape)
         # simobj.T = t_array
@@ -93,11 +96,11 @@ class Sim:
         # solver
         ################################
 
-        if not self.step_solve:
+        if not self.anim_solve:
             sol = solve_ivp(
                     fun=self.step,
                     t_span=self.t_span,
-                    t_eval=t_array,
+                    t_eval=self.t_array,
                     y0=simobj.X0,
                     args=(simobj,),
                     events=self.events,
@@ -112,30 +115,17 @@ class Sim:
         # solver for one step at a time
         ################################
 
-        elif self.step_solve:
+        elif self.anim_solve:
 
-            simobj.T = np.zeros((Nt, ))
-            simobj.Y = np.zeros((Nt, len(simobj.X0)))
-            x0 = simobj.X0
+            simobj.T = np.zeros((self.Nt, ))
+            simobj.Y = np.zeros((self.Nt, len(simobj.X0)))
 
             ####################################
             # TEMP
             ####################################
-            self.fig, self.ax = plt.subplots(figsize=(6, 4))
 
-            axis_position = plt.axes([0.2, 0.01, 0.65, 0.03], facecolor='white') # type:ignore
-            self.time_slider = Slider(
-                axis_position,
-                label='Time (s)',
-                valmin=0,
-                valmax=Nt - 1,
-                valinit=0
-                )
-
-            state_slice = (0, 2) # user choice of states to plot
-            # self.time_slider.on_changed(lambda t: self.update(t, state_slice=state_slice))
-            plt.show(block=False)
-            self.ax.add_patch(simobj.patch)
+            # plt.show(block=False)
+            # self.ax.add_patch(simobj.patch)
 
             # FuncAnimation
             # def anim_update(args):
@@ -147,114 +137,96 @@ class Sim:
 
             ####################################
 
-            for istep, (tstep_prev, tstep) in tqdm(enumerate(zip(t_array, t_array[1:])), total=Nt):
+            # for istep, (tstep_prev, tstep) in tqdm(enumerate(zip(t_array, t_array[1:])), total=Nt):
 
-                sol = solve_ivp(
-                        fun=self.step,
-                        t_span=(tstep_prev, tstep),
-                        t_eval=[tstep],
-                        y0=x0,
-                        args=(simobj,),
-                        events=self.events,
-                        rtol=1e-3,
-                        atol=1e-6,
-                        )
+            #     sol = solve_ivp(
+            #             fun=self.step,
+            #             t_span=(tstep_prev, tstep),
+            #             t_eval=[tstep],
+            #             y0=x0,
+            #             args=(simobj,),
+            #             events=self.events,
+            #             rtol=1e-3,
+            #             atol=1e-6,
+            #             )
 
-                # check for stop event
-                # if check_for_events(sol['t_events']):
-                #     # truncate output arrays if early stoppage
-                #     T = T[:istep + 1]
+            #     # check for stop event
+            #     # if check_for_events(sol['t_events']):
+            #     #     # truncate output arrays if early stoppage
+            #     #     T = T[:istep + 1]
                 #     Y = Y[:istep + 1]
-                #     break
-                # else:
-                # store output
-                t = sol['t'][0]
-                y = sol['y'].T[0]
-                simobj.T[istep + 1] = t
-                simobj.Y[istep + 1] = y
-                x0 = simobj.Y[istep + 1]
+            #     #     break
+            #     # else:
+            #     # store output
+            #     t = sol['t'][0]
+            #     y = sol['y'].T[0]
+            #     simobj.T[istep + 1] = t
+            #     simobj.Y[istep + 1] = y
+            #     x0 = simobj.Y[istep + 1]
 
-                # circ.set_center((x0[0], x0[1]))
-                # self.time_slider.set_val(istep)
-                # plt.pause(0.001)
-                # self.fig.canvas.draw_idle()
-                # self.fig.canvas.flush_events()
+            #     # circ.set_center((x0[0], x0[1]))
+            #     # self.time_slider.set_val(istep)
+            #     # plt.pause(0.001)
+            #     # self.fig.canvas.draw_idle()
+            #     # self.fig.canvas.flush_events()
 
-            # keep figure open after finishing
-            # plt.show()
+            # # keep figure open after finishing
+            # # plt.show()
 
             ######################
-            count = -1
-            xx0 = simobj.Y[0, :]
 
-            # def frames():
-            #     nonlocal count
-            #     while True:
-            #         count += 1
-            #         yield count
+            # axis_position = plt.axes([0.2, 0.01, 0.65, 0.03], facecolor='white') # type:ignore
+            # self.time_slider = Slider(
+            #     axis_position,
+            #     label='Time (s)',
+            #     valmin=0,
+            #     valmax=Nt - 1,
+            #     valinit=0
+            #     )
 
-            def uupdate(istep) -> tuple:
-                nonlocal xx0
-                tstep_prev = t_array[istep]
-                tstep = t_array[istep + 1]
-                sol = solve_ivp(
-                        fun=self.step,
-                        t_span=(tstep_prev, tstep),
-                        t_eval=[tstep],
-                        y0=xx0,
-                        args=(simobj,),
-                        events=self.events,
-                        rtol=1e-3,
-                        atol=1e-6,
-                        )
-                t = sol['t'][0]
-                y = sol['y'].T[0]
-                xx0 = y
-                # return (self.simobjs[0].patch.set_center((y[0], y[1])), )
-                return y[0], y[1]
-
-            # anim = FuncAnimation(self.fig, uupdate, frames=frames, interval=100)
-            # plt.show()
-
-            ####################
-
-            class RegrMagic(object):
-                """Mock for function Regr_magic()
-                """
-                def __init__(self):
-                    self.x = 0
-                def __call__(self):
-                    # time.sleep(np.random.random())
-                    self.x += 1
-                    ret = uupdate(self.x)
-                    return ret[0], ret[1]
-                    # return self.x, np.random.random()
-
-            regr_magic = RegrMagic()
-
-            def frames():
-                nonlocal count
-                while True:
-                    yield regr_magic()
-
-            fig = plt.figure()
-
-            x = []
-            y = []
-            def animate(args):
-                x.append(args[0])
-                y.append(args[1])
-                return plt.plot(x, y, color='g')
-
-
-            anim = FuncAnimation(fig, animate, frames=frames, interval=100, blit=False)
+            self.fig, self.ax = plt.subplots(figsize=(6, 4))
+            anim = FuncAnimation(self.fig, self.animate, frames=partial(self.frames, _simobj=simobj), interval=10, blit=False, cache_frame_data=False)
             plt.show()
 
 
-    def update(self, t: float, state_slice: tuple[int, int]) -> None:
-        for simobj in self.simobjs:
-            if isinstance(simobj.patch, patches.Circle):
-                istep = int(self.time_slider.val)
-                simobj.patch.set_center(tuple(simobj.Y[istep, state_slice[0]:state_slice[1]]))
-        self.fig.canvas.draw()
+    def animate(self, frame):
+        x, y = frame
+        return plt.plot(x, y, color='tab:blue')
+
+
+    def frames(self, _simobj: SimObject):
+        """passes frame data to FuncAnimation"""
+        while self.istep < self.Nt - 1:
+            self.istep += 1
+            self._anim_update(self.istep, _simobj)
+            yield (_simobj.T[:self.istep], _simobj.Y[:self.istep])
+
+        # on animate end
+        # self.time_slider.on_changed(lambda t: self.update(t, state_slice=state_slice))
+
+
+    def _anim_update(self, istep: int, _simobj: SimObject) -> None:
+        tstep_prev = self.t_array[istep]
+        tstep = tstep_prev + self.dt
+        x0 = _simobj.Y[istep - 1]
+
+        sol = solve_ivp(
+                fun=self.step,
+                t_span=(tstep_prev, tstep),
+                t_eval=[tstep],
+                y0=x0,
+                args=(_simobj,),
+                events=self.events,
+                rtol=1e-3,
+                atol=1e-6,
+                )
+        _simobj.T[istep] = sol['t'][0]
+        _simobj.Y[istep] = sol['y'].T[0]
+
+    # def update(self, t: float, state_slice: tuple[int, int]) -> None:
+    #     for simobj in self.simobjs:
+    #         if isinstance(simobj.patch, patches.Circle):
+    #             istep = int(self.time_slider.val)
+    #             simobj.patch.set_center(tuple(simobj.Y[istep, state_slice[0]:state_slice[1]]))
+    #     self.fig.canvas.draw()
 

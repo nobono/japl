@@ -120,7 +120,7 @@ if __name__ == "__main__":
     # fig, ax = plt.subplots(figsize=(8, 6))
     # plt.scatter(0, 0)
 
-    sim = Sim(t_span=[0, 100], dt=0.01, simobjs=[vehicle], step_solve=True)()
+    sim = Sim(t_span=[0, 1], dt=.01, simobjs=[vehicle], anim_solve=True)()
 
     config = {
             "plot": {
