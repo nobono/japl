@@ -111,15 +111,30 @@ class SimObject:
         self.Y = y
 
 
-    def get_data(self, t_index: int, state_slice: tuple[int, int]|int|str) -> np.ndarray:
+    def get_plot_data(self, index: Optional[int] = None) -> tuple[np.ndarray, np.ndarray]:
+        """This method returns state data from the SimObject according
+        to the user specified state_select."""
+
+        if not self.plot.state_select:
+            Warning(f"No state_select configuration set for SimObject \"{self.name}\".")
+            return (np.array([]), np.array([]))
+
+        return (self._get_data(index, self.plot.state_select["x"]),
+                self._get_data(index, self.plot.state_select["y"]))
+
+
+    def _get_data(self, index: Optional[int], state_slice: tuple[int, int]|int|str) -> np.ndarray:
         """This method returns state data from the SimObject."""
 
+        if index is None:
+            index = len(self.Y) - 1
+
         if isinstance(state_slice, tuple) or isinstance(state_slice, list):
-            return self.Y[:t_index, state_slice[0]:state_slice[1]]
+            return self.Y[:index, state_slice[0]:state_slice[1]]
         elif isinstance(state_slice, int):
-            return self.Y[:t_index, state_slice]
+            return self.Y[:index, state_slice]
         elif isinstance(state_slice, str) and state_slice.lower() in ['t', 'time']:
-            return self.__T[:t_index]
+            return self.__T[:index]
         else:
             return np.array([])
             
@@ -130,6 +145,16 @@ class SimObject:
         various SimObjects."""
 
         self.__T = _T
+
+
+    def _update_patch_data(self, xdata: np.ndarray, ydata: np.ndarray) -> None:
+
+        # update trace data
+        self.plot.trace.set_data(xdata, ydata)
+
+        # plot current step position data
+        self.plot.patch.set_center((xdata[-1], ydata[-1]))
+
 
 # class MassObject(SimObject):
 

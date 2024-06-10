@@ -31,7 +31,7 @@ class Sim:
                  dt: float,
                  simobjs: list[SimObject],
                  events: list = [],
-                 animate: bool = False,
+                 animate: bool|int = False,
                  **kwargs,
                  ) -> None:
 
@@ -39,7 +39,7 @@ class Sim:
         self.dt = dt
         self.simobjs = simobjs
         self.events = events
-        self.animate = animate # choice of iterating solver over each dt step
+        self.animate = bool(animate) # choice of iterating solver over each dt step
 
         # setup time array
         self.istep = 0
@@ -56,6 +56,7 @@ class Sim:
         self.aspect: float|str = kwargs.get("aspect", "equal")
         self.blit: bool = kwargs.get("blit", False)
         self.cache_frame_data: bool = kwargs.get("cache_frame_data", False)
+        self.repeat: bool = kwargs.get("repeat", False)
 
 
     def step(self, t, X, simobj):
@@ -78,6 +79,17 @@ class Sim:
 
         simobj = self.simobjs[0]
 
+        # instantiate figure and axes
+        self.fig, self.ax = plt.subplots(figsize=(6, 4))
+
+        # set aspect initial ratio
+        self.ax.set_aspect(self.aspect)
+
+        # add simobj patch to Sim axes
+        self.ax.add_patch(simobj.plot.patch)
+        self.ax.add_line(simobj.plot.trace)
+
+
         if not self.animate:
             ################################
             # solver
@@ -96,6 +108,16 @@ class Sim:
                     )
             self.T = sol['t']
             simobj.Y = sol['y'].T
+            simobj._set_T_array_ref(self.T) # simobj.T reference to sim.T
+
+            xdata, ydata = simobj.get_plot_data()
+            simobj._update_patch_data(xdata, ydata)
+
+            # autoscale
+            self.ax.set_xlim([min(xdata) - 0.2, max(xdata) + 0.2])
+            self.ax.set_ylim([min(ydata) - 0.2, max(ydata) + 0.2])
+
+            self._setup_time_slider(self.Nt, [simobj])
 
         elif self.animate:
             ################################
@@ -107,16 +129,6 @@ class Sim:
             simobj.Y = np.zeros((self.Nt, len(simobj.X0)))
             simobj._set_T_array_ref(self.T) # simobj.T reference to sim.T
 
-            # instantiate figure and axes
-            self.fig, self.ax = plt.subplots(figsize=(6, 4))
-
-            # set aspect initial ratio
-            self.ax.set_aspect(self.aspect)
-
-            # add simobj patch to Sim axes
-            self.ax.add_patch(simobj.plot.patch)
-            self.ax.add_line(simobj.plot.trace)
-
             # try to set animation frame intervals to real time
             interval = int(max(1, self.dt * 1000))
 
@@ -126,10 +138,11 @@ class Sim:
                     frames=partial(self._frames, _simobj=simobj),
                     interval=interval,
                     blit=self.blit,
-                    cache_frame_data=self.cache_frame_data
+                    cache_frame_data=self.cache_frame_data,
+                    repeat=self.repeat,
                     )
 
-            plt.show()
+        plt.show()
 
         return self
 
@@ -137,17 +150,14 @@ class Sim:
     def _animate_func(self, frame, _simobj: SimObject):
         xdata, ydata = frame
 
-        _simobj.plot.trace.set_data(xdata, ydata)
+        # exit on exception
+        if len(xdata) == 0:
+            return []
 
-        # plot current step position data
-        xcenter = xdata[-1]
-        ycenter = ydata[-1]
-
-        _simobj.plot.patch.set_center((xcenter, ycenter))
+        _simobj._update_patch_data(xdata, ydata)
 
         # handle plot axes boundaries
-        margin = 0.2
-        self.__update_axes_boundary(self.ax, pos=(xcenter, ycenter), margin=margin)
+        self.__update_axes_boundary(self.ax, pos=(xdata[-1], ydata[-1]), margin=0.2)
 
         return [_simobj.plot.patch, _simobj.plot.trace]
 
@@ -169,12 +179,9 @@ class Sim:
             self.istep += 1
             self._step_solve_ivp(self.istep, _simobj, rtol=self.rtol, atol=self.atol, max_step=self.max_step)
 
-            if (state_select := _simobj.plot.state_select):
-
-                # get data from SimObject based on state_select user configuration
-                xdata = _simobj.get_data(self.istep, state_select["x"])
-                ydata = _simobj.get_data(self.istep, state_select["y"])
-                yield (xdata, ydata)
+            # get data from SimObject based on state_select user configuration
+            xdata, ydata = _simobj.get_plot_data(self.istep)
+            yield (xdata, ydata)
 
         self._post_anim_func(self.simobjs)
 
@@ -240,17 +247,7 @@ class Sim:
         """
 
         if "time_slider" not in dir(self):
-            axis_position = plt.axes([0.2, 0.01, 0.65, 0.03], facecolor='white') # type:ignore
-            self.time_slider = Slider(
-                axis_position,
-                label='Time (s)',
-                valmin=0,
-                valmax=self.Nt,
-                valinit=0
-                )
-            self.time_slider.on_changed(lambda t: self._time_slider_update(t, _simobjs=_simobjs))
-            self.time_slider.set_val(self.Nt) # initialize slider at end-time
-
+            self._setup_time_slider(self.Nt, _simobjs=_simobjs)
 
     def _time_slider_update(self, val: float, _simobjs: list[SimObject]) -> None:
 
@@ -259,13 +256,14 @@ class Sim:
             val = int(val)
 
             # select user specficied state(s)
-            if (state_select := _simobj.plot.state_select):
-                xdata = _simobj.get_data(val, state_select["x"])
-                ydata = _simobj.get_data(val, state_select["y"])
+            xdata, ydata = _simobj.get_plot_data(val)
 
-                # update artist data
-                _simobj.plot.patch.set_center((xdata[-1], ydata[-1]))
-                _simobj.plot.trace.set_data(xdata, ydata)
+            # exit on exception
+            if len(xdata) == 0:
+                return
+
+            # update artist data
+            _simobj._update_patch_data(xdata, ydata)
 
 
     def __update_axes_boundary(self, ax: Axes, pos: list|tuple, margin: float = 0.2) -> None:
@@ -310,5 +308,19 @@ class Sim:
         # if yrange < -RANGE_LOCK:
         #     diff = (np.abs(ydata - ylim[0]) + np.abs(ydata - ylim[1]) + RANGE_LOCK) / 2
         #     self.ax.set_ylim([ylim[0] - diff, ylim[1] - diff])
+
+
+    def _setup_time_slider(self, Nt: int, _simobjs: list[SimObject]) -> None:
+
+        axis_position = plt.axes([0.2, 0.01, 0.65, 0.03], facecolor='white') # type:ignore
+        self.time_slider = Slider(
+            axis_position,
+            label='Time (s)',
+            valmin=0,
+            valmax=Nt,
+            valinit=0
+            )
+        self.time_slider.on_changed(lambda t: self._time_slider_update(t, _simobjs=_simobjs))
+        self.time_slider.set_val(Nt) # initialize slider at end-time
 
 
