@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 from matplotlib.animation import FuncAnimation
 from matplotlib.lines import Line2D
+from matplotlib.axes import Axes
 
 
 
@@ -30,14 +31,15 @@ class Sim:
                  dt: float,
                  simobjs: list[SimObject],
                  events: list = [],
-                 anim_solve: bool = False,
+                 animate: bool = False,
                  **kwargs,
                  ) -> None:
+
         self.t_span = t_span
         self.dt = dt
         self.simobjs = simobjs
         self.events = events
-        self.anim_solve = anim_solve # choice of iterating solver over each dt step
+        self.animate = animate # choice of iterating solver over each dt step
 
         # setup time array
         self.istep = 0
@@ -45,8 +47,15 @@ class Sim:
         self.t_array = np.linspace(self.t_span[0], self.t_span[1], self.Nt + 1)
         self.T = np.array([])
 
+        # ODE solver params
+        self.rtol: float = kwargs.get("rtol", 1e-6)
+        self.atol: float = kwargs.get("atol", 1e-6)
+        self.max_step: float = kwargs.get("max_step", 0.2)
+
         # plotting
         self.aspect: float|str = kwargs.get("aspect", "equal")
+        self.blit: bool = kwargs.get("blit", False)
+        self.cache_frame_data: bool = kwargs.get("cache_frame_data", False)
 
 
     def step(self, t, X, simobj):
@@ -69,11 +78,11 @@ class Sim:
 
         simobj = self.simobjs[0]
 
-        ################################
-        # solver
-        ################################
+        if not self.animate:
+            ################################
+            # solver
+            ################################
 
-        if not self.anim_solve:
             sol = solve_ivp(
                     fun=self.step,
                     t_span=self.t_span,
@@ -81,39 +90,43 @@ class Sim:
                     y0=simobj.X0,
                     args=(simobj,),
                     events=self.events,
-                    rtol=1e-3,
-                    atol=1e-6,
-                    max_step=0.2,
+                    rtol=self.rtol,
+                    atol=self.atol,
+                    max_step=self.max_step,
                     )
             self.T = sol['t']
             simobj.Y = sol['y'].T
 
-        ################################
-        # solver for one step at a time
-        ################################
-
-        elif self.anim_solve:
+        elif self.animate:
+            ################################
+            # solver for one step at a time
+            ################################
 
             # pre-allocate output arrays
             self.T = np.zeros((self.Nt, ))
             simobj.Y = np.zeros((self.Nt, len(simobj.X0)))
             simobj._set_T_array_ref(self.T) # simobj.T reference to sim.T
 
+            # instantiate figure and axes
             self.fig, self.ax = plt.subplots(figsize=(6, 4))
 
+            # set aspect initial ratio
             self.ax.set_aspect(self.aspect)
 
             # add simobj patch to Sim axes
             self.ax.add_patch(simobj.plot.patch)
             self.ax.add_line(simobj.plot.trace)
 
+            # try to set animation frame intervals to real time
+            interval = int(max(1, self.dt * 1000))
+
             anim = FuncAnimation(
                     fig=self.fig,
-                    func=partial(self.animate, _simobj=simobj),
+                    func=partial(self._animate_func, _simobj=simobj),
                     frames=partial(self._frames, _simobj=simobj),
-                    interval=int(max(1, self.dt * 1000)),
-                    blit=False,
-                    cache_frame_data=False
+                    interval=interval,
+                    blit=self.blit,
+                    cache_frame_data=self.cache_frame_data
                     )
 
             plt.show()
@@ -121,13 +134,8 @@ class Sim:
         return self
 
 
-    def animate(self, frame, _simobj: SimObject):
+    def _animate_func(self, frame, _simobj: SimObject):
         xdata, ydata = frame
-
-        # if (state_select := _simobj.plot.state_select):
-        # plot trace data
-        # xdata = y[:, 0]
-        # ydata = y[:, 1]
 
         _simobj.plot.trace.set_data(xdata, ydata)
 
@@ -138,36 +146,8 @@ class Sim:
         _simobj.plot.patch.set_center((xcenter, ycenter))
 
         # handle plot axes boundaries
-        xmargin = .2
-        ymargin = .2
-        xlim = self.ax.get_xlim()
-        ylim = self.ax.get_ylim()
-
-        if xcenter - xlim[1] + xmargin > 0:
-            self.ax.set_xlim([xlim[0], xcenter + xmargin])
-        if xcenter - xlim[0] - xmargin < 0:
-            self.ax.set_xlim(([xcenter - xmargin, xlim[1]]))
-
-        if ycenter - ylim[1] + ymargin > 0:
-            self.ax.set_ylim([ylim[0], ycenter + ymargin])
-        if ycenter - ylim[0] - ymargin < 0:
-            self.ax.set_ylim([ycenter - ymargin, ylim[1]])
-
-        # xlim = self.ax.get_xlim()
-        # ylim = self.ax.get_ylim()
-        # xrange = np.abs(xlim[1] - xlim[0])
-        # yrange = ylim[1] - ylim[0]
-
-        # RANGE_LOCK = 3
-        # if xrange > RANGE_LOCK:
-        #     diff = (np.abs(xdata - xlim[0]) + np.abs(xdata - xlim[1]) - RANGE_LOCK) / 2
-        #     self.ax.set_xlim([xlim[0] + diff, xlim[1] + diff])
-        # if yrange > RANGE_LOCK:
-        #     diff = (np.abs(ydata - ylim[0]) + np.abs(ydata - ylim[1]) - RANGE_LOCK) / 2
-        #     self.ax.set_ylim([ylim[0] + diff, ylim[1] - diff])
-        # if yrange < -RANGE_LOCK:
-        #     diff = (np.abs(ydata - ylim[0]) + np.abs(ydata - ylim[1]) + RANGE_LOCK) / 2
-        #     self.ax.set_ylim([ylim[0] - diff, ylim[1] - diff])
+        margin = 0.2
+        self.__update_axes_boundary(self.ax, pos=(xcenter, ycenter), margin=margin)
 
         return [_simobj.plot.patch, _simobj.plot.trace]
 
@@ -187,9 +167,11 @@ class Sim:
         while self.istep < self.Nt - 1:
 
             self.istep += 1
-            self._anim_update(self.istep, _simobj)
+            self._step_solve_ivp(self.istep, _simobj, rtol=self.rtol, atol=self.atol, max_step=self.max_step)
 
             if (state_select := _simobj.plot.state_select):
+
+                # get data from SimObject based on state_select user configuration
                 xdata = _simobj.get_data(self.istep, state_select["x"])
                 ydata = _simobj.get_data(self.istep, state_select["y"])
                 yield (xdata, ydata)
@@ -197,7 +179,13 @@ class Sim:
         self._post_anim_func(self.simobjs)
 
 
-    def _anim_update(self, istep: int, _simobj: SimObject, rtol: float = 1e-6, atol: float = 1e-6) -> None:
+    def _step_solve_ivp(self,
+                        istep: int,
+                        _simobj: SimObject,
+                        rtol: float = 1e-6,
+                        atol: float = 1e-6,
+                        max_step: float = 0.2
+                        ) -> None:
         """
             This method is an update step for the ODE solver from time step 't' to 't + dt';
         used by FuncAnimation.
@@ -209,6 +197,7 @@ class Sim:
         -- _simobj - SimObject
         -- rtol - relative tolerance for ODE Solver
         -- atol - absolute tolerance for ODE Solver
+        -- max_step - max step size for ODE Solver
         -------------------------------------------------------------------
         -------------------------------------------------------------------
         -- Returns:
@@ -231,6 +220,7 @@ class Sim:
                 events=self.events,
                 rtol=rtol,
                 atol=atol,
+                max_step=max_step
                 )
         self.T[istep] = sol['t'][0]
         _simobj.Y[istep] = sol['y'].T[0]
@@ -261,27 +251,64 @@ class Sim:
             self.time_slider.on_changed(lambda t: self._time_slider_update(t, _simobjs=_simobjs))
             self.time_slider.set_val(self.Nt) # initialize slider at end-time
 
-        # self.ax.margins(.05, .05)
-        # self.ax.autoscale()
-
 
     def _time_slider_update(self, val: float, _simobjs: list[SimObject]) -> None:
 
         for _simobj in _simobjs:
             # get data range
             val = int(val)
-            # t = self.T[:val]
-            # y = _simobj.Y[:val]
 
             # select user specficied state(s)
             if (state_select := _simobj.plot.state_select):
-                # xdata = t
-                # ydata = y[:, 1]
                 xdata = _simobj.get_data(val, state_select["x"])
                 ydata = _simobj.get_data(val, state_select["y"])
 
                 # update artist data
                 _simobj.plot.patch.set_center((xdata[-1], ydata[-1]))
                 _simobj.plot.trace.set_data(xdata, ydata)
+
+
+    def __update_axes_boundary(self, ax: Axes, pos: list|tuple, margin: float = 0.2) -> None:
+        """
+            This method handles the plot axes boundaries during FuncAnimation frames.
+
+        -------------------------------------------------------------------
+        -- Arguments
+        -------------------------------------------------------------------
+        -- ax - matplotlib Axes object
+        -- pos - xy position of Artist being plotted
+        -- margin - margin value between Artist xy position and Axes border
+        -------------------------------------------------------------------
+        """
+
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()
+        xcenter, ycenter = pos
+
+        if xcenter - xlim[1] + margin > 0:
+            ax.set_xlim((xlim[0], xcenter + margin))
+        if xcenter - xlim[0] - margin < 0:
+            ax.set_xlim(((xcenter - margin, xlim[1])))
+
+        if ycenter - ylim[1] + margin > 0:
+            ax.set_ylim((ylim[0], ycenter + margin))
+        if ycenter - ylim[0] - margin < 0:
+            ax.set_ylim((ycenter - margin, ylim[1]))
+
+        # xlim = self.ax.get_xlim()
+        # ylim = self.ax.get_ylim()
+        # xrange = np.abs(xlim[1] - xlim[0])
+        # yrange = ylim[1] - ylim[0]
+
+        # RANGE_LOCK = 3
+        # if xrange > RANGE_LOCK:
+        #     diff = (np.abs(xdata - xlim[0]) + np.abs(xdata - xlim[1]) - RANGE_LOCK) / 2
+        #     self.ax.set_xlim([xlim[0] + diff, xlim[1] + diff])
+        # if yrange > RANGE_LOCK:
+        #     diff = (np.abs(ydata - ylim[0]) + np.abs(ydata - ylim[1]) - RANGE_LOCK) / 2
+        #     self.ax.set_ylim([ylim[0] + diff, ylim[1] - diff])
+        # if yrange < -RANGE_LOCK:
+        #     diff = (np.abs(ydata - ylim[0]) + np.abs(ydata - ylim[1]) + RANGE_LOCK) / 2
+        #     self.ax.set_ylim([ylim[0] - diff, ylim[1] - diff])
 
 

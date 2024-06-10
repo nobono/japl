@@ -119,7 +119,7 @@ if __name__ == "__main__":
     # Sim
     ####################################
 
-    sim = Sim(t_span=[0, 10], dt=.01, simobjs=[vehicle], anim_solve=True, aspect="equal")()
+    sim = Sim(t_span=[0, 10], dt=.01, simobjs=[vehicle], animate=True, aspect="equal")()
 
     config = {
             "plot": {
