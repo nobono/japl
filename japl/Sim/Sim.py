@@ -75,7 +75,7 @@ class Sim:
         return Xdot
 
 
-    def __call__(self) -> "Sim":
+    def run(self) -> "Sim":
 
         simobj = self.simobjs[0]
 
