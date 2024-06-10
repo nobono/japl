@@ -25,6 +25,8 @@ from japl import Sim
 from japl import SimObject
 from japl import Model
 
+from events import hit_ground_event
+
 # ---------------------------------------------------
 
 
@@ -107,47 +109,49 @@ if __name__ == "__main__":
     vehicle.register_state("vz",        5, "zvel (m/s)")
     vehicle.register_state("fuel_burn", 6, "Fuel Burn ")
 
-    vehicle.plot.state_select = {"x": 0, "y": 1}
+    vehicle.plot.state_select = {"x": 0, "y": 2}
 
     # Inits
     ####################################
 
-    x0 = [0, 0, 0]
-    v0 = [20, 20, 0]
+    x0 = [0, 0, 1]
+    v0 = [4, 0, 20]
     vehicle.init_state([x0, v0, 0])
 
     # Sim
     ####################################
 
     sim = Sim(
-            t_span=[0, 10],
+            t_span=[0, 4],
             dt=.01,
             simobjs=[vehicle],
+            events=[],
             animate=1,
-            aspect="auto")
+            aspect="equal",
+            )
     sim.run()
 
-    config = {
-            "plot": {
-                "XY": {
-                    "x_axis": "x",
-                    "y_axis": "y",
-                    },
-                "Vel": {
-                    "x_axis": "time",
-                    "y_axis": "vy",
-                    },
-                "Fuel Burn": {
-                    "x_axis": "time",
-                    "y_axis": "fuel_burn",
-                    }
-                }
-            }
+    # config = {
+    #         "plot": {
+    #             "XY": {
+    #                 "x_axis": "x",
+    #                 "y_axis": "y",
+    #                 },
+    #             "Vel": {
+    #                 "x_axis": "time",
+    #                 "y_axis": "vy",
+    #                 },
+    #             "Fuel Burn": {
+    #                 "x_axis": "time",
+    #                 "y_axis": "fuel_burn",
+    #                 }
+    #             }
+    #         }
 
-    T = sim.T
-    Y = vehicle.Y
-    plot_points = []
-    plot_config = config.get("plot", {})
+    # T = sim.T
+    # Y = vehicle.Y
+    # plot_points = []
+    # plot_config = config.get("plot", {})
     # output_manager = OutputManager(vehicle, args, plot_config, T, Y, plot_points, figsize=(8, 6))
     # output_manager.plots()
 

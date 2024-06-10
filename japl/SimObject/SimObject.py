@@ -133,8 +133,13 @@ class SimObject:
             return self.Y[:index, state_slice[0]:state_slice[1]]
         elif isinstance(state_slice, int):
             return self.Y[:index, state_slice]
-        elif isinstance(state_slice, str) and state_slice.lower() in ['t', 'time']:
-            return self.__T[:index]
+        elif isinstance(state_slice, str):
+            if state_slice.lower() in ['t', 'time']:
+                return self.__T[:index]
+            elif state_slice in self.register:
+                return self.Y[:index, self.register[state_slice]]
+            else:
+                return np.array([])
         else:
             return np.array([])
             
