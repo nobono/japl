@@ -8,23 +8,18 @@ import numpy as np
 
 # ---------------------------------------------------
 
-# from control.iosys import StateSpace
-
-# ---------------------------------------------------
-
 import astropy.units as u
 from astropy.units.quantity import Quantity
 
 # ---------------------------------------------------
 
 from japl.Util.UnitCheck import assert_physical_type
+from japl.Model.Model import Model
+from japl.Model.Model import ModelType
+from japl.Util.Util import flatten_list
 
 # ---------------------------------------------------
 
-from japl.Model.Model import Model
-from japl.Model.Model import ModelType
-
-from japl.Util.Util import flatten_list
 from matplotlib.patches import Circle
 from matplotlib.lines import Line2D
 
