@@ -10,16 +10,24 @@ from inputs import get_mouse
 
 
 class DeviceInput:
+
     def __init__(self, device_type: str = "mouse") -> None:
+
+        self.devices = {
+                "mouse": self.get_mouse_input,
+                "gamepad": self.get_gamepad_input,
+                }
+
+        assert device_type in self.devices
         self.queue = Queue()
         self.device_data = [0, 0, 0, 0] # [x-left, y-left, x-right, y-right]
-        self.device_thread = threading.Thread(target=self.get_mouse_input, args=(self.queue,))
+        self.device_thread = threading.Thread(target=self.devices[device_type], args=(self.queue,))
         self.running = False
 
 
     def test(self, N: int = 10) -> None:
         self.start()
-        for i in range(N):
+        for _ in range(N):
             data = self.queue.get()
             print(data)
         self.stop()
@@ -51,7 +59,6 @@ class DeviceInput:
 
 
     def get_mouse_input(self, queue: Queue) -> None:
-
         _norm = 5.0
         x, y = (0, 0)
         while self.running:

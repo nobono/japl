@@ -121,7 +121,7 @@ if __name__ == "__main__":
             events=[],
             animate=1,
             aspect="equal",
-            use_device_input=True,
+            device_input_type="gamepad",
             moving_bounds=True,
             )
     sim.run()

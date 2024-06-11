@@ -64,8 +64,8 @@ class Sim:
                                   )
 
         # device inputs
-        self.use_device_input = kwargs.get("use_device_input", False)
-        self.device_input = DeviceInput()
+        self.device_input_type = kwargs.get("device_input_type", "")
+        self.device_input = DeviceInput(device_type=self.device_input_type)
 
 
     def run(self) -> "Sim":
@@ -73,7 +73,7 @@ class Sim:
         simobj = self.simobjs[0]
 
         # begin device input read thread
-        if self.use_device_input:
+        if self.device_input_type:
             self.device_input.start()
 
         self.plotter.setup(self.simobjs)
@@ -135,7 +135,7 @@ class Sim:
         ac = np.array([0, 0, -constants.g])
 
         # get device input
-        if self.use_device_input:
+        if self.device_input_type:
             (lx, ly, _, _) = self.device_input.get()
             # print(lx, ly)
             ac = ac + np.array([100*lx, 0, 100*ly])
