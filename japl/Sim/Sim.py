@@ -149,7 +149,7 @@ class Sim:
     def step(self, t, X, simobj):
         # ac = np.array([3, .5*np.sin(1 * t), 0])
 
-        ac = np.array([0, 0, 0])
+        ac = np.array([0, 0, -constants.g])
 
         # get device input
         if self.use_device_input:

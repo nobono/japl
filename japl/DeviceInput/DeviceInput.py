@@ -23,8 +23,9 @@ class DeviceInput:
 
 
     def __del__(self) -> None:
-        self.mouse_thread.join()
-        self.thread_running = False
+        if self.thread_running:
+            self.mouse_thread.join()
+            self.thread_running = False
 
 
     def empty(self) -> bool:

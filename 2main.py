@@ -115,13 +115,13 @@ if __name__ == "__main__":
     ####################################
 
     sim = Sim(
-            t_span=[0, 50],
+            t_span=[0, 100],
             dt=.01,
             simobjs=[vehicle],
             events=[],
             animate=1,
             aspect="equal",
-            use_device_input=True,
+            use_device_input=False,
             autoscale=False,
             )
     sim.run()
