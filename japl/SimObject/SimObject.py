@@ -60,6 +60,8 @@ class SimObject:
 
 
     def _pre_sim_checks(self) -> bool:
+        """This method is used to check user configuration of SimObjects
+        before running a simulation."""
 
         msg_header = f"SimObject \"{self.name}\""
 
@@ -79,6 +81,21 @@ class SimObject:
 
 
     def step(self, X: np.ndarray, U: np.ndarray) -> np.ndarray:
+        """This method is the update-step of the SimObject dynamic model. It calls
+        the SimObject Model's step() function.
+
+        -------------------------------------------------------------------
+        -- Arguments
+        -------------------------------------------------------------------
+        -- X - current state array of SimObject
+        -- U - current input array of SimObject
+        -------------------------------------------------------------------
+        -------------------------------------------------------------------
+        -- Returns:
+        -------------------------------------------------------------------
+        -- X_dot - state dynamics "Xdot = A*X + B*U"
+        -------------------------------------------------------------------
+        """
         # TODO: accounting for model inputs here?
         self.update(X)
         return self.model.step(X, U)
@@ -89,13 +106,42 @@ class SimObject:
 
 
     def register_state(self, name: str, id: int, label: str = "") -> None:
+        """This method registers a SimObject state name and plotting label with a
+        user-specified name. The purpose of this register is for ease of access to SimObject
+        states without having to use the satte index number.
+
+        -------------------------------------------------------------------
+        -- Arguments
+        -------------------------------------------------------------------
+        -- name - user-specified name of state
+        -- id - state index number
+        -- label - (optional) string other than "name" that will be displayed
+                    in plots / visualization
+        -------------------------------------------------------------------
+        """
         self.register.update({name: {"id": id, "label": label}})
 
 
     def init_state(self, state: np.ndarray|list) -> None:
+        """This method takes a numpy array or list (or nested list) and stores this data
+        into the initial state SimObject.X0. This method is for user convenience when initializing
+        a dynamics model.
+
+        -------------------------------------------------------------------
+        -- Arguments
+        -------------------------------------------------------------------
+        -- state - array, list or nested list of initial state array
+        -------------------------------------------------------------------
+        """
+
         if isinstance(state, list):
             state = flatten_list(state)
-        self.X0 = np.asarray(state).flatten()
+        _X0 = np.asarray(state).flatten()
+
+        if _X0.shape != self.X0.shape:
+            raise Exception(f"attempting to initialize state X0 but array sizes do not match.")
+
+        self.X0 = _X0
 
 
     def _output_data(self, y) -> None:
@@ -131,7 +177,8 @@ class SimObject:
             elif state_slice in self.register:
                 return self.Y[:index, self.register[state_slice]["id"]]
             else:
-                return np.array([])
+                raise Exception(f"SimObject \"{self.name}\" attempting to access state_selection \"{state_slice}\"\
+                        but no state index is registered under this name.")
         else:
             return np.array([])
             
