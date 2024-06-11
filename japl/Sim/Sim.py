@@ -17,12 +17,14 @@ from scipy import constants
 
 # ---------------------------------------------------
 
-from matplotlib import patches
 import matplotlib.pyplot as plt
+from matplotlib import patches
 from matplotlib.widgets import Slider
 from matplotlib.animation import FuncAnimation
 from matplotlib.lines import Line2D
 from matplotlib.axes import Axes
+
+from japl.DeviceInput.DeviceInput import DeviceInput
 
 
 
@@ -60,28 +62,18 @@ class Sim:
         self.cache_frame_data: bool = kwargs.get("cache_frame_data", False)
         self.repeat: bool = kwargs.get("repeat", False)
 
-
-    def step(self, t, X, simobj):
-        # ac = np.array([3, .5*np.sin(1 * t), 0])
-        ac = np.array([0, 0, -constants.g])
-
-        fuel_burn = X[6]
-        if fuel_burn < 100:
-            ac[0] += 20
-            ac[2] += 40
-
-        burn_const = 0.4
-
-        U = np.array([*ac])
-        Xdot = simobj.step(X, U)
-        Xdot[6] = burn_const * np.linalg.norm(ac)
-
-        return Xdot
+        # device inputs
+        self.use_device_input = kwargs.get("use_device_input", False)
+        self.device_input = DeviceInput()
 
 
     def run(self) -> "Sim":
 
         simobj = self.simobjs[0]
+
+        # begin device input read thread
+        if self.use_device_input:
+            self.device_input.start()
 
         # instantiate figure and axes
         self.fig, self.ax = plt.subplots(figsize=(6, 4))
@@ -124,6 +116,7 @@ class Sim:
             self._setup_time_slider(self.Nt, [simobj])
 
         elif self.animate:
+
             ################################
             # solver for one step at a time
             ################################
@@ -150,6 +143,30 @@ class Sim:
         plt.show()
 
         return self
+
+
+    def step(self, t, X, simobj):
+        # ac = np.array([3, .5*np.sin(1 * t), 0])
+
+        ac = np.array([0, 0, -constants.g])
+
+        # get device input
+        if self.use_device_input:
+            (lx, ly, rx, ry) = self.device_input.get()
+            ac = ac + np.array([100*lx, 0, 100*ly])
+
+        fuel_burn = X[6]
+        # if fuel_burn < 100:
+        #     ac[0] += 20
+        #     ac[2] += 40
+
+        burn_const = 0.4
+
+        U = np.array([*ac])
+        Xdot = simobj.step(X, U)
+        Xdot[6] = burn_const * np.linalg.norm(ac)
+
+        return Xdot
 
 
     def _animate_func(self, frame, _simobj: SimObject):

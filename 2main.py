@@ -37,6 +37,7 @@ def dynamics_func(t, X, simobj: SimObject):
 
 
 if __name__ == "__main__":
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--3d",
@@ -103,7 +104,7 @@ if __name__ == "__main__":
     # Inits
     ####################################
 
-    x0 = [0, 0, 1]
+    x0 = [0, 0, 0]
     v0 = [0, 0, 0]
     vehicle.init_state([x0, v0, 0])
 
@@ -116,7 +117,8 @@ if __name__ == "__main__":
             simobjs=[vehicle],
             events=[],
             animate=1,
-            aspect="auto",
+            aspect="equal",
+            use_device_input=True,
             )
     sim.run()
 
