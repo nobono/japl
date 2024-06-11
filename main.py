@@ -121,7 +121,7 @@ if __name__ == "__main__":
             events=[],
             animate=1,
             aspect="equal",
-            use_device_input=False,
+            use_device_input=True,
             moving_bounds=True,
             )
     sim.run()

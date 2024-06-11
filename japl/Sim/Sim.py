@@ -137,6 +137,7 @@ class Sim:
         # get device input
         if self.use_device_input:
             (lx, ly, _, _) = self.device_input.get()
+            # print(lx, ly)
             ac = ac + np.array([100*lx, 0, 100*ly])
 
         # fuel_burn = X[6]
