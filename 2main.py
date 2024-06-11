@@ -31,7 +31,7 @@ def dynamics_func(t, X, simobj: SimObject):
 
     U = np.array([*ac])
     Xdot = simobj.step(X, U)
-    Xdot[6] = burn_const * norm(ac)
+    Xdot[6] = burn_const * norm(ac) #type:ignore
     return Xdot
 
 
@@ -108,21 +108,21 @@ if __name__ == "__main__":
     ####################################
 
     x0 = [0, 0, 0]
-    v0 = [10, 0, 20]
+    v0 = [100, 0, 40]
     vehicle.init_state([x0, v0, 0])
 
     # Sim
     ####################################
 
     sim = Sim(
-            t_span=[0, 100],
+            t_span=[0, 10],
             dt=.01,
             simobjs=[vehicle],
             events=[],
             animate=1,
             aspect="equal",
             use_device_input=False,
-            autoscale=False,
+            moving_bounds=True,
             )
     sim.run()
 
