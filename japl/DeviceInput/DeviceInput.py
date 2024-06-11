@@ -44,7 +44,7 @@ class DeviceInput:
         lx, rx = (0, 0)
         ly, ry = (0, 0)
         while True:
-            events = get_gamepad()
+            events = get_mouse()
 
             for event in events:
                 # print(event.ev_type, event.code, event.state)
@@ -61,3 +61,25 @@ class DeviceInput:
 
             queue.put_nowait(mouse_data)
 
+
+    def get_gamepad_input(self, queue: Queue) -> None:
+        _norm = (2**16 / 2)
+        lx, rx = (0, 0)
+        ly, ry = (0, 0)
+        while True:
+            events = get_gamepad()
+
+            for event in events:
+                # print(event.ev_type, event.code, event.state)
+                if event.code == "ABS_X":
+                    lx = event.state / _norm
+                elif event.code == "ABS_RX":
+                    rx = event.state / _norm
+                elif event.code == "ABS_Y":
+                    ly = event.state / _norm
+                elif event.code == "ABS_RY":
+                    ry = event.state / _norm
+
+            mouse_data = [lx, -ly, rx, -ry]
+
+            queue.put_nowait(mouse_data)

@@ -8,6 +8,7 @@ from tqdm import tqdm
 import numpy as np
 
 from japl.SimObject.SimObject import SimObject
+from japl.DeviceInput.DeviceInput import DeviceInput
 
 from scipy.integrate import solve_ivp
 
@@ -23,8 +24,6 @@ from matplotlib.widgets import Slider
 from matplotlib.animation import FuncAnimation
 from matplotlib.lines import Line2D
 from matplotlib.axes import Axes
-
-from japl.DeviceInput.DeviceInput import DeviceInput
 
 
 
