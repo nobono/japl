@@ -111,8 +111,8 @@ class SimObject:
             Warning(f"No state_select configuration set for SimObject \"{self.name}\".")
             return (np.array([]), np.array([]))
 
-        return (self._get_data(index, self.plot.state_select["x"]),
-                self._get_data(index, self.plot.state_select["y"]))
+        return (self._get_data(index, self.plot.state_select["xaxis"]),
+                self._get_data(index, self.plot.state_select["yaxis"]))
 
 
     def _get_data(self, index: Optional[int], state_slice: tuple[int, int]|int|str) -> np.ndarray:

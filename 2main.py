@@ -99,7 +99,10 @@ if __name__ == "__main__":
     vehicle.register_state("vz",        5, "zvel (m/s)")
     vehicle.register_state("fuel_burn", 6, "Fuel Burn ")
 
-    vehicle.plot.state_select = {"x": "x", "y": "z"}
+    vehicle.plot.state_select = {
+            "xaxis": "x",
+            "yaxis": "z",
+            }
 
     # Inits
     ####################################
