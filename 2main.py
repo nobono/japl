@@ -119,6 +119,7 @@ if __name__ == "__main__":
             animate=1,
             aspect="equal",
             use_device_input=True,
+            autoscale=False,
             )
     sim.run()
 

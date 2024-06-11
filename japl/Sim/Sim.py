@@ -61,6 +61,7 @@ class Sim:
         self.blit: bool = kwargs.get("blit", False)
         self.cache_frame_data: bool = kwargs.get("cache_frame_data", False)
         self.repeat: bool = kwargs.get("repeat", False)
+        self.autoscale: bool = kwargs.get("plot_follow", False)
 
         # device inputs
         self.use_device_input = kwargs.get("use_device_input", False)
@@ -148,7 +149,7 @@ class Sim:
     def step(self, t, X, simobj):
         # ac = np.array([3, .5*np.sin(1 * t), 0])
 
-        ac = np.array([0, 0, -constants.g])
+        ac = np.array([0, 0, 0])
 
         # get device input
         if self.use_device_input:
@@ -179,7 +180,7 @@ class Sim:
         _simobj._update_patch_data(xdata, ydata)
 
         # handle plot axes boundaries
-        self.__update_axes_boundary(self.ax, pos=(xdata[-1], ydata[-1]), margin=0.2)
+        self.__update_axes_boundary(self.ax, pos=(xdata[-1], ydata[-1]), autoscale=self.autoscale)
 
         return [_simobj.plot.patch, _simobj.plot.trace]
 
@@ -288,7 +289,28 @@ class Sim:
             _simobj._update_patch_data(xdata, ydata)
 
 
-    def __update_axes_boundary(self, ax: Axes, pos: list|tuple, margin: float = 0.2) -> None:
+
+    def __x_axis_right_border_append(self, ax: Axes, val: float):
+        _xlim = ax.get_xlim()
+        ax.set_xlim((_xlim[0], _xlim[1] + val))
+
+
+    def __x_axis_left_border_append(self, ax: Axes, val: float):
+        _xlim = ax.get_xlim()
+        ax.set_xlim((_xlim[0] + val, _xlim[1]))
+
+
+    def __y_axis_top_border_append(self, ax: Axes, val: float):
+        _ylim = ax.get_ylim()
+        ax.set_ylim((_ylim[0], _ylim[1] + val))
+
+
+    def __y_axis_bottom_border_append(self, ax: Axes, val: float):
+        _ylim = ax.get_ylim()
+        ax.set_ylim((_ylim[0] + val, _ylim[1]))
+
+
+    def __update_axes_boundary(self, ax: Axes, pos: list|tuple, margin: float = 0.1, autoscale: bool = False) -> None:
         """
             This method handles the plot axes boundaries during FuncAnimation frames.
 
@@ -297,7 +319,7 @@ class Sim:
         -------------------------------------------------------------------
         -- ax - matplotlib Axes object
         -- pos - xy position of Artist being plotted
-        -- margin - margin value between Artist xy position and Axes border
+        -- margin - % margin value between Artist xy position and Axes border
         -------------------------------------------------------------------
         """
 
@@ -305,31 +327,41 @@ class Sim:
         ylim = ax.get_ylim()
         xcenter, ycenter = pos
 
-        if xcenter - xlim[1] + margin > 0:
-            ax.set_xlim((xlim[0], xcenter + margin))
-        if xcenter - xlim[0] - margin < 0:
-            ax.set_xlim(((xcenter - margin, xlim[1])))
+        xlen = xlim[1] - xlim[0]
+        ylen = ylim[1] - ylim[0]
 
-        if ycenter - ylim[1] + margin > 0:
-            ax.set_ylim((ylim[0], ycenter + margin))
-        if ycenter - ylim[0] - margin < 0:
-            ax.set_ylim((ycenter - margin, ylim[1]))
+        aspect_ratio = 1.4
+        X_RANGE_LIM = 100
+        Y_RANGE_LIM = int(X_RANGE_LIM / aspect_ratio)
 
-        # xlim = self.ax.get_xlim()
-        # ylim = self.ax.get_ylim()
-        # xrange = np.abs(xlim[1] - xlim[0])
-        # yrange = ylim[1] - ylim[0]
+        # weight the amount to move the border proportional to how close
+        # the object cetner is to the border limit. Also account for the 
+        # scale of the current plot window (xlen, ylen) in the amount to
+        # change the current boundary.
 
-        # RANGE_LOCK = 3
-        # if xrange > RANGE_LOCK:
-        #     diff = (np.abs(xdata - xlim[0]) + np.abs(xdata - xlim[1]) - RANGE_LOCK) / 2
-        #     self.ax.set_xlim([xlim[0] + diff, xlim[1] + diff])
-        # if yrange > RANGE_LOCK:
-        #     diff = (np.abs(ydata - ylim[0]) + np.abs(ydata - ylim[1]) - RANGE_LOCK) / 2
-        #     self.ax.set_ylim([ylim[0] + diff, ylim[1] - diff])
-        # if yrange < -RANGE_LOCK:
-        #     diff = (np.abs(ydata - ylim[0]) + np.abs(ydata - ylim[1]) + RANGE_LOCK) / 2
-        #     self.ax.set_ylim([ylim[0] - diff, ylim[1] - diff])
+        if (weight := xcenter - xlim[1]) + margin > 0:
+            length_weight = min(xlen, 20)
+            self.__x_axis_right_border_append(ax, margin * length_weight * abs(weight))
+            if xlen > X_RANGE_LIM and not autoscale:
+                self.__x_axis_left_border_append(ax, margin * length_weight * abs(weight))
+
+        if (weight := xcenter - xlim[0]) - margin < 0:
+            length_weight = min(xlen, 20)
+            self.__x_axis_left_border_append(ax, -(margin * length_weight * abs(weight)))
+            if xlen > X_RANGE_LIM and not autoscale:
+                self.__x_axis_right_border_append(ax, -(margin * length_weight * abs(weight)))
+
+        if (weight := ycenter - ylim[1]) + margin > 0:
+            length_weight = min(ylen, 20)
+            self.__y_axis_top_border_append(ax, margin * length_weight * abs(weight))
+            if ylen > Y_RANGE_LIM and not autoscale:
+                self.__y_axis_bottom_border_append(ax, margin * length_weight * abs(weight))
+
+        if (weight := ycenter - ylim[0]) - margin < 0:
+            length_weight = min(ylen, 20)
+            self.__y_axis_bottom_border_append(ax, -(margin * length_weight * abs(weight)))
+            if ylen > Y_RANGE_LIM and not autoscale:
+                self.__y_axis_top_border_append(ax, -(margin * length_weight * abs(weight)))
 
 
     def _setup_time_slider(self, Nt: int, _simobjs: list[SimObject]) -> None:
