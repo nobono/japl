@@ -1,127 +1,43 @@
 import cProfile
-import os
-import sys
-from tqdm import tqdm
-lib_path = os.path.join(os.getcwd(), "lib")
-sys.path.append(lib_path)
-
-# ---------------------------------------------------
-
 import argparse
+
 import numpy as np
-import matplotlib.pyplot as plt
-import tkinter as tk
-from tkinter import filedialog
+from numpy.linalg import norm
 
-# ---------------------------------------------------
-
-from scipy.integrate import solve_ivp
 from scipy import constants
 
-# ---------------------------------------------------
-
 from util import unitize
-from util import bound
-from util import create_C_rot
-from util import inv
-from util import read_config_file
-from util import norm
-
-# ---------------------------------------------------
-
-from atmosphere import Atmosphere
-
-# ---------------------------------------------------
-
-from guidance import Guidance
-
-# ---------------------------------------------------
-
-from maneuvers import Maneuvers
-
-# ---------------------------------------------------
-
-from dynamics import FirstOrderInput
-from dynamics import SecondOrderInput
-
-# ---------------------------------------------------
 
 from output import OutputManager
 
-# ---------------------------------------------------
+from japl import Sim
+from japl import SimObject
+from japl import Model
 
 from events import hit_ground_event
-from events import hit_target_event
-from events import check_for_events
 
 # ---------------------------------------------------
 
-# for eval
-sin = np.sin
-cos = np.cos
-tan = np.tan
-atan = np.arctan
-atan2 = np.arctan2
-acos = np.arccos
-asin = np.arcsin
-degrees = np.degrees
-radians = np.radians
-pi = np.pi
 
+def dynamics_func(t, X, simobj: SimObject):
 
+    ac = np.array([0, 5, 0])
 
-def atmosphere_drag(rm, vm):
-    ATMOS_BOUNDS = [-5e3, 81e3]
-    alt_bounded = bound(rm[2] / 1000, *ATMOS_BOUNDS)
-    density = atmosphere.density(alt_bounded)
-    CD = 0.45
-    A = .25**2
-    MASS = 1.0
-    xfd = -(0.5 * CD * A * density * vm[0]) / MASS
-    yfd = -(0.5 * CD * A * density * vm[1]) / MASS
-    zfd = -(0.5 * CD * A * density * vm[2]) / MASS
-    return np.array([xfd, yfd, zfd])
+    fuel_burn = X[6]
+    if fuel_burn >= 100:
+        ac = np.zeros((3,))
 
+    burn_const = 0.2
 
-def atmosphere_gravity(rm):
-    ATMOS_BOUNDS = [-5e3, 81e3]
-    alt_bounded = bound(rm[2] / 1000, *ATMOS_BOUNDS)
-    grav_accel = atmosphere.grav_accel(alt_bounded)
-    return grav_accel
-
-
-def guidance_func(t, rm, vm, r_targ, config):
-    GLIMIT = float(config.get("GLIMIT", 14.0))
-
-    ac = guidance.run(t, rm, vm, r_targ, config)
-
-    if (norm(ac) - (GLIMIT * constants.g)) > 1e-10:
-        ac = unitize(ac) * (GLIMIT * constants.g)
-    return ac
-
-
-def dynamics_func(t, X, ss, r_targ, config):
-    rm = X[:3]
-    vm = X[3:6]
-    atmos_drag_enable = config["guidance"]["phase"][guidance.phase_id].get("enable_drag", False)
-    gravity_enable = config["guidance"]["phase"][guidance.phase_id].get("enable_gravity", False)
-
-    ac = guidance_func(t, rm, vm, r_targ, config)
-
-    # External Accelerations
-    acc_ext = np.zeros((3,))
-    if atmos_drag_enable:
-        acc_ext += atmosphere_drag(rm, vm)
-    if gravity_enable:
-        acc_ext += atmosphere_gravity(rm) * np.array([0, 0, -1])
-
-    U = np.array([*acc_ext, *ac])
-    Xdot = ss.A @ X + ss.B @ U
+    U = np.array([*ac])
+    Xdot = simobj.step(X, U)
+    Xdot[6] = burn_const * norm(ac) #type:ignore
     return Xdot
 
 
 
 if __name__ == "__main__":
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--3d",
@@ -145,102 +61,92 @@ if __name__ == "__main__":
         default="",
     )
     args = parser.parse_args()
+    args.plot = True
 
-    # Load config file
-    config = {}
-    if args.input:
-        config = read_config_file(args.input)
-    # else:
-    #     root = tk.Tk()
-    #     # root.withdraw()
-    #     file_path = filedialog.askopenfilename()
-    #     config = read_config_file(file_path)
 
-    config_vars = config["guidance"].get("vars") # if VARS defined, update in globals()
-    if config_vars:
-        for key, val in config_vars.items():
-            try:
-                config_vars[key] = eval(val)
-            except:
-                pass
-            # globals().update(config_vars)
+    # Model
+    ####################################
+
+    A = np.array([
+        [0, 0, 0, 1, 0, 0,  0],
+        [0, 0, 0, 0, 1, 0,  0],
+        [0, 0, 0, 0, 0, 1,  0],
+        [0, 0, 0, 0, 0, 0,  0],
+        [0, 0, 0, 0, 0, 0,  0],
+        [0, 0, 0, 0, 0, 0,  0],
+
+        [0, 0, 0, 0, 0, 0,  1],
+        ])
+    B = np.array([
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0],
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+
+        [0, 0, 0],
+        ])
+
+    model = Model.ss(A, B)
+    vehicle = SimObject(model=model, size=0, color='tab:blue')
+
+    vehicle.register_state("x",         0, "x (m)")
+    vehicle.register_state("y",         1, "y (m)")
+    vehicle.register_state("z",         2, "z (m)")
+    vehicle.register_state("vx",        3, "xvel (m/s)")
+    vehicle.register_state("vy",        4, "yvel (m/s)")
+    vehicle.register_state("vz",        5, "zvel (m/s)")
+    vehicle.register_state("fuel_burn", 6, "Fuel Burn ")
+
+    vehicle.plot.state_select = {
+            "xaxis": "x",
+            "yaxis": "z",
+            }
 
     # Inits
     ####################################
-    ss = FirstOrderInput()
-    atmosphere = Atmosphere()
-    guidance = Guidance()
-    maneuver = Maneuvers()
 
-    init = config.get('init', None)
-    t_span = init.get("t_span", [0, 200])
-    dt = float(init.get("dt", 0.01))
+    x0 = [0, 0, 0]
+    v0 = [100, 0, 40]
+    vehicle.init_state([x0, v0, 0])
 
-    x0 = ss.get_init_state()
-    x0[:3] = np.asarray(init.get("R0", np.array([0, 50e3, 10])))
-    x0[3:6] = np.asarray(init.get("V0", np.array([0, -200, 0])))
-
-    targ_R0 = np.array([0, 0, 0])
+    # Sim
     ####################################
 
-    t_array = np.linspace(t_span[0], t_span[1], int(t_span[1]/dt))
-    T = np.zeros(t_array.shape)
-    Y = np.zeros((t_array.shape[0], x0.shape[0]))
-    T[0] = t_span[0]
-    Y[0] = x0
-
-    ##############################
-    sol = solve_ivp(
-            dynamics_func,
-            t_span=t_span,
-            t_eval=t_array,
-            y0=x0,
-            args=(ss, targ_R0, config),
-            events=[
-                hit_target_event,
-                hit_ground_event,
-                ],
-            rtol=1e-3,
-            atol=1e-6,
-            max_step=0.2,
+    sim = Sim(
+            t_span=[0, 10],
+            dt=.01,
+            simobjs=[vehicle],
+            events=[],
+            animate=1,
+            aspect="equal",
+            use_device_input=False,
+            moving_bounds=True,
             )
-    T = sol['t']
-    Y = sol['y'].T
-    ##############################
-     
-    # for istep, (tstep_prev, tstep) in tqdm(enumerate(zip(t_array, t_array[1:])),
-    #                                        total=len(t_array)):
+    sim.run()
 
-    #     sol = solve_ivp(
-    #             dynamics_func,
-    #             t_span=(tstep_prev, tstep),
-    #             t_eval=[tstep],
-    #             y0=x0,
-    #             args=(ss, targ_R0),
-    #             events=[
-    #                 hit_target_event,
-    #                 hit_ground_event,
-    #                 ],
-    #             rtol=1e-3,
-    #             atol=1e-6,
-    #             )
+    # config = {
+    #         "plot": {
+    #             "XY": {
+    #                 "x_axis": "x",
+    #                 "y_axis": "y",
+    #                 },
+    #             "Vel": {
+    #                 "x_axis": "time",
+    #                 "y_axis": "vy",
+    #                 },
+    #             "Fuel Burn": {
+    #                 "x_axis": "time",
+    #                 "y_axis": "fuel_burn",
+    #                 }
+    #             }
+    #         }
 
-    #     # check for stop event
-    #     if check_for_events(sol['t_events']):
-    #         # truncate output arrays if early stoppage
-    #         T = T[:istep + 1]
-    #         Y = Y[:istep + 1]
-    #         break
-    #     else:
-    #         # store output
-    #         t = sol['t'][0]
-    #         y = sol['y'].T[0]
-    #         T[istep + 1] = t
-    #         Y[istep + 1] = y
-    #         x0 = Y[istep + 1]
+    # T = sim.T
+    # Y = vehicle.Y
+    # plot_points = []
+    # plot_config = config.get("plot", {})
+    # output_manager = OutputManager(vehicle, args, plot_config, T, Y, plot_points, figsize=(8, 6))
+    # output_manager.plots()
 
-    # r_pop1 = np.array([0, 47e3, 90])
-    # r_pop2 = np.array([0, 45e3, 10])
-    plot_points = []
-    plot_config = config.get("plot", {})
-    OutputManager(args, plot_config, T, Y, plot_points).plots()
