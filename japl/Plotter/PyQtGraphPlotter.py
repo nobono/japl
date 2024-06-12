@@ -32,6 +32,16 @@ class PyQtGraphPlotter:
         self.blit: bool = kwargs.get("blit", False)
         self.cache_frame_data: bool = kwargs.get("cache_frame_data", False)
         self.repeat: bool = kwargs.get("repeat", False)
+        self.antialias: bool = kwargs.get("antialias", True)
+
+        # color cycle list
+        self.color_cycle = self.__color_cycle()
+
+
+    def __color_cycle(self) -> Generator[str, None, None]:
+        while True:
+            for _, v in mplcolors.TABLEAU_COLORS.items():
+                yield str(v)
 
 
     def setup(self, simobjs: list[SimObject]):
@@ -46,23 +56,26 @@ class PyQtGraphPlotter:
 
         self.simobjs = simobjs
 
-        # enable anti-aliasing
-        pg.setConfigOptions(antialias=True)
-
         ## Always start by initializing Qt (only once per application)
         self.app = QtWidgets.QApplication([])
         self.win = QtWidgets.QMainWindow()
         self.widget = PlotWidget()
-        self.win.setCentralWidget(self.widget)
-        self.win.resize(*(np.array([*self.figsize]) * 100))
 
-        # self.ax = pg.plot([], [], pen=None, symbol='o')  ## setting pen=None disables line drawing
-        # self.ax.showGrid(True, True, 0.5)
+        # enable anti-aliasing
+        pg.setConfigOptions(antialias=self.antialias)
 
-        self.win.show()
+        # set apsect
+        self.widget.setAspectLocked(self.aspect == "equal")
+
+        # enable grid
         self.widget.showGrid(True, True, 0.5)
 
-        # shortcut keys
+        # setup window
+        self.win.setCentralWidget(self.widget)
+        self.win.resize(*(np.array([*self.figsize]) * 100))
+        self.win.show()
+
+        # shortcut keys callbacks
         self.shortcut = QtWidgets.QShortcut(QKeySequence("Q"), self.win)
         self.shortcut.activated.connect(self.win.close) #type:ignore
 
@@ -81,7 +94,13 @@ class PyQtGraphPlotter:
              **kwargs):
 
         # convert mpl color to rgb
-        rgb_color = mplcolors.to_rgb(mplcolors.TABLEAU_COLORS[color])
+        if color:
+            color_code = mplcolors.TABLEAU_COLORS[color]
+        else:
+            color_code = next(self.color_cycle)
+
+        # convert mpl color to rgb
+        rgb_color = mplcolors.to_rgb(color_code)
         rgb_color = (rgb_color[0]*255, rgb_color[1]*255, rgb_color[2]*255)
 
         line = pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen(rgb_color, width=linewidth), symbol=marker)
@@ -97,10 +116,16 @@ class PyQtGraphPlotter:
                 **kwargs):
 
         # convert mpl color to rgb
-        rgb_color = mplcolors.to_rgb(mplcolors.TABLEAU_COLORS[color])
+        if color:
+            color_code = mplcolors.TABLEAU_COLORS[color]
+        else:
+            color_code = next(self.color_cycle)
+
+        # convert mpl color to rgb
+        rgb_color = mplcolors.to_rgb(color_code)
         rgb_color = (rgb_color[0]*255, rgb_color[1]*255, rgb_color[2]*255)
 
-        scatter = pg.ScatterPlotItem(x=x, y=y, pen=pg.mkPen(color, width=linewidth), symbol=marker)
+        scatter = pg.ScatterPlotItem(x=x, y=y, pen=pg.mkPen(rgb_color, width=linewidth), symbol=marker)
         self.widget.addItem(scatter)
 
 

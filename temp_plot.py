@@ -57,22 +57,25 @@ if __name__ == '__main__':
     # plt.show()
     # quit()
 
-    plotter = PyQtGraphPlotter(Nt=10, interval_ms=10, figsize=(10,8))
+    plotter = PyQtGraphPlotter(Nt=10, interval_ms=10, figsize=(10,8), antialias=True)
     plotter.setup([])
 
-    # plotter.set_lim([-2, 2, -2, 2])
-    # QtWidgets.QShortcut
     color = colors.to_rgb(colors.TABLEAU_COLORS['tab:orange'])
     color = (color[0]*255, color[1]*255, color[2]*255)
 
-    x = np.linspace(1, 100, 1000)
+    x = np.linspace(1, 10, 1000)
     y = np.sin(x)
 
-    # line = pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen(color, width=2), symbol=None)
-    # scatter = pg.ScatterPlotItem(x=x, y=np.cos(x), pen=pg.mkPen(color, width=1), symbol='o')
-    # plotter.widget.addItem(line)
-    # plotter.widget.addItem(scatter)
-    plotter.plot(x, y, color="tab:blue", linewidth=3)
+    # plotter.plot(x, y, color="tab:blue", linewidth=3)
+    # plotter.plot(x, y, linewidth=3)
+    # plotter.plot(x, np.cos(x), linewidth=3)
+    for i in range(10):
+        plotter.plot(x, np.sin(x + i), linewidth=3)
 
     plotter.show()
+
+    # ret = plt.rcParams["axes.prop_cycle"]
+    # ret = plt.get_cmap("tab10")
+    # from matplotlib import colors
+    # print(colors.TABLEAU_COLORS)
 
