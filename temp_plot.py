@@ -10,6 +10,8 @@ from pyqtgraph import QtGui
 from pyqtgraph import QtWidgets
 from pyqtgraph import PlotWidget
 
+import matplotlib.colors as colors
+import matplotlib.pyplot as plt
 
 
 # x = np.random.normal(size=1000)
@@ -49,12 +51,28 @@ if __name__ == '__main__':
     # app.exec()  # or app.exec_() for PyQt5 / PySide2
 
     ######################
+    # x = np.linspace(1, 100, 10000)
+    # y = np.sin(x)
+    # plt.plot(x, y)
+    # plt.show()
+    # quit()
 
     plotter = PyQtGraphPlotter(Nt=10, interval_ms=10)
     plotter.setup([])
 
-    plotter.set_lim([-2, 2, -2, 2])
+    # plotter.set_lim([-2, 2, -2, 2])
     # QtWidgets.QShortcut
+    color = colors.to_rgb(colors.TABLEAU_COLORS['tab:orange'])
+    color = (color[0]*255, color[1]*255, color[2]*255)
+
+    x = np.linspace(1, 100, 1000)
+    y = np.sin(x)
+
+    # line = pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen(color, width=2), symbol=None)
+    # scatter = pg.ScatterPlotItem(x=x, y=np.cos(x), pen=pg.mkPen(color, width=1), symbol='o')
+    # plotter.widget.addItem(line)
+    # plotter.widget.addItem(scatter)
+    plotter.plot(x, y, color="tab:blue", linewidth=3)
 
     plotter.show()
 

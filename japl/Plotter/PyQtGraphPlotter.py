@@ -1,6 +1,6 @@
 import numpy as np
 
-from typing import Callable
+from typing import Callable, Optional
 from typing import Generator
 
 from pyqtgraph.Qt.QtGui import QKeySequence
@@ -14,6 +14,7 @@ from pyqtgraph import PlotWidget
 from pyqtgraph.Qt import QtCore
 from pyqtgraph.Qt.QtCore import QRectF
 
+from matplotlib import colors as mplcolors
 # ---------------------------------------------------
 
 
@@ -45,6 +46,9 @@ class PyQtGraphPlotter:
 
         self.simobjs = simobjs
 
+        # enable anti-aliasing
+        pg.setConfigOptions(antialias=True)
+
         ## Always start by initializing Qt (only once per application)
         self.app = QtWidgets.QApplication([])
         self.win = QtWidgets.QMainWindow()
@@ -64,6 +68,39 @@ class PyQtGraphPlotter:
 
     def show(self) -> None:
         self.app.exec()  # or app.exec_() for PyQt5 / PySide2
+
+
+    def plot(self,
+             x: np.ndarray|list,
+             y: np.ndarray|list,
+             color: str = "",
+             linestyle: str = "",
+             linewidth: float = 1,
+             marker: Optional[str] = None,
+             **kwargs):
+
+        # convert mpl color to rgb
+        rgb_color = mplcolors.to_rgb(mplcolors.TABLEAU_COLORS[color])
+        rgb_color = (rgb_color[0]*255, rgb_color[1]*255, rgb_color[2]*255)
+
+        line = pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen(rgb_color, width=linewidth), symbol=marker)
+        self.widget.addItem(line)
+
+
+    def scatter(self,
+                x: np.ndarray|list,
+                y: np.ndarray|list,
+                color: str = "",
+                linewidth: float = 1,
+                marker: str = "o",
+                **kwargs):
+
+        # convert mpl color to rgb
+        rgb_color = mplcolors.to_rgb(mplcolors.TABLEAU_COLORS[color])
+        rgb_color = (rgb_color[0]*255, rgb_color[1]*255, rgb_color[2]*255)
+
+        scatter = pg.ScatterPlotItem(x=x, y=y, pen=pg.mkPen(color, width=linewidth), symbol=marker)
+        self.widget.addItem(scatter)
 
 
     # def autoscale(self, xdata: np.ndarray|list, ydata: np.ndarray|list) -> None:
