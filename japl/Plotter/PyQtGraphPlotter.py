@@ -3,13 +3,16 @@ import numpy as np
 from typing import Callable
 from typing import Generator
 
+from pyqtgraph.Qt.QtGui import QKeySequence
+
 from japl.SimObject.SimObject import SimObject
 
 import pyqtgraph as pg
-from pyqtgraph.Qt import QtCore
 from pyqtgraph import QtGui
 from pyqtgraph import QtWidgets
 from pyqtgraph import PlotWidget
+from pyqtgraph.Qt import QtCore
+from pyqtgraph.Qt.QtCore import QRectF
 
 # ---------------------------------------------------
 
@@ -44,102 +47,126 @@ class PyQtGraphPlotter:
 
         ## Always start by initializing Qt (only once per application)
         self.app = QtWidgets.QApplication([])
+        self.win = QtWidgets.QMainWindow()
+        self.widget = PlotWidget()
+        self.win.setCentralWidget(self.widget)
 
-        self.ax = pg.plot([], [], pen=None, symbol='o')  ## setting pen=None disables line drawing
-        self.ax.showGrid(True, True, 0.5)
+        # self.ax = pg.plot([], [], pen=None, symbol='o')  ## setting pen=None disables line drawing
+        # self.ax.showGrid(True, True, 0.5)
+
+        self.win.show()
+        self.widget.showGrid(True, True, 0.5)
+
+        # shortcut keys
+        self.shortcut = QtWidgets.QShortcut(QKeySequence("Q"), self.win)
+        self.shortcut.activated.connect(self.win.close) #type:ignore
 
 
-    def show(self, block: bool = True) -> None:
-        pass
+    def show(self) -> None:
+        self.app.exec()  # or app.exec_() for PyQt5 / PySide2
 
 
-    def autoscale(self, xdata: np.ndarray|list, ydata: np.ndarray|list) -> None:
-        pass
+    # def autoscale(self, xdata: np.ndarray|list, ydata: np.ndarray|list) -> None:
+    #     pass
 
 
     def FuncAnimation(self,
                       func: Callable,
                       frames: Callable|Generator|int,
-                      interval: int|float,
+                      interval_ms: int,
                       ):
-        pass
+        timer = QtCore.QTimer()
+        timer.timeout.connect(func)
+        timer.start(interval_ms)
 
 
     def _time_slider_update(self, val: float, _simobjs: list[SimObject]) -> None:
         pass
 
 
-    def __x_axis_right_border_append(self, ax: Axes, val: float):
-        pass
+    def set_lim(self, lim: list|tuple, padding=0.02) -> None:
+        assert len(lim) == 4
+
+        x = lim[0]
+        y = lim[2]
+        width = lim[1] - lim[0]
+        height = lim[3] - lim[2]
+
+        newRect = QRectF(x, y, width, height) #type:ignore
+        self.widget.setRange(newRect, padding=padding)
 
 
-    def __x_axis_left_border_append(self, ax: Axes, val: float):
-        pass
+    # def __x_axis_right_border_append(self, ax: Axes, val: float):
+    #     pass
 
 
-    def __y_axis_top_border_append(self, ax: Axes, val: float):
-        pass
+    # def __x_axis_left_border_append(self, ax: Axes, val: float):
+    #     pass
 
 
-    def __y_axis_bottom_border_append(self, ax: Axes, val: float):
-        pass
+    # def __y_axis_top_border_append(self, ax: Axes, val: float):
+    #     pass
 
 
-    def update_axes_boundary(self, ax: Axes, pos: list|tuple, margin: float = 0.1, moving_bounds: bool = False) -> None:
-        """
-            This method handles the plot axes boundaries during FuncAnimation frames.
-
-        -------------------------------------------------------------------
-        -- Arguments
-        -------------------------------------------------------------------
-        -- ax - matplotlib Axes object
-        -- pos - xy position of Artist being plotted
-        -- margin - % margin value between Artist xy position and Axes border
-        -------------------------------------------------------------------
-        """
-
-        xlim = ax.get_xlim()
-        ylim = ax.get_ylim()
-        xcenter, ycenter = pos
-
-        xlen = xlim[1] - xlim[0]
-        ylen = ylim[1] - ylim[0]
-
-        aspect_ratio = 1.4
-        X_RANGE_LIM = 100
-        Y_RANGE_LIM = int(X_RANGE_LIM / aspect_ratio)
-
-        # weight the amount to move the border proportional to how close
-        # the object cetner is to the border limit. Also account for the 
-        # scale of the current plot window (xlen, ylen) in the amount to
-        # change the current boundary.
-
-        if (weight := xcenter - xlim[1]) + margin > 0:
-            length_weight = min(xlen, 20)
-            self.__x_axis_right_border_append(ax, margin * length_weight * abs(weight))
-            if xlen > X_RANGE_LIM and moving_bounds:
-                self.__x_axis_left_border_append(ax, margin * length_weight * abs(weight))
-
-        if (weight := xcenter - xlim[0]) - margin < 0:
-            length_weight = min(xlen, 20)
-            self.__x_axis_left_border_append(ax, -(margin * length_weight * abs(weight)))
-            if xlen > X_RANGE_LIM and moving_bounds:
-                self.__x_axis_right_border_append(ax, -(margin * length_weight * abs(weight)))
-
-        if (weight := ycenter - ylim[1]) + margin > 0:
-            length_weight = min(ylen, 20)
-            self.__y_axis_top_border_append(ax, margin * length_weight * abs(weight))
-            if ylen > Y_RANGE_LIM and moving_bounds:
-                self.__y_axis_bottom_border_append(ax, margin * length_weight * abs(weight))
-
-        if (weight := ycenter - ylim[0]) - margin < 0:
-            length_weight = min(ylen, 20)
-            self.__y_axis_bottom_border_append(ax, -(margin * length_weight * abs(weight)))
-            if ylen > Y_RANGE_LIM and moving_bounds:
-                self.__y_axis_top_border_append(ax, -(margin * length_weight * abs(weight)))
+    # def __y_axis_bottom_border_append(self, ax: Axes, val: float):
+    #     pass
 
 
-    def setup_time_slider(self, Nt: int, _simobjs: list[SimObject]) -> None:
-        pass
+    # def update_axes_boundary(self, ax: Axes, pos: list|tuple, margin: float = 0.1, moving_bounds: bool = False) -> None:
+    #     """
+    #         This method handles the plot axes boundaries during FuncAnimation frames.
+
+    #     -------------------------------------------------------------------
+    #     -- Arguments
+    #     -------------------------------------------------------------------
+    #     -- ax - matplotlib Axes object
+    #     -- pos - xy position of Artist being plotted
+    #     -- margin - % margin value between Artist xy position and Axes border
+    #     -------------------------------------------------------------------
+    #     """
+
+    #     xlim = ax.get_xlim()
+    #     ylim = ax.get_ylim()
+    #     xcenter, ycenter = pos
+
+    #     xlen = xlim[1] - xlim[0]
+    #     ylen = ylim[1] - ylim[0]
+
+    #     aspect_ratio = 1.4
+    #     X_RANGE_LIM = 100
+    #     Y_RANGE_LIM = int(X_RANGE_LIM / aspect_ratio)
+
+    #     # weight the amount to move the border proportional to how close
+    #     # the object cetner is to the border limit. Also account for the 
+    #     # scale of the current plot window (xlen, ylen) in the amount to
+    #     # change the current boundary.
+
+    #     if (weight := xcenter - xlim[1]) + margin > 0:
+    #         length_weight = min(xlen, 20)
+    #         self.__x_axis_right_border_append(ax, margin * length_weight * abs(weight))
+    #         if xlen > X_RANGE_LIM and moving_bounds:
+    #             self.__x_axis_left_border_append(ax, margin * length_weight * abs(weight))
+
+    #     if (weight := xcenter - xlim[0]) - margin < 0:
+    #         length_weight = min(xlen, 20)
+    #         self.__x_axis_left_border_append(ax, -(margin * length_weight * abs(weight)))
+    #         if xlen > X_RANGE_LIM and moving_bounds:
+    #             self.__x_axis_right_border_append(ax, -(margin * length_weight * abs(weight)))
+
+    #     if (weight := ycenter - ylim[1]) + margin > 0:
+    #         length_weight = min(ylen, 20)
+    #         self.__y_axis_top_border_append(ax, margin * length_weight * abs(weight))
+    #         if ylen > Y_RANGE_LIM and moving_bounds:
+    #             self.__y_axis_bottom_border_append(ax, margin * length_weight * abs(weight))
+
+    #     if (weight := ycenter - ylim[0]) - margin < 0:
+    #         length_weight = min(ylen, 20)
+    #         self.__y_axis_bottom_border_append(ax, -(margin * length_weight * abs(weight)))
+    #         if ylen > Y_RANGE_LIM and moving_bounds:
+    #             self.__y_axis_top_border_append(ax, -(margin * length_weight * abs(weight)))
+
+
+    # def setup_time_slider(self, Nt: int, _simobjs: list[SimObject]) -> None:
+    #     pass
 
 
