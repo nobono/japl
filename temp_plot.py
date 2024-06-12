@@ -57,7 +57,7 @@ if __name__ == '__main__':
     # plt.show()
     # quit()
 
-    plotter = PyQtGraphPlotter(Nt=10, interval_ms=10)
+    plotter = PyQtGraphPlotter(Nt=10, interval_ms=10, figsize=(10,8))
     plotter.setup([])
 
     # plotter.set_lim([-2, 2, -2, 2])

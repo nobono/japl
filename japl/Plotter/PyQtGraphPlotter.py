@@ -54,6 +54,7 @@ class PyQtGraphPlotter:
         self.win = QtWidgets.QMainWindow()
         self.widget = PlotWidget()
         self.win.setCentralWidget(self.widget)
+        self.win.resize(*(np.array([*self.figsize]) * 100))
 
         # self.ax = pg.plot([], [], pen=None, symbol='o')  ## setting pen=None disables line drawing
         # self.ax.showGrid(True, True, 0.5)
