@@ -116,7 +116,7 @@ if __name__ == "__main__":
 
     sim = Sim(
             t_span=[0, 10],
-            dt=.001,
+            dt=.01,
             simobjs=[vehicle],
             events=[],
             animate=1,
