@@ -1,4 +1,7 @@
 # ---------------------------------------------------
+import sys
+import time
+
 from typing import Callable
 from typing import Generator
 from typing import Optional
@@ -137,7 +140,6 @@ class Sim:
         # get device input
         if self.device_input_type:
             (lx, ly, _, _) = self.device_input.get()
-            # print(lx, ly)
             ac = ac + np.array([100*lx, 0, 100*ly])
 
         # fuel_burn = X[6]

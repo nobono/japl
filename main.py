@@ -100,7 +100,7 @@ if __name__ == "__main__":
     vehicle.register_state("fuel_burn", 6, "Fuel Burn ")
 
     vehicle.plot.state_select = {
-            "xaxis": "x",
+            "xaxis": "t",
             "yaxis": "z",
             }
 
@@ -108,7 +108,7 @@ if __name__ == "__main__":
     ####################################
 
     x0 = [0, 0, 0]
-    v0 = [100, 0, 40]
+    v0 = [10, 0, 0]
     vehicle.init_state([x0, v0, 0])
 
     # Sim
@@ -116,13 +116,15 @@ if __name__ == "__main__":
 
     sim = Sim(
             t_span=[0, 10],
-            dt=.01,
+            dt=.001,
             simobjs=[vehicle],
             events=[],
             animate=1,
-            aspect="equal",
-            device_input_type="gamepad",
+            aspect="auto",
+            device_input_type="",
             moving_bounds=True,
+            rtol=1e-6,
+            atol=1e-6,
             )
     sim.run()
 

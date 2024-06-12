@@ -16,13 +16,17 @@ class DeviceInput:
         self.devices = {
                 "mouse": self.get_mouse_input,
                 "gamepad": self.get_gamepad_input,
+                "": None,
                 }
 
         assert device_type in self.devices
+
         self.queue = Queue()
         self.device_data = [0, 0, 0, 0] # [x-left, y-left, x-right, y-right]
-        self.device_thread = threading.Thread(target=self.devices[device_type], args=(self.queue,))
         self.running = False
+
+        if device_type:
+            self.device_thread = threading.Thread(target=self.devices[device_type], args=(self.queue,))
 
 
     def test(self, N: int = 10) -> None:
