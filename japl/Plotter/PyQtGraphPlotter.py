@@ -39,6 +39,9 @@ class PyQtGraphPlotter:
 
 
     def __color_cycle(self) -> Generator[str, None, None]:
+        """This method is a Generator which handles the color cycle of line / scatter
+        plots which do not specify a color."""
+
         while True:
             for _, v in mplcolors.TABLEAU_COLORS.items():
                 yield str(v)
@@ -89,7 +92,7 @@ class PyQtGraphPlotter:
              y: np.ndarray|list,
              color: str = "",
              linestyle: str = "",
-             linewidth: float = 1,
+             linewidth: float = 3,
              marker: Optional[str] = None,
              **kwargs):
 
@@ -138,9 +141,10 @@ class PyQtGraphPlotter:
                       frames: Callable|Generator|int,
                       interval_ms: int,
                       ):
-        timer = QtCore.QTimer()
-        timer.timeout.connect(func)
-        timer.start(interval_ms)
+        # plotter.widget
+        self.timer = QtCore.QTimer()
+        self.timer.timeout.connect(func)
+        self.timer.start(interval_ms)
 
 
     def _time_slider_update(self, val: float, _simobjs: list[SimObject]) -> None:
