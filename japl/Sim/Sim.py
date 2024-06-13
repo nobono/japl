@@ -78,6 +78,7 @@ class Sim:
 
     def run(self) -> "Sim":
 
+        # TODO make this better
         simobj = self.simobjs[0]
 
         # begin device input read thread
@@ -91,6 +92,8 @@ class Sim:
         # solver
         ################################
         if not self.animate:
+            # TODO must combine all given SimObjects into single state
+            # to solve all at once...
 
             sol = solve_ivp(
                     fun=self.step,
@@ -107,11 +110,11 @@ class Sim:
             simobj.Y = sol['y'].T
             simobj._set_T_array_ref(self.T) # simobj.T reference to sim.T
 
-            xdata, ydata = simobj.get_plot_data()
-            simobj._update_patch_data(xdata, ydata)
+            # xdata, ydata = simobj.get_plot_data()
+            # simobj._update_patch_data(xdata, ydata)
 
-            self.plotter.autoscale(xdata, ydata)
-            self.plotter.setup_time_slider(self.Nt, [simobj])
+            # self.plotter.autoscale(xdata, ydata)
+            # self.plotter.setup_time_slider(self.Nt, [simobj])
 
         ################################
         # solver for one step at a time

@@ -10,7 +10,7 @@ from pyqtgraph.Qt.QtWidgets import QGridLayout, QWidget
 from japl.SimObject.SimObject import SimObject
 
 import pyqtgraph as pg
-from pyqtgraph import GraphicsLayoutWidget, PlotCurveItem, QtGui, mkPen
+from pyqtgraph import GraphicsLayoutWidget, PlotCurveItem, QtGui, mkColor, mkPen
 from pyqtgraph import QtWidgets
 from pyqtgraph import PlotWidget
 from pyqtgraph.Qt import QtCore
@@ -56,43 +56,38 @@ class PyQtGraphPlotter:
 
         ## Always start by initializing Qt (only once per application)
         self.app = QtWidgets.QApplication([])
-        self.win = QtWidgets.QMainWindow()
-        self.view = GraphicsLayoutWidget()
 
         # enable anti-aliasing
         pg.setConfigOptions(antialias=self.antialias)
 
-        # set apsect and grid
-        # self.widget.setAspectLocked(self.aspect == "equal")
-        # self.widget.showGrid(True, True, 0.5)
+        self.views = []
+        self.shortcuts = []
 
-        #####
-        curve = PlotCurveItem(x=[1,2], y=[1,2])
-        num = 3
-        self.plots = [self.view.addPlot(row=i, col=0, title="Title 2") for i in range(num)]
-        for plot in self.plots:
-            plot.showGrid(True, True, 0.5)
-            plot.setAspectLocked(True)
-            plot.addItem(PlotCurveItem(x=[1,2], y=[1,2]))
-        # a.showGrid(True, True, 0.5)
-        # self.view.show()
-        #####
+        for simobj in self.simobjs:
 
-        # setup window
-        self.win.setCentralWidget(self.view)
-        self.win.resize(*(np.array([*self.figsize]) * 100))
-        self.win.show()
+            # setup window
+            _view = GraphicsLayoutWidget()
+            _view.resize(*(np.array([*self.figsize]) * 100))
+            _view.show()
+            self.views += [_view]
 
-        # shortcut keys callbacks
-        self.shortcut = QtWidgets.QShortcut(QKeySequence("Q"), self.win)
-        self.shortcut.activated.connect(self.win.close) #type:ignore
+            # shortcut keys callbacks
+            _shortcut = QtWidgets.QShortcut(QKeySequence("Q"), _view)
+            _shortcut.activated.connect(_view.close) #type:ignore
+            self.shortcuts += [_shortcut]
 
-        # for simobj in self.simobjs:
-        #     simobj.plot.add_patch_to_plot(self.main_widget)
+            for i, (title, axes) in enumerate(simobj.plot.get_config().items()):
+                _plot_item = _view.addPlot(row=i, col=0, title=title)   # add PlotItem to View
+                _plot_item.showGrid(True, True, 0.5)    # set apsect and grid
+                _plot_item.setAspectLocked(self.aspect == "equal")
+                _pen = {"color": simobj.plot.color_code, "width": simobj.size + 2}
+                _graphic_item = PlotCurveItem(x=[], y=[], pen=_pen)
+                _plot_item.addItem(_graphic_item)   # init PlotCurve
+                simobj.plot.qt_traces += [_graphic_item]   # add GraphicsItem reference to SimObject
 
 
     def show(self) -> None:
-        self.app.exec()  # or app.exec_() for PyQt5 / PySide2
+        self.app.exec_()  # or app.exec_() for PyQt5 / PySide2
 
 
     # def plot(self,
@@ -168,12 +163,9 @@ class PyQtGraphPlotter:
         # run ODE solver step
         step_func(istep=self.istep)
 
-        # get data from SimObject based on state_select user configuration
-        xdata, ydata = _simobj.get_plot_data(self.istep)
-
         # exit on exception
-        if len(xdata) == 0:
-            return []
+        # if len(xdata) == 0:
+        #     return []
 
         # handle plot axes boundaries
         # self.update_axes_boundary(
@@ -182,8 +174,12 @@ class PyQtGraphPlotter:
         #         moving_bounds=moving_bounds
         #         )
 
-        pen = _simobj.plot._get_qt_pen()
-        _simobj._update_patch_data(xdata, ydata, pen=pen)
+        for subplot_id in range(len(_simobj.plot.get_config())):
+            # get data from SimObject based on state_select user configuration
+            xdata, ydata = _simobj.get_plot_data(subplot_id, self.istep)
+            # pen = _simobj.plot._get_qt_pen(subplot_id=subplot_id)
+            pen = {"color": _simobj.plot.color_code, "width": _simobj.plot.size + 2}
+            _simobj._update_patch_data(xdata, ydata, pen=pen, subplot_id=subplot_id)
 
 
     def _time_slider_update(self, val: float, _simobjs: list[SimObject]) -> None:

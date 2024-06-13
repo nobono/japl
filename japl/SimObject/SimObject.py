@@ -56,23 +56,34 @@ class PlotInterface:
 
     def __init__(self, size: float, state_select: dict, color: Optional[str] = None) -> None:
         self.size = size
-        self.color = color
+
+        if not color:
+            self.color = next(self.color_cycle)
+        else:
+            self.color = color
+        self.color_code = self.get_mpl_color_code(self.color)
 
         # color cycle list
         self.color_cycle = self.__color_cycle()
-        self.state_select = state_select
+        self.__state_select = state_select
         self.plotting_backend = japl.get_plotlib()
 
-
-    def __mpl_color_to_rgb(self, col: str) -> tuple:
-        color_code = mplcolors.TABLEAU_COLORS[col]
-        return self.__color_code_to_rgb(str(color_code))
+        # graphic objects
+        self.qt_traces: list[PlotCurveItem] = []
 
 
-    def __color_code_to_rgb(self, code: str) -> tuple:
-        rgb_color = mplcolors.to_rgb(code)
-        rgb_color = (rgb_color[0]*255, rgb_color[1]*255, rgb_color[2]*255)
-        return rgb_color
+    def set_config(self, plot_config: dict) -> None:
+        # TODO check format here
+        self.__state_select = plot_config
+
+
+    def get_config(self) -> dict:
+        return self.__state_select
+
+
+    def get_mpl_color_code(self, color_str: str = "") -> str:
+        color_code = mplcolors.TABLEAU_COLORS[color_str]
+        return str(color_code)
 
 
     def __color_cycle(self) -> Generator[str, None, None]:
@@ -84,32 +95,33 @@ class PlotInterface:
                 yield str(v)
 
 
-    def add_patch_to_plot(self, ax) -> None:
+    def add_patch_to_plot(self, ax, subplot_id: int) -> None:
         """This method instantiates plot items / patches according to the plotlib backend
         being used and adds them to the plot window."""
 
-        if isinstance(ax, Axes):
+        if self.plotting_backend == "matplotlib":
             self.patch = Circle((0, 0), radius=self.size, color=self.color)
             self.trace = Line2D([0], [0], color=self.color)
             ax.add_patch(self.patch)
             ax.add_line(self.trace)
 
-        elif isinstance(ax, GraphicsView):
-            if not self.color:
-                self.color = next(self.color_cycle)
-            rgb_color = self.__mpl_color_to_rgb(self.color) #type:ignore
-            self.qt_trace = PlotCurveItem(x=[0], y=[0], pen=mkPen(rgb_color, width=self.size + 2))
-            self.qt_patch: Optional[CircleROI] = None
-            ax.addItem(self.qt_trace)
+        #############################################
+        # This now gets done in PyQtGraphPlotter...
+        #############################################
+        # if self.plotting_backend == "pyqtgraph":
+        #     color_code = self.get_mpl_color_code(self.color) #type:ignore
+        #     self.qt_traces[subplot_id] = PlotCurveItem(x=[0], y=[0],
+        #                                   pen=mkPen({"color": color_code, "width": self.size + 2}))
+        #     ax.addItem(self.qt_traces[subplot_id])
 
     
-    def _get_qt_pen(self) -> QPen:
-        pen_color = self.qt_trace.opts['pen'].color().getRgb()[:3]
-        pen_width = self.qt_trace.opts['pen'].width()
+    def _get_qt_pen(self, subplot_id: int) -> QPen:
+        pen_color = self.qt_traces[subplot_id].opts['pen'].color().getRgb()[:3]
+        pen_width = self.qt_traces[subplot_id].opts['pen'].width()
         return mkPen(pen_color, width=pen_width)
 
 
-    def _update_patch_data(self, xdata: np.ndarray, ydata: np.ndarray, **kwargs) -> None:
+    def _update_patch_data(self, xdata: np.ndarray, ydata: np.ndarray, subplot_id: int, **kwargs) -> None:
         if self.plotting_backend == "matplotlib":
 
             # update trace data
@@ -119,12 +131,7 @@ class PlotInterface:
             self.patch.set_center((xdata[-1], ydata[-1]))
 
         if self.plotting_backend == "pyqtgraph":
-            self.qt_trace.setData(x=xdata, y=ydata, **kwargs)
-
-
-    def get_num_subplots(self) -> int:
-        return len(self.state_select)
-
+            self.qt_traces[subplot_id].setData(x=xdata, y=ydata, **kwargs)
 
 
 class SimObject:
@@ -231,7 +238,7 @@ class SimObject:
         _X0 = np.asarray(state).flatten()
 
         if _X0.shape != self.X0.shape:
-            raise Exception(f"attempting to initialize state X0 but array sizes do not match.")
+            raise Exception("attempting to initialize state X0 but array sizes do not match.")
 
         self.X0 = _X0
 
@@ -241,16 +248,17 @@ class SimObject:
         self.Y = y
 
 
-    def get_plot_data(self, index: Optional[int] = None) -> tuple[np.ndarray, np.ndarray]:
+    def get_plot_data(self, subplot_id: int, index: Optional[int] = None) -> tuple[np.ndarray, np.ndarray]:
         """This method returns state data from the SimObject according
         to the user specified state_select."""
 
-        if not self.plot.state_select:
+        if not self.plot.get_config():
             Warning(f"No state_select configuration set for SimObject \"{self.name}\".")
             return (np.array([]), np.array([]))
 
-        return (self._get_data(index, self.plot.state_select["xaxis"]),
-                self._get_data(index, self.plot.state_select["yaxis"]))
+        config_key = list(self.plot.get_config())[subplot_id]
+        return (self._get_data(index, self.plot.get_config()[config_key]["xaxis"]),
+                self._get_data(index, self.plot.get_config()[config_key]["yaxis"]))
 
 
     def _get_data(self, index: Optional[int], state_slice: tuple[int, int]|int|str) -> np.ndarray:
@@ -285,7 +293,7 @@ class SimObject:
         self.__T = _T
 
 
-    def _update_patch_data(self, xdata: np.ndarray, ydata: np.ndarray, **kwargs) -> None:
-        self.plot._update_patch_data(xdata, ydata, **kwargs)
+    def _update_patch_data(self, xdata: np.ndarray, ydata: np.ndarray, subplot_id: int, **kwargs) -> None:
+        self.plot._update_patch_data(xdata, ydata, subplot_id=subplot_id, **kwargs)
 
 

@@ -104,10 +104,16 @@ if __name__ == "__main__":
     vehicle.register_state("vz",        5, "zvel (m/s)")
     vehicle.register_state("fuel_burn", 6, "Fuel Burn ")
 
-    vehicle.plot.state_select = {
-            "xaxis": "x",
-            "yaxis": "z",
-            }
+    vehicle.plot.set_config({
+                "Pos": {
+                    "xaxis": "x",
+                    "yaxis": "z",
+                    },
+                "Vel": {
+                    "xaxis": "t",
+                    "yaxis": "vz",
+                    }
+                })
 
     # Inits
     ####################################
@@ -125,8 +131,8 @@ if __name__ == "__main__":
             simobjs=[vehicle],
             events=[],
             animate=1,
-            aspect="equal",
-            device_input_type="gamepad",
+            aspect="auto",
+            device_input_type="",
             moving_bounds=True,
             rtol=1e-6,
             atol=1e-6,

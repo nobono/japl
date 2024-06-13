@@ -13,6 +13,9 @@ from pyqtgraph import PlotWidget
 import matplotlib.colors as colors
 import matplotlib.pyplot as plt
 
+from japl.Model.Model import Model
+from japl.SimObject.SimObject import SimObject
+
 
 # x = np.random.normal(size=1000)
 # y = np.random.normal(size=1000)
@@ -58,8 +61,51 @@ if __name__ == '__main__':
     # quit()
 
     
-    plotter = PyQtGraphPlotter(Nt=10)
-    plotter.setup([])
+    A = np.array([
+        [0, 0, 0, 1, 0, 0,  0],
+        [0, 0, 0, 0, 1, 0,  0],
+        [0, 0, 0, 0, 0, 1,  0],
+        [0, 0, 0, 0, 0, 0,  0],
+        [0, 0, 0, 0, 0, 0,  0],
+        [0, 0, 0, 0, 0, 0,  0],
+
+        [0, 0, 0, 0, 0, 0,  1],
+        ])
+    B = np.array([
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0],
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+
+        [0, 0, 0],
+        ])
+
+    model = Model.ss(A, B)
+    vehicle = SimObject(model=model, size=0, color='tab:blue')
+
+    vehicle.register_state("x",         0, "x (m)")
+    vehicle.register_state("y",         1, "y (m)")
+    vehicle.register_state("z",         2, "z (m)")
+    vehicle.register_state("vx",        3, "xvel (m/s)")
+    vehicle.register_state("vy",        4, "yvel (m/s)")
+    vehicle.register_state("vz",        5, "zvel (m/s)")
+    vehicle.register_state("fuel_burn", 6, "Fuel Burn ")
+
+    vehicle.plot.set_config({
+                "Pos": {
+                    "xaxis": "x",
+                    "yaxis": "z",
+                    },
+                "Vel": {
+                    "xaxis": "x",
+                    "yaxis": "vz",
+                    },
+                })
+
+    plotter = PyQtGraphPlotter(Nt=10, figsize=(6, 4))
+    plotter.setup([vehicle])
     plotter.show()
     quit()
     app = QtWidgets.QApplication([])
