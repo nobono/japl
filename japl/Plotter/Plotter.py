@@ -85,7 +85,6 @@ class Plotter:
             self._post_anim_func(self.simobjs)
 
         # run ODE solver step
-        # self._step_solve_ivp(self.istep, _simobj, rtol=self.rtol, atol=self.atol, max_step=self.max_step)
         step_func(istep=self.istep)
 
         # get data from SimObject based on state_select user configuration
