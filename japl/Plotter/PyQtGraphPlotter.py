@@ -1,18 +1,19 @@
+from functools import partial
 import numpy as np
 
 from typing import Callable, Optional
 from typing import Generator
 
-from pyqtgraph.Qt.QtGui import QKeySequence
 
 from japl.SimObject.SimObject import SimObject
 
 import pyqtgraph as pg
-from pyqtgraph import QtGui
+from pyqtgraph import PlotCurveItem, QtGui, mkPen
 from pyqtgraph import QtWidgets
 from pyqtgraph import PlotWidget
 from pyqtgraph.Qt import QtCore
 from pyqtgraph.Qt.QtCore import QRectF
+from pyqtgraph.Qt.QtGui import QKeySequence
 
 from matplotlib import colors as mplcolors
 # ---------------------------------------------------
@@ -48,16 +49,8 @@ class PyQtGraphPlotter:
 
 
     def setup(self, simobjs: list[SimObject]):
-        # # instantiate figure and axes
-        # self.fig, self.ax = plt.subplots(figsize=self.figsize)
-        # # set aspect initial ratio
-        # self.ax.set_aspect(self.aspect)
-        # # add simobj patch to Sim axes
-        # for simobj in self.simobjs:
-        #     self.ax.add_patch(simobj.plot.patch)
-        #     self.ax.add_line(simobj.plot.trace)
-
         self.simobjs = simobjs
+        self.istep = 0
 
         ## Always start by initializing Qt (only once per application)
         self.app = QtWidgets.QApplication([])
@@ -81,6 +74,9 @@ class PyQtGraphPlotter:
         # shortcut keys callbacks
         self.shortcut = QtWidgets.QShortcut(QKeySequence("Q"), self.win)
         self.shortcut.activated.connect(self.win.close) #type:ignore
+
+        for simobj in self.simobjs:
+            simobj.plot.add_patch_to_plot(self.widget)
 
 
     def show(self) -> None:
@@ -132,19 +128,50 @@ class PyQtGraphPlotter:
         self.widget.addItem(scatter)
 
 
-    # def autoscale(self, xdata: np.ndarray|list, ydata: np.ndarray|list) -> None:
-    #     pass
+    def autoscale(self, xdata: np.ndarray|list, ydata: np.ndarray|list) -> None:
+        # autoscale
+        self.set_lim([min(xdata) - 0.2, max(xdata) + 0.2, min(ydata) - 0.2, max(ydata) + 0.2])
 
 
     def FuncAnimation(self,
                       func: Callable,
                       frames: Callable|Generator|int,
-                      interval_ms: int,
-                      ):
+                      interval: int,
+                      ) -> None:
         # plotter.widget
         self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(func)
-        self.timer.start(interval_ms)
+        self.timer.timeout.connect(partial(func, frame=0))
+        self.timer.start(interval)
+
+
+    def _animate_func(self, frame, _simobj: SimObject, step_func: Callable, moving_bounds: bool = False):
+
+        self.istep += 1
+
+        # run post-animation func when finished
+        if self.istep >= self.Nt:
+            # self._post_anim_func(self.simobjs)
+            self.timer.stop()
+
+        # run ODE solver step
+        step_func(istep=self.istep)
+
+        # get data from SimObject based on state_select user configuration
+        xdata, ydata = _simobj.get_plot_data(self.istep)
+
+        # exit on exception
+        if len(xdata) == 0:
+            return []
+
+        # handle plot axes boundaries
+        # self.update_axes_boundary(
+        #         self.ax,
+        #         pos=(xdata[-1], ydata[-1]),
+        #         moving_bounds=moving_bounds
+        #         )
+
+        pen = _simobj.plot._get_qt_pen()
+        _simobj._update_patch_data(xdata, ydata, pen=pen)
 
 
     def _time_slider_update(self, val: float, _simobjs: list[SimObject]) -> None:

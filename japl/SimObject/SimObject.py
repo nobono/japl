@@ -1,9 +1,11 @@
 # ---------------------------------------------------
 
+from collections.abc import Generator
 from typing import Optional
 
 # ---------------------------------------------------
 
+from matplotlib.axes import Axes
 import numpy as np
 
 # ---------------------------------------------------
@@ -11,8 +13,13 @@ import numpy as np
 import astropy.units as u
 from astropy.units.quantity import Quantity
 
+from pyqtgraph import PlotCurveItem, PlotWidget, mkPen
+from pyqtgraph import CircleROI
+from pyqtgraph.Qt.QtGui import QPen
+
 # ---------------------------------------------------
 
+import japl
 from japl.Util.UnitCheck import assert_physical_type
 from japl.Model.Model import Model
 from japl.Model.Model import ModelType
@@ -22,7 +29,25 @@ from japl.Util.Util import flatten_list
 
 from matplotlib.patches import Circle
 from matplotlib.lines import Line2D
+from matplotlib import colors as mplcolors
 
+
+
+# class ShapeCollection:
+#     
+#     """This is a class which abstracts the line / shape plots of different
+#     plotting backends."""
+
+#     def __init__(self, color: str, radius: float) -> None:
+#         # assert plotting_backend in ["matplotlib", "pyqtgraph", "mpl", "qt"]
+#         # self.plotting_backend = plotting_backend
+#         self.color = color
+#         self.radius = radius
+
+#     
+#     def setup(self):
+#         self.patch = Circle((0, 0), radius=size, color=color)
+#         self.trace = Line2D([0], [0], color=color)
 
 
 class PlotInterface:
@@ -30,9 +55,72 @@ class PlotInterface:
     """This is a class for interfacing SimObject data with the plotter."""
 
     def __init__(self, size: float, state_select: dict, color: Optional[str] = None) -> None:
-        self.patch = Circle((0, 0), radius=size, color=color)
-        self.trace = Line2D([0], [0], color=color)
+        self.size = size
+        self.color = color
+
+        # color cycle list
+        self.color_cycle = self.__color_cycle()
         self.state_select = state_select
+        self.plotting_backend = japl.get_plotlib()
+
+
+    def __mpl_color_to_rgb(self, col: str) -> tuple:
+        color_code = mplcolors.TABLEAU_COLORS[col]
+        return self.__color_code_to_rgb(str(color_code))
+
+
+    def __color_code_to_rgb(self, code: str) -> tuple:
+        rgb_color = mplcolors.to_rgb(code)
+        rgb_color = (rgb_color[0]*255, rgb_color[1]*255, rgb_color[2]*255)
+        return rgb_color
+
+
+    def __color_cycle(self) -> Generator[str, None, None]:
+        """This method is a Generator which handles the color cycle of line / scatter
+        plots which do not specify a color."""
+
+        while True:
+            for _, v in mplcolors.TABLEAU_COLORS.items():
+                yield str(v)
+
+
+    def add_patch_to_plot(self, ax) -> None:
+        """This method instantiates plot items / patches according to the plotlib backend
+        being used and adds them to the plot window."""
+
+        if isinstance(ax, Axes):
+            self.patch = Circle((0, 0), radius=self.size, color=self.color)
+            self.trace = Line2D([0], [0], color=self.color)
+            ax.add_patch(self.patch)
+            ax.add_line(self.trace)
+
+        elif isinstance(ax, PlotWidget):
+            if not self.color:
+                self.color = next(self.color_cycle)
+            rgb_color = self.__mpl_color_to_rgb(self.color) #type:ignore
+            self.qt_trace = PlotCurveItem(x=[0], y=[0], pen=mkPen(rgb_color, width=self.size + 2))
+            self.qt_patch: Optional[CircleROI] = None
+            ax.addItem(self.qt_trace)
+
+    
+    def _get_qt_pen(self) -> QPen:
+        pen_color = self.qt_trace.opts['pen'].color().getRgb()[:3]
+        pen_width = self.qt_trace.opts['pen'].width()
+        return mkPen(pen_color, width=pen_width)
+
+
+    def _update_patch_data(self, xdata: np.ndarray, ydata: np.ndarray, **kwargs) -> None:
+        if self.plotting_backend == "matplotlib":
+
+            # update trace data
+            self.trace.set_data(xdata, ydata)
+
+            # plot current step position data
+            self.patch.set_center((xdata[-1], ydata[-1]))
+
+        if self.plotting_backend == "pyqtgraph":
+            self.qt_trace.setData(x=xdata, y=ydata, **kwargs)
+
 
 
 class SimObject:
@@ -193,51 +281,7 @@ class SimObject:
         self.__T = _T
 
 
-    def _update_patch_data(self, xdata: np.ndarray, ydata: np.ndarray) -> None:
-
-        # update trace data
-        self.plot.trace.set_data(xdata, ydata)
-
-        # plot current step position data
-        self.plot.patch.set_center((xdata[-1], ydata[-1]))
+    def _update_patch_data(self, xdata: np.ndarray, ydata: np.ndarray, **kwargs) -> None:
+        self.plot._update_patch_data(xdata, ydata, **kwargs)
 
 
-# class MassObject(SimObject):
-
-#     """This is a base class for mass objects"""
-
-#     def __init__(self,
-#                  mass: Quantity,
-#                  x0: Quantity,
-#                  v0: Quantity,
-#                  ):
-
-#         assert_physical_type(mass, "mass")
-#         assert_physical_type(x0, "length")
-#         assert_physical_type(v0, "velocity")
-
-#         self.mass = mass
-#         self.x0 = x0
-#         self.v0 = v0
-
-
-# class RigidBodyObject(SimObject):
-
-#     """This is a base class for mass objects"""
-
-#     def __init__(self,
-#                  mass: Quantity,
-#                  inertia: Quantity,
-#                  x0: Quantity,
-#                  v0: Quantity,
-#                  ):
-
-#         assert_physical_type(mass, "mass")
-#         assert_physical_type(inertia, "moment of inertia")
-#         assert_physical_type(x0, "length")
-#         assert_physical_type(v0, "velocity")
-
-#         self.mass = mass
-#         self.inertia = inertia
-#         self.x0 = x0
-#         self.v0 = v0

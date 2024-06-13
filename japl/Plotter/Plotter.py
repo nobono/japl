@@ -4,10 +4,8 @@ from typing import Callable
 from typing import Generator
 
 import matplotlib.pyplot as plt
-from matplotlib import patches
 from matplotlib.widgets import Slider
 from matplotlib.animation import FuncAnimation as MplFuncAnimation
-from matplotlib.lines import Line2D
 from matplotlib.axes import Axes
 
 from japl.SimObject.SimObject import SimObject
@@ -43,8 +41,9 @@ class Plotter:
 
         # add simobj patch to Sim axes
         for simobj in self.simobjs:
-            self.ax.add_patch(simobj.plot.patch)
-            self.ax.add_line(simobj.plot.trace)
+            # self.ax.add_patch(simobj.plot.patch)
+            # self.ax.add_line(simobj.plot.trace)
+            simobj.plot.add_patch_to_plot(self.ax)
 
 
     def show(self, block: bool = True) -> None:

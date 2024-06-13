@@ -6,7 +6,7 @@ from japl import PyQtGraphPlotter
 
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore
-from pyqtgraph import QtGui
+from pyqtgraph import PlotCurveItem, QtGui
 from pyqtgraph import QtWidgets
 from pyqtgraph import PlotWidget
 
@@ -57,20 +57,51 @@ if __name__ == '__main__':
     # plt.show()
     # quit()
 
-    plotter = PyQtGraphPlotter(Nt=10, interval_ms=10, figsize=(10,8), antialias=True)
+    plotter = PyQtGraphPlotter(
+            Nt=10,
+            interval_ms=10,
+            figsize=(10,6),
+            antialias=False,
+            aspect="auto",
+            )
     plotter.setup([])
 
-    color = colors.to_rgb(colors.TABLEAU_COLORS['tab:orange'])
-    color = (color[0]*255, color[1]*255, color[2]*255)
+    # x = np.linspace(1, 10, 1000)
+    # y = np.sin(x)
 
-    x = np.linspace(1, 10, 1000)
-    y = np.sin(x)
+    plotter.plot([], [], linewidth=3)
+    # plotter.scatter(x, np.cos(x), linewidth=3)
 
-    # plotter.plot(x, y, color="tab:blue", linewidth=3)
-    # plotter.plot(x, y, linewidth=3)
-    # plotter.plot(x, np.cos(x), linewidth=3)
-    for i in range(10):
-        plotter.plot(x, np.sin(x + i), linewidth=3)
+    Nt = 2000
+    x = np.zeros((Nt,))
+    y = np.zeros((Nt,))
+    # x, y = [], []
+
+    count = 1
+    i = 0
+    def update():
+        global x, y
+        global count
+        global i
+        # x += [count]
+        # y += [np.sin(count)]
+        x[i] = i * .1
+        y[i] = np.sin(i * .1)
+
+        pi = plotter.widget.getPlotItem()
+        d: PlotCurveItem = pi.dataItems[0]
+        d.setData(x=x[:i], y=y[:i])
+        
+        count += .1
+        i += 1
+
+    # timer = QtCore.QTimer()
+    # timer.timeout.connect(update)
+    # timer.start(10)
+    plotter.FuncAnimation(func=update, frames=-1, interval_ms=10)
+
+    
+
 
     plotter.show()
 

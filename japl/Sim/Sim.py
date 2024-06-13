@@ -1,24 +1,17 @@
-# ---------------------------------------------------
-import sys
-import time
-
-from typing import Callable
-from typing import Generator
-from typing import Optional
-
-from tqdm import tqdm
-
 import numpy as np
 
 from japl.SimObject.SimObject import SimObject
 from japl.DeviceInput.DeviceInput import DeviceInput
 from japl.Plotter.Plotter import Plotter
+from japl.Plotter.PyQtGraphPlotter import PyQtGraphPlotter
 
 from scipy.integrate import solve_ivp
 
 from functools import partial
 
 from scipy import constants
+
+import japl
 
 # ---------------------------------------------------
 
@@ -57,14 +50,26 @@ class Sim:
         blit: bool = kwargs.get("blit", False)
         cache_frame_data: bool = kwargs.get("cache_frame_data", False)
         repeat: bool = kwargs.get("repeat", False)
+        antialias: float = kwargs.get("antialias", False)
         self.moving_bounds: bool = kwargs.get("moving_bounds", False)
-        self.plotter = kwargs.get("plotter", Plotter(Nt=self.Nt,
-                                                     blit=blit,
-                                                     cache_frame_data=cache_frame_data,
-                                                     repeat=repeat,
-                                                     aspect=aspect,
-                                                     )
-                                  )
+
+        if japl.get_plotlib() == "matplotlib":
+            self.plotter = kwargs.get("plotter", Plotter(Nt=self.Nt,
+                                                         blit=blit,
+                                                         cache_frame_data=cache_frame_data,
+                                                         repeat=repeat,
+                                                         aspect=aspect,
+                                                         )
+                                      )
+        elif japl.get_plotlib() == "pyqtgraph":
+            self.plotter = kwargs.get("plotter", PyQtGraphPlotter(Nt=self.Nt,
+                                                         blit=blit,
+                                                         cache_frame_data=cache_frame_data,
+                                                         repeat=repeat,
+                                                         aspect=aspect,
+                                                         antialias=antialias,
+                                                         )
+                                      )
 
         # device inputs
         self.device_input_type = kwargs.get("device_input_type", "")
@@ -121,7 +126,7 @@ class Sim:
 
             # try to set animation frame intervals to real time
             interval = int(max(1, self.dt * 1000))
-            _step_func = partial(self._step_solve_ivp, _simobj=simobj, rtol=self.rtol, atol=self.atol)
+            _step_func = partial(self._step_solve_ivp, istep=0, _simobj=simobj, rtol=self.rtol, atol=self.atol)
             _anim_func = partial(self.plotter._animate_func, _simobj=simobj, step_func=_step_func, moving_bounds=self.moving_bounds)
 
             anim = self.plotter.FuncAnimation(

@@ -10,6 +10,7 @@ from util import unitize
 
 from output import OutputManager
 
+import japl
 from japl import Sim
 from japl import SimObject
 from japl import Model
@@ -17,6 +18,10 @@ from japl import Model
 from events import hit_ground_event
 
 # ---------------------------------------------------
+
+
+
+japl.set_plotlib("qt")
 
 
 def dynamics_func(t, X, simobj: SimObject):
@@ -100,7 +105,7 @@ if __name__ == "__main__":
     vehicle.register_state("fuel_burn", 6, "Fuel Burn ")
 
     vehicle.plot.state_select = {
-            "xaxis": "t",
+            "xaxis": "x",
             "yaxis": "z",
             }
 
@@ -108,7 +113,7 @@ if __name__ == "__main__":
     ####################################
 
     x0 = [0, 0, 0]
-    v0 = [10, 0, 0]
+    v0 = [20, 0, 30]
     vehicle.init_state([x0, v0, 0])
 
     # Sim
@@ -120,12 +125,13 @@ if __name__ == "__main__":
             simobjs=[vehicle],
             events=[],
             animate=1,
-            aspect="auto",
+            aspect="equal",
             device_input_type="gamepad",
             moving_bounds=True,
             rtol=1e-6,
             atol=1e-6,
             blit=False,
+            antialias=False,
             )
     sim.run()
 
