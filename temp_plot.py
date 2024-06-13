@@ -6,7 +6,7 @@ from japl import PyQtGraphPlotter
 
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore
-from pyqtgraph import PlotCurveItem, QtGui
+from pyqtgraph import GraphicsLayoutWidget, PlotCurveItem, QtGui
 from pyqtgraph import QtWidgets
 from pyqtgraph import PlotWidget
 
@@ -56,6 +56,28 @@ if __name__ == '__main__':
     # plt.plot(x, y)
     # plt.show()
     # quit()
+
+    
+    plotter = PyQtGraphPlotter(Nt=10)
+    plotter.setup([])
+    plotter.show()
+    quit()
+    app = QtWidgets.QApplication([])
+    win = QtWidgets.QMainWindow()
+    widget = PlotWidget()
+
+    view = GraphicsLayoutWidget()
+    view.addPlot(row=0, col=0, title="Data 1")
+    view.addPlot(row=0, col=1, title="Data 2")
+
+    win.setCentralWidget(widget)
+
+    view.show()
+    # win.show()
+
+    app.exec_()
+    # self.layout.addViewBox(row=1, col=0, colspan=2)
+    quit()
 
     plotter = PyQtGraphPlotter(
             Nt=10,

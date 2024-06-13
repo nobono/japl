@@ -120,7 +120,7 @@ if __name__ == "__main__":
     ####################################
 
     sim = Sim(
-            t_span=[0, 10],
+            t_span=[0, 30],
             dt=.01,
             simobjs=[vehicle],
             events=[],

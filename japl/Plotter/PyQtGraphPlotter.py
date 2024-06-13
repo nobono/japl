@@ -4,11 +4,13 @@ import numpy as np
 from typing import Callable, Optional
 from typing import Generator
 
+from pyqtgraph.Qt.QtWidgets import QGridLayout, QWidget
+
 
 from japl.SimObject.SimObject import SimObject
 
 import pyqtgraph as pg
-from pyqtgraph import PlotCurveItem, QtGui, mkPen
+from pyqtgraph import GraphicsLayoutWidget, PlotCurveItem, QtGui, mkPen
 from pyqtgraph import QtWidgets
 from pyqtgraph import PlotWidget
 from pyqtgraph.Qt import QtCore
@@ -55,19 +57,29 @@ class PyQtGraphPlotter:
         ## Always start by initializing Qt (only once per application)
         self.app = QtWidgets.QApplication([])
         self.win = QtWidgets.QMainWindow()
-        self.widget = PlotWidget()
+        self.view = GraphicsLayoutWidget()
 
         # enable anti-aliasing
         pg.setConfigOptions(antialias=self.antialias)
 
-        # set apsect
-        self.widget.setAspectLocked(self.aspect == "equal")
+        # set apsect and grid
+        # self.widget.setAspectLocked(self.aspect == "equal")
+        # self.widget.showGrid(True, True, 0.5)
 
-        # enable grid
-        self.widget.showGrid(True, True, 0.5)
+        #####
+        curve = PlotCurveItem(x=[1,2], y=[1,2])
+        num = 3
+        self.plots = [self.view.addPlot(row=i, col=0, title="Title 2") for i in range(num)]
+        for plot in self.plots:
+            plot.showGrid(True, True, 0.5)
+            plot.setAspectLocked(True)
+            plot.addItem(PlotCurveItem(x=[1,2], y=[1,2]))
+        # a.showGrid(True, True, 0.5)
+        # self.view.show()
+        #####
 
         # setup window
-        self.win.setCentralWidget(self.widget)
+        self.win.setCentralWidget(self.view)
         self.win.resize(*(np.array([*self.figsize]) * 100))
         self.win.show()
 
@@ -75,62 +87,62 @@ class PyQtGraphPlotter:
         self.shortcut = QtWidgets.QShortcut(QKeySequence("Q"), self.win)
         self.shortcut.activated.connect(self.win.close) #type:ignore
 
-        for simobj in self.simobjs:
-            simobj.plot.add_patch_to_plot(self.widget)
+        # for simobj in self.simobjs:
+        #     simobj.plot.add_patch_to_plot(self.main_widget)
 
 
     def show(self) -> None:
         self.app.exec()  # or app.exec_() for PyQt5 / PySide2
 
 
-    def plot(self,
-             x: np.ndarray|list,
-             y: np.ndarray|list,
-             color: str = "",
-             linestyle: str = "",
-             linewidth: float = 3,
-             marker: Optional[str] = None,
-             **kwargs):
+    # def plot(self,
+    #          x: np.ndarray|list,
+    #          y: np.ndarray|list,
+    #          color: str = "",
+    #          linestyle: str = "",
+    #          linewidth: float = 3,
+    #          marker: Optional[str] = None,
+    #          **kwargs):
 
-        # convert mpl color to rgb
-        if color:
-            color_code = mplcolors.TABLEAU_COLORS[color]
-        else:
-            color_code = next(self.color_cycle)
+    #     # convert mpl color to rgb
+    #     if color:
+    #         color_code = mplcolors.TABLEAU_COLORS[color]
+    #     else:
+    #         color_code = next(self.color_cycle)
 
-        # convert mpl color to rgb
-        rgb_color = mplcolors.to_rgb(color_code)
-        rgb_color = (rgb_color[0]*255, rgb_color[1]*255, rgb_color[2]*255)
+    #     # convert mpl color to rgb
+    #     rgb_color = mplcolors.to_rgb(color_code)
+    #     rgb_color = (rgb_color[0]*255, rgb_color[1]*255, rgb_color[2]*255)
 
-        line = pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen(rgb_color, width=linewidth), symbol=marker)
-        self.widget.addItem(line)
-
-
-    def scatter(self,
-                x: np.ndarray|list,
-                y: np.ndarray|list,
-                color: str = "",
-                linewidth: float = 1,
-                marker: str = "o",
-                **kwargs):
-
-        # convert mpl color to rgb
-        if color:
-            color_code = mplcolors.TABLEAU_COLORS[color]
-        else:
-            color_code = next(self.color_cycle)
-
-        # convert mpl color to rgb
-        rgb_color = mplcolors.to_rgb(color_code)
-        rgb_color = (rgb_color[0]*255, rgb_color[1]*255, rgb_color[2]*255)
-
-        scatter = pg.ScatterPlotItem(x=x, y=y, pen=pg.mkPen(rgb_color, width=linewidth), symbol=marker)
-        self.widget.addItem(scatter)
+    #     line = pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen(rgb_color, width=linewidth), symbol=marker)
+    #     self.widget.addItem(line)
 
 
-    def autoscale(self, xdata: np.ndarray|list, ydata: np.ndarray|list) -> None:
-        # autoscale
-        self.set_lim([min(xdata) - 0.2, max(xdata) + 0.2, min(ydata) - 0.2, max(ydata) + 0.2])
+    # def scatter(self,
+    #             x: np.ndarray|list,
+    #             y: np.ndarray|list,
+    #             color: str = "",
+    #             linewidth: float = 1,
+    #             marker: str = "o",
+    #             **kwargs):
+
+    #     # convert mpl color to rgb
+    #     if color:
+    #         color_code = mplcolors.TABLEAU_COLORS[color]
+    #     else:
+    #         color_code = next(self.color_cycle)
+
+    #     # convert mpl color to rgb
+    #     rgb_color = mplcolors.to_rgb(color_code)
+    #     rgb_color = (rgb_color[0]*255, rgb_color[1]*255, rgb_color[2]*255)
+
+    #     scatter = pg.ScatterPlotItem(x=x, y=y, pen=pg.mkPen(rgb_color, width=linewidth), symbol=marker)
+    #     self.widget.addItem(scatter)
+
+
+    # def autoscale(self, xdata: np.ndarray|list, ydata: np.ndarray|list) -> None:
+    #     # autoscale
+    #     self.set_lim([min(xdata) - 0.2, max(xdata) + 0.2, min(ydata) - 0.2, max(ydata) + 0.2])
 
 
     def FuncAnimation(self,
@@ -178,16 +190,16 @@ class PyQtGraphPlotter:
         pass
 
 
-    def set_lim(self, lim: list|tuple, padding=0.02) -> None:
-        assert len(lim) == 4
+    # def set_lim(self, lim: list|tuple, padding=0.02) -> None:
+    #     assert len(lim) == 4
 
-        x = lim[0]
-        y = lim[2]
-        width = lim[1] - lim[0]
-        height = lim[3] - lim[2]
+    #     x = lim[0]
+    #     y = lim[2]
+    #     width = lim[1] - lim[0]
+    #     height = lim[3] - lim[2]
 
-        newRect = QRectF(x, y, width, height) #type:ignore
-        self.widget.setRange(newRect, padding=padding)
+    #     newRect = QRectF(x, y, width, height) #type:ignore
+    #     self.widget.setRange(newRect, padding=padding)
 
 
     # def __x_axis_right_border_append(self, ax: Axes, val: float):
