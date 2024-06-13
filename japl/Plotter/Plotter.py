@@ -76,6 +76,55 @@ class Plotter:
         return anim
 
 
+    def _animate_func(self, frame, _simobj: SimObject, step_func: Callable, moving_bounds: bool = False):
+
+        self.istep = frame + 1
+
+        # run post-animation func when finished
+        if self.istep >= self.Nt:
+            self._post_anim_func(self.simobjs)
+
+        # run ODE solver step
+        # self._step_solve_ivp(self.istep, _simobj, rtol=self.rtol, atol=self.atol, max_step=self.max_step)
+        step_func(istep=self.istep)
+
+        # get data from SimObject based on state_select user configuration
+        xdata, ydata = _simobj.get_plot_data(self.istep)
+
+        # exit on exception
+        if len(xdata) == 0:
+            return []
+
+        # update SimObject data
+        _simobj._update_patch_data(xdata, ydata)
+
+        # handle plot axes boundaries
+        self.update_axes_boundary(
+                self.ax,
+                pos=(xdata[-1], ydata[-1]),
+                moving_bounds=moving_bounds
+                )
+
+        return [_simobj.plot.patch, _simobj.plot.trace]
+
+
+    def _post_anim_func(self, _simobjs: list[SimObject]) -> None:
+        """
+            This method is the post-animation function which runs at the end of the
+        FuncAnimation method. This method sets up the time-slider on the plot axes and configures
+        the time-slider callback function.
+
+        -------------------------------------------------------------------
+        -- Arguments
+        -------------------------------------------------------------------
+        -- _simobjs - list of SimObject
+        -------------------------------------------------------------------
+        """
+
+        if "time_slider" not in dir(self):
+            self.setup_time_slider(self.Nt, _simobjs=_simobjs)
+
+
     def _time_slider_update(self, val: float, _simobjs: list[SimObject]) -> None:
 
         for _simobj in _simobjs:

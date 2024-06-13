@@ -166,6 +166,8 @@ class SimObject:
 
         if index is None:
             index = len(self.Y) - 1
+        else:
+            index += 1 # instead of grabbin "up-to" index, grab last index as well
 
         if isinstance(state_slice, tuple) or isinstance(state_slice, list):
             return self.Y[:index, state_slice[0]:state_slice[1]]

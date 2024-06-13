@@ -114,17 +114,19 @@ class Sim:
         elif self.animate:
 
             # pre-allocate output arrays
-            self.T = np.zeros((self.Nt, ))
-            simobj.Y = np.zeros((self.Nt, len(simobj.X0)))
+            self.T = np.zeros((self.Nt + 1, ))
+            simobj.Y = np.zeros((self.Nt + 1, len(simobj.X0)))
             simobj.Y[0] = simobj.X0
             simobj._set_T_array_ref(self.T) # simobj.T reference to sim.T
 
             # try to set animation frame intervals to real time
             interval = int(max(1, self.dt * 1000))
+            _step_func = partial(self._step_solve_ivp, _simobj=simobj, rtol=self.rtol, atol=self.atol)
+            _anim_func = partial(self.plotter._animate_func, _simobj=simobj, step_func=_step_func, moving_bounds=self.moving_bounds)
 
             anim = self.plotter.FuncAnimation(
-                    func=partial(self._animate_func, _simobj=simobj),
-                    frames=partial(self._frames, _simobj=simobj),
+                    func=_anim_func,
+                    frames=self.Nt,
                     interval=interval,
                     )
 
@@ -203,25 +205,7 @@ class Sim:
         _simobj.Y[istep] = sol['y'].T[0]
 
 
-    def _animate_func(self, frame, _simobj: SimObject):
-        xdata, ydata = frame
-
-        # exit on exception
-        if len(xdata) == 0:
-            return []
-
-        _simobj._update_patch_data(xdata, ydata)
-
-        # handle plot axes boundaries
-        self.plotter.update_axes_boundary(
-                self.plotter.ax,
-                pos=(xdata[-1], ydata[-1]),
-                moving_bounds=self.moving_bounds
-                )
-
-        return [_simobj.plot.patch, _simobj.plot.trace]
-
-
+    @DeprecationWarning
     def _frames(self, _simobj: SimObject):
         """
             This method is a Generator function which passes frame data to
@@ -243,23 +227,6 @@ class Sim:
             xdata, ydata = _simobj.get_plot_data(self.istep)
             yield (xdata, ydata)
 
-        self._post_anim_func(self.simobjs)
-
-
-    def _post_anim_func(self, _simobjs: list[SimObject]) -> None:
-        """
-            This method is the post-animation function which runs at the end of the
-        FuncAnimation method. This method sets up the time-slider on the plot axes and configures
-        the time-slider callback function.
-
-        -------------------------------------------------------------------
-        -- Arguments
-        -------------------------------------------------------------------
-        -- _simobjs - list of SimObject
-        -------------------------------------------------------------------
-        """
-
-        if "time_slider" not in dir(self):
-            self.plotter.setup_time_slider(self.Nt, _simobjs=_simobjs)
+        self.plotter._post_anim_func(self.simobjs)
 
 
