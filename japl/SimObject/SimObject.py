@@ -13,7 +13,7 @@ import numpy as np
 import astropy.units as u
 from astropy.units.quantity import Quantity
 
-from pyqtgraph import PlotCurveItem, PlotWidget, mkPen
+from pyqtgraph import GraphicsView, PlotCurveItem, mkPen
 from pyqtgraph import CircleROI
 from pyqtgraph.Qt.QtGui import QPen
 
@@ -94,7 +94,7 @@ class PlotInterface:
             ax.add_patch(self.patch)
             ax.add_line(self.trace)
 
-        elif isinstance(ax, PlotWidget):
+        elif isinstance(ax, GraphicsView):
             if not self.color:
                 self.color = next(self.color_cycle)
             rgb_color = self.__mpl_color_to_rgb(self.color) #type:ignore
@@ -120,6 +120,10 @@ class PlotInterface:
 
         if self.plotting_backend == "pyqtgraph":
             self.qt_trace.setData(x=xdata, y=ydata, **kwargs)
+
+
+    def get_num_subplots(self) -> int:
+        return len(self.state_select)
 
 
 
