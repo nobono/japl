@@ -205,28 +205,3 @@ class Sim:
         _simobj.Y[istep] = sol['y'].T[0]
 
 
-    @DeprecationWarning
-    def _frames(self, _simobj: SimObject):
-        """
-            This method is a Generator function which passes frame data to
-        FuncAnimation. Take SimObject and returns iterable of matplotlib artist
-
-        -------------------------------------------------------------------
-        -- Arguments
-        -------------------------------------------------------------------
-        -- _simobjs - list of SimObject
-        -------------------------------------------------------------------
-        """
-
-        while self.istep < self.Nt - 1:
-
-            self.istep += 1
-            self._step_solve_ivp(self.istep, _simobj, rtol=self.rtol, atol=self.atol, max_step=self.max_step)
-
-            # get data from SimObject based on state_select user configuration
-            xdata, ydata = _simobj.get_plot_data(self.istep)
-            yield (xdata, ydata)
-
-        self.plotter._post_anim_func(self.simobjs)
-
-
