@@ -96,26 +96,6 @@ class PlotInterface:
                 yield str(v)
 
 
-    # def add_patch_to_plot(self, ax, subplot_id: int) -> None:
-    #     """This method instantiates plot items / patches according to the plotlib backend
-    #     being used and adds them to the plot window."""
-
-    #     if self.plotting_backend == "matplotlib":
-    #         # self.patch = Circle((0, 0), radius=self.size, color=self.color)
-    #         # ax.add_patch(self.patch)
-    #         self.trace = Line2D([0], [0], color=self.color)
-    #         ax.add_line(self.trace)
-
-        #############################################
-        # This now gets done in PyQtGraphPlotter...
-        #############################################
-        # if self.plotting_backend == "pyqtgraph":
-        #     color_code = self.get_mpl_color_code(self.color) #type:ignore
-        #     self.qt_traces[subplot_id] = PlotCurveItem(x=[0], y=[0],
-        #                                   pen=mkPen({"color": color_code, "width": self.size + 2}))
-        #     ax.addItem(self.qt_traces[subplot_id])
-
-    
     def _get_qt_pen(self, subplot_id: int) -> QPen:
         pen_color = self.qt_traces[subplot_id].opts['pen'].color().getRgb()[:3]
         pen_width = self.qt_traces[subplot_id].opts['pen'].width()
