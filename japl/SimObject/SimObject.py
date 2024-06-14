@@ -69,6 +69,7 @@ class PlotInterface:
         self.plotting_backend = japl.get_plotlib()
 
         # graphic objects
+        self.traces: list[Line2D] = []
         self.qt_traces: list[PlotCurveItem] = []
 
 
@@ -95,15 +96,15 @@ class PlotInterface:
                 yield str(v)
 
 
-    def add_patch_to_plot(self, ax, subplot_id: int) -> None:
-        """This method instantiates plot items / patches according to the plotlib backend
-        being used and adds them to the plot window."""
+    # def add_patch_to_plot(self, ax, subplot_id: int) -> None:
+    #     """This method instantiates plot items / patches according to the plotlib backend
+    #     being used and adds them to the plot window."""
 
-        if self.plotting_backend == "matplotlib":
-            self.patch = Circle((0, 0), radius=self.size, color=self.color)
-            self.trace = Line2D([0], [0], color=self.color)
-            ax.add_patch(self.patch)
-            ax.add_line(self.trace)
+    #     if self.plotting_backend == "matplotlib":
+    #         # self.patch = Circle((0, 0), radius=self.size, color=self.color)
+    #         # ax.add_patch(self.patch)
+    #         self.trace = Line2D([0], [0], color=self.color)
+    #         ax.add_line(self.trace)
 
         #############################################
         # This now gets done in PyQtGraphPlotter...
@@ -125,10 +126,10 @@ class PlotInterface:
         if self.plotting_backend == "matplotlib":
 
             # update trace data
-            self.trace.set_data(xdata, ydata)
+            self.traces[subplot_id].set_data(xdata, ydata)
 
             # plot current step position data
-            self.patch.set_center((xdata[-1], ydata[-1]))
+            # self.patch.set_center((xdata[-1], ydata[-1]))
 
         if self.plotting_backend == "pyqtgraph":
             self.qt_traces[subplot_id].setData(x=xdata, y=ydata, **kwargs)

@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 from matplotlib.animation import FuncAnimation as MplFuncAnimation
 from matplotlib.axes import Axes
+from matplotlib.lines import Line2D
 
 from japl.SimObject.SimObject import SimObject
 
@@ -41,9 +42,10 @@ class Plotter:
 
         # add simobj patch to Sim axes
         for simobj in self.simobjs:
-            # self.ax.add_patch(simobj.plot.patch)
-            # self.ax.add_line(simobj.plot.trace)
-            simobj.plot.add_patch_to_plot(self.ax)
+            _width = simobj.plot.size
+            _color = simobj.plot.color
+            _graphic_item = Line2D([], [], color=_color, linewidth=_width)
+            simobj.plot.traces += [_graphic_item]
 
 
     def show(self, block: bool = True) -> None:
@@ -94,7 +96,8 @@ class Plotter:
             return []
 
         # update SimObject data
-        _simobj._update_patch_data(xdata, ydata)
+        for subplot_id in range(len(_simobj.plot.get_config())):
+            _simobj._update_patch_data(xdata, ydata, subplot_id=subplot_id)
 
         # handle plot axes boundaries
         self.update_axes_boundary(
@@ -103,7 +106,8 @@ class Plotter:
                 moving_bounds=moving_bounds
                 )
 
-        return [_simobj.plot.patch, _simobj.plot.trace]
+        # TODO this needs to account for several axes to plot on...
+        return _simobj.plot.traces
 
 
     def _post_anim_func(self, _simobjs: list[SimObject]) -> None:
@@ -137,7 +141,8 @@ class Plotter:
                 return
 
             # update artist data
-            _simobj._update_patch_data(xdata, ydata)
+            for subplot_id in range(len(_simobj.plot.get_config())):
+                _simobj._update_patch_data(xdata, ydata, subplot_id=subplot_id)
 
 
 
