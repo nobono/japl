@@ -65,6 +65,13 @@ if __name__ == "__main__":
         type=str,
         default="",
     )
+    parser.add_argument(
+        "--figsize",
+        dest="figsize",
+        type=float,
+        nargs="*",
+        default=(6, 4),
+    )
     args = parser.parse_args()
     args.plot = True
 
@@ -138,6 +145,7 @@ if __name__ == "__main__":
             atol=1e-6,
             blit=False,
             antialias=False,
+            figsize=(10, 7)
             )
     sim.run()
 

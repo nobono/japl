@@ -51,6 +51,7 @@ class Sim:
         cache_frame_data: bool = kwargs.get("cache_frame_data", False)
         repeat: bool = kwargs.get("repeat", False)
         antialias: float = kwargs.get("antialias", False)
+        figsize: tuple = kwargs.get("figsize", (6, 4))
         self.moving_bounds: bool = kwargs.get("moving_bounds", False)
 
         if japl.get_plotlib() == "matplotlib":
@@ -59,6 +60,8 @@ class Sim:
                                                          cache_frame_data=cache_frame_data,
                                                          repeat=repeat,
                                                          aspect=aspect,
+                                                         antialias=antialias,
+                                                         figsize=figsize,
                                                          )
                                       )
         elif japl.get_plotlib() == "pyqtgraph":
@@ -68,6 +71,7 @@ class Sim:
                                                          repeat=repeat,
                                                          aspect=aspect,
                                                          antialias=antialias,
+                                                         figsize=figsize,
                                                          )
                                       )
 
