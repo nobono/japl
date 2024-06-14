@@ -28,6 +28,7 @@ class Plotter:
         self.blit: bool = kwargs.get("blit", False)
         self.cache_frame_data: bool = kwargs.get("cache_frame_data", False)
         self.repeat: bool = kwargs.get("repeat", False)
+        self.antialias: bool = kwargs.get("antialias", True)
 
 
     def setup(self, simobjs: list[SimObject]):
@@ -42,10 +43,13 @@ class Plotter:
 
         # add simobj patch to Sim axes
         for simobj in self.simobjs:
-            _width = simobj.plot.size
-            _color = simobj.plot.color
-            _graphic_item = Line2D([], [], color=_color, linewidth=_width)
-            simobj.plot.traces += [_graphic_item]
+            for i, (title, axes) in enumerate(simobj.plot.get_config().items()):
+                _width = simobj.plot.size
+                _color = simobj.plot.color
+                _graphic_item = Line2D([], [], color=_color, linewidth=_width, antialiased=self.antialias)
+                simobj.plot.traces += [_graphic_item]
+                self.ax.add_line(_graphic_item)
+        pass
 
 
     def show(self, block: bool = True) -> None:
@@ -88,23 +92,22 @@ class Plotter:
         # run ODE solver step
         step_func(istep=self.istep)
 
-        # get data from SimObject based on state_select user configuration
-        xdata, ydata = _simobj.get_plot_data(self.istep)
-
-        # exit on exception
-        if len(xdata) == 0:
-            return []
-
         # update SimObject data
         for subplot_id in range(len(_simobj.plot.get_config())):
+            # get data from SimObject based on state_select user configuration
+            xdata, ydata = _simobj.get_plot_data(subplot_id, self.istep)
             _simobj._update_patch_data(xdata, ydata, subplot_id=subplot_id)
 
-        # handle plot axes boundaries
-        self.update_axes_boundary(
-                self.ax,
-                pos=(xdata[-1], ydata[-1]),
-                moving_bounds=moving_bounds
-                )
+            # # exit on exception
+            # if len(xdata) == 0:
+            #     return []
+
+            # handle plot axes boundaries
+            self.update_axes_boundary(
+                    self.ax,
+                    pos=(xdata[-1], ydata[-1]),
+                    moving_bounds=moving_bounds
+                    )
 
         # TODO this needs to account for several axes to plot on...
         return _simobj.plot.traces
@@ -133,15 +136,14 @@ class Plotter:
             # get data range
             val = int(val)
 
-            # select user specficied state(s)
-            xdata, ydata = _simobj.get_plot_data(val)
-
-            # exit on exception
-            if len(xdata) == 0:
-                return
+            # # exit on exception
+            # if len(xdata) == 0:
+            #     return
 
             # update artist data
             for subplot_id in range(len(_simobj.plot.get_config())):
+                # select user specficied state(s)
+                xdata, ydata = _simobj.get_plot_data(subplot_id, val)
                 _simobj._update_patch_data(xdata, ydata, subplot_id=subplot_id)
 
 

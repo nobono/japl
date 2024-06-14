@@ -94,7 +94,7 @@ if __name__ == "__main__":
         ])
 
     model = Model.ss(A, B)
-    vehicle = SimObject(model=model, size=0, color='tab:blue')
+    vehicle = SimObject(model=model, size=2, color='tab:blue')
 
     vehicle.register_state("x",         0, "x (m)")
     vehicle.register_state("y",         1, "y (m)")
@@ -110,8 +110,8 @@ if __name__ == "__main__":
                     "yaxis": "z",
                     },
                 "Vel": {
-                    "xaxis": "t",
-                    "yaxis": "vz",
+                    "xaxis": "x",
+                    "yaxis": "vx",
                     }
                 })
 
@@ -126,13 +126,13 @@ if __name__ == "__main__":
     ####################################
 
     sim = Sim(
-            t_span=[0, 30],
+            t_span=[0, 100],
             dt=.01,
             simobjs=[vehicle],
             events=[],
             animate=1,
-            aspect="auto",
-            device_input_type="",
+            aspect="equal",
+            device_input_type="gamepad",
             moving_bounds=True,
             rtol=1e-6,
             atol=1e-6,

@@ -80,7 +80,7 @@ class PyQtGraphPlotter:
                 _plot_item = _view.addPlot(row=i, col=0, title=title)   # add PlotItem to View
                 _plot_item.showGrid(True, True, 0.5)    # set apsect and grid
                 _plot_item.setAspectLocked(self.aspect == "equal")
-                _pen = {"color": simobj.plot.color_code, "width": simobj.size + 2}
+                _pen = {"color": simobj.plot.color_code, "width": simobj.size}
                 _graphic_item = PlotCurveItem(x=[], y=[], pen=_pen)
                 _plot_item.addItem(_graphic_item)   # init PlotCurve
                 simobj.plot.qt_traces += [_graphic_item]   # add GraphicsItem reference to SimObject
@@ -178,7 +178,7 @@ class PyQtGraphPlotter:
             # get data from SimObject based on state_select user configuration
             xdata, ydata = _simobj.get_plot_data(subplot_id, self.istep)
             # pen = _simobj.plot._get_qt_pen(subplot_id=subplot_id)
-            pen = {"color": _simobj.plot.color_code, "width": _simobj.plot.size + 2}
+            pen = {"color": _simobj.plot.color_code, "width": _simobj.plot.size}
             _simobj._update_patch_data(xdata, ydata, pen=pen, subplot_id=subplot_id)
 
 

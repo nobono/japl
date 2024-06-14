@@ -229,7 +229,7 @@ class SimObject:
         self.Y = y
 
 
-    def get_plot_data(self, subplot_id: int, index: Optional[int] = None) -> tuple[np.ndarray, np.ndarray]:
+    def get_plot_data(self, subplot_id: int, index: int) -> tuple[np.ndarray, np.ndarray]:
         """This method returns state data from the SimObject according
         to the user specified state_select."""
 
