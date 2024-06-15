@@ -1,0 +1,2 @@
+CLM - (change in pitch moment w.r.t. lift) represents pitching moment changes due to aerodynamic properties,
+CMit - represents changes due to control surface deflections.
