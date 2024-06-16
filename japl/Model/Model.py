@@ -17,6 +17,7 @@ from enum import Enum
 # ---------------------------------------------------
 
 from scipy.sparse import csr_matrix
+from scipy.sparse._csr import csr_matrix as Tcsr_matrix
 
 
 
@@ -80,3 +81,31 @@ class Model:
 
     def step(self, X: np.ndarray, U: np.ndarray) -> np.ndarray:
         return self.A @ X + self.B @ U
+
+
+    def print(self):
+
+        def _print_matrix(mat, register = {}):
+            if isinstance(mat, Tcsr_matrix):
+                mat = mat.toarray()
+
+            print('-' * 50)
+            print(name)
+            print('-' * 50)
+            _shape = mat.shape
+            for i in range(_shape[0] - 1):
+                if register:
+                    print(list(register.keys())[i])
+                for j in range(_shape[1] - 1):
+                    print(mat[i][j], end=" ")
+                print()
+            print()
+
+        mat, name = (self.A, "A")
+        _print_matrix(mat)
+        mat, name = (self.B, "B")
+        _print_matrix(mat)
+
+            
+
+
