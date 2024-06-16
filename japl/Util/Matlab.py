@@ -67,16 +67,16 @@ notes_psb = [matfile_psb[i][0] for i in [
 
 aeromodel = {
         "increments": {
-            "alpha": matfile["Alpha"].flatten(),
-            "phi": matfile["Phi"].flatten(),
+            "alpha": matfile["Alpha"].flatten(),    # (deg)
+            "phi": matfile["Phi"].flatten(),    # (deg)
             "mach": matfile["Mach"].flatten(),
-            "alt": matfile["Alt"].flatten(),
-            "iota": matfile_psb["Iota"].flatten(),
+            "alt": matfile["Alt"].flatten(),    # (ft.)
+            "iota": matfile_psb["Iota"].flatten(),  # (deg)
             "iota_prime": matfile_psb["Iota_Prime"].flatten(),
             },
         "units": {
-            "alt": matfile["Alt_Units"][0],
-            "lref": matfile["Lref_Units"][0],
+            "alt": matfile["Alt_Units"][0],     # (ft.)
+            "lref": matfile["Lref_Units"][0],   # (inches)
             },
         "lref": matfile["Lref"].flatten()[0],
         "sref": matfile["Sref"].flatten()[0],
