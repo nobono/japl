@@ -20,6 +20,7 @@ from pyqtgraph.Qt.QtGui import QPen
 # ---------------------------------------------------
 
 import japl
+from japl.Aero.AeroTable import AeroTable
 from japl.Util.UnitCheck import assert_physical_type
 from japl.Model.Model import Model
 from japl.Model.Model import ModelType
@@ -132,11 +133,25 @@ class SimObject:
         self.Y = np.array([])
         self.__T = np.array([])
 
+        self.aerotable: Optional[AeroTable] = kwargs.get("aerotable", None)
+
+        # other physical properties
+        self.mass: float = 1
+        self.Ixx: float = 1
+        self.Iyy: float = 1
+        self.Izz: float = 1
+        self.cg: float = 1
+
+        # interface for visualization
         self.plot = PlotInterface(
                 state_select={},
                 size=self.size,
                 color=self.color
                 )
+
+
+    def get_state_id(self, name: str) -> int:
+        return self.register[name]["id"]
 
 
     def _pre_sim_checks(self) -> bool:

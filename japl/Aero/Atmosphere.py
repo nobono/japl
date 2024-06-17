@@ -61,3 +61,11 @@ class Atmosphere:
         # return np.interp(alt, self._alts, self._atmos.grav_accel)
         return self.grav_accel(alt)
 
+
+    def dynamic_pressure(self, vel: np.ndarray, alt: float) -> float:
+        if isinstance(vel, np.ndarray):
+            return np.linalg.norm(vel) * self.density(alt) / 2 #type:ignore
+        elif isinstance(vel, float):
+            return vel * self.density(alt) / 2
+
+

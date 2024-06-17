@@ -1,9 +1,13 @@
 import numpy as np
 
+from japl.Aero.Atmosphere import Atmosphere
+from japl.Math.Vec import vec_ang
 from japl.SimObject.SimObject import SimObject
 from japl.DeviceInput.DeviceInput import DeviceInput
 from japl.Plotter.Plotter import Plotter
 from japl.Plotter.PyQtGraphPlotter import PyQtGraphPlotter
+
+from japl.Aero import AeroTable
 
 from scipy.integrate import solve_ivp
 
@@ -79,6 +83,9 @@ class Sim:
         self.device_input_type = kwargs.get("device_input_type", "")
         self.device_input = DeviceInput(device_type=self.device_input_type)
 
+        # atmosphere model
+        self.atmosphere = Atmosphere()
+
 
     def run(self) -> "Sim":
 
@@ -147,7 +154,7 @@ class Sim:
         return self
 
 
-    def step(self, t, X, simobj):
+    def step(self, t, X, simobj: SimObject):
 
         ac = np.array([0, 0, -constants.g])
 
@@ -155,6 +162,32 @@ class Sim:
         if self.device_input_type:
             (lx, ly, _, _) = self.device_input.get()
             ac = ac + np.array([100*lx, 0, 100*ly])
+
+        #############
+        # Aeromodel
+        #############
+        # inertia_inv = np.array([
+        #     [1/X[simobj.Ixx], 0, 0],
+        #     [0, 1/X[simobj.Iyy], 0],
+        #     [0, 0, 1/X[simobj.Izz]],
+        #     ])
+        if simobj.aerotable:
+            vel = X[simobj.get_state_id("vx"):simobj.get_state_id("vz")]
+            speed = float(np.linalg.norm(vel))
+            vel_hat = vel / speed
+            xaxis = np.array([1, 0, 0])
+            alpha = vec_ang(vel_hat, xaxis)     # angle-of-attack
+            phi = 0
+            alt = X[simobj.get_state_id("z")]
+            mach = (speed / self.atmosphere.speed_of_sound(alt))
+            iota = 0
+
+            CLMB = simobj.aerotable.get_CLMB_Total(alpha, phi, mach, iota)
+            CNB = simobj.aerotable.get_CNB_Total(alpha, phi, mach, iota)
+
+            ytorque = CLMB / simobj.Iyy
+            zforce = CNB
+        #############
 
         # fuel_burn = X[6]
         # if fuel_burn < 100:

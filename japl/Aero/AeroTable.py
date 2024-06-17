@@ -2,7 +2,14 @@ import numpy as np
 from scipy.interpolate import interpn
 from scipy.io import loadmat
 import pickle
+from astropy import units as u
 
+
+
+__ft2m = (1.0 * u.imperial.foot).to_value(u.m) #type:ignore
+__inch2m = (1.0 * u.imperial.inch).to_value(u.m) #type:ignore
+__deg2rad = (np.pi / 180.0)
+__lbminch2Nm = (1.0 * u.imperial.lbm * u.imperial.inch**2).to_value(u.kg * u.m**2) #type:ignore
 
 
 class Increments:
@@ -199,7 +206,7 @@ class AeroTable:
 
 
 if __name__ == "__main__":
-    t = AeroTable("aeromodel/aeromodel.pickle")
+    t = AeroTable("/home/david/work_projects/control/aeromodel/aeromodel.pickle")
     import time
 
     N = 10000

@@ -14,6 +14,7 @@ import japl
 from japl import Sim
 from japl import SimObject
 from japl import Model
+from japl.Aero.AeroTable import AeroTable
 
 from events import hit_ground_event
 
@@ -100,16 +101,21 @@ if __name__ == "__main__":
         [0, 0, 0],
         ])
 
+    aerotable = AeroTable("./aeromodel/aeromodel.pickle")
     model = Model.ss(A, B)
     vehicle = SimObject(model=model, size=2, color='tab:blue')
 
-    vehicle.register_state("x",         0, "x (m)")
-    vehicle.register_state("y",         1, "y (m)")
-    vehicle.register_state("z",         2, "z (m)")
-    vehicle.register_state("vx",        3, "xvel (m/s)")
-    vehicle.register_state("vy",        4, "yvel (m/s)")
-    vehicle.register_state("vz",        5, "zvel (m/s)")
-    vehicle.register_state("fuel_burn", 6, "Fuel Burn ")
+    vehicle.register_state("x",         0,  "x (m)")
+    vehicle.register_state("y",         1,  "y (m)")
+    vehicle.register_state("z",         2,  "z (m)")
+    vehicle.register_state("vx",        3,  "xvel (m/s)")
+    vehicle.register_state("vy",        4,  "yvel (m/s)")
+    vehicle.register_state("vz",        5,  "zvel (m/s)")
+    vehicle.register_state("fuel_burn", 6,  "Fuel Burn")
+    vehicle.register_state("mass",      7,  "Mass (kg)")
+    # vehicle.register_state("Ixx",       8,  "Ixx (kg*m^2)")
+    # vehicle.register_state("Iyy",       9,  "Iyy (kg*m^2)")
+    # vehicle.register_state("Izz",       10, "Izz (kg*m^2)")
 
     vehicle.plot.set_config({
                 "Pos": {
@@ -118,13 +124,18 @@ if __name__ == "__main__":
                     },
                 "Vel": {
                     "xaxis": "x",
-                    "yaxis": "vx",
+                    "yaxis": "vz",
                     }
                 })
 
     # Inits
     ####################################
 
+    vehicle.Ixx = 1.309 # (kg * m^2)
+    vehicle.Iyy = 58.27 # (kg * m^2)
+    vehicle.Izz = 58.27 # (kg * m^2)
+    vehicle.mass = 133 # (kg)
+    vehicle.cg = 1.42 # (m)
     x0 = [0, 0, 0]
     v0 = [20, 0, 30]
     vehicle.init_state([x0, v0, 0])
@@ -139,12 +150,12 @@ if __name__ == "__main__":
             events=[],
             animate=1,
             aspect="equal",
-            device_input_type="gamepad",
+            device_input_type="",
             moving_bounds=True,
             rtol=1e-6,
             atol=1e-6,
             blit=False,
-            antialias=False,
+            antialias=1,
             figsize=(10, 7)
             )
     sim.run()

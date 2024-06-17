@@ -1,10 +1,20 @@
 import pickle
 from scipy.io import loadmat
+from astropy import units as u
+import numpy as np
+
 
 
 """This is a temporary script for loading aeromodel data from .mat files
 and saving them to a .pickle"""
 
+
+
+__ft2m = (1.0 * u.imperial.foot).to_value(u.m) #type:ignore
+__inch2m = (1.0 * u.imperial.inch).to_value(u.m) #type:ignore
+__inch_sq2m_sq = (1.0 * u.imperial.inch**2).to_value(u.m**2) #type:ignore
+__deg2rad = (np.pi / 180.0)
+__lbminch2Nm = (1.0 * u.imperial.lbm * u.imperial.inch**2).to_value(u.kg * u.m**2) #type:ignore
 
 
 __aero_data_path = "/home/david/work_projects/control/aeromodel/aeromodel_bs.mat"
@@ -67,19 +77,19 @@ notes_psb = [matfile_psb[i][0] for i in [
 
 aeromodel = {
         "increments": {
-            "alpha": matfile["Alpha"].flatten(),    # (deg)
-            "phi": matfile["Phi"].flatten(),    # (deg)
+            "alpha": matfile["Alpha"].flatten() * __deg2rad,    # (deg)
+            "phi": matfile["Phi"].flatten() * __deg2rad,    # (deg)
             "mach": matfile["Mach"].flatten(),
-            "alt": matfile["Alt"].flatten(),    # (ft.)
-            "iota": matfile_psb["Iota"].flatten(),  # (deg)
-            "iota_prime": matfile_psb["Iota_Prime"].flatten(),
+            "alt": matfile["Alt"].flatten() * __ft2m,    # (ft.)
+            "iota": matfile_psb["Iota"].flatten() * __deg2rad,  # (deg)
+            "iota_prime": matfile_psb["Iota_Prime"].flatten() * __deg2rad,
             },
         "units": {
             "alt": matfile["Alt_Units"][0],     # (ft.)
-            "lref": matfile["Lref_Units"][0],   # (inches)
+            "lref": matfile["Lref_Units"][0],   # (in)
             },
-        "lref": matfile["Lref"].flatten()[0],
-        "sref": matfile["Sref"].flatten()[0],
+        "lref": matfile["Lref"].flatten()[0] * __inch2m, # (in)
+        "sref": matfile["Sref"].flatten()[0] * __inch_sq2m_sq, # (in^2)
         "mrc": matfile["MRC"].flatten()[0],
         "bs": {
             "notes": notes,
