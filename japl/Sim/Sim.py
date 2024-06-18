@@ -172,7 +172,7 @@ class Sim:
         #     [0, 0, 1/X[simobj.Izz]],
         #     ])
         if simobj.aerotable:
-            vel = X[simobj.get_state_id("vx"):simobj.get_state_id("vz")]
+            vel = X[simobj.get_state_id("vx"):simobj.get_state_id("vz") + 1]
             speed = float(np.linalg.norm(vel))
             vel_hat = vel / speed
             xaxis = np.array([1, 0, 0])
@@ -187,6 +187,7 @@ class Sim:
 
             ytorque = CLMB / simobj.Iyy
             zforce = CNB
+            pass
         #############
 
         # fuel_burn = X[6]

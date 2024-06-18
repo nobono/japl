@@ -101,9 +101,9 @@ if __name__ == "__main__":
         [0, 0, 0],
         ])
 
-    aerotable = AeroTable("./aeromodel/aeromodel.pickle")
     model = Model.ss(A, B)
     vehicle = SimObject(model=model, size=2, color='tab:blue')
+    vehicle.aerotable = AeroTable("./aeromodel/aeromodel.pickle")
 
     vehicle.register_state("x",         0,  "x (m)")
     vehicle.register_state("y",         1,  "y (m)")
