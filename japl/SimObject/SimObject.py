@@ -133,14 +133,9 @@ class SimObject:
         self.Y = np.array([])
         self.__T = np.array([])
 
-        self.aerotable: Optional[AeroTable] = kwargs.get("aerotable", None)
+        self._setup_model(**kwargs)
 
-        # other physical properties
-        self.mass: float = 1
-        self.Ixx: float = 1
-        self.Iyy: float = 1
-        self.Izz: float = 1
-        self.cg: float = 1
+        self.aerotable: Optional[AeroTable] = kwargs.get("aerotable", None)
 
         # interface for visualization
         self.plot = PlotInterface(
@@ -148,6 +143,15 @@ class SimObject:
                 size=self.size,
                 color=self.color
                 )
+
+
+    def _setup_model(self, **kwargs) -> None:
+        # mass properties
+        self.mass: float = kwargs.get("mass", 1)
+        self.Ixx: float = kwargs.get("Ixx", 1)
+        self.Iyy: float = kwargs.get("Iyy", 1)
+        self.Izz: float = kwargs.get("Izz", 1)
+        self.cg: float = kwargs.get("cg", 0)
 
 
     def get_state_id(self, name: str) -> int:

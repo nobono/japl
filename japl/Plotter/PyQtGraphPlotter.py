@@ -4,13 +4,13 @@ import numpy as np
 from typing import Callable, Optional
 from typing import Generator
 
-from pyqtgraph.Qt.QtWidgets import QGridLayout, QWidget
+from pyqtgraph.Qt.QtWidgets import QGridLayout, QWidget, QWidgetItem
 
 
 from japl.SimObject.SimObject import SimObject
 
 import pyqtgraph as pg
-from pyqtgraph import GraphicsLayoutWidget, PlotCurveItem, QtGui, mkColor, mkPen
+from pyqtgraph import GraphicsLayoutWidget, PlotCurveItem, PlotItem, QtGui, mkColor, mkPen
 from pyqtgraph import QtWidgets
 from pyqtgraph import PlotWidget
 from pyqtgraph.Qt import QtCore
@@ -24,18 +24,19 @@ from matplotlib import colors as mplcolors
 
 class PyQtGraphPlotter:
 
-    def __init__(self, Nt: int, figsize: tuple = (6, 4), **kwargs) -> None:
+    def __init__(self, Nt: int, **kwargs) -> None:
 
         self.Nt = Nt
-        self.figsize = figsize
         self.simobjs = []
 
         # plotting
+        self.figsize = kwargs.get("figsize", (6, 4))
         self.aspect: float|str = kwargs.get("aspect", "equal")
         self.blit: bool = kwargs.get("blit", False)
         self.cache_frame_data: bool = kwargs.get("cache_frame_data", False)
         self.repeat: bool = kwargs.get("repeat", False)
         self.antialias: bool = kwargs.get("antialias", True)
+        self.body_view: bool = kwargs.get("body_view", False)
 
         # color cycle list
         self.color_cycle = self.__color_cycle()
@@ -60,18 +61,18 @@ class PyQtGraphPlotter:
         # enable anti-aliasing
         pg.setConfigOptions(antialias=self.antialias)
 
-        self.views = []
+        self.views = []     # contains view layouts for each simobj
         self.shortcuts = []
 
         for simobj in self.simobjs:
 
-            # setup window
+            # setup window for each simobj
             _view = GraphicsLayoutWidget()
             _view.resize(*(np.array([*self.figsize]) * 100))
             _view.show()
             self.views += [_view]
 
-            # shortcut keys callbacks
+            # shortcut keys callbacks for each simobj view
             _shortcut = QtWidgets.QShortcut(QKeySequence("Q"), _view)
             _shortcut.activated.connect(_view.close) #type:ignore
             self.shortcuts += [_shortcut]
@@ -84,6 +85,11 @@ class PyQtGraphPlotter:
                 _graphic_item = PlotCurveItem(x=[], y=[], pen=_pen)
                 _plot_item.addItem(_graphic_item)   # init PlotCurve
                 simobj.plot.qt_traces += [_graphic_item]   # add GraphicsItem reference to SimObject
+
+            # setup vehicle viewer widget
+            if self.body_view:
+                _obj_widget = PlotItem()
+                _view.addItem(_obj_widget, row=(i + 1), col=0, colspan=1) #type:ignore
 
 
     def show(self) -> None:

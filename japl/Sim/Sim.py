@@ -70,32 +70,11 @@ class Sim:
             self.plotter = plotter
             return
 
-        aspect: float|str = kwargs.get("aspect", "equal")
-        blit: bool = kwargs.get("blit", False)
-        cache_frame_data: bool = kwargs.get("cache_frame_data", False)
-        repeat: bool = kwargs.get("repeat", False)
-        antialias: float = kwargs.get("antialias", False)
-        figsize: tuple = kwargs.get("figsize", (6, 4))
-
         if japl.get_plotlib() == "matplotlib":
-            self.plotter = Plotter(Nt=self.Nt,
-                                 blit=blit,
-                                 cache_frame_data=cache_frame_data,
-                                 repeat=repeat,
-                                 aspect=aspect,
-                                 antialias=antialias,
-                                 figsize=figsize,
-                                 )
-        elif japl.get_plotlib() == "pyqtgraph":
-            self.plotter = PyQtGraphPlotter(Nt=self.Nt,
-                                 blit=blit,
-                                 cache_frame_data=cache_frame_data,
-                                 repeat=repeat,
-                                 aspect=aspect,
-                                 antialias=antialias,
-                                 figsize=figsize,
-                                 )
+            self.plotter = Plotter(Nt=self.Nt, **kwargs)
 
+        elif japl.get_plotlib() == "pyqtgraph":
+            self.plotter = PyQtGraphPlotter(Nt=self.Nt, **kwargs)
 
 
     def run(self) -> "Sim":

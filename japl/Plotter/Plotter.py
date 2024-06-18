@@ -17,18 +17,19 @@ from japl.SimObject.SimObject import SimObject
 
 class Plotter:
 
-    def __init__(self, Nt: int, figsize: tuple = (6, 4), **kwargs) -> None:
+    def __init__(self, Nt: int, **kwargs) -> None:
 
         self.Nt = Nt
-        self.figsize = figsize
         self.simobjs = []
 
         # plotting
+        self.figsize = kwargs.get("figsize", (6, 4))
         self.aspect: float|str = kwargs.get("aspect", "equal")
         self.blit: bool = kwargs.get("blit", False)
         self.cache_frame_data: bool = kwargs.get("cache_frame_data", False)
         self.repeat: bool = kwargs.get("repeat", False)
         self.antialias: bool = kwargs.get("antialias", True)
+        self.body_view: bool = kwargs.get("body_view", False)
 
 
     def setup(self, simobjs: list[SimObject]):
