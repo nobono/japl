@@ -239,6 +239,7 @@ class SimObject:
         self.X0 = _X0
 
 
+    @DeprecationWarning
     def _output_data(self, y) -> None:
         """stores solution data from solver into sim object"""
         self.Y = y
