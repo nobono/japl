@@ -41,9 +41,9 @@ class Model:
 
     @staticmethod
     def ss(A: np.ndarray,
-                        B: np.ndarray,
-                        C: Optional[np.ndarray] = None,
-                        D: Optional[np.ndarray] = None) -> "Model":
+           B: np.ndarray,
+           C: Optional[np.ndarray] = None,
+           D: Optional[np.ndarray] = None) -> "Model":
 
         model = Model()
         model._type = ModelType.StateSpace
