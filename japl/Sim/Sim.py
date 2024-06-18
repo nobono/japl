@@ -50,34 +50,8 @@ class Sim:
         self.max_step: float = kwargs.get("max_step", 0.2)
 
         # plotting
-        aspect: float|str = kwargs.get("aspect", "equal")
-        blit: bool = kwargs.get("blit", False)
-        cache_frame_data: bool = kwargs.get("cache_frame_data", False)
-        repeat: bool = kwargs.get("repeat", False)
-        antialias: float = kwargs.get("antialias", False)
-        figsize: tuple = kwargs.get("figsize", (6, 4))
         self.moving_bounds: bool = kwargs.get("moving_bounds", False)
-
-        if japl.get_plotlib() == "matplotlib":
-            self.plotter = kwargs.get("plotter", Plotter(Nt=self.Nt,
-                                                         blit=blit,
-                                                         cache_frame_data=cache_frame_data,
-                                                         repeat=repeat,
-                                                         aspect=aspect,
-                                                         antialias=antialias,
-                                                         figsize=figsize,
-                                                         )
-                                      )
-        elif japl.get_plotlib() == "pyqtgraph":
-            self.plotter = kwargs.get("plotter", PyQtGraphPlotter(Nt=self.Nt,
-                                                         blit=blit,
-                                                         cache_frame_data=cache_frame_data,
-                                                         repeat=repeat,
-                                                         aspect=aspect,
-                                                         antialias=antialias,
-                                                         figsize=figsize,
-                                                         )
-                                      )
+        self.__instantiate_plot(**kwargs)
 
         # device inputs
         self.device_input_type = kwargs.get("device_input_type", "")
@@ -85,6 +59,43 @@ class Sim:
 
         # atmosphere model
         self.atmosphere = Atmosphere()
+
+
+    def __instantiate_plot(self, plotter = None, **kwargs) -> None:
+        """This method instantiates the plotter class into the Sim class (if defined).
+        Otherwise, a default Plotter class is instantiated."""
+
+        plotter = kwargs.get("plotter", None)
+        if plotter:
+            self.plotter = plotter
+            return
+
+        aspect: float|str = kwargs.get("aspect", "equal")
+        blit: bool = kwargs.get("blit", False)
+        cache_frame_data: bool = kwargs.get("cache_frame_data", False)
+        repeat: bool = kwargs.get("repeat", False)
+        antialias: float = kwargs.get("antialias", False)
+        figsize: tuple = kwargs.get("figsize", (6, 4))
+
+        if japl.get_plotlib() == "matplotlib":
+            self.plotter = Plotter(Nt=self.Nt,
+                                 blit=blit,
+                                 cache_frame_data=cache_frame_data,
+                                 repeat=repeat,
+                                 aspect=aspect,
+                                 antialias=antialias,
+                                 figsize=figsize,
+                                 )
+        elif japl.get_plotlib() == "pyqtgraph":
+            self.plotter = PyQtGraphPlotter(Nt=self.Nt,
+                                 blit=blit,
+                                 cache_frame_data=cache_frame_data,
+                                 repeat=repeat,
+                                 aspect=aspect,
+                                 antialias=antialias,
+                                 figsize=figsize,
+                                 )
+
 
 
     def run(self) -> "Sim":
@@ -96,65 +107,76 @@ class Sim:
         if self.device_input_type:
             self.device_input.start()
 
+        # setup plotter
         self.plotter.setup(self.simobjs)
 
-
-        ################################
         # solver
-        ################################
         if not self.animate:
             # TODO must combine all given SimObjects into single state
             # to solve all at once...
+            self.solve(simobj)
 
-            sol = solve_ivp(
-                    fun=self.step,
-                    t_span=self.t_span,
-                    t_eval=self.t_array,
-                    y0=simobj.X0,
-                    args=(simobj,),
-                    events=self.events,
-                    rtol=self.rtol,
-                    atol=self.atol,
-                    max_step=self.max_step,
-                    )
-            self.T = sol['t']
-            simobj.Y = sol['y'].T
-            simobj._set_T_array_ref(self.T) # simobj.T reference to sim.T
-
-            # xdata, ydata = simobj.get_plot_data()
-            # simobj._update_patch_data(xdata, ydata)
-
-            # self.plotter.autoscale(xdata, ydata)
-            # self.plotter.setup_time_slider(self.Nt, [simobj])
-
-        ################################
         # solver for one step at a time
-        ################################
         elif self.animate:
-
-            # pre-allocate output arrays
-            self.T = np.zeros((self.Nt + 1, ))
-            simobj.Y = np.zeros((self.Nt + 1, len(simobj.X0)))
-            simobj.Y[0] = simobj.X0
-            simobj._set_T_array_ref(self.T) # simobj.T reference to sim.T
-
-            # try to set animation frame intervals to real time
-            interval = int(max(1, self.dt * 1000))
-            _step_func = partial(self._step_solve_ivp, istep=0, _simobj=simobj, rtol=self.rtol, atol=self.atol)
-            _anim_func = partial(self.plotter._animate_func, _simobj=simobj, step_func=_step_func, moving_bounds=self.moving_bounds)
-
-            anim = self.plotter.FuncAnimation(
-                    func=_anim_func,
-                    frames=self.Nt,
-                    interval=interval,
-                    )
-
-        self.plotter.show()
+            self.solve_with_animation(simobj)
 
         return self
 
 
+    def solve(self, simobj: SimObject) -> None:
+        """This method handles running the Sim class using an ODE Solver"""
+
+        sol = solve_ivp(
+                fun=self.step,
+                t_span=self.t_span,
+                t_eval=self.t_array,
+                y0=simobj.X0,
+                args=(simobj,),
+                events=self.events,
+                rtol=self.rtol,
+                atol=self.atol,
+                max_step=self.max_step,
+                )
+        self.T = sol['t']
+        simobj.Y = sol['y'].T
+        simobj._set_T_array_ref(self.T) # simobj.T reference to sim.T
+
+        # TODO handle visualization afterwards...
+
+        # xdata, ydata = simobj.get_plot_data()
+        # simobj._update_patch_data(xdata, ydata)
+
+        # self.plotter.autoscale(xdata, ydata)
+        # self.plotter.setup_time_slider(self.Nt, [simobj])
+
+        self.plotter.show()
+
+
+    def solve_with_animation(self, simobj: SimObject) -> None:
+        """This method handles the animation when running the Sim class."""
+
+        # pre-allocate output arrays
+        self.T = np.zeros((self.Nt + 1, ))
+        simobj.Y = np.zeros((self.Nt + 1, len(simobj.X0)))
+        simobj.Y[0] = simobj.X0
+        simobj._set_T_array_ref(self.T) # simobj.T reference to sim.T
+
+        # try to set animation frame intervals to real time
+        interval = int(max(1, self.dt * 1000))
+        _step_func = partial(self._step_solve_ivp, istep=0, _simobj=simobj, rtol=self.rtol, atol=self.atol)
+        _anim_func = partial(self.plotter._animate_func, _simobj=simobj, step_func=_step_func, moving_bounds=self.moving_bounds)
+
+        anim = self.plotter.FuncAnimation(
+                func=_anim_func,
+                frames=self.Nt,
+                interval=interval,
+                )
+
+        self.plotter.show()
+
+
     def step(self, t, X, simobj: SimObject):
+        """This method is the main step function for the Sim class."""
 
         ac = np.array([0, 0, -constants.g])
 
@@ -163,32 +185,32 @@ class Sim:
             (lx, ly, _, _) = self.device_input.get()
             ac = ac + np.array([100*lx, 0, 100*ly])
 
-        #############
-        # Aeromodel
-        #############
-        # inertia_inv = np.array([
-        #     [1/X[simobj.Ixx], 0, 0],
-        #     [0, 1/X[simobj.Iyy], 0],
-        #     [0, 0, 1/X[simobj.Izz]],
-        #     ])
-        if simobj.aerotable:
-            vel = X[simobj.get_state_id("vx"):simobj.get_state_id("vz") + 1]
-            speed = float(np.linalg.norm(vel))
-            vel_hat = vel / speed
-            xaxis = np.array([1, 0, 0])
-            alpha = vec_ang(vel_hat, xaxis)     # angle-of-attack
-            phi = 0
-            alt = X[simobj.get_state_id("z")]
-            mach = (speed / self.atmosphere.speed_of_sound(alt))
-            iota = 0
+        # #############
+        # # Aeromodel
+        # #############
+        # # inertia_inv = np.array([
+        # #     [1/X[simobj.Ixx], 0, 0],
+        # #     [0, 1/X[simobj.Iyy], 0],
+        # #     [0, 0, 1/X[simobj.Izz]],
+        # #     ])
+        # if simobj.aerotable:
+        #     vel = X[simobj.get_state_id("vx"):simobj.get_state_id("vz") + 1]
+        #     speed = float(np.linalg.norm(vel))
+        #     vel_hat = vel / speed
+        #     xaxis = np.array([1, 0, 0])
+        #     alpha = vec_ang(vel_hat, xaxis)     # angle-of-attack
+        #     phi = 0
+        #     alt = X[simobj.get_state_id("z")]
+        #     mach = (speed / self.atmosphere.speed_of_sound(alt))
+        #     iota = 0
 
-            CLMB = simobj.aerotable.get_CLMB_Total(alpha, phi, mach, iota)
-            CNB = simobj.aerotable.get_CNB_Total(alpha, phi, mach, iota)
+        #     CLMB = simobj.aerotable.get_CLMB_Total(alpha, phi, mach, iota)
+        #     CNB = simobj.aerotable.get_CNB_Total(alpha, phi, mach, iota)
 
-            ytorque = CLMB / simobj.Iyy
-            zforce = CNB
-            pass
-        #############
+        #     ytorque = CLMB / simobj.Iyy
+        #     zforce = CNB
+        #     pass
+        # #############
 
         # fuel_burn = X[6]
         # if fuel_burn < 100:
