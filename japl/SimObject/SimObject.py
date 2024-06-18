@@ -25,6 +25,7 @@ from japl.Util.UnitCheck import assert_physical_type
 from japl.Model.Model import Model
 from japl.Model.Model import ModelType
 from japl.Util.Util import flatten_list
+from japl.Model.StateRegister import StateRegister
 
 # ---------------------------------------------------
 
@@ -51,7 +52,7 @@ from matplotlib import colors as mplcolors
 #         self.trace = Line2D([0], [0], color=color)
 
 
-class PlotInterface:
+class _PlotInterface:
 
     """This is a class for interfacing SimObject data with the plotter."""
 
@@ -138,7 +139,7 @@ class SimObject:
         self.aerotable: Optional[AeroTable] = kwargs.get("aerotable", None)
 
         # interface for visualization
-        self.plot = PlotInterface(
+        self.plot = _PlotInterface(
                 state_select={},
                 size=self.size,
                 color=self.color
