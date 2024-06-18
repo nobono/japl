@@ -199,7 +199,7 @@ class Sim:
 
         U = np.array([*ac])
         Xdot = simobj.step(X, U)
-        Xdot[6] = burn_const * np.linalg.norm(ac) #type:ignore
+        # Xdot[6] = burn_const * np.linalg.norm(ac) #type:ignore
 
         return Xdot
 

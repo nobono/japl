@@ -81,24 +81,39 @@ if __name__ == "__main__":
     ####################################
 
     A = np.array([
-        [0, 0, 0, 1, 0, 0,  0],
-        [0, 0, 0, 0, 1, 0,  0],
-        [0, 0, 0, 0, 0, 1,  0],
-        [0, 0, 0, 0, 0, 0,  0],
-        [0, 0, 0, 0, 0, 0,  0],
-        [0, 0, 0, 0, 0, 0,  0],
+        [0,0,0,  1,0,0,  0,0,0,  0,0,0,0], # x
+        [0,0,0,  0,1,0,  0,0,0,  0,0,0,0], # y
+        [0,0,0,  0,0,1,  0,0,0,  0,0,0,0], # z
+        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0], # vx
+        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0], # vy
+        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0], # vz
+                               
+        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0], # wx
+        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0], # wy
+        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0], # wz
 
-        [0, 0, 0, 0, 0, 0,  1],
+        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0], # q0
+        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0], # q1
+        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0], # q2
+        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0], # q3
         ])
     B = np.array([
-        [0, 0, 0],
-        [0, 0, 0],
-        [0, 0, 0],
-        [1, 0, 0],
-        [0, 1, 0],
-        [0, 0, 1],
+        # force  torque
+        [0,0,0,  0,0,0],
+        [0,0,0,  0,0,0],
+        [0,0,0,  0,0,0],
+        [1,0,0,  0,0,0],
+        [0,1,0,  0,0,0],
+        [0,0,1,  0,0,0],
 
-        [0, 0, 0],
+        [0,0,0,  1,0,0],
+        [0,0,0,  0,1,0],
+        [0,0,0,  0,0,1],
+
+        [0,0,0,  0,0,0],
+        [0,0,0,  0,0,0],
+        [0,0,0,  0,0,0],
+        [0,0,0,  0,0,0],
         ])
 
     model = Model.ss(A, B)
@@ -111,8 +126,15 @@ if __name__ == "__main__":
     vehicle.register_state("vx",        3,  "xvel (m/s)")
     vehicle.register_state("vy",        4,  "yvel (m/s)")
     vehicle.register_state("vz",        5,  "zvel (m/s)")
-    vehicle.register_state("fuel_burn", 6,  "Fuel Burn")
-    vehicle.register_state("mass",      7,  "Mass (kg)")
+
+    vehicle.register_state("wx",        6,  "ang vel x (rad/s)")
+    vehicle.register_state("wy",        7,  "ang vel y (rad/s)")
+    vehicle.register_state("wz",        8,  "ang vel z (rad/s)")
+
+    vehicle.register_state("q0",        9,  "q0")
+    vehicle.register_state("q1",        10, "q1")
+    vehicle.register_state("q2",        11, "q2")
+    vehicle.register_state("q3",        12, "q3")
     # vehicle.register_state("Ixx",       8,  "Ixx (kg*m^2)")
     # vehicle.register_state("Iyy",       9,  "Iyy (kg*m^2)")
     # vehicle.register_state("Izz",       10, "Izz (kg*m^2)")
