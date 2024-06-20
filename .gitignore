@@ -160,19 +160,6 @@ cython_debug/
 #.idea/
 
 # ignore lib packages
-/ambiance
-/control
-/numba
-/llvmlite
-/numpy
-/numpy.libs
-/scipy
-/scipy.libs
-/matplotlib
-/matplotlib.libs
-/mpl_toolkits
-/debugpy
-/dateutil
 /cached_interpolate
 
 *.png
