@@ -2,8 +2,15 @@ import numpy as np
 import quaternion
 from japl.Math.Math import skew
 from japl.Math.Quat import quat_array_to_dcm
+from sympy import symbols
+from japl import StateRegister
 
 
+reg = StateRegister()
+reg.update({"x": {"id": 0, "label": "x"}})
+# syms = symbols(["x, y, z, vx, vy, vz"])[0]
+# s = symbols(["x", "y", "z"])
+quit()
 
 Quat = quaternion.from_float_array
 

@@ -4,41 +4,17 @@ import argparse
 import numpy as np
 from numpy.linalg import norm
 
-from scipy import constants
-
-from util import unitize
-
-from output import OutputManager
-
 import japl
 from japl import Sim
 from japl import SimObject
 from japl import Model
-from japl.Aero.AeroTable import AeroTable
-
-from events import hit_ground_event
+from japl import AeroTable
 
 # ---------------------------------------------------
 
 
 
 japl.set_plotlib("qt")
-
-
-def dynamics_func(t, X, simobj: SimObject):
-
-    ac = np.array([0, 5, 0])
-
-    fuel_burn = X[6]
-    if fuel_burn >= 100:
-        ac = np.zeros((3,))
-
-    burn_const = 0.2
-
-    U = np.array([*ac])
-    Xdot = simobj.step(X, U)
-    Xdot[6] = burn_const * norm(ac) #type:ignore
-    return Xdot
 
 
 
@@ -77,8 +53,38 @@ if __name__ == "__main__":
     args.plot = True
 
 
+    ###############
+    # NOTES: Idea:
+    ###############
+    # Sim.rules.Talk(send=[simobj], receive=[simobj2, simobj3])
+    ###############
+
+
     # Model
     ####################################
+    model = Model()
+
+    x  = model.add_state("x",         0,  "x (m)")
+    y  = model.add_state("y",         1,  "y (m)")
+    z  = model.add_state("z",         2,  "z (m)")
+    vx = model.add_state("vx",        3,  "xvel (m/s)")
+    vy = model.add_state("vy",        4,  "yvel (m/s)")
+    vz = model.add_state("vz",        5,  "zvel (m/s)")
+    wx = model.add_state("wx",        6,  "wx (rad/s)")
+    wy = model.add_state("wy",        7,  "wy (rad/s)")
+    wz = model.add_state("wz",        8,  "wz (rad/s)")
+    q0 = model.add_state("q0",        9,  "q0")
+    q1 = model.add_state("q1",        10, "q1")
+    q2 = model.add_state("q2",        11, "q2")
+    q3 = model.add_state("q3",        12, "q3")
+
+
+    Sq = np.array([
+        [-q1, -q2, -q3],
+        [q0, -q3, q2],
+        [q3, q0, -q1],
+        [-q2, q1, q0],
+        ]) * 0.5
 
     A = np.array([
         [0,0,0,  1,0,0,  0,0,0,  0,0,0,0], # x
@@ -92,11 +98,12 @@ if __name__ == "__main__":
         [0,0,0,  0,0,0,  0,0,0,  0,0,0,0], # wy
         [0,0,0,  0,0,0,  0,0,0,  0,0,0,0], # wz
 
-        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0], # q0
-        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0], # q1
-        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0], # q2
-        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0], # q3
+        [0,0,0,  0,0,0,  *Sq[0], 0,0,0,0], # q0
+        [0,0,0,  0,0,0,  *Sq[1], 0,0,0,0], # q1
+        [0,0,0,  0,0,0,  *Sq[2], 0,0,0,0], # q2
+        [0,0,0,  0,0,0,  *Sq[3], 0,0,0,0], # q3
         ])
+
     B = np.array([
         # force  torque
         [0,0,0,  0,0,0],
@@ -116,28 +123,12 @@ if __name__ == "__main__":
         [0,0,0,  0,0,0],
         ])
 
-    model = Model.ss(A, B)
+    model.ss(A, B)
+
     vehicle = SimObject(model=model, size=2, color='tab:blue')
     vehicle.aerotable = AeroTable("./aeromodel/aeromodel.pickle")
 
-    vehicle.register_state("x",         0,  "x (m)")
-    vehicle.register_state("y",         1,  "y (m)")
-    vehicle.register_state("z",         2,  "z (m)")
-    vehicle.register_state("vx",        3,  "xvel (m/s)")
-    vehicle.register_state("vy",        4,  "yvel (m/s)")
-    vehicle.register_state("vz",        5,  "zvel (m/s)")
-
-    vehicle.register_state("wx",        6,  "ang vel x (rad/s)")
-    vehicle.register_state("wy",        7,  "ang vel y (rad/s)")
-    vehicle.register_state("wz",        8,  "ang vel z (rad/s)")
-
-    vehicle.register_state("q0",        9,  "q0")
-    vehicle.register_state("q1",        10, "q1")
-    vehicle.register_state("q2",        11, "q2")
-    vehicle.register_state("q3",        12, "q3")
-    # vehicle.register_state("Ixx",       8,  "Ixx (kg*m^2)")
-    # vehicle.register_state("Iyy",       9,  "Iyy (kg*m^2)")
-    # vehicle.register_state("Izz",       10, "Izz (kg*m^2)")
+    vehicle._pre_sim_checks() # TODO move this
 
     vehicle.plot.set_config({
                 "Pos": {
@@ -145,7 +136,7 @@ if __name__ == "__main__":
                     "yaxis": "z",
                     },
                 "Vel": {
-                    "xaxis": "x",
+                    "xaxis": "t",
                     "yaxis": "vz",
                     }
                 })
@@ -160,14 +151,16 @@ if __name__ == "__main__":
     vehicle.cg = 1.42 # (m)
     x0 = [0, 0, 0]
     v0 = [20, 0, 30]
-    vehicle.init_state([x0, v0, 0])
+    w0 = [0, 0, 0]
+    quat0 = [1, 0, 0, 0]
+    vehicle.init_state([x0, v0, w0, quat0]) # TODO this should be moved to Model
 
     # Sim
     ####################################
 
     sim = Sim(
             t_span=[0, 100],
-            dt=.01,
+            dt=.02,
             simobjs=[vehicle],
             events=[],
             animate=1,
@@ -177,8 +170,9 @@ if __name__ == "__main__":
             rtol=1e-6,
             atol=1e-6,
             blit=False,
-            antialias=1,
-            figsize=(10, 7)
+            antialias=0,
+            figsize=(10, 7),
+            body_view=True,
             )
     sim.run()
 

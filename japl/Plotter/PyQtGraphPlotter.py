@@ -5,6 +5,7 @@ from typing import Callable, Optional
 from typing import Generator
 
 from pyqtgraph.Qt.QtWidgets import QGridLayout, QWidget, QWidgetItem
+import quaternion
 
 
 from japl.SimObject.SimObject import SimObject
@@ -61,24 +62,24 @@ class PyQtGraphPlotter:
         # enable anti-aliasing
         pg.setConfigOptions(antialias=self.antialias)
 
-        self.views = []     # contains view layouts for each simobj
+        self.wins = []     # contains view layouts for each simobj
         self.shortcuts = []
 
         for simobj in self.simobjs:
 
             # setup window for each simobj
-            _view = GraphicsLayoutWidget()
-            _view.resize(*(np.array([*self.figsize]) * 100))
-            _view.show()
-            self.views += [_view]
+            _win = GraphicsLayoutWidget()
+            _win.resize(*(np.array([*self.figsize]) * 100))
+            _win.show()
+            self.wins += [_win]
 
             # shortcut keys callbacks for each simobj view
-            _shortcut = QtWidgets.QShortcut(QKeySequence("Q"), _view)
-            _shortcut.activated.connect(_view.close) #type:ignore
+            _shortcut = QtWidgets.QShortcut(QKeySequence("Q"), _win)
+            _shortcut.activated.connect(_win.close) #type:ignore
             self.shortcuts += [_shortcut]
 
             for i, (title, axes) in enumerate(simobj.plot.get_config().items()):
-                _plot_item = _view.addPlot(row=i, col=0, title=title)   # add PlotItem to View
+                _plot_item = _win.addPlot(row=i, col=0, colspan=2, title=title)   # add PlotItem to View
                 _plot_item.showGrid(True, True, 0.5)    # set apsect and grid
                 _plot_item.setAspectLocked(self.aspect == "equal")
                 _pen = {"color": simobj.plot.color_code, "width": simobj.size}
@@ -88,8 +89,65 @@ class PyQtGraphPlotter:
 
             # setup vehicle viewer widget
             if self.body_view:
-                _obj_widget = PlotItem()
-                _view.addItem(_obj_widget, row=(i + 1), col=0, colspan=1) #type:ignore
+                _view = _win.addViewBox()
+                _view.setAspectLocked(True)
+
+                self.attitude_graph_item = pg.GraphItem()
+                _view.addItem(self.attitude_graph_item) #type:ignore
+                _win.addItem(_view, row=(i + 1), col=0, colspan=1) #type:ignore
+
+                # fill space
+                _win.addItem(_win.addViewBox(), row=(i + 1), col=1, colspan=1) #type:ignore
+
+                # missile drawing
+                L = .5
+                H = .05
+                nose_len = 0.1
+                cx, cy = (0, 0)
+
+                # Define positions of nodes
+                self.attitude_graph_verts = np.array([
+                    [cx, cy],
+                    [cx - L, cy - H],
+                    [cx - L, cy + H],
+                    [cx + L, cy + H],
+                    [cx + L, cy - H],
+                    [cx + L + nose_len, cy]
+                ])
+
+                # Define the set of connections in the graph
+                self.attitude_graph_conn = np.array([
+                    [1, 2],
+                    [2, 3],
+                    [3, 5],
+                    [5, 4],
+                    [4, 1],
+                ])
+
+                # Define the symbol to use for each node (this is optional)
+                # self.symbols = ['x', 'x', 'x', 'x', 'x', 'x']
+                self.symbols = None
+
+                # Define the line style for each connection (this is optional)
+                self.attitude_graph_lines = np.array(
+                        [(100, 100, 255, 255, 8)] * len(self.attitude_graph_conn),
+                        dtype=[
+                            ('red', np.ubyte),
+                            ('green', np.ubyte),
+                            ('blue', np.ubyte),
+                            ('alpha', np.ubyte),
+                            ('width', float),
+                            ])
+
+                # Update the graph
+                self.attitude_graph_item.setData(
+                        pos=self.attitude_graph_verts,
+                        adj=self.attitude_graph_conn,
+                        pen=self.attitude_graph_lines,
+                        size=1,
+                        symbol=self.symbols,
+                        pxMode=False
+                        )
 
 
     def show(self) -> None:
@@ -186,6 +244,32 @@ class PyQtGraphPlotter:
             # pen = _simobj.plot._get_qt_pen(subplot_id=subplot_id)
             pen = {"color": _simobj.plot.color_code, "width": _simobj.plot.size}
             _simobj._update_patch_data(xdata, ydata, pen=pen, subplot_id=subplot_id)
+
+        ########
+        if self.body_view:
+
+            q0id = _simobj.model.get_state_id("q0")
+            q1id = _simobj.model.get_state_id("q1")
+            q2id = _simobj.model.get_state_id("q2")
+            q3id = _simobj.model.get_state_id("q3")
+
+            istate = _simobj.model.get_current_state()
+            iquat = [istate[id] for id in [q0id, q2id, q3id, q1id]]
+            _iquat = quaternion.from_float_array(iquat)
+            dcm = quaternion.as_rotation_matrix(_iquat)
+
+            # print(ieuler)
+            # self.attitude_graph_item.setRotation(np.degrees(ieuler[1]))
+
+            # ang = ieuler[1]
+            # dcm = np.array([
+            #     [np.cos(ang), -np.sin(ang), 0],
+            #     [np.sin(ang), np.cos(ang), 0],
+            #     [0, 0, 1]
+            #     ])
+            tran = QtGui.QTransform(*dcm.flatten())
+            self.attitude_graph_item.setTransform(tran)
+        ########
 
 
     def _time_slider_update(self, val: float, _simobjs: list[SimObject]) -> None:

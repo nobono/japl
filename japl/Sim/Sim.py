@@ -157,7 +157,7 @@ class Sim:
     def step(self, t, X, simobj: SimObject):
         """This method is the main step function for the Sim class."""
 
-        ac = np.array([0, 0, -constants.g])
+        ac = np.array([0, 0, -constants.g, 0.1, 0, 0])
 
         # get device input
         if self.device_input_type:

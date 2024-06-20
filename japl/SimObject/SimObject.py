@@ -16,6 +16,7 @@ from astropy.units.quantity import Quantity
 from pyqtgraph import GraphicsView, PlotCurveItem, mkPen
 from pyqtgraph import CircleROI
 from pyqtgraph.Qt.QtGui import QPen
+from sympy import Symbol
 
 # ---------------------------------------------------
 
@@ -25,7 +26,6 @@ from japl.Util.UnitCheck import assert_physical_type
 from japl.Model.Model import Model
 from japl.Model.Model import ModelType
 from japl.Util.Util import flatten_list
-from japl.Model.StateRegister import StateRegister
 
 # ---------------------------------------------------
 
@@ -128,7 +128,6 @@ class SimObject:
         self.color = kwargs.get("color")
         self.size = kwargs.get("size", 1)
         self.model = model
-        self.register = {}
         self.state_dim = self.model.state_dim
         self.X0 = np.zeros((self.state_dim,))
         self.Y = np.array([])
@@ -146,6 +145,11 @@ class SimObject:
                 )
 
 
+    def set_draw(self, size: float = 1, color: str = "black") -> None:
+        self.size = size
+        self.color = color
+
+
     def _setup_model(self, **kwargs) -> None:
         # mass properties
         self.mass: float = kwargs.get("mass", 1)
@@ -156,7 +160,7 @@ class SimObject:
 
 
     def get_state_id(self, name: str) -> int:
-        return self.register[name]["id"]
+        return self.model.get_state_id(name)
 
 
     def _pre_sim_checks(self) -> bool:
@@ -169,13 +173,18 @@ class SimObject:
         if self.model is None:
             raise AssertionError(f"{msg_header} has no model")
 
-        # check state / output register
-        if len(self.register) != self.model.A.shape[0]:
-            raise AssertionError(f"{msg_header} register ill-configured")
-
         # check initial state aray
         if len(self.X0) != self.model.A.shape[0]:
             raise AssertionError(f"{msg_header} initial state \"X0\" ill-configured")
+
+        # check state / output register
+        if len(self.model.register) != self.model.A.shape[0]:
+            raise AssertionError(f"{msg_header} register ill-configured")
+
+        # TODO make sure register size and model matrix sizes agree
+
+        # check loaded model
+        assert self.model._pre_sim_checks()
 
         return True
 
@@ -205,7 +214,7 @@ class SimObject:
         pass
 
 
-    def register_state(self, name: str, id: int, label: str = "") -> None:
+    def add_state(self, name: str, id: int, label: str = "") -> Symbol:
         """This method registers a SimObject state name and plotting label with a
         user-specified name. The purpose of this register is for ease of access to SimObject
         states without having to use the satte index number.
@@ -219,7 +228,7 @@ class SimObject:
                     in plots / visualization
         -------------------------------------------------------------------
         """
-        self.register.update({name: {"id": id, "label": label}})
+        return self.model.add_state(name=name, id=id, label=label)
 
 
     def init_state(self, state: np.ndarray|list) -> None:
@@ -278,8 +287,8 @@ class SimObject:
         elif isinstance(state_slice, str):
             if state_slice.lower() in ['t', 'time']:
                 return self.__T[:index]
-            elif state_slice in self.register:
-                return self.Y[:index, self.register[state_slice]["id"]]
+            elif state_slice in self.model.register:
+                return self.Y[:index, self.model.register[state_slice]["id"]]
             else:
                 raise Exception(f"SimObject \"{self.name}\" attempting to access state_selection \"{state_slice}\"\
                         but no state index is registered under this name.")
