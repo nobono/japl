@@ -21,7 +21,6 @@ class StateRegister(dict):
             ]
     """
 
-
     def __init__(self, state: dict|list[str]|str = {}):
         self._syms: list[Symbol] = []
 
@@ -60,8 +59,21 @@ class StateRegister(dict):
         return sym
 
 
-    def get_sym(self, var: str) -> Symbol:
-        return self[var]["sym"]
+    def get_sym(self, name: str) -> Symbol:
+        """This method gets the symbolic variable associated
+        with the provided name.
+
+        -------------------------------------------------------------------
+        -- Arguments
+        -------------------------------------------------------------------
+        -- name - (str) name of the symbolic state variable
+        -------------------------------------------------------------------
+        -- Returns
+        -------------------------------------------------------------------
+        -- (Symbol) - the symbolic object of the state variable
+        -------------------------------------------------------------------
+        """
+        return self[name]["sym"]
 
 
     def __setitem__(self, key, value) -> None:

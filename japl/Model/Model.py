@@ -252,7 +252,7 @@ class Model:
         return self.register.add_state(name=name, id=id, label=label)
 
 
-    def get_sym(self, var: str) -> Symbol:
+    def get_sym(self, name: str) -> Symbol:
         """This method gets the symbolic variable associated
         with the provided name.
 
@@ -266,7 +266,7 @@ class Model:
         -- (Symbol) - the symbolic object of the state variable
         -------------------------------------------------------------------
         """
-        return self.register.get_sym(var)
+        return self.register.get_sym(name)
 
 
     def print(self):
