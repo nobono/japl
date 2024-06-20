@@ -128,8 +128,6 @@ if __name__ == "__main__":
     vehicle = SimObject(model=model, size=2, color='tab:blue')
     vehicle.aerotable = AeroTable("./aeromodel/aeromodel.pickle")
 
-    vehicle._pre_sim_checks() # TODO move this
-
     vehicle.plot.set_config({
                 "Pos": {
                     "xaxis": "x",

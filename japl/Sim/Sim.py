@@ -82,6 +82,9 @@ class Sim:
         # TODO make this better
         simobj = self.simobjs[0]
 
+        # run pre-sim checks
+        simobj._pre_sim_checks()
+
         # begin device input read thread
         if self.device_input_type:
             self.device_input.start()
