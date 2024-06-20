@@ -36,6 +36,7 @@ class StateRegister(dict):
         """This method organizes and processes whatever states were regisered
         by the user. This method must be executed before any simulation runs."""
 
+        # sort the sym variables ordered according to their state index
         self._syms = [v["sym"] for _, v in self.items()]
         self._syms = sorted(self._syms, key=lambda x: self[x.name]["id"])
 
