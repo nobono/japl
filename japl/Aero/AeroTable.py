@@ -86,83 +86,83 @@ class AeroTable:
 
 
     def _get_CA_Basic(self, alpha: float, phi: float, mach: float, method: str = "linear") -> float:
-        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach),
+        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach), #type:ignore
                 self._CA_Basic,
                 [alpha, phi, mach],
                 method=method)[0]
         
     def _get_CA_0_Boost(self, phi: float, mach: float, alt: float, method: str = "linear") -> float:
-        return interpn((self.increments.phi, self.increments.mach, self.increments.alt),
+        return interpn((self.increments.phi, self.increments.mach, self.increments.alt), #type:ignore
                 self._CA_0_Boost,
                 [phi, mach, alt],
                 method=method)[0]
 
 
     def _get_CA_0_Coast(self, phi: float, mach: float, alt: float, method: str = "linear") -> float:
-        return interpn((self.increments.phi, self.increments.mach, self.increments.alt),
+        return interpn((self.increments.phi, self.increments.mach, self.increments.alt), #type:ignore
                 self._CA_0_Coast,
                 [phi, mach, alt],
                 method=method)[0]
 
 
     def _get_CA_IT(self, alpha: float, phi: float, mach: float, iota: float, method: str = "linear") -> float:
-        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota),
+        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota), #type:ignore
                 self._CA_IT,
                 [alpha, phi, mach, iota],
                 method=method)[0]
 
 
     def _get_CNB_Basic(self, alpha: float, phi: float, mach: float, method: str = "linear") -> float:
-        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach),
+        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach), #type:ignore
                 self._CNB_Basic,
                 [alpha, phi, mach],
                 method=method)[0]
 
 
     def _get_CNB_IT(self, alpha: float, phi: float, mach: float, iota: float, method: str = "linear") -> float:
-        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota),
+        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota), #type:ignore
                 self._CNB_IT,
                 [alpha, phi, mach, iota],
                 method=method)[0]
 
 
     def _get_CYB_Basic(self, alpha: float, phi: float, mach: float, method: str = "linear") -> float:
-        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach),
+        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach), #type:ignore
                 self._CYB_Basic,
                 [alpha, phi, mach],
                 method=method)[0]
 
 
     def _get_CYB_IT(self, alpha: float, phi: float, mach: float, iota: float, method: str = "linear") -> float:
-        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota),
+        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota), #type:ignore
                 self._CYB_IT,
                 [alpha, phi, mach, iota],
                 method=method)[0]
 
 
     def _get_CLMB_Basic(self, alpha: float, phi: float, mach: float, method: str = "linear") -> float:
-        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach),
+        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach), #type:ignore
                 self._CLMB_Basic,
                 [alpha, phi, mach],
                 method=method)[0]
 
 
     def _get_CLMB_IT(self, alpha: float, phi: float, mach: float, iota: float, method: str = "linear") -> float:
-        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota),
+        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota), #type:ignore
                 self._CLMB_IT,
                 [alpha, phi, mach, iota],
                 method=method)[0]
 
 
     def _get_CLNB_Basic(self, alpha: float, phi: float, mach: float, method: str = "linear") -> float:
-        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach),
+        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach), #type:ignore
                 self._CLNB_Basic,
                 [alpha, phi, mach],
                 method=method)[0]
 
 
     def _get_CLNB_IT(self, alpha: float, phi: float, mach: float, iota: float, method: str = "linear") -> float:
-        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota),
+        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota), #type:ignore
                 self._CLNB_IT,
                 [alpha, phi, mach, iota],
                 method=method)[0]
@@ -205,16 +205,16 @@ class AeroTable:
         return "\n".join(members)
 
 
-if __name__ == "__main__":
-    t = AeroTable("/home/david/work_projects/control/aeromodel/aeromodel.pickle")
-    import time
+# if __name__ == "__main__":
+#     t = AeroTable("/home/david/work_projects/control/aeromodel/aeromodel.pickle")
+#     import time
 
-    N = 10000
-    st = time.time()
-    for i in range(N):
-        t.get_CA_Boost_Total(1, 0, .3, 1000, 0)
-        t.get_CNB_Total(1, 0, .3, 0)
-        t.get_CYB_Total(1, 0, .3, 0)
-        t.get_CLMB_Total(1, 0, .3, 0)
-        t.get_CLNB_Total(1, 0, .3, 0)
-    print(1/((time.time() - st) / N))
+#     N = 10000
+#     st = time.time()
+#     for i in range(N):
+#         t.get_CA_Boost_Total(1, 0, .3, 1000, 0)
+#         t.get_CNB_Total(1, 0, .3, 0)
+#         t.get_CYB_Total(1, 0, .3, 0)
+#         t.get_CLMB_Total(1, 0, .3, 0)
+#         t.get_CLNB_Total(1, 0, .3, 0)
+#     print(1/((time.time() - st) / N))
