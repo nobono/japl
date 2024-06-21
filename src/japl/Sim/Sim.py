@@ -1,5 +1,6 @@
 import numpy as np
 
+from japl import global_opts
 from japl.Aero.Atmosphere import Atmosphere
 from japl.Math.Vec import vec_ang
 from japl.SimObject.SimObject import SimObject
@@ -15,7 +16,6 @@ from functools import partial
 
 from scipy import constants
 
-import japl
 
 # ---------------------------------------------------
 
@@ -70,10 +70,10 @@ class Sim:
             self.plotter = plotter
             return
 
-        if japl.get_plotlib() == "matplotlib":
+        if global_opts.get_plotlib() == "matplotlib":
             self.plotter = Plotter(Nt=self.Nt, **kwargs)
 
-        elif japl.get_plotlib() == "pyqtgraph":
+        elif global_opts.get_plotlib() == "pyqtgraph":
             self.plotter = PyQtGraphPlotter(Nt=self.Nt, **kwargs)
 
 
