@@ -11,7 +11,7 @@ import quaternion
 from japl.SimObject.SimObject import SimObject
 
 import pyqtgraph as pg
-from pyqtgraph import GraphicsLayoutWidget, PlotCurveItem, PlotItem, QtGui, mkColor, mkPen
+from pyqtgraph import GraphItem, GraphicsLayoutWidget, PlotCurveItem, PlotItem, QtGui, ViewBox, mkColor, mkPen
 from pyqtgraph import QtWidgets
 from pyqtgraph import PlotWidget
 from pyqtgraph.Qt import QtCore
@@ -38,6 +38,7 @@ class PyQtGraphPlotter:
         self.repeat: bool = kwargs.get("repeat", False)
         self.antialias: bool = kwargs.get("antialias", True)
         self.body_view: bool = kwargs.get("body_view", False)
+        self.draw_cache_mode: bool = kwargs.get("draw_cache_mode", False)
 
         # color cycle list
         self.color_cycle = self.__color_cycle()
@@ -84,16 +85,19 @@ class PyQtGraphPlotter:
                 _plot_item.setAspectLocked(self.aspect == "equal")
                 _pen = {"color": simobj.plot.color_code, "width": simobj.size}
                 _graphic_item = PlotCurveItem(x=[], y=[], pen=_pen)
+                _graphic_item.setCacheMode(self.draw_cache_mode) #type:ignore
                 _plot_item.addItem(_graphic_item)   # init PlotCurve
                 simobj.plot.qt_traces += [_graphic_item]   # add GraphicsItem reference to SimObject
 
             # setup vehicle viewer widget
             if self.body_view:
-                _view = _win.addViewBox()
+                _view: ViewBox = _win.addViewBox()
                 _view.setAspectLocked(True)
 
-                self.attitude_graph_item = pg.GraphItem()
+                self.attitude_graph_item: GraphItem = pg.GraphItem()
                 _view.addItem(self.attitude_graph_item) #type:ignore
+                _view.setRange(xRange=[-1,1], yRange=[-1, 1])
+
                 _win.addItem(_view, row=(i + 1), col=0, colspan=1) #type:ignore
 
                 # fill space
@@ -258,6 +262,7 @@ class PyQtGraphPlotter:
             _iquat = quaternion.from_float_array(iquat)
             dcm = quaternion.as_rotation_matrix(_iquat)
 
+            # view: ViewBox = self.attitude_graph_item.getViewBox()
             # print(ieuler)
             # self.attitude_graph_item.setRotation(np.degrees(ieuler[1]))
 

@@ -148,7 +148,7 @@ if __name__ == "__main__":
     vehicle.mass = 133 # (kg)
     vehicle.cg = 1.42 # (m)
     x0 = [0, 0, 0]
-    v0 = [20, 0, 30]
+    v0 = [50, 0, 30]
     w0 = [0, 0, 0]
     quat0 = [1, 0, 0, 0]
     vehicle.init_state([x0, v0, w0, quat0]) # TODO this should be moved to Model
@@ -158,19 +158,20 @@ if __name__ == "__main__":
 
     sim = Sim(
             t_span=[0, 100],
-            dt=.02,
+            dt=.03,
             simobjs=[vehicle],
             events=[],
             animate=1,
-            aspect="equal",
+            aspect="auto",
             device_input_type="",
             moving_bounds=True,
             rtol=1e-6,
             atol=1e-6,
             blit=False,
-            antialias=0,
+            antialias=False,
             figsize=(10, 7),
-            body_view=True,
+            body_view=False,
+            draw_cache_mode=False,
             )
     sim.run()
 
