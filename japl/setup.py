@@ -4,7 +4,7 @@ from setuptools import Extension
 
 
 ode_int_ext = Extension(name="mylib",
-                        sources=["./lib/source/odeint.cpp"],
+                        sources=["./src/odeint.cpp"],
                         # include_dirs=["C:/Users/shindc1/Documents/boost_1_82_0"],
                         # extra_compile_args=[],
                         # extra_link_args=["-shared"],

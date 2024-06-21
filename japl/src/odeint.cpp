@@ -12,7 +12,7 @@
 
 
 static char module_docstring[] =
-    "This module provides an interface for calculating chi-squared using C.";
+    "This module provides an interface for OdeInt C.";
 static char mylib_docstring[] =
     "Calculate the chi-squared of some data given a model.";
 
