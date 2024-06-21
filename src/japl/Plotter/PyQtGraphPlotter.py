@@ -16,7 +16,7 @@ from pyqtgraph import QtWidgets
 from pyqtgraph import PlotWidget
 from pyqtgraph.Qt import QtCore
 from pyqtgraph.Qt.QtCore import QRectF
-from pyqtgraph.Qt.QtGui import QKeySequence
+from pyqtgraph.Qt.QtGui import QKeySequence, QTransform
 
 from matplotlib import colors as mplcolors
 
@@ -175,56 +175,6 @@ class PyQtGraphPlotter:
         self.app.exec_()  # or app.exec_() for PyQt5 / PySide2
 
 
-    # def plot(self,
-    #          x: np.ndarray|list,
-    #          y: np.ndarray|list,
-    #          color: str = "",
-    #          linestyle: str = "",
-    #          linewidth: float = 3,
-    #          marker: Optional[str] = None,
-    #          **kwargs):
-
-    #     # convert mpl color to rgb
-    #     if color:
-    #         color_code = mplcolors.TABLEAU_COLORS[color]
-    #     else:
-    #         color_code = next(self.color_cycle)
-
-    #     # convert mpl color to rgb
-    #     rgb_color = mplcolors.to_rgb(color_code)
-    #     rgb_color = (rgb_color[0]*255, rgb_color[1]*255, rgb_color[2]*255)
-
-    #     line = pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen(rgb_color, width=linewidth), symbol=marker)
-    #     self.widget.addItem(line)
-
-
-    # def scatter(self,
-    #             x: np.ndarray|list,
-    #             y: np.ndarray|list,
-    #             color: str = "",
-    #             linewidth: float = 1,
-    #             marker: str = "o",
-    #             **kwargs):
-
-    #     # convert mpl color to rgb
-    #     if color:
-    #         color_code = mplcolors.TABLEAU_COLORS[color]
-    #     else:
-    #         color_code = next(self.color_cycle)
-
-    #     # convert mpl color to rgb
-    #     rgb_color = mplcolors.to_rgb(color_code)
-    #     rgb_color = (rgb_color[0]*255, rgb_color[1]*255, rgb_color[2]*255)
-
-    #     scatter = pg.ScatterPlotItem(x=x, y=y, pen=pg.mkPen(rgb_color, width=linewidth), symbol=marker)
-    #     self.widget.addItem(scatter)
-
-
-    # def autoscale(self, xdata: np.ndarray|list, ydata: np.ndarray|list) -> None:
-    #     # autoscale
-    #     self.set_lim([min(xdata) - 0.2, max(xdata) + 0.2, min(ydata) - 0.2, max(ydata) + 0.2])
-
-
     def FuncAnimation(self,
                       func: Callable,
                       frames: Callable|Generator|int,
@@ -274,31 +224,21 @@ class PyQtGraphPlotter:
             pen = {"color": _simobj.plot.color_code, "width": _simobj.plot.size}
             _simobj._update_patch_data(xdata, ydata, pen=pen, subplot_id=subplot_id)
 
-        ########
-        # if self.instrument_view:
+        # drawing the instrument view of vehicle
+        # TODO generalize: each simobj has its own body to draw.
+        if self.instrument_view:
 
-        #     q0id = _simobj.model.get_state_id("q0")
-        #     q1id = _simobj.model.get_state_id("q1")
-        #     q2id = _simobj.model.get_state_id("q2")
-        #     q3id = _simobj.model.get_state_id("q3")
+            q0id = _simobj.model.get_state_id("q0")
+            q1id = _simobj.model.get_state_id("q1")
+            q2id = _simobj.model.get_state_id("q2")
+            q3id = _simobj.model.get_state_id("q3")
 
-        #     istate = _simobj.model.get_current_state()
-        #     iquat = [istate[id] for id in [q0id, q2id, q3id, q1id]]
-        #     _iquat = quaternion.from_float_array(iquat)
-        #     dcm = quaternion.as_rotation_matrix(_iquat)
-
-        #     # view: ViewBox = self.attitude_graph_item.getViewBox()
-        #     # print(ieuler)
-        #     # self.attitude_graph_item.setRotation(np.degrees(ieuler[1]))
-
-        #     # ang = ieuler[1]
-        #     # dcm = np.array([
-        #     #     [np.cos(ang), -np.sin(ang), 0],
-        #     #     [np.sin(ang), np.cos(ang), 0],
-        #     #     [0, 0, 1]
-        #     #     ])
-        #     tran = QtGui.QTransform(*dcm.flatten())
-        #     self.attitude_graph_item.setTransform(tran)
+            istate = _simobj.model.get_current_state()
+            iquat = [istate[id] for id in [q0id, q2id, q3id, q1id]]
+            _iquat = quaternion.from_float_array(iquat)
+            dcm = quaternion.as_rotation_matrix(_iquat)
+            transform = QTransform(*dcm.flatten())
+            self.attitude_graph_item.setTransform(transform)
         ########
 
 
@@ -390,5 +330,55 @@ class PyQtGraphPlotter:
 
     # def setup_time_slider(self, Nt: int, _simobjs: list[SimObject]) -> None:
     #     pass
+
+
+    # def plot(self,
+    #          x: np.ndarray|list,
+    #          y: np.ndarray|list,
+    #          color: str = "",
+    #          linestyle: str = "",
+    #          linewidth: float = 3,
+    #          marker: Optional[str] = None,
+    #          **kwargs):
+
+    #     # convert mpl color to rgb
+    #     if color:
+    #         color_code = mplcolors.TABLEAU_COLORS[color]
+    #     else:
+    #         color_code = next(self.color_cycle)
+
+    #     # convert mpl color to rgb
+    #     rgb_color = mplcolors.to_rgb(color_code)
+    #     rgb_color = (rgb_color[0]*255, rgb_color[1]*255, rgb_color[2]*255)
+
+    #     line = pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen(rgb_color, width=linewidth), symbol=marker)
+    #     self.widget.addItem(line)
+
+
+    # def scatter(self,
+    #             x: np.ndarray|list,
+    #             y: np.ndarray|list,
+    #             color: str = "",
+    #             linewidth: float = 1,
+    #             marker: str = "o",
+    #             **kwargs):
+
+    #     # convert mpl color to rgb
+    #     if color:
+    #         color_code = mplcolors.TABLEAU_COLORS[color]
+    #     else:
+    #         color_code = next(self.color_cycle)
+
+    #     # convert mpl color to rgb
+    #     rgb_color = mplcolors.to_rgb(color_code)
+    #     rgb_color = (rgb_color[0]*255, rgb_color[1]*255, rgb_color[2]*255)
+
+    #     scatter = pg.ScatterPlotItem(x=x, y=y, pen=pg.mkPen(rgb_color, width=linewidth), symbol=marker)
+    #     self.widget.addItem(scatter)
+
+
+    # def autoscale(self, xdata: np.ndarray|list, ydata: np.ndarray|list) -> None:
+    #     # autoscale
+    #     self.set_lim([min(xdata) - 0.2, max(xdata) + 0.2, min(ydata) - 0.2, max(ydata) + 0.2])
 
 
