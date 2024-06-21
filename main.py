@@ -136,7 +136,7 @@ if __name__ == "__main__":
                 "Vel": {
                     "xaxis": "t",
                     "yaxis": "vz",
-                    }
+                    },
                 })
 
     # Inits
@@ -156,9 +156,11 @@ if __name__ == "__main__":
     # Sim
     ####################################
 
+    # TODO dt is refresh rate for animation
+    # but dt just create t_array for no animation
     sim = Sim(
             t_span=[0, 100],
-            dt=.03,
+            dt=.01,
             simobjs=[vehicle],
             events=[],
             animate=1,
@@ -170,8 +172,8 @@ if __name__ == "__main__":
             blit=False,
             antialias=False,
             figsize=(10, 7),
-            body_view=False,
-            draw_cache_mode=False,
+            instrument_view=1,
+            draw_cache_mode=0,
             )
     sim.run()
 
