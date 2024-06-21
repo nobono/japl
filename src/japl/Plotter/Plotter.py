@@ -29,7 +29,7 @@ class Plotter:
         self.cache_frame_data: bool = kwargs.get("cache_frame_data", False)
         self.repeat: bool = kwargs.get("repeat", False)
         self.antialias: bool = kwargs.get("antialias", True)
-        self.body_view: bool = kwargs.get("body_view", False)
+        self.instrument_view: bool = kwargs.get("instrument_view", False)
 
 
     def setup(self, simobjs: list[SimObject]):

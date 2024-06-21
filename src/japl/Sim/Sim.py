@@ -71,10 +71,10 @@ class Sim:
             return
 
         if global_opts.get_plotlib() == "matplotlib":
-            self.plotter = Plotter(Nt=self.Nt, **kwargs)
+            self.plotter = Plotter(Nt=self.Nt, dt=self.dt, **kwargs)
 
         elif global_opts.get_plotlib() == "pyqtgraph":
-            self.plotter = PyQtGraphPlotter(Nt=self.Nt, **kwargs)
+            self.plotter = PyQtGraphPlotter(Nt=self.Nt, dt=self.dt, **kwargs)
 
 
     def run(self) -> "Sim":

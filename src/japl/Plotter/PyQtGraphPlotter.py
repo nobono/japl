@@ -11,7 +11,7 @@ import quaternion
 from japl.SimObject.SimObject import SimObject
 
 import pyqtgraph as pg
-from pyqtgraph import GraphItem, GraphicsLayoutWidget, PlotCurveItem, PlotItem, QtGui, ViewBox, mkColor, mkPen
+from pyqtgraph import GraphItem, GraphicsLayoutWidget, PlotCurveItem, PlotItem, QtGui, TextItem, ViewBox, mkColor, mkPen
 from pyqtgraph import QtWidgets
 from pyqtgraph import PlotWidget
 from pyqtgraph.Qt import QtCore
@@ -19,6 +19,8 @@ from pyqtgraph.Qt.QtCore import QRectF
 from pyqtgraph.Qt.QtGui import QKeySequence
 
 from matplotlib import colors as mplcolors
+
+import time
 # ---------------------------------------------------
 
 
@@ -29,6 +31,7 @@ class PyQtGraphPlotter:
 
         self.Nt = Nt
         self.simobjs = []
+        self.dt = kwargs.get("dt", None)
 
         # plotting
         self.figsize = kwargs.get("figsize", (6, 4))
@@ -37,11 +40,16 @@ class PyQtGraphPlotter:
         self.cache_frame_data: bool = kwargs.get("cache_frame_data", False)
         self.repeat: bool = kwargs.get("repeat", False)
         self.antialias: bool = kwargs.get("antialias", True)
-        self.body_view: bool = kwargs.get("body_view", False)
+        self.instrument_view: bool = kwargs.get("instrument_view", False)
         self.draw_cache_mode: bool = kwargs.get("draw_cache_mode", False)
 
         # color cycle list
         self.color_cycle = self.__color_cycle()
+
+        # TEMP #########
+        # debug
+        self._tstart = 0
+        ################
 
 
     def __color_cycle(self) -> Generator[str, None, None]:
@@ -63,7 +71,7 @@ class PyQtGraphPlotter:
         # enable anti-aliasing
         pg.setConfigOptions(antialias=self.antialias)
 
-        self.wins = []     # contains view layouts for each simobj
+        self.wins: list[GraphicsLayoutWidget] = []     # contains view layouts for each simobj
         self.shortcuts = []
 
         for simobj in self.simobjs:
@@ -90,7 +98,7 @@ class PyQtGraphPlotter:
                 simobj.plot.qt_traces += [_graphic_item]   # add GraphicsItem reference to SimObject
 
             # setup vehicle viewer widget
-            if self.body_view:
+            if self.instrument_view:
                 _view: ViewBox = _win.addViewBox()
                 _view.setAspectLocked(True)
 
@@ -100,8 +108,9 @@ class PyQtGraphPlotter:
 
                 _win.addItem(_view, row=(i + 1), col=0, colspan=1) #type:ignore
 
-                # fill space
-                _win.addItem(_win.addViewBox(), row=(i + 1), col=1, colspan=1) #type:ignore
+                # ViewBox for text
+                _text_view: ViewBox = _win.addViewBox()
+                _win.addItem(_text_view, row=(i + 1), col=1, colspan=1) #type:ignore
 
                 # missile drawing
                 L = .5
@@ -152,6 +161,14 @@ class PyQtGraphPlotter:
                         symbol=self.symbols,
                         pxMode=False
                         )
+
+                # TODO do this better...
+                # adding optional text in the text view
+                self.text: TextItem = TextItem(text="text",
+                                               color=(255, 255, 255),
+                                               anchor=(0, 0))
+                _text_view.addItem(self.text)
+                _text_view.setRange(xRange=[-1, 1], yRange=[-1, 1])
 
 
     def show(self) -> None:
@@ -221,6 +238,14 @@ class PyQtGraphPlotter:
 
     def _animate_func(self, frame, _simobj: SimObject, step_func: Callable, moving_bounds: bool = False):
 
+        # TEMP #############################################
+        # %-error time profile of pyqtgraph painting process
+        if self.instrument_view and (self.istep % 10) == 0:
+            perr = abs((time.time() - self._tstart) - self.dt) / self.dt
+            self.text.setText(f"{np.round(perr, 2)}")
+        self._tstart = time.time()
+        ####################################################
+
         self.istep += 1
 
         # run post-animation func when finished
@@ -250,30 +275,30 @@ class PyQtGraphPlotter:
             _simobj._update_patch_data(xdata, ydata, pen=pen, subplot_id=subplot_id)
 
         ########
-        if self.body_view:
+        # if self.instrument_view:
 
-            q0id = _simobj.model.get_state_id("q0")
-            q1id = _simobj.model.get_state_id("q1")
-            q2id = _simobj.model.get_state_id("q2")
-            q3id = _simobj.model.get_state_id("q3")
+        #     q0id = _simobj.model.get_state_id("q0")
+        #     q1id = _simobj.model.get_state_id("q1")
+        #     q2id = _simobj.model.get_state_id("q2")
+        #     q3id = _simobj.model.get_state_id("q3")
 
-            istate = _simobj.model.get_current_state()
-            iquat = [istate[id] for id in [q0id, q2id, q3id, q1id]]
-            _iquat = quaternion.from_float_array(iquat)
-            dcm = quaternion.as_rotation_matrix(_iquat)
+        #     istate = _simobj.model.get_current_state()
+        #     iquat = [istate[id] for id in [q0id, q2id, q3id, q1id]]
+        #     _iquat = quaternion.from_float_array(iquat)
+        #     dcm = quaternion.as_rotation_matrix(_iquat)
 
-            # view: ViewBox = self.attitude_graph_item.getViewBox()
-            # print(ieuler)
-            # self.attitude_graph_item.setRotation(np.degrees(ieuler[1]))
+        #     # view: ViewBox = self.attitude_graph_item.getViewBox()
+        #     # print(ieuler)
+        #     # self.attitude_graph_item.setRotation(np.degrees(ieuler[1]))
 
-            # ang = ieuler[1]
-            # dcm = np.array([
-            #     [np.cos(ang), -np.sin(ang), 0],
-            #     [np.sin(ang), np.cos(ang), 0],
-            #     [0, 0, 1]
-            #     ])
-            tran = QtGui.QTransform(*dcm.flatten())
-            self.attitude_graph_item.setTransform(tran)
+        #     # ang = ieuler[1]
+        #     # dcm = np.array([
+        #     #     [np.cos(ang), -np.sin(ang), 0],
+        #     #     [np.sin(ang), np.cos(ang), 0],
+        #     #     [0, 0, 1]
+        #     #     ])
+        #     tran = QtGui.QTransform(*dcm.flatten())
+        #     self.attitude_graph_item.setTransform(tran)
         ########
 
 
