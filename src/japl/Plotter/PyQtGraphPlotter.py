@@ -239,7 +239,6 @@ class PyQtGraphPlotter:
             dcm = quaternion.as_rotation_matrix(_iquat)
             transform = QTransform(*dcm.flatten())
             self.attitude_graph_item.setTransform(transform)
-        ########
 
 
     def _time_slider_update(self, val: float, _simobjs: list[SimObject]) -> None:
