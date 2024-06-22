@@ -52,6 +52,10 @@ class PyQtGraphPlotter:
         ################
 
 
+    def show(self) -> None:
+        self.app.exec_()  # or app.exec_() for PyQt5 / PySide2
+
+
     def __color_cycle(self) -> Generator[str, None, None]:
         """This method is a Generator which handles the color cycle of line / scatter
         plots which do not specify a color."""
@@ -171,10 +175,6 @@ class PyQtGraphPlotter:
                 _text_view.setRange(xRange=[-1, 1], yRange=[-1, 1])
 
 
-    def show(self) -> None:
-        self.app.exec_()  # or app.exec_() for PyQt5 / PySide2
-
-
     def FuncAnimation(self,
                       func: Callable,
                       frames: Callable|Generator|int,
@@ -198,17 +198,13 @@ class PyQtGraphPlotter:
 
         self.istep += 1
 
-        # run post-animation func when finished
+        # TODO run post-animation func when finished
         if self.istep >= self.Nt:
             # self._post_anim_func(self.simobjs)
             self.timer.stop()
 
         # run ODE solver step
         step_func(istep=self.istep)
-
-        # exit on exception
-        # if len(xdata) == 0:
-        #     return []
 
         # handle plot axes boundaries
         # self.update_axes_boundary(
@@ -227,18 +223,30 @@ class PyQtGraphPlotter:
         # drawing the instrument view of vehicle
         # TODO generalize: each simobj has its own body to draw.
         if self.instrument_view:
+            self.__update_instrument_view(_simobj)
 
-            q0id = _simobj.model.get_state_id("q0")
-            q1id = _simobj.model.get_state_id("q1")
-            q2id = _simobj.model.get_state_id("q2")
-            q3id = _simobj.model.get_state_id("q3")
 
-            istate = _simobj.model.get_current_state()
-            iquat = [istate[id] for id in [q0id, q2id, q3id, q1id]]
-            _iquat = quaternion.from_float_array(iquat)
-            dcm = quaternion.as_rotation_matrix(_iquat)
-            transform = QTransform(*dcm.flatten())
-            self.attitude_graph_item.setTransform(transform)
+    def __update_instrument_view(self, _simobj: SimObject) -> None:
+        """This method updates the instrument ViewBox.
+
+        -------------------------------------------------------------------
+        -- Arguments
+        -------------------------------------------------------------------
+        -- _simobj - (SimObject)
+        -------------------------------------------------------------------
+        """
+
+        q0id = _simobj.model.get_state_id("q0")
+        q1id = _simobj.model.get_state_id("q1")
+        q2id = _simobj.model.get_state_id("q2")
+        q3id = _simobj.model.get_state_id("q3")
+
+        istate = _simobj.model.get_current_state()
+        iquat = [istate[id] for id in [q0id, q2id, q3id, q1id]]
+        _iquat = quaternion.from_float_array(iquat)
+        dcm = quaternion.as_rotation_matrix(_iquat)
+        transform = QTransform(*dcm.flatten())
+        self.attitude_graph_item.setTransform(transform)
 
 
     def _time_slider_update(self, val: float, _simobjs: list[SimObject]) -> None:
