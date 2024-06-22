@@ -53,7 +53,8 @@ class Model:
 
 
     def __set_current_state(self, X: np.ndarray):
-        """Setter for Model state reference array."""
+        """Setter for Model state reference array \"Model._iX_reference\".
+        This method should only be called by Model.step()."""
         self._iX_reference = X
 
 
