@@ -1,59 +1,342 @@
-#include <iostream>
-#include <stdio.h>
-// #include <boost/numeric/odeint.hpp>
-// #include <boost/numeric/ublas/matrix.hpp> 
-// #include <boost/numeric/ublas/io.hpp> 
-// #include <boost/math/quaternion.hpp>
-// #include <boost/numeric/ublas/vector.hpp>
-// #include <boost/numeric/ublas/matrix.hpp>
-// #include <boost/qvm/quat_operations.hpp>
-// #include "../include/inverse.hpp"
-#include <Python.h>
+#include "OdeInt.hpp"
+#include "numpy/ndarrayobject.h"
+#include "numpy/ndarraytypes.h"
+
+
+
+using namespace std;
+using namespace boost::numeric::odeint;
+using boost::math::quaternion;
+using namespace boost::numeric::ublas;
+
+typedef boost::numeric::ublas::vector <double, fixed_vector <double, 3> > vector3;
+typedef boost::numeric::ublas::matrix <double, fixed_matrix <double, 3, 3> > matrix33;
+
+typedef std::vector <double> state_type;
+typedef runge_kutta_dopri5 <state_type> dopri5_stepper_type;
+typedef runge_kutta_cash_karp54 <state_type> karp54_stepper_type;
+
+/*
+ * --------------------------------
+ * Module Docs
+ * --------------------------------
+ */
 
 
 static char module_docstring[] =
     "This module provides an interface for OdeInt C.";
-static char mylib_docstring[] =
-    "Calculate the chi-squared of some data given a model.";
+static char odeint_docstring[] =
+    "Calls boostlib numeric odeint method.";
 
-static PyObject *mylib_mylib(PyObject *self, PyObject *args);
+
+/*
+ *
+ * --------------------------------
+ * Init Ext. Module
+ * --------------------------------
+ *
+ */
 
 static PyMethodDef module_methods[] = {
-    {"mylib", mylib_mylib, METH_VARARGS, mylib_docstring},
+    {"test", test, METH_VARARGS, odeint_docstring},
+    {"add", add, METH_VARARGS, odeint_docstring},
+    {"kwfunc", (PyCFunction)kwfunc, METH_VARARGS | METH_KEYWORDS, odeint_docstring},
+    {"solve_ivp", (PyCFunction)solve_ivp, METH_VARARGS | METH_KEYWORDS, odeint_docstring},
     {NULL, NULL, 0, NULL}
 };
 
-PyMODINIT_FUNC PyInit_mylib(void)
+
+PyMODINIT_FUNC PyInit_odeint(void)
 {
     
     PyObject *module;
     static struct PyModuleDef moduledef = {
         PyModuleDef_HEAD_INIT,
-        "_mylib",
+        "_odeint",
         module_docstring,
-        -1,
+        -1,    // '1' allow multiple subinterpreters, '-1' does not allow
         module_methods,
         NULL,
         NULL,
         NULL,
-        NULL
+        NULL    // m_free, a function to call during deallocation of the module
     };
     module = PyModule_Create(&moduledef);
     if (!module) return NULL;
 
     /* Load `numpy` functionality. */
     // import_array();
+    import_array();
 
     return module;
 }
 
+ /*
+  * --------------------------------
+  * Methods
+  * --------------------------------
+  */
 
-static PyObject *mylib_mylib(PyObject *self, PyObject *args)
+static PyObject *add(PyObject *self, PyObject *args)
 {
-  printf("hello\n");
-  PyObject* ret = PyFloat_FromDouble(10.0);
-  return ret;
+  PyObject *arg1;
+  PyObject *arg2;
+
+  if (!PyArg_ParseTuple(args, "OO", &arg1, &arg2)) {
+      return NULL; // if there was a problem parsing the arguments
+  }
+
+  // increase REF count if returning list
+  if(PyList_Check(arg1)) {
+    Py_INCREF(arg1);
+  }
+
+  double a = PyFloat_AsDouble(arg1);
+  double b = PyFloat_AsDouble(arg2);
+
+  // printf("%.5f", );
+  // PyObject *ret = PyFloat_FromDouble(10.0);
+
+  // Py_RETURN_NONE;
+  return PyFloat_FromDouble(a + b);
 }
+
+
+static PyObject *kwfunc(PyObject *self, PyObject *args, PyObject *kwargs)
+{
+  PyObject *a;
+  PyObject *b;
+
+  static char *kwlist[] = {
+    (char*)"a",
+    (char*)"b",
+    NULL}; // list of arg names
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|O!O!", kwlist, &PyFloat_Type, &a, &PyFloat_Type, &b)) {
+      return NULL; // Return if the arguments are not as expected
+  }
+
+  double _a = PyFloat_AsDouble(a);
+  double _b = PyFloat_AsDouble(b);
+
+  return PyFloat_FromDouble(_a > _b);
+}
+
+
+// integrate_observer
+struct push_back_state_and_time
+{
+    std::vector< state_type > &m_states;
+    std::vector< double >& m_times;
+
+    push_back_state_and_time( std::vector< state_type > &states , std::vector< double > &times )
+    : m_states( states ) , m_times( times ) { }
+
+    void operator()( const state_type &x , double t )
+    {
+        m_states.push_back( x );
+        m_times.push_back( t );
+    }
+};
+
+
+static PyObject *solve_ivp(PyObject *self, PyObject *args, PyObject *kwargs)
+{
+  PyObject *t_span;
+  PyObject *dt;
+  PyObject *y0;
+  PyObject *method;
+  PyObject *rtol;
+  PyObject *atol;
+
+  static char *kwlist[] = {
+    (char*)"t_span",
+    (char*)"dt",
+    (char*)"y0",
+    (char*)"method",
+    (char*)"rtol",
+    (char*)"atol",
+    NULL}; // list of arg names
+  //
+  if (!PyArg_ParseTupleAndKeywords(
+    args,
+    kwargs,
+    "|O!O!",
+    kwlist,
+    &PyList_Type, &t_span,
+    &PyFloat_Type, &dt,
+    &PyFloat_Type, &y0,
+    &PyFloat_Type, &method,
+    &PyFloat_Type, &rtol,
+    &PyFloat_Type, &atol
+    )) { return NULL; } // Return if the arguments are not as expected
+
+  
+  double *_t_span = PyList_ToDoubleArray(t_span);
+
+  cout << _t_span[0] << endl; 
+  cout << _t_span[1] << endl; 
+  cout << _t_span[2] << endl; 
+
+  // double dt = PyFloat_AsDouble(dt);
+  // double y0 = PyFloat_AsDouble(y0);
+  // double method = PyFloat_AsDouble(method);
+  // double rtol = PyFloat_AsDouble(rtol);
+  // double atol = PyFloat_AsDouble(atol);
+
+  // return PyFloat_FromDouble(_a > _b);
+  Py_RETURN_NONE;
+}
+
+
+double *PyList_ToDoubleArray(PyObject *pyList)
+{
+  if(!PyList_Check(pyList)){
+    // handle error here
+    return nullptr;
+  }
+
+  Py_ssize_t size = PyList_Size(pyList);
+  double *c_array = new double[size];
+
+  for(Py_ssize_t i = 0; i < size; i++){
+
+    PyObject *item = PyList_GetItem(pyList, i);
+
+    if(!PyFloat_Check(item)){
+      // handle error here
+      delete[] c_array;
+      return nullptr;
+    }
+
+    c_array[i] = PyFloat_AsDouble(item);
+
+  }
+
+  return c_array;
+}
+
+
+double *PyArrayLike_ToDoubleArray(PyObject *pyArrayLike)
+{
+
+  // Py_ssize_t size = PyList_Size(pyArrayLike);
+  // double *c_array = new double[size];
+
+  // PyArray_FROMANY(pyobj, type, min, max, flags)
+  PyObject *array = PyArray_FROMANY(pyArrayLike, NPY_FLOAT, 0, 0, NPY_ARRAY_C_CONTIGUOUS);
+
+  if(array == NULL) {
+    // handle error
+  }
+
+  // cast as PyArrayObject to get pointer to numpy ArrayObject
+  // (not just pointer to PyObject). now you can use this with
+  // numpy C API.
+  PyArrayObject *np_array = reinterpret_cast<PyArrayObject*>(array);
+
+  // You can get direct access to the data
+  double* c_array = static_cast<double*>(PyArray_DATA(np_array));
+
+  // Decrease the reference count of the Python object when you're done. 
+  // Py_DECREF(np_array);
+
+  return c_array;
+}
+
+
+static PyObject *test(PyObject *self, PyObject *args)
+{
+  PyObject *arg1;
+
+  if (!PyArg_ParseTuple(args, "O", &arg1)) {
+      return NULL; // if there was a problem parsing the arguments
+  }
+
+  PyObject *array = PyArray_FROMANY(arg1, NPY_FLOAT64, 0, 0, NPY_ARRAY_C_CONTIGUOUS);
+  // PyArrayObject *np_array = reinterpret_cast<PyArrayObject*>(array);
+
+  // // You can get direct access to the data
+  // double* c_array = static_cast<double*>(PyArray_DATA(np_array));
+
+  // cout << c_array[0] << endl;
+  // cout << c_array[1] << endl;
+  // cout << c_array[3] << endl;
+  
+  // Py_RETURN_NONE; 
+
+  return array;
+}
+
+
+// double *_solve_ivp(
+//     double* t_span,
+//     double* dt,
+//     double* y0,
+//     char* method,
+//     double rtol,
+//     double atol
+//     )
+// {
+//     // const int N = full_num_states / STATE_DIM;
+
+//     // if (full_num_states % STATE_DIM != 0)
+//     // {
+//     //     std::cerr << "\033[1;31m Error: size of rigidbody state has changed. Modify\
+//     //     FULL_STATE_DIM and recompile.\033[0m" << std::endl;
+//     // }
+
+//     auto stepper = make_controlled( atol , rtol , dopri5_stepper_type() );
+//     
+//     if (strcmp(method, "dopri") == 0)
+//     {
+//         auto stepper = make_controlled( atol , rtol , dopri5_stepper_type() );
+//     } 
+//     else if (strcmp(method, "karp") == 0)
+//     {
+//         auto stepper = make_controlled( atol , rtol , karp54_stepper_type() );
+//     }
+
+//     // solution storage
+//     std::vector<state_type> state_log;
+//     std::vector<double> time_log;
+//     state_type x_0;
+
+//     // set inital state
+//     for (int i=0;i<N*STATE_DIM;i++)
+//     {
+//         x_0.push_back(states[i]);
+//     }
+
+//     {
+//         // using bind
+//         using std::placeholders::_1;
+//         using std::placeholders::_2;
+//         using std::placeholders::_3;
+
+//         // Use std::bind to pass extra args
+//         auto wrapper = bind(n_body_model(), _1, _2, _3, 
+//                         N_masses,
+//                         N_inertias,
+//                         N_acc,
+//                         N_gacc,
+//                         N_forces,
+//                         N_torques,
+//                         N
+//                         );
+
+//         double t_start = t_span[0];
+//         double t_end = t_span[1];
+//         integrate_adaptive( stepper, wrapper, x_0 , t_start, t_end , dt, push_back_state_and_time(state_log, time_log));
+
+//         // return state at final time
+//         int end_idx = state_log.size() - 1;
+//         double *ret = new double[N*STATE_DIM];
+//         copy(state_log[end_idx].begin(), state_log[end_idx].end(), ret);
+
+//         return ret;
+//     }
+// }
+
 
 // using namespace std;
 // using namespace boost::numeric::odeint;
@@ -274,17 +557,9 @@ static PyObject *mylib_mylib(PyObject *self, PyObject *args)
 // };
 
 
-#ifdef __cplusplus
-	extern "C" {
-#endif
-
-void test_func(void);
-
-
-void test_func(void)
-{
-  // printf("this is a test\n");
-}
+// #ifdef __cplusplus
+// 	extern "C" {
+// #endif
 
 
 // void free_double_array_p(double *p)
@@ -417,6 +692,6 @@ void test_func(void)
 // }
 
 
-#ifdef __cplusplus
-	}
-#endif
+// #ifdef __cplusplus
+// 	}
+// #endif
