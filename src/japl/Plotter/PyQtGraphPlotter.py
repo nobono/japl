@@ -50,11 +50,6 @@ class PyQtGraphPlotter:
         # color cycle list
         self.color_cycle = self.__color_cycle()
 
-        # TEMP #########
-        # debug
-        self._tstart = 0
-        ################
-
 
     def show(self) -> None:
         self.app.exec_()  # or app.exec_() for PyQt5 / PySide2
@@ -241,11 +236,6 @@ class PyQtGraphPlotter:
         #     if (ti := self.get_text_item(0, 0)):
         #         ti.setText(f"{np.round(perr, 2)}")
         # self._tstart = time.time()
-        # ########
-        # err = abs((time.time() - self._tstart) - self.dt)
-        # print(time.time() - self._tstart)
-        # self._tstart = time.time()
-        # ####################################################
 
         self.istep += 1
 
