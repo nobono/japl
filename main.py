@@ -169,7 +169,7 @@ if __name__ == "__main__":
     # TODO dt is refresh rate for animation
     # but dt just create t_array for no animation
     sim = Sim(
-            t_span=[0, 100],
+            t_span=[0, 2],
             dt=.05,
             simobjs=[vehicle],
             events=[],

@@ -244,11 +244,7 @@ class PyQtGraphPlotter:
         # ####################################################
 
         self.istep += 1
-
-        # TODO run post-animation func when finished
-        if self.istep >= self.Nt:
-            # self._post_anim_func(self.simobjs)
-            self.timer.stop()
+        print(self.istep)
 
         # run ODE solver step
         step_func(istep=self.istep)
@@ -271,6 +267,14 @@ class PyQtGraphPlotter:
         # TODO generalize: each simobj has its own body to draw.
         if self.instrument_view:
             self.__update_instrument_view(_simobj)
+
+        # TODO run post-animation func when finished
+        if self.istep >= self.Nt:
+            # self._post_anim_func(self.simobjs)
+            if self.quiet:
+                self.app.quit()
+            else:
+                self.timer.stop()
 
 
     def __update_instrument_view(self, _simobj: SimObject) -> None:
