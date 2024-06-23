@@ -78,6 +78,8 @@ if __name__ == "__main__":
     q2 = model.add_state("q2",        11, "q2")
     q3 = model.add_state("q3",        12, "q3")
 
+    mass = model.add_state("mass",    13, "mass (kg)")
+
 
     Sq = np.array([
         [-q1, -q2, -q3],
@@ -87,21 +89,23 @@ if __name__ == "__main__":
         ]) * 0.5
 
     A = np.array([
-        [0,0,0,  1,0,0,  0,0,0,  0,0,0,0], # x
-        [0,0,0,  0,1,0,  0,0,0,  0,0,0,0], # y
-        [0,0,0,  0,0,1,  0,0,0,  0,0,0,0], # z
-        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0], # vx
-        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0], # vy
-        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0], # vz
+        [0,0,0,  1,0,0,  0,0,0,  0,0,0,0,  0], # x
+        [0,0,0,  0,1,0,  0,0,0,  0,0,0,0,  0], # y
+        [0,0,0,  0,0,1,  0,0,0,  0,0,0,0,  0], # z
+        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0,  0], # vx
+        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0,  0], # vy
+        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0,  0], # vz
 
-        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0], # wx
-        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0], # wy
-        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0], # wz
+        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0,  0], # wx
+        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0,  0], # wy
+        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0,  0], # wz
 
-        [0,0,0,  0,0,0,  *Sq[0], 0,0,0,0], # q0
-        [0,0,0,  0,0,0,  *Sq[1], 0,0,0,0], # q1
-        [0,0,0,  0,0,0,  *Sq[2], 0,0,0,0], # q2
-        [0,0,0,  0,0,0,  *Sq[3], 0,0,0,0], # q3
+        [0,0,0,  0,0,0,  *Sq[0], 0,0,0,0,  0], # q0
+        [0,0,0,  0,0,0,  *Sq[1], 0,0,0,0,  0], # q1
+        [0,0,0,  0,0,0,  *Sq[2], 0,0,0,0,  0], # q2
+        [0,0,0,  0,0,0,  *Sq[3], 0,0,0,0,  0], # q3
+
+        [0,0,0,  0,0,0,  0,0,0,  0,0,0,0,  0], # mass
         ])
 
     B = np.array([
@@ -121,6 +125,8 @@ if __name__ == "__main__":
         [0,0,0,  0,0,0],
         [0,0,0,  0,0,0],
         [0,0,0,  0,0,0],
+
+        [0,0,0,  0,0,0],
         ])
 
     model.ss(A, B)
@@ -132,10 +138,12 @@ if __name__ == "__main__":
                 "Pos": {
                     "xaxis": "x",
                     "yaxis": "z",
+                    "aspect": "equal",
                     },
                 "Vel": {
                     "xaxis": "t",
                     "yaxis": "vz",
+                    "aspect": "auto",
                     },
                 })
 
@@ -148,10 +156,11 @@ if __name__ == "__main__":
     vehicle.mass = 133 # (kg)
     vehicle.cg = 1.42 # (m)
     x0 = [0, 0, 0]
-    v0 = [50, 0, 30]
+    v0 = [100, 0, 100]
     w0 = [0, 0, 0]
     quat0 = [1, 0, 0, 0]
-    vehicle.init_state([x0, v0, w0, quat0]) # TODO this should be moved to Model
+    mass0 = 10.0
+    vehicle.init_state([x0, v0, w0, quat0, mass0]) # TODO this should be moved to Model
 
     # Sim
     ####################################
@@ -160,19 +169,19 @@ if __name__ == "__main__":
     # but dt just create t_array for no animation
     sim = Sim(
             t_span=[0, 100],
-            dt=.01,
+            dt=.02,
             simobjs=[vehicle],
             events=[],
             animate=1,
-            aspect="auto",
-            device_input_type="",
+            aspect="equal",
+            device_input_type="gamepad",
             moving_bounds=True,
             rtol=1e-6,
             atol=1e-6,
             blit=False,
-            antialias=False,
+            antialias=1,
             figsize=(10, 7),
-            instrument_view=1,
+            instrument_view=0,
             draw_cache_mode=0,
             )
 

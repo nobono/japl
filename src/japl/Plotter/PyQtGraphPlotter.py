@@ -133,8 +133,9 @@ class PyQtGraphPlotter:
 
             for i, (title, axes) in enumerate(simobj.plot.get_config().items()):
                 _plot_item = _win.addPlot(row=i, col=0, colspan=2, title=title)   # add PlotItem to View
-                _plot_item.showGrid(True, True, 0.5)    # set apsect and grid
-                _plot_item.setAspectLocked(self.aspect == "equal")
+                _plot_item.showGrid(True, True, 0.5)    # enable grid
+                _aspect = axes.get("aspect", self.aspect)   # look for aspect in plot config; default to class init
+                _plot_item.setAspectLocked(_aspect == "equal")
                 _pen = {"color": simobj.plot.color_code, "width": simobj.size}
                 _graphic_item = PlotCurveItem(x=[], y=[], pen=_pen)
                 _graphic_item.setCacheMode(self.draw_cache_mode) #type:ignore

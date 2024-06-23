@@ -164,12 +164,17 @@ class Sim:
         """This method is the main step function for the Sim class."""
 
         # TODO make "ac" automatically the correct length
-        ac = np.array([0, 0, -constants.g, 0, 0, 0])
+        acc_ext = np.array([0, 0, -constants.g])
+        torque_ext = np.array([0, 0, 0])
+
+        mass = X[simobj.get_state_id("mass")]
 
         # get device input
         if self.device_input_type:
             (lx, ly, _, _) = self.device_input.get()
-            ac = ac + np.array([100*lx, 0, 100*ly])
+            force = np.array([1000*lx, 0, 1000*ly])
+            acc_ext = acc_ext + force / mass
+            pass
 
         # #############
         # # Aeromodel
@@ -205,7 +210,7 @@ class Sim:
 
         burn_const = 0.4
 
-        U = np.array([*ac])
+        U = np.concatenate([acc_ext, torque_ext])
         Xdot = simobj.step(X, U)
         # Xdot[6] = burn_const * np.linalg.norm(ac) #type:ignore
 
