@@ -164,7 +164,7 @@ class Sim:
         """This method is the main step function for the Sim class."""
 
         # TODO make "ac" automatically the correct length
-        ac = np.array([0, 0, -constants.g, 0.1, 0, 0])
+        ac = np.array([0, 0, -constants.g, 0, 0, 0])
 
         # get device input
         if self.device_input_type:
