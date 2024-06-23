@@ -17,6 +17,7 @@ from functools import partial
 
 from scipy import constants
 
+import time
 
 # ---------------------------------------------------
 
@@ -60,6 +61,20 @@ class Sim:
 
         # atmosphere model
         self.atmosphere = Atmosphere()
+
+        # debug stuff
+        # TODO make this its own class so we can use
+        # it to profile other classes?
+        def _debug_profiler_func():
+            if self.debug_profiler["count"] > 1: # 't' is initally 0, discard this point
+                _dt = (time.time() - self.debug_profiler['t'])
+                self.debug_profiler["t_total"] += _dt
+                self.debug_profiler["t_ave"] = self.debug_profiler["t_total"] / self.debug_profiler["count"]
+            self.debug_profiler['t'] = time.time()
+            self.debug_profiler["count"] += 1
+            if self.debug_profiler["count"] >= self.Nt:
+                print("ave_dt: %.5f, ave_Hz: %.1f" % (self.debug_profiler["t_ave"], (1 / self.debug_profiler["t_ave"])))
+        self.debug_profiler = {"t": 0.0, "t_total": 0.0, "count": 0, "t_ave": 0.0, "run": _debug_profiler_func}
 
 
     def __instantiate_plot(self, **kwargs) -> None:
@@ -181,34 +196,34 @@ class Sim:
         ########################################################################
         # Aeromodel
         ########################################################################
-        # if simobj.aerotable:
-        #     vel = X[simobj.get_state_id("vx"):simobj.get_state_id("vz") + 1]
-        #     speed = float(np.linalg.norm(vel))
+        if simobj.aerotable:
+            vel = X[simobj.get_state_id("vx"):simobj.get_state_id("vz") + 1]
+            speed = float(np.linalg.norm(vel))
 
-        #     # calc angle of attack
-        #     vel_hat = vel / speed       # flight path vector
+            # calc angle of attack
+            vel_hat = vel / speed       # flight path vector
 
-        #     # alpha = vec_ang(vel_hat,)     # angle-of-attack
+            # alpha = vec_ang(vel_hat,)     # angle-of-attack
 
-        #     iquat = [X[id] for id in [simobj.model.get_state_id("q0"),
-        #                               simobj.model.get_state_id("q1"),
-        #                               simobj.model.get_state_id("q2"),
-        #                               simobj.model.get_state_id("q3"),]]
-        #     _iquat = quaternion.from_float_array(iquat)
-        #     euler = quaternion.as_euler_angles(_iquat)
-        #     alpha = euler[1]
+            iquat = [X[id] for id in [simobj.model.get_state_id("q0"),
+                                      simobj.model.get_state_id("q1"),
+                                      simobj.model.get_state_id("q2"),
+                                      simobj.model.get_state_id("q3"),]]
+            _iquat = quaternion.from_float_array(iquat)
+            # TODO use Trait-bryan angles
+            euler = quaternion.as_euler_angles(_iquat)
+            alpha = euler[1]
 
-        #     alt = X[simobj.get_state_id("z")]
-        #     mach = (speed / self.atmosphere.speed_of_sound(alt))
-        #     phi = 0
+            alt = X[simobj.get_state_id("z")]
+            mach = (speed / self.atmosphere.speed_of_sound(alt))
+            phi = 0
 
-        #     CLMB = simobj.aerotable.get_CLMB_Total(alpha, phi, mach, iota)
-        #     # CNB = simobj.aerotable.get_CNB_Total(alpha, phi, mach, iota)
+            CLMB = simobj.aerotable.get_CLMB_Total(alpha, phi, mach, iota)
+            # CNB = simobj.aerotable.get_CNB_Total(alpha, phi, mach, iota)
 
-        #     ytorque = CLMB / simobj.Iyy
-        #     # zforce = CNB /
-        #     torque_ext[0] = ytorque
-        #     pass
+            ytorque = CLMB / simobj.Iyy
+            # zforce = CNB /
+            torque_ext[0] = ytorque
         ########################################################################
 
         # fuel_burn = X[6]
@@ -253,6 +268,10 @@ class Sim:
         -------------------------------------------------------------------
 
         """
+        # DEBUG PROFILE #########
+        self.debug_profiler["run"]()
+        #########################
+
         tstep_prev = self.t_array[istep - 1]
         tstep = self.t_array[istep]
         x0 = _simobj.Y[istep - 1]
