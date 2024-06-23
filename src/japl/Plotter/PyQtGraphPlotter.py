@@ -65,8 +65,45 @@ class PyQtGraphPlotter:
                 yield str(v)
 
 
-    def setup(self, simobjs: list[SimObject]):
-        self.simobjs = simobjs
+    # --------------------------------------------------------------------------------------
+    # ViewBoxes
+    # --------------------------------------------------------------------------------------
+
+    def get_text_viewbox(self, window_id: int) -> Optional[ViewBox]:
+        """Returns the ViewBox associated with provided window_id"""
+        if self.instrument_view:
+            win = self.wins[window_id]
+            # TODO right now row/col for text view is static
+            text_view_row = 2
+            text_view_col = 1
+            return win.getItem(text_view_row, text_view_col)
+
+
+    def get_text_item(self, window_id: int, text_item_id: int) -> Optional[TextItem]:
+        """Returns the TextItem associated with the provided window_id and text_item_id"""
+        if (text_viewbox := self.get_text_viewbox(window_id)):
+            text_item: TextItem = text_viewbox.addedItems[text_item_id]
+            return text_item
+
+
+    def add_text(self, text: str, window_id: int = 0, color: tuple = (255, 255, 255),
+                 spacing: float = 0.6) -> None:
+        if (text_viewbox := self.get_text_viewbox(window_id)):
+            ntext = len(text_viewbox.addedItems)
+            text_viewbox.addItem(TextItem(
+                text,
+                color=color,
+                anchor=(0, 3 - spacing*ntext),
+                ))
+
+
+    def set_text(self, text: str, window_id: int = 0, text_item_id: int = 0) -> None:
+        if (text_item := self.get_text_item(window_id, text_item_id)):
+            text_item.setText(text)
+
+    # --------------------------------------------------------------------------------------
+
+    def setup(self) -> None:
         self.istep = 0
 
         ## Always start by initializing Qt (only once per application)
@@ -78,7 +115,10 @@ class PyQtGraphPlotter:
         self.wins: list[GraphicsLayoutWidget] = []     # contains view layouts for each simobj
         self.shortcuts = []
 
-        for simobj in self.simobjs:
+
+    def add_simobject(self, simobj: SimObject) -> None:
+
+            self.simobjs += [simobj]
 
             # setup window for each simobj
             _win = GraphicsLayoutWidget()
@@ -114,6 +154,7 @@ class PyQtGraphPlotter:
 
                 # ViewBox for text
                 _text_view: ViewBox = _win.addViewBox()
+                _text_view.setRange(xRange=[-1, 1], yRange=[-1, 1])
                 _win.addItem(_text_view, row=(i + 1), col=1, colspan=1) #type:ignore
 
                 # missile drawing
@@ -166,14 +207,6 @@ class PyQtGraphPlotter:
                         pxMode=False
                         )
 
-                # TODO do this better...
-                # adding optional text in the text view
-                self.text: TextItem = TextItem(text="text",
-                                               color=(255, 255, 255),
-                                               anchor=(0, 0))
-                _text_view.addItem(self.text)
-                _text_view.setRange(xRange=[-1, 1], yRange=[-1, 1])
-
 
     def FuncAnimation(self,
                       func: Callable,
@@ -188,13 +221,13 @@ class PyQtGraphPlotter:
 
     def _animate_func(self, frame, _simobj: SimObject, step_func: Callable, moving_bounds: bool = False):
 
-        # TEMP #############################################
-        # %-error time profile of pyqtgraph painting process
-        if self.instrument_view and (self.istep % 10) == 0:
-            perr = abs((time.time() - self._tstart) - self.dt) / self.dt
-            self.text.setText(f"{np.round(perr, 2)}")
-        self._tstart = time.time()
-        ####################################################
+        # # TEMP #############################################
+        # # %-error time profile of pyqtgraph painting process
+        # if self.instrument_view and (self.istep % 10) == 0:
+        #     perr = abs((time.time() - self._tstart) - self.dt) / self.dt
+        #     self.text.setText(f"{np.round(perr, 2)}")
+        # self._tstart = time.time()
+        # ####################################################
 
         self.istep += 1
 

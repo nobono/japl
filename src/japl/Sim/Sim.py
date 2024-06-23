@@ -65,16 +65,22 @@ class Sim:
         """This method instantiates the plotter class into the Sim class (if defined).
         Otherwise, a default Plotter class is instantiated."""
 
-        plotter = kwargs.get("plotter", None)
-        if plotter:
-            self.plotter = plotter
-            return
+        self.plotter = kwargs.get("plotter", None)
 
-        if global_opts.get_plotlib() == "matplotlib":
-            self.plotter = Plotter(Nt=self.Nt, dt=self.dt, **kwargs)
+        if self.plotter is None:
+            if global_opts.get_plotlib() == "matplotlib":
+                self.plotter = Plotter(Nt=self.Nt, dt=self.dt, **kwargs)
+            elif global_opts.get_plotlib() == "pyqtgraph":
+                self.plotter = PyQtGraphPlotter(Nt=self.Nt, dt=self.dt, **kwargs)
+            else:
+                raise Exception("no Plotter class can be setup.")
 
-        elif global_opts.get_plotlib() == "pyqtgraph":
-            self.plotter = PyQtGraphPlotter(Nt=self.Nt, dt=self.dt, **kwargs)
+        # setup plotter
+        self.plotter.setup()
+
+        # add inital simobjs provided
+        for simobj in self.simobjs:
+            self.plotter.add_simobject(simobj)
 
 
     def run(self) -> "Sim":
@@ -88,9 +94,6 @@ class Sim:
         # begin device input read thread
         if self.device_input_type:
             self.device_input.start()
-
-        # setup plotter
-        self.plotter.setup(self.simobjs)
 
         # solver
         if not self.animate:

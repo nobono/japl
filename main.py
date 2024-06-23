@@ -175,6 +175,8 @@ if __name__ == "__main__":
             instrument_view=1,
             draw_cache_mode=0,
             )
+
+    sim.plotter.add_text("hello")
     sim.run()
 
     # config = {

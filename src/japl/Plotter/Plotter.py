@@ -32,15 +32,23 @@ class Plotter:
         self.instrument_view: bool = kwargs.get("instrument_view", False)
 
 
-    def setup(self, simobjs: list[SimObject]):
+    def add_text(self, text: str, window_id: int = 0, color: tuple = (255, 255, 255),
+                 spacing: float = 0.6) -> None:
+         pass
 
-        self.simobjs = simobjs
+
+    def setup(self) -> None:
 
         # instantiate figure and axes
         self.fig, self.ax = plt.subplots(figsize=self.figsize)
 
         # set aspect initial ratio
         self.ax.set_aspect(self.aspect)
+
+
+    def add_simobject(self, simobj: SimObject) -> None:
+
+        self.simobjs += [simobj]
 
         # add simobj patch to Sim axes
         for simobj in self.simobjs:
@@ -50,7 +58,6 @@ class Plotter:
                 _graphic_item = Line2D([], [], color=_color, linewidth=_width, antialiased=self.antialias)
                 simobj.plot.traces += [_graphic_item]
                 self.ax.add_line(_graphic_item)
-        pass
 
 
     def show(self, block: bool = True) -> None:
