@@ -61,7 +61,7 @@ class Sim:
         self.atmosphere = Atmosphere()
 
 
-    def __instantiate_plot(self, plotter = None, **kwargs) -> None:
+    def __instantiate_plot(self, **kwargs) -> None:
         """This method instantiates the plotter class into the Sim class (if defined).
         Otherwise, a default Plotter class is instantiated."""
 
