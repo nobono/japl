@@ -181,34 +181,34 @@ class Sim:
         ########################################################################
         # Aeromodel
         ########################################################################
-        if simobj.aerotable:
-            vel = X[simobj.get_state_id("vx"):simobj.get_state_id("vz") + 1]
-            speed = float(np.linalg.norm(vel))
+        # if simobj.aerotable:
+        #     vel = X[simobj.get_state_id("vx"):simobj.get_state_id("vz") + 1]
+        #     speed = float(np.linalg.norm(vel))
 
-            # calc angle of attack
-            vel_hat = vel / speed       # flight path vector
+        #     # calc angle of attack
+        #     vel_hat = vel / speed       # flight path vector
 
-            # alpha = vec_ang(vel_hat,)     # angle-of-attack
+        #     # alpha = vec_ang(vel_hat,)     # angle-of-attack
 
-            iquat = [X[id] for id in [simobj.model.get_state_id("q0"),
-                                      simobj.model.get_state_id("q1"),
-                                      simobj.model.get_state_id("q2"),
-                                      simobj.model.get_state_id("q3"),]]
-            _iquat = quaternion.from_float_array(iquat)
-            euler = quaternion.as_euler_angles(_iquat)
-            alpha = euler[1]
+        #     iquat = [X[id] for id in [simobj.model.get_state_id("q0"),
+        #                               simobj.model.get_state_id("q1"),
+        #                               simobj.model.get_state_id("q2"),
+        #                               simobj.model.get_state_id("q3"),]]
+        #     _iquat = quaternion.from_float_array(iquat)
+        #     euler = quaternion.as_euler_angles(_iquat)
+        #     alpha = euler[1]
 
-            alt = X[simobj.get_state_id("z")]
-            mach = (speed / self.atmosphere.speed_of_sound(alt))
-            phi = 0
+        #     alt = X[simobj.get_state_id("z")]
+        #     mach = (speed / self.atmosphere.speed_of_sound(alt))
+        #     phi = 0
 
-            CLMB = simobj.aerotable.get_CLMB_Total(alpha, phi, mach, iota)
-            # CNB = simobj.aerotable.get_CNB_Total(alpha, phi, mach, iota)
+        #     CLMB = simobj.aerotable.get_CLMB_Total(alpha, phi, mach, iota)
+        #     # CNB = simobj.aerotable.get_CNB_Total(alpha, phi, mach, iota)
 
-            ytorque = CLMB / simobj.Iyy
-            # zforce = CNB /
-            torque_ext[0] = ytorque
-            pass
+        #     ytorque = CLMB / simobj.Iyy
+        #     # zforce = CNB /
+        #     torque_ext[0] = ytorque
+        #     pass
         ########################################################################
 
         # fuel_burn = X[6]

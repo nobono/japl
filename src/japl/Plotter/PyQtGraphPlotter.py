@@ -241,10 +241,13 @@ class PyQtGraphPlotter:
         #     if (ti := self.get_text_item(0, 0)):
         #         ti.setText(f"{np.round(perr, 2)}")
         # self._tstart = time.time()
+        # ########
+        # err = abs((time.time() - self._tstart) - self.dt)
+        # print(time.time() - self._tstart)
+        # self._tstart = time.time()
         # ####################################################
 
         self.istep += 1
-        print(self.istep)
 
         # run ODE solver step
         step_func(istep=self.istep)

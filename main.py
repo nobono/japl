@@ -170,7 +170,7 @@ if __name__ == "__main__":
     # but dt just create t_array for no animation
     sim = Sim(
             t_span=[0, 2],
-            dt=.05,
+            dt=.01,
             simobjs=[vehicle],
             events=[],
             animate=1,
