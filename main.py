@@ -3,6 +3,7 @@ import argparse
 
 import numpy as np
 from numpy.linalg import norm
+import quaternion
 
 import japl
 from japl import Sim
@@ -156,9 +157,9 @@ if __name__ == "__main__":
     vehicle.mass = 133 # (kg)
     vehicle.cg = 1.42 # (m)
     x0 = [0, 0, 0]
-    v0 = [100, 0, 100]
+    v0 = [2000, 0, 100]
     w0 = [0, 0, 0]
-    quat0 = [1, 0, 0, 0]
+    quat0 = quaternion.from_euler_angles([0, 0, 0]).components
     mass0 = 10.0
     vehicle.init_state([x0, v0, w0, quat0, mass0]) # TODO this should be moved to Model
 
@@ -169,23 +170,26 @@ if __name__ == "__main__":
     # but dt just create t_array for no animation
     sim = Sim(
             t_span=[0, 100],
-            dt=.02,
+            dt=.05,
             simobjs=[vehicle],
             events=[],
             animate=1,
             aspect="equal",
-            device_input_type="gamepad",
+            device_input_type="",
             moving_bounds=True,
             rtol=1e-6,
             atol=1e-6,
             blit=False,
-            antialias=1,
+            antialias=0,
             figsize=(10, 7),
             instrument_view=1,
             draw_cache_mode=0,
+            quiet=1, # TODO still working on this
             )
 
-    sim.plotter.add_text("hello")
+    # sim.plotter.add_text("debug")
+    # sim.plotter.add_text("ytorque")
+    # sim.plotter.add_text("iota")
     sim.run()
 
     # config = {

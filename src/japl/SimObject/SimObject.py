@@ -105,13 +105,12 @@ class _PlotInterface:
 
 
     def _update_patch_data(self, xdata: np.ndarray, ydata: np.ndarray, subplot_id: int, **kwargs) -> None:
+        if (len(self.qt_traces) - 1) < subplot_id:
+            return
+
+        # update trace data
         if self.plotting_backend == "matplotlib":
-
-            # update trace data
             self.traces[subplot_id].set_data(xdata, ydata)
-
-            # plot current step position data
-            # self.patch.set_center((xdata[-1], ydata[-1]))
 
         if self.plotting_backend == "pyqtgraph":
             self.qt_traces[subplot_id].setData(x=xdata, y=ydata, **kwargs)

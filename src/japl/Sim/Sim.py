@@ -1,4 +1,5 @@
 import numpy as np
+import quaternion
 
 from japl import global_opts
 from japl.Aero.Atmosphere import Atmosphere
@@ -75,12 +76,12 @@ class Sim:
             else:
                 raise Exception("no Plotter class can be setup.")
 
-        # setup plotter
-        self.plotter.setup()
+            # setup plotter
+            self.plotter.setup()
 
-        # add inital simobjs provided
-        for simobj in self.simobjs:
-            self.plotter.add_simobject(simobj)
+            # add inital simobjs provided
+            for simobj in self.simobjs:
+                self.plotter.add_simobject(simobj)
 
 
     def run(self) -> "Sim":
@@ -164,44 +165,51 @@ class Sim:
         """This method is the main step function for the Sim class."""
 
         # TODO make "ac" automatically the correct length
-        acc_ext = np.array([0, 0, -constants.g])
-        torque_ext = np.array([0, 0, 0])
+        acc_ext = np.array([0, 0, -constants.g], dtype=float)
+        torque_ext = np.array([0, 0, 0], dtype=float)
 
         mass = X[simobj.get_state_id("mass")]
+        iota = 0
 
         # get device input
         if self.device_input_type:
             (lx, ly, _, _) = self.device_input.get()
-            force = np.array([1000*lx, 0, 1000*ly])
-            acc_ext = acc_ext + force / mass
+            iota = ly * 0.3
+            # force = np.array([1000*lx, 0, 1000*ly])
+            # acc_ext = acc_ext + force / mass
+
+        ########################################################################
+        # Aeromodel
+        ########################################################################
+        if simobj.aerotable:
+            vel = X[simobj.get_state_id("vx"):simobj.get_state_id("vz") + 1]
+            speed = float(np.linalg.norm(vel))
+
+            # calc angle of attack
+            vel_hat = vel / speed       # flight path vector
+
+            # alpha = vec_ang(vel_hat,)     # angle-of-attack
+
+            iquat = [X[id] for id in [simobj.model.get_state_id("q0"),
+                                      simobj.model.get_state_id("q1"),
+                                      simobj.model.get_state_id("q2"),
+                                      simobj.model.get_state_id("q3"),]]
+            _iquat = quaternion.from_float_array(iquat)
+            euler = quaternion.as_euler_angles(_iquat)
+            alpha = euler[1]
+
+            alt = X[simobj.get_state_id("z")]
+            mach = (speed / self.atmosphere.speed_of_sound(alt))
+            phi = 0
+
+            CLMB = simobj.aerotable.get_CLMB_Total(alpha, phi, mach, iota)
+            # CNB = simobj.aerotable.get_CNB_Total(alpha, phi, mach, iota)
+
+            ytorque = CLMB / simobj.Iyy
+            # zforce = CNB /
+            torque_ext[0] = ytorque
             pass
-
-        # #############
-        # # Aeromodel
-        # #############
-        # # inertia_inv = np.array([
-        # #     [1/X[simobj.Ixx], 0, 0],
-        # #     [0, 1/X[simobj.Iyy], 0],
-        # #     [0, 0, 1/X[simobj.Izz]],
-        # #     ])
-        # if simobj.aerotable:
-        #     vel = X[simobj.get_state_id("vx"):simobj.get_state_id("vz") + 1]
-        #     speed = float(np.linalg.norm(vel))
-        #     vel_hat = vel / speed
-        #     xaxis = np.array([1, 0, 0])
-        #     alpha = vec_ang(vel_hat, xaxis)     # angle-of-attack
-        #     phi = 0
-        #     alt = X[simobj.get_state_id("z")]
-        #     mach = (speed / self.atmosphere.speed_of_sound(alt))
-        #     iota = 0
-
-        #     CLMB = simobj.aerotable.get_CLMB_Total(alpha, phi, mach, iota)
-        #     CNB = simobj.aerotable.get_CNB_Total(alpha, phi, mach, iota)
-
-        #     ytorque = CLMB / simobj.Iyy
-        #     zforce = CNB
-        #     pass
-        # #############
+        ########################################################################
 
         # fuel_burn = X[6]
         # if fuel_burn < 100:

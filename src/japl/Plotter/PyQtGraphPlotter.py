@@ -43,6 +43,10 @@ class PyQtGraphPlotter:
         self.instrument_view: bool = kwargs.get("instrument_view", False)
         self.draw_cache_mode: bool = kwargs.get("draw_cache_mode", False)
 
+        # debug
+        self.quiet = kwargs.get("quiet", False)
+        self.instrument_view &= not self.quiet
+
         # color cycle list
         self.color_cycle = self.__color_cycle()
 
@@ -107,7 +111,11 @@ class PyQtGraphPlotter:
         self.istep = 0
 
         ## Always start by initializing Qt (only once per application)
-        self.app = QtWidgets.QApplication([])
+        if self.quiet:
+            self.app = QtCore.QCoreApplication([])  # no GUI
+            return
+        else:
+            self.app = QtWidgets.QApplication([])   # GUI
 
         # enable anti-aliasing
         pg.setConfigOptions(antialias=self.antialias)
@@ -117,6 +125,9 @@ class PyQtGraphPlotter:
 
 
     def add_simobject(self, simobj: SimObject) -> None:
+
+            if self.quiet:
+                return
 
             self.simobjs += [simobj]
 
@@ -220,13 +231,15 @@ class PyQtGraphPlotter:
         self.timer.start(interval)
 
 
+    # TODO this may belong in Sim class...
     def _animate_func(self, frame, _simobj: SimObject, step_func: Callable, moving_bounds: bool = False):
 
         # # TEMP #############################################
         # # %-error time profile of pyqtgraph painting process
         # if self.instrument_view and (self.istep % 10) == 0:
         #     perr = abs((time.time() - self._tstart) - self.dt) / self.dt
-        #     self.text.setText(f"{np.round(perr, 2)}")
+        #     if (ti := self.get_text_item(0, 0)):
+        #         ti.setText(f"{np.round(perr, 2)}")
         # self._tstart = time.time()
         # ####################################################
 
