@@ -1,6 +1,6 @@
 import numpy as np
 from numpy.typing import ArrayLike
-# from scipy.interpolate import interp1d
+from scipy.interpolate import interpn
 from ambiance import Atmosphere as AmbianceAtmosphere
 # from cached_interpolate import CachingInterpolant
 
@@ -12,6 +12,16 @@ class Atmosphere:
     def __init__(self) -> None:
         self._alts = np.linspace(0, 80_000, 80_001)
         self._atmos = AmbianceAtmosphere(self._alts)
+
+        # copy arrays of ambiance Atmosphere class
+        # for some reason accessing through the ambiance
+        # class is very slow
+        self._pressure = self._atmos.speed_of_sound.copy()
+        self._density = self._atmos.density.copy()
+        self._temperature_in_celsius = self._atmos.temperature_in_celsius.copy()
+        self._speed_of_sound = self._atmos.speed_of_sound.copy()
+        self._grav_accel = self._atmos.grav_accel.copy()
+
         # self._pressure = CachingInterpolant(
         #     x=self._alts,
         #     y=self._atmos.pressure,
@@ -41,41 +51,41 @@ class Atmosphere:
     def pressure(self, alt: float|list) -> float:
         # return np.interp(alt, self._alts, self._atmos.pressure)
         if hasattr(alt, "__len__"):
-            return self._atmos.pressure[[round(i) for i in alt]] #type:ignore
+            return self._pressure[[round(i) for i in alt]] #type:ignore
         else:
-            return self._atmos.pressure[round(alt)] #type:ignore
+            return self._pressure[round(alt)] #type:ignore
 
     
     def density(self, alt: float|list) -> float:
         # return np.interp(alt, self._alts, self._atmos.density)
         if hasattr(alt, "__len__"):
-            return self._atmos.density[[round(i) for i in alt]] #type:ignore
+            return self._density[[round(i) for i in alt]] #type:ignore
         else:
-            return self._atmos.density[round(alt)] #type:ignore
+            return self._density[round(alt)] #type:ignore
 
 
     def temperature(self, alt: float|list) -> float:
         # return np.interp(alt, self._alts, self._atmos.temperature)
         if hasattr(alt, "__len__"):
-            return self._atmos.temperature_in_celsius[[round(i) for i in alt]] #type:ignore
+            return self._temperature_in_celsius[[round(i) for i in alt]] #type:ignore
         else:
-            return self._atmos.temperature_in_celsius[round(alt)] #type:ignore
+            return self._temperature_in_celsius[round(alt)] #type:ignore
     
 
     def speed_of_sound(self, alt: float|list) -> float:
         # return np.interp(alt, self._alts, self._atmos.speed_of_sound)
         if hasattr(alt, "__len__"):
-            return self._atmos.speed_of_sound[[round(i) for i in alt]] #type:ignore
+            return self._speed_of_sound[[round(i) for i in alt]] #type:ignore
         else:
-            return self._atmos.speed_of_sound[round(alt)] #type:ignore
+            return self._speed_of_sound[round(alt)] #type:ignore
 
 
     def grav_accel(self, alt: float|list) -> float:
         # return np.interp(alt, self._alts, self._atmos.grav_accel)
         if hasattr(alt, "__len__"):
-            return self._atmos.grav_accel[[round(i) for i in alt]] #type:ignore
+            return self._grav_accel[[round(i) for i in alt]] #type:ignore
         else:
-            return self._atmos.grav_accel[round(alt)] #type:ignore
+            return self._grav_accel[round(alt)] #type:ignore
 
 
     def dynamic_pressure(self, vel: float|np.ndarray, alt: float) -> float:
