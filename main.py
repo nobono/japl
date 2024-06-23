@@ -181,7 +181,7 @@ if __name__ == "__main__":
             blit=False,
             antialias=1,
             figsize=(10, 7),
-            instrument_view=0,
+            instrument_view=1,
             draw_cache_mode=0,
             )
 
