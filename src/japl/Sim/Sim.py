@@ -201,9 +201,6 @@ class Sim:
             vel = X[simobj.get_state_id(["vx", "vy", "vz"])]
             quat = X[simobj.model.get_state_id(["q0", "q1", "q2", "q3"])]
 
-            # calc speed
-            speed = float(np.linalg.norm(vel))
-
             # get Trait-bryan angles (yaw, pitch, roll)
             tait_bryan_angles = quat_to_tait_bryan(np.asarray(quat))
             pitch_angle = tait_bryan_angles[1]
@@ -215,6 +212,7 @@ class Sim:
             alpha = pitch_angle - flight_path_angle                     # angle of attack
 
             # calculate current mach
+            speed = float(np.linalg.norm(vel))
             mach = (speed / self.atmosphere.speed_of_sound(alt))
 
             # lookup coefficients
