@@ -157,7 +157,7 @@ if __name__ == "__main__":
     vehicle.mass = 133 # (kg)
     vehicle.cg = 1.42 # (m)
     x0 = [0, 0, 0]
-    v0 = [2000, 0, 100]
+    v0 = [500, 0, 200]
     w0 = [0, 0, 0]
     quat0 = quaternion.from_euler_angles([0, 0, 0]).components
     mass0 = 10.0

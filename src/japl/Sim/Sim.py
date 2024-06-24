@@ -3,13 +3,12 @@ import quaternion
 
 from japl import global_opts
 from japl.Aero.Atmosphere import Atmosphere
+from japl.Math.Rotation import quat_to_tait_bryan
 from japl.Math.Vec import vec_ang
 from japl.SimObject.SimObject import SimObject
 from japl.DeviceInput.DeviceInput import DeviceInput
 from japl.Plotter.Plotter import Plotter
 from japl.Plotter.PyQtGraphPlotter import PyQtGraphPlotter
-
-from japl.Aero import AeroTable
 
 from scipy.integrate import solve_ivp
 
@@ -199,30 +198,48 @@ class Sim:
         if simobj.aerotable:
             vel = X[simobj.get_state_id("vx"):simobj.get_state_id("vz") + 1]
             speed = float(np.linalg.norm(vel))
-
-            # calc angle of attack
-            vel_hat = vel / speed       # flight path vector
-
-            # alpha = vec_ang(vel_hat,)     # angle-of-attack
-
             iquat = [X[id] for id in [simobj.model.get_state_id("q0"),
                                       simobj.model.get_state_id("q1"),
                                       simobj.model.get_state_id("q2"),
                                       simobj.model.get_state_id("q3"),]]
-            _iquat = quaternion.from_float_array(iquat)
-            # TODO use Trait-bryan angles
-            euler = quaternion.as_euler_angles(_iquat)
-            alpha = euler[1]
+
+            # get Trait-bryan angles (yaw, pitch, roll)
+            tait_bryan_angles = quat_to_tait_bryan(np.asarray(iquat))
+            pitch_angle = tait_bryan_angles[1]
+
+            # calc angle of attack: (pitch_angle - flight_path_angle)
+            vel_hat = vel / speed       # flight path vector
+            flight_path_angle = vec_ang(vel_hat, np.array([1, 0, 0]))     # angle-of-attack
+            alpha = pitch_angle - flight_path_angle
 
             alt = X[simobj.get_state_id("z")]
             mach = (speed / self.atmosphere.speed_of_sound(alt))
             phi = 0
 
-            CLMB = simobj.aerotable.get_CLMB_Total(alpha, phi, mach, iota)
+            # alpha = 0
+            # phi = 0
+            # mach = 0.2
+            # iota = 0
+
+            if np.degrees(alpha) >= 40:
+                pass
+            if alpha > 0:
+                CLMB = simobj.aerotable.get_CLMB_Total(alpha, phi, mach, iota)
+            else:
+                CLMB = -simobj.aerotable.get_CLMB_Total(-alpha, phi, mach, iota)
+
             # CNB = simobj.aerotable.get_CNB_Total(alpha, phi, mach, iota)
+
+            # pitching moment coeficient for iota increments
+            # My_coef = model.CLM(alpha,mach)+...
+            #           model.cmit(alpha*n,mach*n,model.increments.iota)+...
+            #          ((cg-model.MRC)/model.lref)*...
+            #          (model.CN(alpha,mach)+...
+            #           model.CNit(alpha*n,mach*n,model.increments.iota));
 
             ytorque = CLMB / simobj.Iyy
             # zforce = CNB /
+            # TODO this does not agree with pyqtgraph rotation
             torque_ext[0] = ytorque
         ########################################################################
 

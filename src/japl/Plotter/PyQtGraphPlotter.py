@@ -8,6 +8,7 @@ from pyqtgraph.Qt.QtWidgets import QGridLayout, QWidget, QWidgetItem
 import quaternion
 
 
+from japl.Math.Rotation import quat_to_tait_bryan
 from japl.SimObject.SimObject import SimObject
 
 import pyqtgraph as pg
@@ -287,10 +288,15 @@ class PyQtGraphPlotter:
 
         istate = _simobj.model.get_current_state()
         iquat = [istate[id] for id in [q0id, q2id, q3id, q1id]]
-        _iquat = quaternion.from_float_array(iquat)
-        dcm = quaternion.as_rotation_matrix(_iquat)
-        transform = QTransform(*dcm.flatten())
-        self.attitude_graph_item.setTransform(transform)
+        # TODO this needs fixing
+        ####
+        # _iquat = quaternion.from_float_array(iquat)
+        # dcm = quaternion.as_rotation_matrix(_iquat)
+        # transform = QTransform(*dcm.flatten())
+        # self.attitude_graph_item.setTransform(transform)
+        ####
+        pitch_angle = quat_to_tait_bryan(iquat)
+        self.attitude_graph_item.setRotation(pitch_angle[1])
 
 
     def _time_slider_update(self, val: float, _simobjs: list[SimObject]) -> None:
