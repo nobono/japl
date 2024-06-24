@@ -218,21 +218,28 @@ class Model:
         return self.A @ X + self.B @ U
 
 
-    def get_state_id(self, name: str) -> int:
+    def get_state_id(self, name: str|list[str]) -> int|list[int]:
         """This method get the sympy variable associated with the provided
-        name. variables must first be added to the StateRegister.
+        name. variables must first be added to the StateRegister. If a list
+        of state names are provided, then a list of corresponding state ids
+        will be returned.
 
         -------------------------------------------------------------------
         -- Arguments
         -------------------------------------------------------------------
-        -- name - (str) name of the symbolic state variable
+        -- name - (str | list[str]) name of the symbolic state variable
+                name or a list of symbolic state variable names
         -------------------------------------------------------------------
         -- Returns
         -------------------------------------------------------------------
-        -- (int) - the index of the state variable in the state array
+        -- (int | list[int]) - the index of the state variable in the
+                state array or list of indices.
         -------------------------------------------------------------------
         """
-        return self.register[name]["id"]
+        if isinstance(name, list):
+            return [self.register[k]["id"] for k in name]
+        else:
+            return self.register[name]["id"]
 
 
     def add_state(self, name: str, id: int, label: str = "") -> Symbol:

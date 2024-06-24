@@ -281,22 +281,34 @@ class PyQtGraphPlotter:
         -------------------------------------------------------------------
         """
 
-        q0id = _simobj.model.get_state_id("q0")
-        q1id = _simobj.model.get_state_id("q1")
-        q2id = _simobj.model.get_state_id("q2")
-        q3id = _simobj.model.get_state_id("q3")
+        ####################################################################
+        # NOTE:
+        # pyqtgraph coordinate convention is:
+        #   - X: points to the right
+        #   - Y: points upward
+        #   - Z: points outward
+        #
+        # when applying a rotation matrix, a permutation matrix is required
+        # to meet this convention (swapping rows 1 & 2). When applying a
+        # quaternion the 'y' & 'z' (q2 & q3) components must be swapped.
+        ####################################################################
 
+        # get quaternion from current state
+        quat_ids = _simobj.model.get_state_id(["q0", "q1", "q2", "q3"])
         istate = _simobj.model.get_current_state()
-        iquat = [istate[id] for id in [q0id, q2id, q3id, q1id]]
-        # TODO this needs fixing
-        ####
-        # _iquat = quaternion.from_float_array(iquat)
-        # dcm = quaternion.as_rotation_matrix(_iquat)
-        # transform = QTransform(*dcm.flatten())
-        # self.attitude_graph_item.setTransform(transform)
-        ####
-        pitch_angle = quat_to_tait_bryan(iquat)
-        self.attitude_graph_item.setRotation(pitch_angle[1])
+        iquat = istate[quat_ids]
+
+        # get rotation matrix
+        _iquat = quaternion.from_float_array(iquat)
+        dcm = quaternion.as_rotation_matrix(_iquat).flatten()
+
+        # swap rows 1 & 2; swap cols 1 & 2
+        yz_swapped_dcm = np.array([dcm[0], dcm[2], dcm[1],
+                                dcm[6], dcm[8], dcm[7],
+                                dcm[3], dcm[5], dcm[4]])
+
+        transform = QTransform(*yz_swapped_dcm)
+        self.attitude_graph_item.setTransform(transform)
 
 
     def _time_slider_update(self, val: float, _simobjs: list[SimObject]) -> None:

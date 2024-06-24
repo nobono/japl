@@ -158,7 +158,7 @@ class SimObject:
         self.cg: float = kwargs.get("cg", 0)
 
 
-    def get_state_id(self, name: str) -> int:
+    def get_state_id(self, name: str|list[str]) -> int|list[int]:
         return self.model.get_state_id(name)
 
 

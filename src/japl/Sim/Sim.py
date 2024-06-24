@@ -196,33 +196,28 @@ class Sim:
         # Aeromodel
         ########################################################################
         if simobj.aerotable:
-            vel = X[simobj.get_state_id("vx"):simobj.get_state_id("vz") + 1]
+            # get current states
+            alt = X[simobj.get_state_id("z")]
+            vel = X[simobj.get_state_id(["vx", "vy", "vz"])]
+            quat = X[simobj.model.get_state_id(["q0", "q1", "q2", "q3"])]
+
+            # calc speed
             speed = float(np.linalg.norm(vel))
-            iquat = [X[id] for id in [simobj.model.get_state_id("q0"),
-                                      simobj.model.get_state_id("q1"),
-                                      simobj.model.get_state_id("q2"),
-                                      simobj.model.get_state_id("q3"),]]
 
             # get Trait-bryan angles (yaw, pitch, roll)
-            tait_bryan_angles = quat_to_tait_bryan(np.asarray(iquat))
+            tait_bryan_angles = quat_to_tait_bryan(np.asarray(quat))
             pitch_angle = tait_bryan_angles[1]
+            phi = tait_bryan_angles[2]                                  # roll angle
 
             # calc angle of attack: (pitch_angle - flight_path_angle)
-            vel_hat = vel / speed       # flight path vector
-            flight_path_angle = vec_ang(vel_hat, np.array([1, 0, 0]))     # angle-of-attack
-            alpha = pitch_angle - flight_path_angle
+            vel_hat = vel / speed                                       # flight path vector
+            flight_path_angle = vec_ang(vel_hat, np.array([1, 0, 0]))
+            alpha = pitch_angle - flight_path_angle                     # angle of attack
 
-            alt = X[simobj.get_state_id("z")]
+            # calculate current mach
             mach = (speed / self.atmosphere.speed_of_sound(alt))
-            phi = 0
 
-            # alpha = 0
-            # phi = 0
-            # mach = 0.2
-            # iota = 0
-
-            if np.degrees(alpha) >= 40:
-                pass
+            # lookup coefficients
             if alpha > 0:
                 CLMB = simobj.aerotable.get_CLMB_Total(alpha, phi, mach, iota)
             else:
@@ -239,8 +234,9 @@ class Sim:
 
             ytorque = CLMB / simobj.Iyy
             # zforce = CNB /
-            # TODO this does not agree with pyqtgraph rotation
-            torque_ext[0] = ytorque
+
+            # update external moments
+            torque_ext[1] = ytorque
         ########################################################################
 
         # fuel_burn = X[6]
