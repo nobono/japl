@@ -1,18 +1,21 @@
 import os
+import numpy as np
 from setuptools import setup
 from setuptools import find_packages
 from setuptools import Extension
 
 
-PATH = os.environ.get("PATH", "")
+numpy_include_dir = os.path.join(np.__file__, "..", "core", "include")
+path_include_dirs = os.environ.get("PATH", "").split(';')
+if not os.path.exists(numpy_include_dir):
+    raise Exception(f"numpy include dir could not be found")
 
 
 ode_int_ext = Extension(name="odeint",
                         sources=["./japl/Sim/OdeInt.cpp"],
-                        # include_dirs=[*PATH.split(':')],
                         include_dirs=[
-                            "/home/david/anaconda3/envs/control/lib/python3.11/site-packages/numpy/core/include/",
-                            # *list(set(PATH.split(':'))),
+                            numpy_include_dir,
+                            *path_include_dirs,
                             ],
                         # extra_compile_args=[],
                         # extra_link_args=["-shared"],
