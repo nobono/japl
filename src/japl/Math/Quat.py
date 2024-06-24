@@ -1,7 +1,6 @@
 import numpy as np
 from copy import copy
-import quaternion
-from quaternion import quaternion as Tquaternion
+from quaternion.numpy_quaternion import quaternion
 
 
 
@@ -13,16 +12,15 @@ def quat_conj(q):
     return q
 
 
-def quat_array_to_dcm(q: np.ndarray|Tquaternion) -> np.ndarray:
+def quat_to_dcm(q: np.ndarray|quaternion) -> np.ndarray:
     """This method returns a DCM rotation matrix given a quaternion array"""
 
-    if isinstance(q, Tquaternion):
-        return quaternion.as_rotation_matrix(q)
+    if isinstance(q, quaternion):
+        q = q.components.copy() #type:ignore
+    else:
+        q = q.copy()
 
-    assert len(q) == 4
-    q = copy(q)
-    # q = quat_conj(q)
-    k = -1.0 # TEMP
+    k = -1.0    # (1 or -1) conjugates input quaternion depending on convention
     q0_2 = q[0] * q[0]
     q1_2 = q[1] * q[1]
     q2_2 = q[2] * q[2]
@@ -47,16 +45,4 @@ def quat_array_to_dcm(q: np.ndarray|Tquaternion) -> np.ndarray:
 
     return dcm
 
-
-
-
-if __name__ == "__main__":
-    ang = 0.2
-    q1 = quaternion.from_float_array([np.cos(ang/2), np.sin(ang/2), 0, 0])
-    q2 = np.array([np.cos(ang/2), np.sin(ang/2), 0 ,0])
-
-    r1 = quaternion.as_rotation_matrix(q1)
-    e1 = quaternion.as_euler_angles(q1)
-
-    r2 = quat_array_to_dcm(q2)
 
