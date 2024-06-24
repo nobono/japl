@@ -206,14 +206,14 @@ class Sim:
             pitch_angle = tait_bryan_angles[1]
             phi = tait_bryan_angles[2]                                  # roll angle
 
+            # calculate current mach
+            speed = float(np.linalg.norm(vel))
+            mach = (speed / self.atmosphere.speed_of_sound(alt))
+
             # calc angle of attack: (pitch_angle - flight_path_angle)
             vel_hat = vel / speed                                       # flight path vector
             flight_path_angle = vec_ang(vel_hat, np.array([1, 0, 0]))
             alpha = pitch_angle - flight_path_angle                     # angle of attack
-
-            # calculate current mach
-            speed = float(np.linalg.norm(vel))
-            mach = (speed / self.atmosphere.speed_of_sound(alt))
 
             # lookup coefficients
             if alpha > 0:
