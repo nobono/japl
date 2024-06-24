@@ -230,11 +230,17 @@ class Sim:
             #          (model.CN(alpha,mach)+...
             #           model.CNit(alpha*n,mach*n,model.increments.iota));
 
-            ytorque = CLMB / simobj.Iyy
+            # calulate moments: (M_coef * q * Sref * Lref), where:
+            #       M_coef - moment coeficient
+            #       q      - dynamic pressure
+            #       Sref   - surface area reference (wing area)
+            #       Lref   - length reference (mean aerodynamic chord)
+            # q = self.atmosphere.dynamic_pressure(vel, alt)
+            # ytorque = CLMB * q * simobj.aerotable.Sref
             # zforce = CNB /
 
             # update external moments
-            torque_ext[1] = ytorque
+            # torque_ext[1] = ytorque
         ########################################################################
 
         # fuel_burn = X[6]
