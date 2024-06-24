@@ -3,7 +3,7 @@ from quaternion.numpy_quaternion import quaternion
 
 
 
-def quat_conj(q):
+def quat_conj(q: np.ndarray) -> np.ndarray:
     assert len(q) == 4
     q[1] *= -1.0
     q[2] *= -1.0
@@ -45,15 +45,11 @@ def quat_to_dcm(q: np.ndarray|quaternion) -> np.ndarray:
     return dcm
 
 
-def quat_to_tait_bryan(q: np.ndarray|quaternion):
+def quat_to_tait_bryan(q: np.ndarray|quaternion) -> np.ndarray:
     if isinstance(q, quaternion):
         q = q.components #type:ignore
-    yaw  = np.arctan2((q[2] * q[3] + q[0] * q[1]), 0.5 - (q[1]**2 + q[2]**2))
-    pitch = np.arcsin(-2 * (q[1] * q[3] - q[0] * q[2]))
-    roll  = np.arctan2((q[1] * q[2] + q[0] * q[3]), 0.5 - (q[2]**2 + q[3]**2))
-    # if abs(2 * (q[1] * q[3] + q[0] * q[2])) == 1.0:
-    #     print("gymbal lock conversion")
-    return np.array([yaw, pitch, roll])
+    dcm = quat_to_dcm(q)
+    return dcm_to_tait_bryan(dcm)
 
 
 def tait_bryan_to_dcm(yaw_pitch_roll):
@@ -71,7 +67,7 @@ def tait_bryan_to_dcm(yaw_pitch_roll):
     return dcm
 
 
-def dcm_to_tait_bryan(dcm):
+def dcm_to_tait_bryan(dcm: np.ndarray) -> np.ndarray:
     # handle gimbal lock condition
     if abs(abs(dcm[2][0]) - 1) < 1e-12:
         # set roll to zero and solve for yaw
