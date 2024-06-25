@@ -87,6 +87,9 @@ class AeroTable:
         self._Fin4_CBM   = data_dict.get("Fin4_CBM",   None).table   # (alpha, phi, mach, iota)
         self._Fin4_CHM   = data_dict.get("Fin4_CHM",   None).table   # (alpha, phi, mach, iota)
 
+        self.Sref = data_dict.get("Sref", None)
+        self.Lref = data_dict.get("Lref", None)
+        self.MRC = data_dict.get("MRC", None)
 
     def _get_CA_Basic(self, alpha: float, phi: float, mach: float, method: str = "linear") -> float:
         return interpn((self.increments.alpha, self.increments.phi, self.increments.mach), #type:ignore
