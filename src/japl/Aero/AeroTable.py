@@ -8,13 +8,6 @@ from japl.Util.Matlab import MatFile
 
 
 
-__ft2m = (1.0 * u.imperial.foot).to_value(u.m) #type:ignore
-__inch2m = (1.0 * u.imperial.inch).to_value(u.m) #type:ignore
-__deg2rad = (np.pi / 180.0)
-__lbminch2Nm = (1.0 * u.imperial.lbm * u.imperial.inch**2).to_value(u.kg * u.m**2) #type:ignore
-__inch_sq_2_m_sq = (1.0 * u.imperial.inch**2).to_value(u.m**2) #type:ignore
-
-
 class Increments:
     alpha = np.empty([])
     phi = np.empty([])
@@ -38,6 +31,12 @@ class Increments:
 class AeroTable:
 
     """This class is for containing Aerotable data for a particular SimObject."""
+
+    __ft2m = (1.0 * u.imperial.foot).to_value(u.m) #type:ignore
+    __inch2m = (1.0 * u.imperial.inch).to_value(u.m) #type:ignore
+    __deg2rad = (np.pi / 180.0)
+    __lbminch2Nm = (1.0 * u.imperial.lbm * u.imperial.inch**2).to_value(u.kg * u.m**2) #type:ignore
+    __inch_sq_2_m_sq = (1.0 * u.imperial.inch**2).to_value(u.m**2) #type:ignore
 
     def __init__(self, data: str|dict|MatFile) -> None:
         data_dict = {}
@@ -96,13 +95,13 @@ class AeroTable:
         # TODO make input and ouput of units better...
         # TEMP: currently aero data available is in imperial units
         ############################################################
-        self.increments.alpha       *= __deg2rad
-        self.increments.phi         *= __deg2rad
-        self.increments.alt         *= __ft2m
-        self.increments.iota        *= __deg2rad
-        self.increments.iota_prime  *= __deg2rad
-        self.Sref = __inch_sq_2_m_sq
-        self.Lref = __inch2m
+        self.increments.alpha       = self.increments.alpha      * self.__deg2rad
+        self.increments.phi         = self.increments.phi        * self.__deg2rad
+        self.increments.alt         = self.increments.alt        * self.__ft2m
+        self.increments.iota        = self.increments.iota       * self.__deg2rad
+        self.increments.iota_prime  = self.increments.iota_prime * self.__deg2rad
+        self.Sref = self.__inch_sq_2_m_sq
+        self.Lref = self.__inch2m
         self.MRC = data_dict.get("MRC", None)
         ############################################################
 
