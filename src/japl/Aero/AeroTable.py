@@ -4,6 +4,8 @@ from scipy.io import loadmat
 import pickle
 from astropy import units as u
 
+from japl.Util.Matlab import MatFile
+
 
 
 __ft2m = (1.0 * u.imperial.foot).to_value(u.m) #type:ignore
@@ -36,53 +38,54 @@ class AeroTable:
 
     """This class is for containing Aerotable data for a particular SimObject."""
 
-    def __init__(self, data: str|dict) -> None:
+    def __init__(self, data: str|dict|MatFile) -> None:
         data_dict = {}
         if isinstance(data, str):
             self.__path = data
-            assert ".pickle" in self.__path
-            with open(self.__path, "rb") as f:
-                data_dict = pickle.load(f)
+            if ".pickle" in self.__path:
+                with open(self.__path, "rb") as f:
+                    data_dict = pickle.load(f)
+            elif ".mat" in self.__path:
+                data_dict = MatFile(self.__path)
             
-        _increments = data_dict.get("increments", None)
-        if _increments:
-            self.increments = Increments()
-            self.increments.alpha       = _increments.get("alpha", None)
-            self.increments.phi         = _increments.get("phi", None)
-            self.increments.mach        = _increments.get("mach", None)
-            self.increments.alt         = _increments.get("alt", None)
-            self.increments.iota        = _increments.get("iota", None)
-            self.increments.iota_prime  = _increments.get("iota_prime", None)
+        self.increments = Increments()
+        self.increments.alpha       = data_dict.get("Alpha", None)
+        self.increments.phi         = data_dict.get("Phi", None)
+        self.increments.mach        = data_dict.get("Mach", None)
+        self.increments.alt         = data_dict.get("Alt", None)
+        self.increments.iota        = data_dict.get("Iota", None)
+        self.increments.iota_prime  = data_dict.get("Iota_Prime", None)
+        try:
             self.increments.nalpha       = len(self.increments.alpha)
             self.increments.nphi         = len(self.increments.phi)
             self.increments.nmach        = len(self.increments.mach)
             self.increments.nalt         = len(self.increments.alt)
             self.increments.niota        = len(self.increments.iota)
             self.increments.niota_prime  = len(self.increments.iota_prime)
+        except:
+            pass
 
-        _psb = data_dict.get("psb", None)
-        if _psb:
-            self._CA_inv     = _psb.get("CA_inv",     None)   # (alpha, phi, mach)
-            self._CA_Basic   = _psb.get("CA_Basic",   None)   # (alpha, phi, mach)
-            self._CA_0_Boost = _psb.get("CA_0_Boost", None)   # (phi, mach, alt)
-            self._CA_0_Coast = _psb.get("CA_0_Coast", None)   # (phi, mach, alt)
-            self._CA_IT      = _psb.get("CA_IT",      None)   # (alpha, phi, mach, iota)
-            self._CYB_Basic  = _psb.get("CYB_Basic",  None)   # (alpha, phi, mach)
-            self._CYB_IT     = _psb.get("CYB_IT",     None)   # (alpha, phi, mach, iota)
-            self._CNB_Basic  = _psb.get("CNB_Basic",  None)   # (alpha, phi, mach)
-            self._CNB_IT     = _psb.get("CNB_IT",     None)   # (alpha, phi, mach, iota)
-            self._CLLB_Basic = _psb.get("CLLB_Basic", None)   # (alpha, phi, mach)
-            self._CLLB_IT    = _psb.get("CLLB_IT",    None)   # (alpha, phi, mach, iota)
-            self._CLMB_Basic = _psb.get("CLMB_Basic", None)   # (alpha, phi, mach)
-            self._CLMB_IT    = _psb.get("CLMB_IT",    None)   # (alpha, phi, mach, iota)
-            self._CLNB_Basic = _psb.get("CLNB_Basic", None)   # (alpha, phi, mach)
-            self._CLNB_IT    = _psb.get("CLNB_IT",    None)   # (alpha, phi, mach, iota)
-            self._Fin2_CN    = _psb.get("Fin2_CN",    None)   # (alpha, phi, mach, iota)
-            self._Fin2_CBM   = _psb.get("Fin2_CBM",   None)   # (alpha, phi, mach, iota)
-            self._Fin2_CHM   = _psb.get("Fin2_CHM",   None)   # (alpha, phi, mach, iota)
-            self._Fin4_CN    = _psb.get("Fin4_CN",    None)   # (alpha, phi, mach, iota)
-            self._Fin4_CBM   = _psb.get("Fin4_CBM",   None)   # (alpha, phi, mach, iota)
-            self._Fin4_CHM   = _psb.get("Fin4_CHM",   None)   # (alpha, phi, mach, iota)
+        self._CA_inv     = data_dict.get("CA_inv",     None)   # (alpha, phi, mach)
+        self._CA_Basic   = data_dict.get("CA_Basic",   None)   # (alpha, phi, mach)
+        self._CA_0_Boost = data_dict.get("CA_0_Boost", None)   # (phi, mach, alt)
+        self._CA_0_Coast = data_dict.get("CA_0_Coast", None)   # (phi, mach, alt)
+        self._CA_IT      = data_dict.get("CA_IT",      None)   # (alpha, phi, mach, iota)
+        self._CYB_Basic  = data_dict.get("CYB_Basic",  None)   # (alpha, phi, mach)
+        self._CYB_IT     = data_dict.get("CYB_IT",     None)   # (alpha, phi, mach, iota)
+        self._CNB_Basic  = data_dict.get("CNB_Basic",  None)   # (alpha, phi, mach)
+        self._CNB_IT     = data_dict.get("CNB_IT",     None)   # (alpha, phi, mach, iota)
+        self._CLLB_Basic = data_dict.get("CLLB_Basic", None)   # (alpha, phi, mach)
+        self._CLLB_IT    = data_dict.get("CLLB_IT",    None)   # (alpha, phi, mach, iota)
+        self._CLMB_Basic = data_dict.get("CLMB_Basic", None)   # (alpha, phi, mach)
+        self._CLMB_IT    = data_dict.get("CLMB_IT",    None)   # (alpha, phi, mach, iota)
+        self._CLNB_Basic = data_dict.get("CLNB_Basic", None)   # (alpha, phi, mach)
+        self._CLNB_IT    = data_dict.get("CLNB_IT",    None)   # (alpha, phi, mach, iota)
+        self._Fin2_CN    = data_dict.get("Fin2_CN",    None)   # (alpha, phi, mach, iota)
+        self._Fin2_CBM   = data_dict.get("Fin2_CBM",   None)   # (alpha, phi, mach, iota)
+        self._Fin2_CHM   = data_dict.get("Fin2_CHM",   None)   # (alpha, phi, mach, iota)
+        self._Fin4_CN    = data_dict.get("Fin4_CN",    None)   # (alpha, phi, mach, iota)
+        self._Fin4_CBM   = data_dict.get("Fin4_CBM",   None)   # (alpha, phi, mach, iota)
+        self._Fin4_CHM   = data_dict.get("Fin4_CHM",   None)   # (alpha, phi, mach, iota)
 
 
     def _get_CA_Basic(self, alpha: float, phi: float, mach: float, method: str = "linear") -> float:

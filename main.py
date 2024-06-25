@@ -133,7 +133,7 @@ if __name__ == "__main__":
     model.ss(A, B)
 
     vehicle = SimObject(model=model, size=2, color='tab:blue')
-    vehicle.aerotable = AeroTable("./aeromodel/aeromodel.pickle")
+    vehicle.aerotable = AeroTable("./aeromodel/aeromodel_psb.mat")
 
     vehicle.plot.set_config({
                 "Pos": {
@@ -170,7 +170,7 @@ if __name__ == "__main__":
     # but dt just create t_array for no animation
     sim = Sim(
             t_span=[0, 10],
-            dt=.1,
+            dt=.01,
             simobjs=[vehicle],
             events=[],
             animate=1,

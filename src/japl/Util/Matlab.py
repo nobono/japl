@@ -2,7 +2,7 @@ import pickle
 from scipy.io import loadmat
 from astropy import units as u
 import numpy as np
-from typing import Callable
+from typing import Any, Callable
 
 
 
@@ -190,16 +190,23 @@ class MatFile:
     """
 
     def __init__(self, path: str) -> None:
-        self.__raw_data = loadmat(path)
-        if isinstance(self.__raw_data, dict):
-            for k, v in self.__raw_data.items():
+        self._raw_data = loadmat(path)
+        if isinstance(self._raw_data, dict):
+            for k, v in self._raw_data.items():
                 if "__" not in k:
                     if self.is_struct(v):
                         self.__setattr__(k, MatStruct(v)) # MatStruct is recursive
                     else:
                         self.__setattr__(k, self.safe_unpack(v))
-        elif isinstance(self.__raw_data, np.ndarray):
-            self.__setattr__("data", MatStruct(self.__raw_data))
+        elif isinstance(self._raw_data, np.ndarray):
+            self.__setattr__("data", MatStruct(self._raw_data))
+
+
+    def get(self, key: str, default=None) -> Any:
+        if hasattr(self, key):
+            return self.__getattribute__(key)
+        else:
+            return default
 
 
     @staticmethod
