@@ -188,7 +188,7 @@ class Sim:
         # get device input
         if self.device_input_type:
             (lx, ly, _, _) = self.device_input.get()
-            iota = ly * 0.3
+            iota = ly * 0.69
             # force = np.array([1000*lx, 0, 1000*ly])
             # acc_ext = acc_ext + force / mass
 
@@ -218,8 +218,12 @@ class Sim:
             # lookup coefficients
             if alpha > 0:
                 CLMB = simobj.aerotable.get_CLMB_Total(alpha, phi, mach, iota)
+                CNB = simobj.aerotable.get_CNB_Total(alpha, phi, mach, iota)
             else:
                 CLMB = -simobj.aerotable.get_CLMB_Total(-alpha, phi, mach, iota)
+                CNB = -simobj.aerotable.get_CNB_Total(-alpha, phi, mach, iota)
+
+            y_moment_coef = CLMB + (simobj.cg - simobj.aerotable.MRC[0]) * CNB
 
             # CNB = simobj.aerotable.get_CNB_Total(alpha, phi, mach, iota)
 
@@ -235,12 +239,12 @@ class Sim:
             #       q      - dynamic pressure
             #       Sref   - surface area reference (wing area)
             #       Lref   - length reference (mean aerodynamic chord)
-            # q = self.atmosphere.dynamic_pressure(vel, alt)
-            # ytorque = CLMB * q * simobj.aerotable.Sref
+            q = self.atmosphere.dynamic_pressure(vel, alt)
+            ytorque = y_moment_coef * q * simobj.aerotable.Sref * simobj.aerotable.Lref
             # zforce = CNB /
 
             # update external moments
-            # torque_ext[1] = ytorque
+            torque_ext[1] = ytorque
         ########################################################################
 
         # fuel_burn = X[6]

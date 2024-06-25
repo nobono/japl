@@ -157,7 +157,7 @@ if __name__ == "__main__":
     vehicle.mass = 133 # (kg)
     vehicle.cg = 1.42 # (m)
     x0 = [0, 0, 0]
-    v0 = [500, 0, 200]
+    v0 = [500, 0, 0]
     w0 = [0, 0, 0]
     quat0 = quaternion.from_euler_angles([0, 0, 0]).components
     mass0 = 10.0
@@ -175,7 +175,7 @@ if __name__ == "__main__":
             events=[],
             animate=1,
             aspect="equal",
-            device_input_type="",
+            device_input_type="gamepad",
             moving_bounds=True,
             rtol=1e-6,
             atol=1e-6,
