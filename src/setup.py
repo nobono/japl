@@ -3,12 +3,19 @@ import numpy as np
 from setuptools import setup
 from setuptools import find_packages
 from setuptools import Extension
+import platform
+
+if platform.system().lower() == "windows":
+    split_char = ';'
+else:
+    split_char = ':'
 
 
-numpy_include_dir = os.path.join(np.__file__, "..", "core", "include")
-path_include_dirs = os.environ.get("PATH", "").split(';')
+numpy_dir = os.path.dirname(np.__file__)
+numpy_include_dir = os.path.join(numpy_dir, "core", "include")
+path_include_dirs = os.environ.get("PATH", "").split(split_char)
 if not os.path.exists(numpy_include_dir):
-    raise Exception(f"numpy include dir could not be found")
+    raise Exception("numpy include dir could not be found")
 
 
 ode_int_ext = Extension(name="odeint",
