@@ -110,7 +110,7 @@ class AeroTable:
     def _get_CA_Basic(self, alpha: float, phi: float, mach: float, method: str = "linear") -> float:
         return interpn((self.increments.alpha, self.increments.phi, self.increments.mach), #type:ignore
                 self._CA_Basic,
-                [alpha, phi, mach],
+                [abs(alpha), phi, mach],
                 method=method)[0]
         
     def _get_CA_0_Boost(self, phi: float, mach: float, alt: float, method: str = "linear") -> float:
@@ -130,63 +130,87 @@ class AeroTable:
     def _get_CA_IT(self, alpha: float, phi: float, mach: float, iota: float, method: str = "linear") -> float:
         return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota), #type:ignore
                 self._CA_IT,
-                [alpha, phi, mach, iota],
+                [abs(alpha), phi, mach, iota],
                 method=method)[0]
 
 
     def _get_CNB_Basic(self, alpha: float, phi: float, mach: float, method: str = "linear") -> float:
-        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach), #type:ignore
-                self._CNB_Basic,
-                [alpha, phi, mach],
-                method=method)[0]
+        if alpha < 0:
+            return -interpn((self.increments.alpha, self.increments.phi, self.increments.mach), #type:ignore
+                    self._CNB_Basic,
+                    [-alpha, phi, mach],
+                    method=method)[0]
+        else:
+            return interpn((self.increments.alpha, self.increments.phi, self.increments.mach), #type:ignore
+                    self._CNB_Basic,
+                    [alpha, phi, mach],
+                    method=method)[0]
 
 
     def _get_CNB_IT(self, alpha: float, phi: float, mach: float, iota: float, method: str = "linear") -> float:
-        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota), #type:ignore
-                self._CNB_IT,
-                [alpha, phi, mach, iota],
-                method=method)[0]
+        if alpha < 0:
+            return -interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota), #type:ignore
+                    self._CNB_IT,
+                    [-alpha, phi, mach, -iota],
+                    method=method)[0]
+        else:
+            return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota), #type:ignore
+                    self._CNB_IT,
+                    [alpha, phi, mach, iota],
+                    method=method)[0]
 
 
     def _get_CYB_Basic(self, alpha: float, phi: float, mach: float, method: str = "linear") -> float:
         return interpn((self.increments.alpha, self.increments.phi, self.increments.mach), #type:ignore
                 self._CYB_Basic,
-                [alpha, phi, mach],
+                [abs(alpha), phi, mach],
                 method=method)[0]
 
 
     def _get_CYB_IT(self, alpha: float, phi: float, mach: float, iota: float, method: str = "linear") -> float:
         return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota), #type:ignore
                 self._CYB_IT,
-                [alpha, phi, mach, iota],
+                [abs(alpha), phi, mach, iota],
                 method=method)[0]
 
 
     def _get_CLMB_Basic(self, alpha: float, phi: float, mach: float, method: str = "linear") -> float:
-        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach), #type:ignore
-                self._CLMB_Basic,
-                [alpha, phi, mach],
-                method=method)[0]
+        if alpha < 0:
+            return -interpn((self.increments.alpha, self.increments.phi, self.increments.mach), #type:ignore
+                    self._CLMB_Basic,
+                    [-alpha, phi, mach],
+                    method=method)[0]
+        else:
+            return interpn((self.increments.alpha, self.increments.phi, self.increments.mach), #type:ignore
+                    self._CLMB_Basic,
+                    [alpha, phi, mach],
+                    method=method)[0]
 
 
     def _get_CLMB_IT(self, alpha: float, phi: float, mach: float, iota: float, method: str = "linear") -> float:
-        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota), #type:ignore
-                self._CLMB_IT,
-                [alpha, phi, mach, iota],
-                method=method)[0]
+        if alpha < 0:
+            return -interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota), #type:ignore
+                    self._CLMB_IT,
+                    [-alpha, phi, mach, -iota],
+                    method=method)[0]
+        else:
+            return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota), #type:ignore
+                    self._CLMB_IT,
+                    [alpha, phi, mach, iota],
+                    method=method)[0]
 
 
     def _get_CLNB_Basic(self, alpha: float, phi: float, mach: float, method: str = "linear") -> float:
         return interpn((self.increments.alpha, self.increments.phi, self.increments.mach), #type:ignore
                 self._CLNB_Basic,
-                [alpha, phi, mach],
+                [abs(alpha), phi, mach],
                 method=method)[0]
 
 
     def _get_CLNB_IT(self, alpha: float, phi: float, mach: float, iota: float, method: str = "linear") -> float:
         return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota), #type:ignore
                 self._CLNB_IT,
-                [alpha, phi, mach, iota],
+                [abs(alpha), phi, mach, iota],
                 method=method)[0]
 
 
