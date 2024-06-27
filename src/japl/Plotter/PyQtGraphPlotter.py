@@ -265,10 +265,7 @@ class PyQtGraphPlotter:
         # TODO run post-animation func when finished
         if self.istep >= self.Nt:
             # self._post_anim_func(self.simobjs)
-            if self.quiet:
-                self.app.quit()
-            else:
-                self.timer.stop()
+            self.timer.stop()
 
 
     def __update_instrument_view(self, _simobj: SimObject) -> None:
