@@ -14,3 +14,4 @@ tqdm==4.66.2
 PyQt5==5.15.10
 pyqtgraph==0.13.7
 numpy-quaternion==2023.0.3
+plotext==5.2.8
