@@ -11,8 +11,6 @@ from japl import SimObject
 from japl import Model
 from japl import AeroTable
 
-import matplotlib.pyplot as plt
-
 # ---------------------------------------------------
 
 
@@ -192,118 +190,7 @@ if __name__ == "__main__":
     # sim.plotter.add_text("debug")
     # sim.plotter.add_text("ytorque")
     # sim.plotter.add_text("iota")
-    # sim.run()
-
-    simobj = vehicle
-    assert simobj.aerotable
-
-    fig, ax = plt.subplots(2, 2, figsize=(12, 10))
-
-
-    ######################3
-    alpha = 0
-    phi = 0
-    mach = 2.0
-    iota = 0
-    alt = 10_000
-
-    for iota in np.linspace(0, np.radians(40), 1):
-
-        alphas = []
-        iotas = []
-        CNBs = []
-        Mys = []
-        forces = []
-
-        for alpha in np.linspace(-np.radians(40), np.radians(40), 100):
-            # alpha *= -1
-
-            vel = mach * sim.atmosphere.speed_of_sound(alt)
-
-            CLMB = simobj.aerotable.get_CLMB_Total(alpha, phi, mach, iota)
-            CNB = simobj.aerotable.get_CNB_Total(alpha, phi, mach, iota)
-
-            My_coef = CLMB + (simobj.cg - simobj.aerotable.MRC[0]) * CNB
-
-            q = sim.atmosphere.dynamic_pressure(vel, alt)
-            My = My_coef * q * simobj.aerotable.Sref * simobj.aerotable.Lref
-            zforce = CNB * q * simobj.aerotable.Sref
-
-            alphas += [alpha]
-            iotas += [iota]
-            CNBs += [CNB]
-            Mys += [My]
-            forces += [zforce]
-
-        ax[0, 0].plot(alphas, Mys)
-        ax[0, 0].set_xlabel("alpha")
-        ax[0, 0].set_ylabel("Mys")
-        ax[0, 0].grid()
-
-        ax[0, 1].plot(alphas, forces)
-        ax[0, 1].set_xlabel("alpha")
-        ax[0, 1].set_ylabel("force")
-        ax[0, 1].grid()
-
-    ######################3
-
-    alpha = 0
-    phi = 0
-    mach = 2.0
-    iota = 0
-    alt = 10_000
-
-    alphas = []
-    iotas = []
-    CNBs = []
-    Mys = []
-    forces = []
-
-    for iota in np.linspace(-np.radians(40), np.radians(40), 100):
-
-        vel = mach * sim.atmosphere.speed_of_sound(alt)
-
-        CLMB = simobj.aerotable.get_CLMB_Total(alpha, phi, mach, iota)
-        CNB = simobj.aerotable.get_CNB_Total(alpha, phi, mach, iota)
-
-        My_coef = CLMB + (simobj.cg - simobj.aerotable.MRC[0]) * CNB
-
-        q = sim.atmosphere.dynamic_pressure(vel, alt)
-        My = My_coef * q * simobj.aerotable.Sref * simobj.aerotable.Lref
-        zforce = CNB * q * simobj.aerotable.Sref
-
-        alphas += [alpha]
-        iotas += [iota]
-        CNBs += [CNB]
-        Mys += [My]
-        forces += [zforce]
-
-    ax[1, 0].plot(iotas, Mys)
-    ax[1, 0].set_xlabel("iota")
-    ax[1, 0].set_ylabel("Mys")
-    ax[1, 0].grid()
-
-    ax[1, 1].plot(iotas, forces)
-    ax[1, 1].set_xlabel("iota")
-    ax[1, 1].set_ylabel("force")
-    ax[1, 1].grid()
-
-
-    plt.show()
-    quit()
-
-    q = sim.temp_data["q"]
-    pitch = sim.temp_data["pitch"]
-    alpha = sim.temp_data["alpha"]
-    iota = sim.temp_data["iota"]
-    CN = sim.temp_data["CN"]
-    My = sim.temp_data["My"]
-    Fz = sim.temp_data["Fz"]
-
-    import matplotlib.pyplot as plt
-    plt.plot(np.degrees(alpha), CN)
-    plt.plot(np.degrees(alpha), Fz)
-    plt.show()
+    sim.run()
 
 
     # plt.plot(np.degrees(alpha), CN)
