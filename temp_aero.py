@@ -7,6 +7,8 @@ from japl import Atmosphere
 from japl import SimObject
 from japl import Model
 from japl import AeroTable
+from japl.Math.Rotation import quat_to_tait_bryan
+from japl.Math.Vec import vec_ang
 
 
 # ---------------------------------------------------
@@ -84,79 +86,14 @@ model.ss(A, B)
 
 vehicle = SimObject(model=model, size=2, color='tab:blue')
 vehicle.aerotable = AeroTable("./aeromodel/aeromodel_psb.mat")
-
-
 atmosphere = Atmosphere()
-simobj = vehicle
-assert simobj.aerotable
-
-fig, ax = plt.subplots(2, 2, figsize=(12, 10))
 
 
-######################3
-alpha = 0
-phi = 0
-mach = 2.0
-iota = 0
-alt = 10_000
-
-for iota in np.linspace(0, np.radians(40), 1):
-
-    alphas = []
-    iotas = []
-    CNBs = []
-    Mys = []
-    forces = []
-
-    for alpha in np.linspace(-np.radians(40), np.radians(40), 100):
-        # alpha *= -1
-
-        vel = mach * atmosphere.speed_of_sound(alt)
-
-        CLMB = simobj.aerotable.get_CLMB_Total(alpha, phi, mach, iota)
-        CNB = simobj.aerotable.get_CNB_Total(alpha, phi, mach, iota)
-
-        My_coef = CLMB + (simobj.cg - simobj.aerotable.MRC[0]) * CNB
-
-        q = atmosphere.dynamic_pressure(vel, alt)
-        My = My_coef * q * simobj.aerotable.Sref * simobj.aerotable.Lref
-        zforce = CNB * q * simobj.aerotable.Sref
-
-        alphas += [alpha]
-        iotas += [iota]
-        CNBs += [CNB]
-        Mys += [My]
-        forces += [zforce]
-
-    ax[0, 0].plot(alphas, Mys)
-    ax[0, 0].set_xlabel("alpha")
-    ax[0, 0].set_ylabel("Mys")
-    ax[0, 0].grid()
-
-    ax[0, 1].plot(alphas, forces)
-    ax[0, 1].set_xlabel("alpha")
-    ax[0, 1].set_ylabel("force")
-    ax[0, 1].grid()
-
-######################3
-
-alpha = 0
-phi = 0
-mach = 2.0
-iota = 0
-alt = 10_000
-
-alphas = []
-iotas = []
-CNBs = []
-Mys = []
-forces = []
-
-for iota in np.linspace(-np.radians(40), np.radians(40), 100):
-
+def aero_update(simobj: SimObject, alpha, phi, mach, iota, alt):
+    assert simobj.aerotable
     vel = mach * atmosphere.speed_of_sound(alt)
 
-    CLMB = simobj.aerotable.get_CLMB_Total(alpha, phi, mach, iota)
+    CLMB = -simobj.aerotable.get_CLMB_Total(alpha, phi, mach, iota)
     CNB = simobj.aerotable.get_CNB_Total(alpha, phi, mach, iota)
 
     My_coef = CLMB + (simobj.cg - simobj.aerotable.MRC[0]) * CNB
@@ -165,25 +102,174 @@ for iota in np.linspace(-np.radians(40), np.radians(40), 100):
     My = My_coef * q * simobj.aerotable.Sref * simobj.aerotable.Lref
     zforce = CNB * q * simobj.aerotable.Sref
 
-    alphas += [alpha]
-    iotas += [iota]
+    return (alpha, iota, CNB, My, zforce)
+
+
+def reset():
+    alpha = 0
+    phi = 0
+    mach = 0
+    iota = 0
+    alt = 10_000
+
+    alphas = []
+    iotas = []
+    CNBs = []
+    Mys = []
+    forces = []
+
+    return (alpha, phi, mach, iota, alt,
+            alphas, iotas, CNBs, Mys, forces)
+
+
+######################
+
+alpha, phi, mach, iota, alt,\
+        alphas, iotas, CNBs, Mys, forces = reset()
+
+ang = np.radians(0)
+quat0 = [np.cos(ang/2), 0, np.sin(ang/2), 0]
+vehicle.init_state([0,0,alt, 700,0,0, 0,0,0, quat0, 0])
+vehicle._pre_sim_checks()
+simobj = vehicle
+fig, ax = plt.subplots(2, 2, figsize=(12, 10))
+
+dt = 0.01
+X = vehicle.X0.copy()
+
+ts = []
+poss = []
+vels = []
+angvels = []
+quats = []
+pitchs = []
+fpa = []
+
+for i in range(30):
+
+    alt = X[simobj.get_state_id("z")]
+    vel = X[simobj.get_state_id(["vx", "vy", "vz"])]
+    _quat = X[simobj.model.get_state_id(["q0", "q1", "q2", "q3"])]
+    # get Trait-bryan angles (yaw, pitch, roll)
+    tait_bryan_angles = quat_to_tait_bryan(np.asarray(_quat))
+    pitch_angle = tait_bryan_angles[1]
+    phi = tait_bryan_angles[2]                                  # roll angle
+    # calculate current mach
+    speed = float(np.linalg.norm(vel))
+    mach = (speed /atmosphere.speed_of_sound(alt)) #type:ignore
+    # calc angle of attack: (pitch_angle - flight_path_angle)
+    vel_hat = vel / speed                                       # flight path vector
+    # projection vel_hat --> x-axis
+    zxplane = np.array([0, 1, 0])
+    vel_hat_zx = ((vel_hat @ zxplane) / np.linalg.norm(zxplane)) * zxplane
+    vel_hat_proj = vel_hat - vel_hat_zx
+    # angle between proj vel_hat & xaxis
+    flight_path_angle = np.sign(vel_hat_proj[2]) * vec_ang(vel_hat_proj, np.array([1, 0, 0]))
+    alpha = pitch_angle - flight_path_angle                     # angle of attack
+
+    iota = np.radians(5)
+    alpha, iota, CNB, My, zforce = aero_update(vehicle, alpha, phi, mach, iota, alt)
+
+    acc = zforce / simobj.mass
+    ang_acc = My / simobj.Iyy
+
+
+    U = np.array([0,0,acc, 0,ang_acc,0])
+    Xdot = vehicle.model.step(X, U)
+    X = Xdot * dt + X
+
+    ts += [i * dt]
+    poss += [X[:3]]
+    vels += [X[3:6]]
+    angvels += [X[6:9]]
+    quats += [X[9:13]]
+    pitchs += [np.degrees(pitch_angle)]
+    alphas += [np.degrees(alpha)]
     CNBs += [CNB]
     Mys += [My]
     forces += [zforce]
+    fpa += [np.degrees(flight_path_angle)]
 
-ax[1, 0].plot(iotas, Mys)
-ax[1, 0].set_xlabel("iota")
-ax[1, 0].set_ylabel("Mys")
+poss = np.asarray(poss)
+vels = np.asarray(vels)
+angvels = np.asarray(angvels)
+quats = np.asarray(quats)
+
+
+ax[0, 0].plot(ts, alphas)
+ax[0, 0].set_xlabel("t")
+ax[0, 0].set_ylabel("alpha")
+ax[0, 0].grid()
+
+ax[0, 1].plot(ts, poss[:, 2])
+ax[0, 1].set_xlabel("t")
+ax[0, 1].set_ylabel("alt")
+ax[0, 1].grid()
+
+ax[1, 0].plot(ts, Mys)
+ax[1, 0].set_xlabel("t")
+ax[1, 0].set_ylabel("torque")
 ax[1, 0].grid()
 
-ax[1, 1].plot(iotas, forces)
-ax[1, 1].set_xlabel("iota")
+ax[1, 1].plot(ts, forces)
+ax[1, 1].set_xlabel("t")
 ax[1, 1].set_ylabel("force")
 ax[1, 1].grid()
 
+# for iota in np.linspace(0, np.radians(40), 1):
 
-# plx.from_matplotlib(fig)
-# plx.show()
-plt.show()
+#     alpha, phi, mach, iota, alt,\
+#             alphas, iotas, CNBs, Mys, forces = reset()
+
+#     for alpha in np.linspace(0, np.radians(40), 100):
+#         alpha, iota, CNB, My, zforce = aero_update(vehicle, alpha, phi, mach, iota, alt)
+
+#         alphas += [alpha]
+#         iotas += [iota]
+#         CNBs += [CNB]
+#         Mys += [My]
+#         forces += [zforce]
+
+#     ax[0, 0].plot(alphas, Mys)
+#     ax[0, 0].set_xlabel("alpha")
+#     ax[0, 0].set_ylabel("Mys")
+#     ax[0, 0].grid()
+
+#     ax[0, 1].plot(alphas, forces)
+#     ax[0, 1].set_xlabel("alpha")
+#     ax[0, 1].set_ylabel("force")
+#     ax[0, 1].grid()
+
+
+# ######################
+
+
+# alpha, phi, mach, iota, alt,\
+#         alphas, iotas, CNBs, Mys, forces = reset()
+
+# for iota in np.linspace(0, np.radians(40), 100):
+
+#     alpha, iota, CNB, My, zforce = aero_update(vehicle, alpha, phi, mach, iota, alt)
+
+#     alphas += [alpha]
+#     iotas += [iota]
+#     CNBs += [CNB]
+#     Mys += [My]
+#     forces += [zforce]
+
+# ax[1, 0].plot(iotas, Mys)
+# ax[1, 0].set_xlabel("iota")
+# ax[1, 0].set_ylabel("Mys")
+# ax[1, 0].grid()
+
+# ax[1, 1].plot(iotas, forces)
+# ax[1, 1].set_xlabel("iota")
+# ax[1, 1].set_ylabel("force")
+# ax[1, 1].grid()
+
+
+plx.from_matplotlib(fig)
+plx.show()
+# plt.show()
 quit()
 
