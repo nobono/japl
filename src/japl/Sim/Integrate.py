@@ -1,21 +1,20 @@
 import numpy as np
+from collections.abc import Callable
 
 
 
-def runge_kutta_4(Xdot: np.ndarray, X: np.ndarray, t: float, h: float) -> np.ndarray:
+def runge_kutta_4(f: Callable, t: float, X: np.ndarray, h: float, *args) -> np.ndarray:
     """
         This method integrates state dynamics using Runge Kutta 4 method.
     and returns the value of the state 'X' for the next time step.
     
-    * This method currently does not support non-autonomous systems where
-    time is a part of the state dynamics.*
-
     -------------------------------------------------------------------
     -- Arguments
     -------------------------------------------------------------------
-    -- Xdot - (N x 1) state dynamics array
-    -- X - (N x 1) state array
+    -- f - function which returns the dynamics of the state. 'f' must 
+            follow the prototype f(t, X, ...)
     -- t - time for the current time step
+    -- X - (N x 1) state array
     -- h - step size for the integration (dt)
     -------------------------------------------------------------------
     -------------------------------------------------------------------
@@ -25,8 +24,8 @@ def runge_kutta_4(Xdot: np.ndarray, X: np.ndarray, t: float, h: float) -> np.nda
     -------------------------------------------------------------------
     """
 
-    k1 = Xdot
-    k2 = X + (0.5 * h * k1)
-    k3 = X + (0.5 * h * k2)
-    k4 = X + (h * k3)
+    k1 = f(t, X)
+    k2 = f(t + 0.5 * h, X + (0.5 * h * k1))
+    k3 = f(t + 0.5 * h, X + (0.5 * h * k2))
+    k4 = f(t + h, X + (h * k3))
     return X + (h / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4)
