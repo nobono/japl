@@ -79,9 +79,6 @@ class Sim:
                 print("ave_dt: %.5f, ave_Hz: %.1f" % (self.debug_profiler["t_ave"], (1 / self.debug_profiler["t_ave"])))
         self.debug_profiler = {"t": 0.0, "t_total": 0.0, "count": 0, "t_ave": 0.0, "run": _debug_profiler_func}
 
-        # TEMP internal plotting stuff
-        self.temp_data = {"pitch": [], "alpha": [], "iota": [], "q": [], "CN": [], "My": [], "Fz": []}
-
 
     def __instantiate_plot(self, **kwargs) -> None:
         """This method instantiates the plotter class into the Sim class (if defined).
@@ -268,15 +265,6 @@ class Sim:
                 torque_ext[1] = My / simobj.Iyy
                 acc_ext[2] = acc_ext[2] + zforce / mass
                 # print(torque_ext[1], acc_ext[2], q)
-
-                # {"pitch": [], "aoa": [], "iota": [], "q": [], "CN": [], "My": [], "Fz": []}
-                self.temp_data["q"] += [q]
-                self.temp_data["pitch"] += [pitch_angle]
-                self.temp_data["alpha"] += [alpha]
-                self.temp_data["iota"] += [iota]
-                self.temp_data["CN"] += [CNB]
-                self.temp_data["My"] += [My]
-                self.temp_data["Fz"] += [zforce]
 
             except Exception as e:
                 self.flag_stop = True
