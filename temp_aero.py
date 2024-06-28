@@ -149,23 +149,28 @@ for i in range(30):
 
     alt = X[simobj.get_state_id("z")]
     vel = X[simobj.get_state_id(["vx", "vy", "vz"])]
-    _quat = X[simobj.model.get_state_id(["q0", "q1", "q2", "q3"])]
-    # get Trait-bryan angles (yaw, pitch, roll)
-    tait_bryan_angles = quat_to_tait_bryan(np.asarray(_quat))
-    pitch_angle = tait_bryan_angles[1]
-    phi = tait_bryan_angles[2]                                  # roll angle
+    quat = X[simobj.model.get_state_id(["q0", "q1", "q2", "q3"])]
+
     # calculate current mach
     speed = float(np.linalg.norm(vel))
     mach = (speed /atmosphere.speed_of_sound(alt)) #type:ignore
+
     # calc angle of attack: (pitch_angle - flight_path_angle)
     vel_hat = vel / speed                                       # flight path vector
+
     # projection vel_hat --> x-axis
-    zxplane = np.array([0, 1, 0])
-    vel_hat_zx = ((vel_hat @ zxplane) / np.linalg.norm(zxplane)) * zxplane
+    zx_plane_norm = np.array([0, 1, 0])
+    vel_hat_zx = ((vel_hat @ zx_plane_norm) / np.linalg.norm(zx_plane_norm)) * zx_plane_norm
     vel_hat_proj = vel_hat - vel_hat_zx
+
+    # get Trait-bryan angles (yaw, pitch, roll)
+    yaw_angle, pitch_angle, roll_angle = quat_to_tait_bryan(np.asarray(quat))
+
     # angle between proj vel_hat & xaxis
-    flight_path_angle = np.sign(vel_hat_proj[2]) * vec_ang(vel_hat_proj, np.array([1, 0, 0]))
+    x_axis_intertial = np.array([1, 0, 0])
+    flight_path_angle = np.sign(vel_hat_proj[2]) * vec_ang(vel_hat_proj, x_axis_intertial)
     alpha = pitch_angle - flight_path_angle                     # angle of attack
+    phi = roll_angle
 
     iota = np.radians(5)
     alpha, iota, CNB, My, zforce = aero_update(vehicle, alpha, phi, mach, iota, alt)
