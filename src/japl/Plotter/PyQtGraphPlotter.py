@@ -260,7 +260,7 @@ class PyQtGraphPlotter:
         # drawing the instrument view of vehicle
         # TODO generalize: each simobj has its own body to draw.
         if self.instrument_view:
-            self.__update_instrument_view(_simobj)
+            self.__draw_instrument_view(_simobj)
 
         # TODO run post-animation func when finished
         if self.istep >= self.Nt:
@@ -268,7 +268,7 @@ class PyQtGraphPlotter:
             self.timer.stop()
 
 
-    def __update_instrument_view(self, _simobj: SimObject) -> None:
+    def __draw_instrument_view(self, _simobj: SimObject) -> None:
         """This method updates the instrument ViewBox.
 
         -------------------------------------------------------------------
