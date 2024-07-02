@@ -12,7 +12,7 @@ from japl.Math.Rotation import quat_to_tait_bryan
 from japl.SimObject.SimObject import SimObject
 
 import pyqtgraph as pg
-from pyqtgraph import GraphItem, GraphicsLayoutWidget, PlotCurveItem, PlotItem, QtGui, TextItem, ViewBox, mkColor, mkPen
+from pyqtgraph import GraphItem, GraphicsLayoutWidget, PlotCurveItem, PlotDataItem, PlotItem, QtGui, TextItem, ViewBox, mkColor, mkPen
 from pyqtgraph import QtWidgets
 from pyqtgraph import PlotWidget
 from pyqtgraph.Qt import QtCore
@@ -179,8 +179,14 @@ class PyQtGraphPlotter:
                 _aspect = axes.get("aspect", self.aspect)   # look for aspect in plot config; default to class init
                 _plot_item.setAspectLocked(_aspect == "equal")
                 _pen = {"color": simobj.plot.color_code, "width": simobj.size}
-                _graphic_item = PlotCurveItem(x=[], y=[], pen=_pen)
-                _graphic_item.setCacheMode(self.draw_cache_mode) #type:ignore
+                _graphic_item = PlotDataItem(x=[], y=[], pen=_pen,
+                                             useCache=self.draw_cache_mode,
+                                             antialias=self.antialias,
+                                             autoDownsample=True,
+                                             downsampleMethod="peak",
+                                             clipToView=True,
+                                             skipFiniteCheck=True,
+                                             )
                 _plot_item.addItem(_graphic_item)   # init PlotCurve
                 simobj.plot.qt_traces += [_graphic_item]   # add GraphicsItem reference to SimObject
 

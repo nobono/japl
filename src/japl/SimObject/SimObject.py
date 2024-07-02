@@ -13,7 +13,7 @@ import numpy as np
 import astropy.units as u
 from astropy.units.quantity import Quantity
 
-from pyqtgraph import GraphicsView, PlotCurveItem, mkPen
+from pyqtgraph import GraphicsView, PlotCurveItem, PlotDataItem, mkPen
 from pyqtgraph import CircleROI
 from pyqtgraph.Qt.QtGui import QPen
 from sympy import Symbol
@@ -72,7 +72,7 @@ class _PlotInterface:
 
         # graphic objects
         self.traces: list[Line2D] = []
-        self.qt_traces: list[PlotCurveItem] = []
+        self.qt_traces: list[PlotDataItem] = []
 
 
     def set_config(self, plot_config: dict) -> None:
