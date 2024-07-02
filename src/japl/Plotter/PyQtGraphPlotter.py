@@ -302,7 +302,10 @@ class PyQtGraphPlotter:
 
 
     def exit(self):
-        self.app.exit()
+        if self.quiet:
+            self.app.exit()
+        else:
+            self.timer.stop()
 
 
     def __draw_instrument_view(self, _simobj: SimObject) -> None:
