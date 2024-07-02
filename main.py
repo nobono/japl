@@ -139,7 +139,7 @@ if __name__ == "__main__":
                 "Pos": {
                     "xaxis": "x",
                     "yaxis": "z",
-                    "aspect": "equal",
+                    "aspect": "auto",
                     },
                 "Vel": {
                     "xaxis": "t",
@@ -157,7 +157,7 @@ if __name__ == "__main__":
     vehicle.mass = 133 # (kg)
     vehicle.cg = 1.42 # (m)
     x0 = [0, 0, 10000]
-    v0 = [700, 0, 0]
+    v0 = [1500, 0, 0]
     w0 = [0, 0, 0]
     quat0 = quaternion.from_euler_angles([0, 0, 0]).components
     mass0 = 133.0
@@ -169,9 +169,10 @@ if __name__ == "__main__":
     # TODO dt is refresh rate for animation
     # but dt just create t_array for no animation
     sim = Sim(
-            t_span=[0, 10],
-            dt=.01,
+            t_span=[0, 1],
+            dt=.001,
             simobjs=[vehicle],
+            integrate_method="rk4",
             events=[],
             animate=1,
             aspect="equal",
