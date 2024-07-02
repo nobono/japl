@@ -102,6 +102,40 @@ class PyQtGraphPlotter:
             text_item.setText(text)
 
     # --------------------------------------------------------------------------------------
+    # Graphic Items
+    # --------------------------------------------------------------------------------------
+
+    # TODO finish this...
+    def add_vector(self,
+                   p0: np.ndarray,
+                   p1: np.ndarray,
+                   view: ViewBox,
+                   rgba: tuple = (255, 255, 255, 255),
+                   width: float = 2) -> None:
+
+        vector_item: GraphItem = pg.GraphItem()
+        vector_verts = np.array([p0, p1])
+        vector_conn = np.array([[0, 1]])
+        vector_lines = np.array(
+                [(rgba + (width,))] * len(vector_conn),
+                dtype=[
+                    ('red', np.ubyte),
+                    ('green', np.ubyte),
+                    ('blue', np.ubyte),
+                    ('alpha', np.ubyte),
+                    ('width', float),
+                    ])
+        vector_item.setData(
+                pos=vector_verts,
+                adj=vector_conn,
+                pen=vector_lines,
+                size=1,
+                symbol=None,
+                pxMode=False
+                )
+        view.addItem(vector_item) #type:ignore
+
+    # --------------------------------------------------------------------------------------
 
     def setup(self) -> None:
         self.istep = 0
@@ -138,8 +172,9 @@ class PyQtGraphPlotter:
             _shortcut.activated.connect(_win.close) #type:ignore
             self.shortcuts += [_shortcut]
 
+            # setup user-defined plots for each simobj
             for i, (title, axes) in enumerate(simobj.plot.get_config().items()):
-                _plot_item = _win.addPlot(row=i, col=0, colspan=2, title=title)   # add PlotItem to View
+                _plot_item = _win.addPlot(row=i, col=0, colspan=2, title=title, name=title)   # add PlotItem to View
                 _plot_item.showGrid(True, True, 0.5)    # enable grid
                 _aspect = axes.get("aspect", self.aspect)   # look for aspect in plot config; default to class init
                 _plot_item.setAspectLocked(_aspect == "equal")
@@ -151,19 +186,18 @@ class PyQtGraphPlotter:
 
             # setup vehicle viewer widget
             if self.instrument_view:
-                _view: ViewBox = _win.addViewBox()
+                _view = ViewBox(name="instrument_view")
                 _view.setAspectLocked(True)
-
-                self.attitude_graph_item: GraphItem = pg.GraphItem()
-                _view.addItem(self.attitude_graph_item) #type:ignore
                 _view.setRange(xRange=[-1,1], yRange=[-1, 1])
-
                 _win.addItem(_view, row=(i + 1), col=0, colspan=1) #type:ignore
 
                 # ViewBox for text
-                _text_view: ViewBox = _win.addViewBox()
+                _text_view = ViewBox()
                 _text_view.setRange(xRange=[-1, 1], yRange=[-1, 1])
                 _win.addItem(_text_view, row=(i + 1), col=1, colspan=1) #type:ignore
+
+                self.attitude_graph_item: GraphItem = pg.GraphItem()
+                _view.addItem(self.attitude_graph_item) #type:ignore
 
                 # missile drawing
                 L = .5
