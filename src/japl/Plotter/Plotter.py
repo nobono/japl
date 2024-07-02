@@ -242,3 +242,8 @@ class Plotter:
             )
         self.time_slider.on_changed(lambda t: self._time_slider_update(t, _simobjs=_simobjs))
         self.time_slider.set_val(Nt) # initialize slider at end-time
+
+
+    def exit(self) -> None:
+        pass
+

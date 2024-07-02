@@ -301,7 +301,7 @@ class PyQtGraphPlotter:
             self.exit()
 
 
-    def exit(self):
+    def exit(self) -> None:
         if self.quiet:
             self.app.exit()
         else:

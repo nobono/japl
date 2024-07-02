@@ -10,6 +10,8 @@ from japl.DeviceInput.DeviceInput import DeviceInput
 from japl.Plotter.Plotter import Plotter
 from japl.Plotter.PyQtGraphPlotter import PyQtGraphPlotter
 
+from japl.Sim.Integrate import runge_kutta_4
+
 from scipy.integrate import solve_ivp
 
 from functools import partial
@@ -38,6 +40,8 @@ class Sim:
         self.simobjs = simobjs
         self.events = events
         self.animate = bool(animate) # choice of iterating solver over each dt step
+        self.integrate_method = kwargs.get("integrate_method", "odeint")
+        assert self.integrate_method in ["odeint", "euler", "rk4"]
 
         # setup time array
         self.istep = 0
@@ -183,11 +187,12 @@ class Sim:
         """This method is the main step function for the Sim class."""
 
         # TODO make "ac" automatically the correct length
-        acc_ext = np.array([0, 0, -constants.g], dtype=float)
+        acc_ext = np.array([0, 0, 0], dtype=float)
         torque_ext = np.array([0, 0, 0], dtype=float)
 
         mass = X[simobj.get_state_id("mass")]
-        iota = np.radians(10)
+
+        iota = np.radians(0.1)
 
         # device input
         if self.device_input_type:
@@ -251,7 +256,7 @@ class Sim:
 
             # lookup coefficients
             try:
-                CLMB = simobj.aerotable.get_CLMB_Total(alpha, phi, mach, iota)
+                CLMB = -simobj.aerotable.get_CLMB_Total(alpha, phi, mach, iota)
                 CNB = simobj.aerotable.get_CNB_Total(alpha, phi, mach, iota)
 
                 My_coef = CLMB + (simobj.cg - simobj.aerotable.MRC[0]) * CNB
@@ -325,22 +330,37 @@ class Sim:
         tstep = self.t_array[istep]
         x0 = _simobj.Y[istep - 1]
 
-        sol = solve_ivp(
-                fun=self.step,
-                t_span=(tstep_prev, tstep),
-                t_eval=[tstep],
-                y0=x0,
-                args=(_simobj,),
-                events=self.events,
-                rtol=rtol,
-                atol=atol,
-                max_step=max_step
-                )
-        self.T[istep] = sol['t'][0]
-        _simobj.Y[istep] = sol['y'].T[0]
+        if self.integrate_method == "rk4":
+            X_new, T_new = runge_kutta_4(
+                    f=self.step,
+                    t=tstep,
+                    X=x0,
+                    h=self.dt,
+                    args=(_simobj,),
+                    )
+            self.T[istep] = T_new
+            _simobj.Y[istep] = X_new
+
+        elif self.integrate_method == "odeint":
+            sol = solve_ivp(
+                    fun=self.step,
+                    t_span=(tstep_prev, tstep),
+                    t_eval=[tstep],
+                    y0=x0,
+                    args=(_simobj,),
+                    events=self.events,
+                    rtol=rtol,
+                    atol=atol,
+                    max_step=max_step
+                    )
+
+            self.T[istep] = sol['t'][0]
+            _simobj.Y[istep] = sol['y'].T[0]
+
+        else:
+            raise Exception(f"integration method {self.integrate_method} is not defined")
 
         # TODO do this better...
         if self.flag_stop:
-            if self.animate:
-                self.plotter.istep = self.Nt
+            self.plotter.exit()
 
