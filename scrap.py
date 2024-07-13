@@ -1,7 +1,6 @@
 import numpy as np
 import quaternion
 from japl.Math.Math import skew
-from japl.Math.Quat import quat_array_to_dcm
 from sympy import symbols
 from japl import StateRegister
 

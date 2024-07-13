@@ -169,7 +169,7 @@ class PyQtGraphPlotter:
 
             # shortcut keys callbacks for each simobj view
             _shortcut = QtWidgets.QShortcut(QKeySequence("Q"), _win)
-            _shortcut.activated.connect(self.exit) #type:ignore
+            _shortcut.activated.connect(self.close_windows) #type:ignore
             self.shortcuts += [_shortcut]
 
             # setup user-defined plots for each simobj
@@ -307,14 +307,17 @@ class PyQtGraphPlotter:
             self.exit()
 
 
+    def close_windows(self) -> None:
+        for win in self.wins:
+            win.close()
+
+
     def exit(self) -> None:
         if self.quiet:
             self.app.exit()
         else:
             # stop timer and close all open windows
             self.timer.stop()
-            for win in self.wins:
-                win.close()
 
 
     def __draw_instrument_view(self, _simobj: SimObject) -> None:
