@@ -169,7 +169,7 @@ if __name__ == "__main__":
     # TODO dt is refresh rate for animation
     # but dt just create t_array for no animation
     sim = Sim(
-            t_span=[0, 10],
+            t_span=[0, 1],
             dt=.01,
             simobjs=[vehicle],
             integrate_method="rk4",
@@ -185,7 +185,7 @@ if __name__ == "__main__":
             figsize=(10, 7),
             instrument_view=1,
             draw_cache_mode=0,
-            quiet=0, # TODO still working on this
+            quiet=1, # TODO still working on this
             )
 
     # sim.plotter.add_text("debug")
