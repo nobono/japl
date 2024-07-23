@@ -9,7 +9,7 @@ numba==0.59.1
 numpy==1.26.4
 PyYAML==6.0.1
 scipy==1.13.1
-sympy==1.12
+sympy==1.13.1
 tqdm==4.66.2
 PyQt5==5.15.10
 pyqtgraph==0.13.7
