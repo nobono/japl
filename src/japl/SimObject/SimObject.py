@@ -67,7 +67,7 @@ class _PlotInterface:
 
         # color cycle list
         self.color_cycle = self.__color_cycle()
-        self.__state_select = state_select
+        self.__plot_config = state_select
         self.plotting_backend = japl.get_plotlib()
 
         # graphic objects
@@ -77,11 +77,11 @@ class _PlotInterface:
 
     def set_config(self, plot_config: dict) -> None:
         # TODO check format here
-        self.__state_select = plot_config
+        self.__plot_config = plot_config
 
 
     def get_config(self) -> dict:
-        return self.__state_select
+        return self.__plot_config
 
 
     def get_mpl_color_code(self, color_str: str = "") -> str:
