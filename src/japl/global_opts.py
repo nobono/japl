@@ -1,7 +1,7 @@
 
 
 
-__PLOTTING_BACKEND = "matplotlib"
+__PLOTTING_BACKEND = "pyqtgraph"
 
 
 def get_plotlib() -> str:
