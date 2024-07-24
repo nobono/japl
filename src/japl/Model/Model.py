@@ -18,7 +18,8 @@ from enum import Enum
 
 from scipy.sparse import csr_matrix
 from scipy.sparse._csr import csr_matrix as Tcsr_matrix
-from sympy import Mul, Pow, Symbol, Expr
+from sympy import MatrixSymbol, Mul, Pow, Symbol, Expr
+from sympy.matrices.expressions.matexpr import MatrixElement
 
 from japl.Model.StateRegister import StateRegister
 
@@ -122,6 +123,16 @@ class Model:
         return True
 
 
+    def __get_symbolic_name(self, var: Symbol|MatrixSymbol|MatrixElement) -> str:
+        if isinstance(var, Symbol):
+            return var.name
+        elif isinstance(var, MatrixSymbol):
+            return var.name
+        elif isinstance(var, MatrixElement):
+            return var.symbol.name #type:ignore
+        else:
+            raise Exception("wrong arg type.")
+
     def __handle_sym_expr_references(self) -> None:
         """
             This method handles the user-defined state references (strings) provided
@@ -146,19 +157,19 @@ class Model:
         """
 
         # TODO this only checks matrix A... expand to B (C? and D?)
-        _len = len(self.A)
+        _len = self.A.shape[0]
         for i in range(_len):
             for j in range(_len):
                 val = self.A[i, j]
                 try:
-                    self.A[i][j] = float(val) #type:ignore
+                    self.A[i, j] = float(val) #type:ignore
                 except Exception as _:
 
                     # split symbolic matrix bin as (coefficent, state-variable)
                     if isinstance(val, Expr):
                         coef_mul: tuple = val.as_coeff_Mul()
                         coef = coef_mul[0]
-                        var: Symbol = coef_mul[1] #type:ignore
+                        var: Symbol|MatrixElement = coef_mul[1] #type:ignore
 
                         # check if exponents on symbolic state variable exist
                         if isinstance(var, Pow):
@@ -166,13 +177,15 @@ class Model:
                         else:
                             exp = None
 
+                        var_name = self.__get_symbolic_name(var)
+
                         # check if state reference is registered
-                        if var.name not in self.register:
-                            raise Exception(f"User defined state references \"{var.name}\"\
-                                    in state-space matrix but \"{var.name}\" is not a registered state")
+                        if var_name not in self.register:
+                            raise Exception(f"User defined state references \"{var_name}\"\
+                                    in state-space matrix but \"{var_name}\" is not a registered state")
                         else:
                             # store state references in state-space matrix
-                            state_id = self.register[var.name]["id"]
+                            state_id = self.register[var_name]["id"]
                             self._sym_references.append({"A_slice": (i, j), "state_id": state_id, "coef": coef, "exp": exp})
                             self.A[i:i+1, j:j+1] = float(coef)
 
