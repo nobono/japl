@@ -5,30 +5,34 @@ from japl import Model
 from japl import SimObject
 from japl import Sim
 from japl import AeroTable
+from sympy import MatrixSymbol, Matrix, symbols
 
 
 
 class TestExample(unittest.TestCase):
 
     def __check(self, vehicle: SimObject):
+        # print('truth = np.array([')
         # for i in vehicle.Y[-1]:
-        #     print(i)
+        #     print(str(i) + ',')
+        # print('])')
+
         truth = np.array([
-            1500.0000000000002,
+            150.00000000000003,
             0.0,
-            10000.003387596103,
+            10000.000009267538,
             1500.0,
             0.0,
-            0.01360428568910825,
+            0.00018875467967809092,
             0.0,
-            0.008934050694513255,
+            0.00021619573218609122,
             0.0,
-            0.9999992228258203,
+            0.9999999999856582,
             0.0,
-            0.0012467348195054982,
+            5.355707677270227e-06,
             0.0,
             133.0,
-            ])
+        ])
         self.assertTrue((vehicle.Y[-1] == truth).all())
 
 
@@ -104,9 +108,77 @@ class TestExample(unittest.TestCase):
         return model
         
 
+    def __build_model_symbolic(self) -> Model:
+        model = Model()
+
+        x  = model.add_state("x",         0,  "x (m)")
+        y  = model.add_state("y",         1,  "y (m)")
+        z  = model.add_state("z",         2,  "z (m)")
+        vx = model.add_state("vx",        3,  "xvel (m/s)")
+        vy = model.add_state("vy",        4,  "yvel (m/s)")
+        vz = model.add_state("vz",        5,  "zvel (m/s)")
+        wx = model.add_state("wx",        6,  "wx (rad/s)")
+        wy = model.add_state("wy",        7,  "wy (rad/s)")
+        wz = model.add_state("wz",        8,  "wz (rad/s)")
+        q0 = model.add_state("q0",        9,  "q0")
+        q1 = model.add_state("q1",        10, "q1")
+        q2 = model.add_state("q2",        11, "q2")
+        q3 = model.add_state("q3",        12, "q3")
+        mass = model.add_state("mass",    13, "mass (kg)")
+
+        dt = symbols("dt")
+        x = MatrixSymbol('x', 3, 1)
+        v = MatrixSymbol('v', 3, 1)
+        a = MatrixSymbol('a', 3, 1)
+        tq = MatrixSymbol('tq', 3, 1)
+        w = MatrixSymbol('w', 3, 1)
+        q = MatrixSymbol('q', 4, 1)
+        mass = symbols("mass")
+
+        # Sq = Matrix([
+        #     [-q[1], -q[2], -q[3]],
+        #     [q[0], -q[3], q[2]],
+        #     [q[3], q[0], -q[1]],
+        #     [-q[2], q[1], q[0]],
+        #     ])
+
+        w_skew = Matrix(w).hat()        #type:ignore
+        Sw = Matrix(np.zeros((4,4)))
+        Sw[0, :] = Matrix([0, *w]).T
+        Sw[:, 0] = Matrix([0, *-w])     #type:ignore
+        Sw[1:, 1:] = w_skew
+
+        x_new = x + v * dt
+        v_new = v + a * dt
+        w_new = w + tq * dt
+        q_new = q + (-0.5 * Sw * q) * dt
+        mass_new = mass
+
+        X_new = Matrix([
+            x_new.as_mutable(),
+            v_new.as_mutable(),
+            w_new.as_mutable(),
+            q_new.as_mutable(),
+            mass_new,
+            ])
+
+        X = Matrix([x, v, w, q, mass])
+        U = Matrix([a, tq])
+
+        dynamics: Matrix = X_new.diff(dt) #type:ignore
+
+        A = dynamics.jacobian(X)
+        B = dynamics.jacobian(U)
+
+        # X_dot = A * X + B * U
+
+        model.ss(A, B)
+
+        return model
+
     def test_example_case1(self):
 
-        model = self.__build_model()
+        model = self.__build_model_symbolic()
         vehicle = SimObject(model=model, size=2, color='tab:blue')
         vehicle.aerotable = AeroTable("./aeromodel/aeromodel_psb.mat")
 
@@ -144,7 +216,7 @@ class TestExample(unittest.TestCase):
         # TODO dt is refresh rate for animation
         # but dt just create t_array for no animation
         sim = Sim(
-                t_span=[0, 1],
+                t_span=[0, 0.1],
                 dt=.01,
                 simobjs=[vehicle],
                 integrate_method="rk4",

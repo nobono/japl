@@ -12,6 +12,7 @@ a = MatrixSymbol('a', 3, 1)
 tq = MatrixSymbol('tq', 3, 1)
 w = MatrixSymbol('w', 3, 1)
 q = MatrixSymbol('q', 4, 1)
+mass = symbols("mass")
 
 Sq = Matrix([
     [-q[1], -q[2], -q[3]],
@@ -31,16 +32,18 @@ x_new = x + v * dt
 v_new = v + a * dt
 w_new = w + tq * dt
 q_new = q + (-0.5 * Sw * q) * dt
+mass_new = mass
 
 X_new = Matrix([
     x_new.as_mutable(),
     v_new.as_mutable(),
     w_new.as_mutable(),
     q_new.as_mutable(),
+    mass_new,
     ])
 
 
-X = Matrix([x, v, w, q])
+X = Matrix([x, v, w, q, mass])
 U = Matrix([a, tq])
 
 
