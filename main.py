@@ -1,127 +1,27 @@
 import cProfile
-import os
-import sys
-from tqdm import tqdm
-lib_path = os.path.join(os.getcwd(), "lib")
-sys.path.append(lib_path)
-
-# ---------------------------------------------------
-
 import argparse
+
 import numpy as np
-import matplotlib.pyplot as plt
-import tkinter as tk
-from tkinter import filedialog
+from numpy.linalg import norm
+import quaternion
+from sympy import Matrix, symbols
+
+import japl
+from japl import Sim
+from japl import SimObject
+from japl import Model
+from japl import AeroTable
 
 # ---------------------------------------------------
 
-from scipy.integrate import solve_ivp
-from scipy import constants
-
-# ---------------------------------------------------
-
-from util import unitize
-from util import bound
-from util import create_C_rot
-from util import inv
-from util import read_config_file
-from util import norm
-
-# ---------------------------------------------------
-
-from atmosphere import Atmosphere
-
-# ---------------------------------------------------
-
-from guidance import Guidance
-
-# ---------------------------------------------------
-
-from maneuvers import Maneuvers
-
-# ---------------------------------------------------
-
-from dynamics import FirstOrderInput
-from dynamics import SecondOrderInput
-
-# ---------------------------------------------------
-
-from output import OutputManager
-
-# ---------------------------------------------------
-
-from events import hit_ground_event
-from events import hit_target_event
-from events import check_for_events
-
-# ---------------------------------------------------
-
-# for eval
-sin = np.sin
-cos = np.cos
-tan = np.tan
-atan = np.arctan
-atan2 = np.arctan2
-acos = np.arccos
-asin = np.arcsin
-degrees = np.degrees
-radians = np.radians
-pi = np.pi
 
 
-
-def atmosphere_drag(rm, vm):
-    ATMOS_BOUNDS = [-5e3, 81e3]
-    alt_bounded = bound(rm[2] / 1000, *ATMOS_BOUNDS)
-    density = atmosphere.density(alt_bounded)
-    CD = 0.45
-    A = .25**2
-    MASS = 1.0
-    xfd = -(0.5 * CD * A * density * vm[0]) / MASS
-    yfd = -(0.5 * CD * A * density * vm[1]) / MASS
-    zfd = -(0.5 * CD * A * density * vm[2]) / MASS
-    return np.array([xfd, yfd, zfd])
-
-
-def atmosphere_gravity(rm):
-    ATMOS_BOUNDS = [-5e3, 81e3]
-    alt_bounded = bound(rm[2] / 1000, *ATMOS_BOUNDS)
-    grav_accel = atmosphere.grav_accel(alt_bounded)
-    return grav_accel
-
-
-def guidance_func(t, rm, vm, r_targ, config):
-    GLIMIT = float(config.get("GLIMIT", 14.0))
-
-    ac = guidance.run(t, rm, vm, r_targ, config)
-
-    if (norm(ac) - (GLIMIT * constants.g)) > 1e-10:
-        ac = unitize(ac) * (GLIMIT * constants.g)
-    return ac
-
-
-def dynamics_func(t, X, ss, r_targ, config):
-    rm = X[:3]
-    vm = X[3:6]
-    atmos_drag_enable = config["guidance"]["phase"][guidance.phase_id].get("enable_drag", False)
-    gravity_enable = config["guidance"]["phase"][guidance.phase_id].get("enable_gravity", False)
-
-    ac = guidance_func(t, rm, vm, r_targ, config)
-
-    # External Accelerations
-    acc_ext = np.zeros((3,))
-    if atmos_drag_enable:
-        acc_ext += atmosphere_drag(rm, vm)
-    if gravity_enable:
-        acc_ext += atmosphere_gravity(rm) * np.array([0, 0, -1])
-
-    U = np.array([*acc_ext, *ac])
-    Xdot = ss.A @ X + ss.B @ U
-    return Xdot
+japl.set_plotlib("qt")
 
 
 
 if __name__ == "__main__":
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--3d",
@@ -144,103 +44,148 @@ if __name__ == "__main__":
         type=str,
         default="",
     )
+    parser.add_argument(
+        "--figsize",
+        dest="figsize",
+        type=float,
+        nargs="*",
+        default=(6, 4),
+    )
     args = parser.parse_args()
+    args.plot = True
 
-    # Load config file
-    config = {}
-    if args.input:
-        config = read_config_file(args.input)
-    # else:
-    #     root = tk.Tk()
-    #     # root.withdraw()
-    #     file_path = filedialog.askopenfilename()
-    #     config = read_config_file(file_path)
 
-    config_vars = config["guidance"].get("vars") # if VARS defined, update in globals()
-    if config_vars:
-        for key, val in config_vars.items():
-            try:
-                config_vars[key] = eval(val)
-            except:
-                pass
-            # globals().update(config_vars)
+    ###############
+    # NOTES: Idea:
+    ###############
+    # Sim.rules.Talk(send=[simobj], receive=[simobj2, simobj3])
+    ###############
+
+
+    # Model
+    ####################################
+    pos = Matrix(symbols("x y z"))      # must be fixed for AeroModel
+    vel = Matrix(symbols("vx vy vz"))   # must be fixed for AeroModel
+    acc = Matrix(symbols("ax ay az"))
+    tq = Matrix(symbols("tqx tqy tqz"))
+    w = Matrix(symbols("wx wy wz"))
+    q = Matrix(symbols("q0 q1 q2 q3"))  # must be fixed for AeroModel
+
+    dt = symbols("dt")
+    mass = symbols("mass")
+
+    w_skew = Matrix(w).hat()        #type:ignore
+    Sw = Matrix(np.zeros((4,4)))
+    Sw[0, :] = Matrix([0, *w]).T
+    Sw[:, 0] = Matrix([0, *-w])     #type:ignore
+    Sw[1:, 1:] = w_skew
+
+    x_new = pos + vel * dt
+    v_new = vel + acc * dt
+    w_new = w + tq * dt
+    q_new = q + (-0.5 * Sw * q) * dt
+    mass_new = mass
+
+    X_new = Matrix([
+        x_new.as_mutable(),
+        v_new.as_mutable(),
+        w_new.as_mutable(),
+        q_new.as_mutable(),
+        mass_new,
+        ])
+
+    state = Matrix([pos, vel, w, q, mass])
+    input = Matrix([acc, tq])
+
+    dynamics: Matrix = X_new.diff(dt) #type:ignore
+
+    model = Model().from_expression(dt, state, input, dynamics)
+
+    vehicle = SimObject(model=model, size=2, color='tab:blue')
+    vehicle.aerotable = AeroTable("./aeromodel/aeromodel_psb.mat")
+
+    vehicle.plot.set_config({
+                "Pos": {
+                    "xaxis": "x",
+                    "yaxis": "z",
+                    "aspect": "auto",
+                    },
+                "Vel": {
+                    "xaxis": "t",
+                    "yaxis": "vz",
+                    "aspect": "auto",
+                    },
+                })
 
     # Inits
     ####################################
-    ss = FirstOrderInput()
-    atmosphere = Atmosphere()
-    guidance = Guidance()
-    maneuver = Maneuvers()
 
-    init = config.get('init', None)
-    t_span = init.get("t_span", [0, 200])
-    dt = float(init.get("dt", 0.01))
+    vehicle.Ixx = 1.309 # (kg * m^2)
+    vehicle.Iyy = 58.27 # (kg * m^2)
+    vehicle.Izz = 58.27 # (kg * m^2)
+    vehicle.mass = 133 # (kg)
+    vehicle.cg = 1.42 # (m)
+    x0 = [0, 0, 10000]
+    v0 = [1500, 0, 0]
+    w0 = [0, 0, 0]
+    quat0 = quaternion.from_euler_angles([0, 0, 0]).components
+    mass0 = 133.0
+    vehicle.init_state([x0, v0, w0, quat0, mass0]) # TODO this should be moved to Model
 
-    x0 = ss.get_init_state()
-    x0[:3] = np.asarray(init.get("R0", np.array([0, 50e3, 10])))
-    x0[3:6] = np.asarray(init.get("V0", np.array([0, -200, 0])))
-
-    targ_R0 = np.array([0, 0, 0])
+    # Sim
     ####################################
 
-    t_array = np.linspace(t_span[0], t_span[1], int(t_span[1]/dt))
-    T = np.zeros(t_array.shape)
-    Y = np.zeros((t_array.shape[0], x0.shape[0]))
-    T[0] = t_span[0]
-    Y[0] = x0
-
-    ##############################
-    sol = solve_ivp(
-            dynamics_func,
-            t_span=t_span,
-            t_eval=t_array,
-            y0=x0,
-            args=(ss, targ_R0, config),
-            events=[
-                hit_target_event,
-                hit_ground_event,
-                ],
-            rtol=1e-3,
+    # TODO dt is refresh rate for animation
+    # but dt just create t_array for no animation
+    sim = Sim(
+            t_span=[0, 1],
+            dt=.01,
+            simobjs=[vehicle],
+            integrate_method="rk4",
+            events=[],
+            animate=1,
+            aspect="equal",
+            device_input_type="",
+            moving_bounds=True,
+            rtol=1e-6,
             atol=1e-6,
-            max_step=0.2,
+            blit=False,
+            antialias=0,
+            figsize=(10, 7),
+            instrument_view=1,
+            draw_cache_mode=0,
+            quiet=1, # TODO still working on this
             )
-    T = sol['t']
-    Y = sol['y'].T
-    ##############################
-     
-    # for istep, (tstep_prev, tstep) in tqdm(enumerate(zip(t_array, t_array[1:])),
-    #                                        total=len(t_array)):
 
-    #     sol = solve_ivp(
-    #             dynamics_func,
-    #             t_span=(tstep_prev, tstep),
-    #             t_eval=[tstep],
-    #             y0=x0,
-    #             args=(ss, targ_R0),
-    #             events=[
-    #                 hit_target_event,
-    #                 hit_ground_event,
-    #                 ],
-    #             rtol=1e-3,
-    #             atol=1e-6,
-    #             )
+    # sim.plotter.add_text("debug")
+    # sim.plotter.add_text("ytorque")
+    # sim.plotter.add_text("iota")
+    sim.run()
 
-    #     # check for stop event
-    #     if check_for_events(sol['t_events']):
-    #         # truncate output arrays if early stoppage
-    #         T = T[:istep + 1]
-    #         Y = Y[:istep + 1]
-    #         break
-    #     else:
-    #         # store output
-    #         t = sol['t'][0]
-    #         y = sol['y'].T[0]
-    #         T[istep + 1] = t
-    #         Y[istep + 1] = y
-    #         x0 = Y[istep + 1]
 
-    # r_pop1 = np.array([0, 47e3, 90])
-    # r_pop2 = np.array([0, 45e3, 10])
-    plot_points = []
-    plot_config = config.get("plot", {})
-    OutputManager(args, plot_config, T, Y, plot_points).plots()
+    # plt.plot(np.degrees(alpha), CN)
+
+    # config = {
+    #         "plot": {
+    #             "XY": {
+    #                 "x_axis": "x",
+    #                 "y_axis": "y",
+    #                 },
+    #             "Vel": {
+    #                 "x_axis": "time",
+    #                 "y_axis": "vy",
+    #                 },
+    #             "Fuel Burn": {
+    #                 "x_axis": "time",
+    #                 "y_axis": "fuel_burn",
+    #                 }
+    #             }
+    #         }
+
+    # T = sim.T
+    # Y = vehicle.Y
+    # plot_points = []
+    # plot_config = config.get("plot", {})
+    # output_manager = OutputManager(vehicle, args, plot_config, T, Y, plot_points, figsize=(8, 6))
+    # output_manager.plots()
+
