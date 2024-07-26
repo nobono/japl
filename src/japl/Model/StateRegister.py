@@ -1,6 +1,7 @@
+from typing import Optional
 import numpy as np
 
-from sympy import symbols
+from sympy import Matrix, symbols
 from sympy import Symbol
 
 # ---------------------------------------------------
@@ -37,14 +38,15 @@ class StateRegister(dict):
         by the user. This method must be executed before any simulation runs."""
 
         # sort the sym variables ordered according to their state index
-        self._syms = [v["sym"] for _, v in self.items()]
-        self._syms = sorted(self._syms, key=lambda x: self[x.name]["id"])
+        self._syms = [v["var"] for _, v in self.items()]
+        self._syms = sorted(self._syms, key=lambda x: self[str(x)]["id"])
 
 
+    @DeprecationWarning
     def add_state(self, name: str, id: int, label: str = "") -> Symbol:
         """This method registers a SimObject state name and plotting label with a
         user-specified name. The purpose of this register is for ease of access to SimObject
-        states without having to use the satte index number.
+        states without having to use the state index number.
 
         -------------------------------------------------------------------
         -- Arguments
@@ -55,9 +57,20 @@ class StateRegister(dict):
                     in plots / visualization
         -------------------------------------------------------------------
         """
-        sym = symbols(name)
-        self.update({name: {"id": id, "label": label, "sym": sym}})
-        return sym
+        var = symbols(name)
+        self.update({name: {"id": id, "label": label, "var": var}})
+        return var
+
+
+    def set_state(self, state_vars: tuple|list|Matrix, labels: Optional[list|tuple] = None):
+        """register state and labels"""
+        for id, var in enumerate(state_vars): #type:ignore
+            var_name = str(var)
+            if labels and id < len(labels):
+                label = labels[id]
+            else:
+                label = var_name
+            self.update({var_name: {"id": id, "label": label, "var": var}})
 
 
     def get_sym(self, name: str) -> Symbol:

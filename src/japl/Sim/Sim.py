@@ -1,3 +1,4 @@
+from typing import Callable
 import numpy as np
 import quaternion
 
@@ -119,19 +120,18 @@ class Sim:
             self.device_input.start()
 
         # solver
-        if not self.animate:
-            # TODO must combine all given SimObjects into single state
+        # TODO must combine all given SimObjects into single state
+        if self.animate:
+            # solver for one step at a time
+            self._solve_with_animation(simobj)
+        else:
             # to solve all at once...
-            self.solve(simobj)
-
-        # solver for one step at a time
-        elif self.animate:
-            self.solve_with_animation(simobj)
+            self._solve(simobj)
 
         return self
 
 
-    def solve(self, simobj: SimObject) -> None:
+    def _solve(self, simobj: SimObject) -> None:
         """This method handles running the Sim class using an ODE Solver"""
 
         sol = solve_ivp(
@@ -139,7 +139,7 @@ class Sim:
                 t_span=self.t_span,
                 t_eval=self.t_array,
                 y0=simobj.X0,
-                args=(simobj,),
+                args=(self.dt, simobj,),
                 events=self.events,
                 rtol=self.rtol,
                 atol=self.atol,
@@ -157,10 +157,11 @@ class Sim:
         # self.plotter.autoscale(xdata, ydata)
         # self.plotter.setup_time_slider(self.Nt, [simobj])
 
-        self.plotter.show()
+        if self.animate:
+            self.plotter.show()
 
 
-    def solve_with_animation(self, simobj: SimObject) -> None:
+    def _solve_with_animation(self, simobj: SimObject) -> None:
         """This method handles the animation when running the Sim class."""
 
         # pre-allocate output arrays
@@ -171,11 +172,21 @@ class Sim:
 
         # try to set animation frame intervals to real time
         interval = int(max(1, self.dt * 1000))
-        _step_func = partial(self._step_solve_ivp, istep=0, _simobj=simobj, rtol=self.rtol, atol=self.atol)
-        _anim_func = partial(self.plotter._animate_func, _simobj=simobj, step_func=_step_func, moving_bounds=self.moving_bounds)
+        step_func = partial(self._step_solve,
+                             step_func=self.step,
+                             istep=0,
+                             dt=self.dt,
+                             simobj=simobj,
+                             method=self.integrate_method,
+                             rtol=self.rtol,
+                             atol=self.atol)
+        anim_func = partial(self.plotter._animate_func,
+                             simobj=simobj,
+                             step_func=step_func,
+                             moving_bounds=self.moving_bounds)
 
         anim = self.plotter.FuncAnimation(
-                func=_anim_func,
+                func=anim_func,
                 frames=self.Nt,
                 interval=interval,
                 )
@@ -183,11 +194,11 @@ class Sim:
         self.plotter.show()
 
 
-    def step(self, t, X, simobj: SimObject):
+    def step(self, t, X, dt: float, simobj: SimObject):
         """This method is the main step function for the Sim class."""
 
         # TODO make "ac" automatically the correct length
-        acc_ext = np.array([0, 0, 0], dtype=float)
+        acc_ext = np.array([0, 0, -constants.g], dtype=float)
         torque_ext = np.array([0, 0, 0], dtype=float)
 
         mass = X[simobj.get_state_id("mass")]
@@ -205,8 +216,11 @@ class Sim:
         ########################################################################
         if simobj.aerotable:
             # get current states
-            alt = X[simobj.get_state_id("z")]
-            vel = X[simobj.get_state_id(["vx", "vy", "vz"])]
+            # TODO can we generalize this?
+            # do we need to require model states for position,
+            # velocity, quaternion...etc.
+            alt = X[simobj.model.get_state_id("z")]
+            vel = X[simobj.model.get_state_id(["vx", "vy", "vz"])]
             quat = X[simobj.model.get_state_id(["q0", "q1", "q2", "q3"])]
 
             # calculate current mach
@@ -283,14 +297,17 @@ class Sim:
         ########################################################################
 
         U = np.concatenate([acc_ext, torque_ext])
-        Xdot = simobj.step(X, U)
+        Xdot = simobj.step(X, U, dt)
 
         return Xdot
 
 
-    def _step_solve_ivp(self,
+    def _step_solve(self,
+                        step_func: Callable,
                         istep: int,
-                        _simobj: SimObject,
+                        dt: float,
+                        simobj: SimObject,
+                        method: str,
                         rtol: float = 1e-6,
                         atol: float = 1e-6,
                         max_step: float = 0.2
@@ -302,8 +319,11 @@ class Sim:
         -------------------------------------------------------------------
         -- Arguments
         -------------------------------------------------------------------
+        -- step_func - function to be integrated
         -- istep - integer step
-        -- _simobj - SimObject
+        -- dt - time step
+        -- simobj - SimObject
+        -- method - integration method to use
         -- rtol - relative tolerance for ODE Solver
         -- atol - absolute tolerance for ODE Solver
         -- max_step - max step size for ODE Solver
@@ -326,39 +346,38 @@ class Sim:
             self.device_input_data["lx"] = lx
             self.device_input_data["ly"] = ly
 
+        # setup time and initial state for step
         tstep_prev = self.t_array[istep - 1]
         tstep = self.t_array[istep]
-        x0 = _simobj.Y[istep - 1]
+        x0 = simobj.Y[istep - 1]
 
-        if self.integrate_method == "rk4":
-            X_new, T_new = runge_kutta_4(
-                    f=self.step,
-                    t=tstep,
-                    X=x0,
-                    h=self.dt,
-                    args=(_simobj,),
-                    )
-            self.T[istep] = T_new
-            _simobj.Y[istep] = X_new
-
-        elif self.integrate_method == "odeint":
-            sol = solve_ivp(
-                    fun=self.step,
-                    t_span=(tstep_prev, tstep),
-                    t_eval=[tstep],
-                    y0=x0,
-                    args=(_simobj,),
-                    events=self.events,
-                    rtol=rtol,
-                    atol=atol,
-                    max_step=max_step
-                    )
-
-            self.T[istep] = sol['t'][0]
-            _simobj.Y[istep] = sol['y'].T[0]
-
-        else:
-            raise Exception(f"integration method {self.integrate_method} is not defined")
+        match method:
+            case "rk4":
+                X_new, T_new = runge_kutta_4(
+                        f=step_func,
+                        t=tstep,
+                        X=x0,
+                        h=dt,
+                        args=(dt, simobj,),
+                        )
+                self.T[istep] = T_new
+                simobj.Y[istep] = X_new
+            case "odeint":
+                sol = solve_ivp(
+                        fun=step_func,
+                        t_span=(tstep_prev, tstep),
+                        t_eval=[tstep],
+                        y0=x0,
+                        args=(dt, simobj,),
+                        events=self.events,
+                        rtol=rtol,
+                        atol=atol,
+                        max_step=max_step
+                        )
+                self.T[istep] = sol['t'][0]
+                simobj.Y[istep] = sol['y'].T[0]
+            case _:
+                raise Exception(f"integration method {self.integrate_method} is not defined")
 
         # TODO do this better...
         if self.flag_stop:

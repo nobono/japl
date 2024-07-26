@@ -1,6 +1,6 @@
 # ---------------------------------------------------
 
-from typing import Optional
+from typing import Callable, Optional
 
 # ---------------------------------------------------
 
@@ -18,10 +18,11 @@ from enum import Enum
 
 from scipy.sparse import csr_matrix
 from scipy.sparse._csr import csr_matrix as Tcsr_matrix
-from sympy import MatrixSymbol, Mul, Pow, Symbol, Expr
+from sympy import Matrix, MatrixSymbol, Mul, Pow, Symbol, Expr
 from sympy.matrices.expressions.matexpr import MatrixElement
 
 from japl.Model.StateRegister import StateRegister
+from japl.Util.Desym import Desym
 
 # ---------------------------------------------------
 
@@ -30,6 +31,8 @@ from japl.Model.StateRegister import StateRegister
 class ModelType(Enum):
     NotSet = 0
     StateSpace = 1
+    Function = 2
+    Symbolic = 3
 
 
 class Model:
@@ -38,8 +41,11 @@ class Model:
 
     def __init__(self, **kwargs) -> None:
         self._type = ModelType.NotSet
-        self.register = StateRegister()
+        self._dtype = np.float64
+        self.state_register = StateRegister()
+        self.update_func: Callable = lambda *_: None
         self.state_dim = 0
+        self.expr = Expr(None)
         self.A = np.array([])
         self.B = np.array([])
         self.C = np.array([])
@@ -52,7 +58,14 @@ class Model:
         # ***************************************
         self._iX_reference = np.array([])
 
+        # info on what matrix slice hold what state ref.
+        # this is only used with StateSpace model types
+        # to allow sympy symbols within the A, B matrices.
+        self._sym_references: list[dict] = []
 
+
+    # TODO these only used right now to access quaternion in
+    # Plotter. maybe we can dispense with these somehow...
     def __set_current_state(self, X: np.ndarray):
         """Setter for Model state reference array \"Model._iX_reference\".
         This method should only be called by Model.step()."""
@@ -65,6 +78,7 @@ class Model:
         return self._iX_reference.copy()
 
 
+    @DeprecationWarning
     def ss(self,
            A: np.ndarray,
            B: np.ndarray,
@@ -73,46 +87,29 @@ class Model:
 
         self._type = ModelType.StateSpace
 
-        self.A = A
-        self.B = B
+        self.A = np.array(A)
+        self.B = np.array(B)
 
         if C is not None:
-            self.C = C
+            self.C = np.array(C)
         else:
             self.C = np.eye(self.A.shape[0])
 
         if D is not None:
-            self.D = D
+            self.D = np.array(D)
         else:
             self.D = np.zeros_like(self.B)
 
         self.state_dim = self.A.shape[0]
 
-        # proxy state array which updates statespace matrices
-        self._sym_references: list[dict] = []      # info on what matrix slice hold what state ref.
-
-
-    def _pre_sim_checks(self) -> bool:
-        if len(self.A.shape) < 2:
-            raise AssertionError("Matrix \"A\" must have shape of len 2")
-        if len(self.B.shape) < 2:
-            raise AssertionError("Matrix \"B\" must have shape of len 2")
-        if self._type == ModelType.StateSpace:
-            assert self.A.shape == self.C.shape
-            assert self.B.shape == self.D.shape
-            # assert len(self._X) == len(self.A)
-
-        # run state-register checks
-        self.register._pre_sim_checks()
-
         # handle user-defined state references in state-space matrices
         self.__handle_sym_expr_references()
 
         # reduce complexity of mat mult.
-        self.A = csr_matrix(self.A)
-        self.B = csr_matrix(self.B)
-        self.C = csr_matrix(self.C)
-        self.D = csr_matrix(self.D)
+        # self.A = csr_matrix(self.A.astype(self._dtype))
+        # self.B = csr_matrix(self.B.astype(self._dtype))
+        # self.C = csr_matrix(self.C.astype(self._dtype))
+        # self.D = csr_matrix(self.D.astype(self._dtype))
 
         # failing here, means matrix contains symbolic references still
         assert self.A.dtype in [float, int]
@@ -120,9 +117,163 @@ class Model:
         assert self.C.dtype in [float, int]
         assert self.D.dtype in [float, int]
 
+        # create the step function
+        self.update_func = lambda X, U: self.A @ X + self.B @ U
+
+
+    def from_function(self,
+                      dt_var: Symbol,
+                      state_vars: list|tuple|Matrix,
+                      input_vars: list|tuple|Matrix,
+                      func: Callable):
+        """This method initializes a Model from a callable function.
+        The provided function must have the following signature:
+
+            func(X, U, dt)
+
+        where, 'X' is the current state, 'U', is the current inputs and
+        'dt' is the time step.
+
+        -------------------------------------------------------------------
+        -- Arguments
+        -------------------------------------------------------------------
+        -- dt_var - symbolic dt variable
+        -- state_vars - iterable of symbolic state variables
+        -- input_vars - iterable of symbolic input variables
+        -- func - callable function which returns the state dynamics
+        -------------------------------------------------------------------
+        -- Returns
+        -------------------------------------------------------------------
+        -- self - the initialized Model
+        -------------------------------------------------------------------
+        """
+        # TODO initialize self.state_dim somehow ...
+        self._type = ModelType.Function
+        self.set_state(state_vars)
+        self.dt_var = dt_var
+        self.vars = (state_vars, input_vars, dt_var)
+        self.state_dim = len(state_vars)
+        self.update_func = func
+        assert isinstance(func, Callable)
+        return self
+
+
+    def from_statespace(self,
+                        dt_var: Symbol,
+                        state_vars: list|tuple|Matrix,
+                        input_vars: list|tuple|Matrix,
+                        A: np.ndarray|Matrix,
+                        B: np.ndarray|Matrix,
+                        C: Optional[np.ndarray|Matrix] = None,
+                        D: Optional[np.ndarray|Matrix] = None):
+        """This method initializes a Model from the matrices describing.
+        a linear time-invariant system (LTI).
+
+            X_dot = A*X + B*U
+
+        where, 'X' is the current state, 'U', is the current inputs, 'A' is
+        the design matrix, 'B' is the input matrix, and 'dt' is the time step.
+
+        -------------------------------------------------------------------
+        -- Arguments
+        -------------------------------------------------------------------
+        -- dt_var - symbolic dt e
+        -- state_vars - iterable of symbolic state variables
+        -- input_vars - iterable of symbolic input variables
+        -- A - design matrix
+        -- B - input matrix
+        -- C - (optional) output matrix
+        -- D - (optional) output matrix
+        -------------------------------------------------------------------
+        -- Returns
+        -------------------------------------------------------------------
+        -- self - the initialized Model
+        -------------------------------------------------------------------
+        """
+        self.set_state(state_vars)
+        self.dt_var = dt_var
+        self.vars = (state_vars, input_vars, dt_var)
+        self.update_func = Desym(self.vars, A * state_vars + B * input_vars) #type:ignore
+        self.state_dim = A.shape[0]
+        self.A = np.array(A)
+        self.B = np.array(B)
+
+        if C is not None:
+            self.C = np.array(C)
+        else:
+            self.C = np.eye(self.A.shape[0])
+        if D is not None:
+            self.D = np.array(D)
+        else:
+            self.D = np.zeros_like(self.B)
+
+        return self
+
+
+    def from_expression(self,
+                        dt_var: Symbol,
+                        state_vars: list|tuple|Matrix,
+                        input_vars: list|tuple|Matrix,
+                        expr: Expr|Matrix|MatrixSymbol):
+        """This method initializes a Model from a symbolic expression.
+        a Sympy expression can be passed which then is lambdified
+        (see Sympy.lambdify) with computational optimization (see Sympy.cse).
+
+        -------------------------------------------------------------------
+        -- Arguments
+        -------------------------------------------------------------------
+        -- dt_var - symbolic dt e
+        -- state_vars - iterable of symbolic state variables
+        -- input_vars - iterable of symbolic input variables
+        -- expr - Sympy symbolic expression
+        -------------------------------------------------------------------
+        -- Returns
+        -------------------------------------------------------------------
+        -- self - the initialized Model
+        -------------------------------------------------------------------
+        """
+        self._type = ModelType.Symbolic
+        self.set_state(state_vars)
+        self.dt_var = dt_var
+        self.vars = (state_vars, input_vars, dt_var)
+        self.expr = expr
+        self.state_dim = len(state_vars)
+        # create lambdified function from symbolic expression
+        match expr.__class__(): #type:ignore
+            case Expr():
+                self.update_func = Desym(self.vars, expr)
+            case Matrix():
+                self.update_func = Desym(self.vars, expr)
+            case MatrixSymbol():
+                self.update_func = Desym(self.vars, expr)
+            case _:
+                raise Exception("function provided is not Callable.")
+        return self
+
+
+    def _pre_sim_checks(self) -> bool:
+        match self._type:
+            case ModelType.StateSpace:
+                if len(self.A.shape) < 2:
+                    raise AssertionError("Matrix \"A\" must have shape of len 2")
+                if len(self.B.shape) < 2:
+                    raise AssertionError("Matrix \"B\" must have shape of len 2")
+                if self._type == ModelType.StateSpace:
+                    assert self.A.shape == self.C.shape
+                    assert self.B.shape == self.D.shape
+                    # assert len(self._X) == len(self.A)
+            case ModelType.Function:
+                pass
+            case ModelType.Symbolic:
+                pass
+
+        # run state-register checks
+        self.state_register._pre_sim_checks()
+
         return True
 
 
+    @DeprecationWarning
     def __get_symbolic_name(self, var: Symbol|MatrixSymbol|MatrixElement) -> str:
         if isinstance(var, Symbol):
             return var.name
@@ -133,6 +284,7 @@ class Model:
         else:
             raise Exception("wrong arg type.")
 
+    @DeprecationWarning
     def __handle_sym_expr_references(self) -> None:
         """
             This method handles the user-defined state references (strings) provided
@@ -168,26 +320,27 @@ class Model:
                     # split symbolic matrix bin as (coefficent, state-variable)
                     if isinstance(val, Expr):
                         coef_mul: tuple = val.as_coeff_Mul()
-                        coef = coef_mul[0]
+                        coef = self._dtype(coef_mul[0])
                         var: Symbol|MatrixElement = coef_mul[1] #type:ignore
 
                         # check if exponents on symbolic state variable exist
                         if isinstance(var, Pow):
-                            exp = var.exp
+                            exp = self._dtype(var.exp)
                         else:
                             exp = None
 
-                        var_name = self.__get_symbolic_name(var)
+                        # var_name = self.__get_symbolic_name(var)
+                        var_name = str(var)
 
                         # check if state reference is registered
-                        if var_name not in self.register:
+                        if var_name not in self.state_register:
                             raise Exception(f"User defined state references \"{var_name}\"\
                                     in state-space matrix but \"{var_name}\" is not a registered state")
                         else:
                             # store state references in state-space matrix
-                            state_id = self.register[var_name]["id"]
+                            state_id = self.state_register[var_name]["id"]
                             self._sym_references.append({"A_slice": (i, j), "state_id": state_id, "coef": coef, "exp": exp})
-                            self.A[i:i+1, j:j+1] = float(coef)
+                            self.A[i:i+1, j:j+1] = coef
 
         # ensure Model matrices have type float
         # since sympy expressions are allowed in 
@@ -196,6 +349,7 @@ class Model:
 
 
     # TODO this can be generalized to mats B, C, D...
+    @DeprecationWarning
     def __update_A_matrix_exprs(self, A: np.ndarray|Tcsr_matrix, X: np.ndarray) -> None:
         """This method uses the info gathered in "__handle_sym_expr_references()"
         as well as the current state 'X' for the time step and applies the changes
@@ -211,7 +365,13 @@ class Model:
             A[A_slice[0], A_slice[1]] = sim_ref["coef"] * val
 
 
-    def step(self, X: np.ndarray, U: np.ndarray) -> np.ndarray:
+    def __call__(self, *args) -> np.ndarray:
+        """This method calls an update step to the model after the
+        Model object has been initialized."""
+        return self.update_func(*args).flatten()
+
+
+    def step(self, X: np.ndarray, U: np.ndarray, dt: float) -> np.ndarray:
         """This method is the step method of Model over a single time step.
 
         -------------------------------------------------------------------
@@ -227,15 +387,21 @@ class Model:
         """
 
         self.__set_current_state(X)
-        self.__update_A_matrix_exprs(self.A, X)
-        return self.A @ X + self.B @ U
+        # self.__update_A_matrix_exprs(self.A, X)
+        # return self.A @ X + self.B @ U
+        # return self.update_func(X, U).flatten()
+        return self(X, U, dt)
 
 
-    def get_state_id(self, name: str|list[str]) -> int|list[int]:
+    def get_state_id(self, names: str|list[str]) -> int|list[int]:
         """This method get the sympy variable associated with the provided
         name. variables must first be added to the StateRegister. If a list
         of state names are provided, then a list of corresponding state ids
         will be returned.
+
+        If sympy MatrixElement has been registered in the state e.g. 'x[i, j]',
+        then the provided name 'x' will return all indices of that particular
+        state.
 
         -------------------------------------------------------------------
         -- Arguments
@@ -249,12 +415,13 @@ class Model:
                 state array or list of indices.
         -------------------------------------------------------------------
         """
-        if isinstance(name, list):
-            return [self.register[k]["id"] for k in name]
+        if isinstance(names, list):
+            return [self.state_register[k]["id"] for k in names]
         else:
-            return self.register[name]["id"]
+            return self.state_register[names]["id"]
 
 
+    @DeprecationWarning
     def add_state(self, name: str, id: int, label: str = "") -> Symbol:
         """This method registers a SimObject state name and plotting label
         with a user-specified name. The purpose of this register is for ease
@@ -270,7 +437,26 @@ class Model:
                     in plots / visualization
         -------------------------------------------------------------------
         """
-        return self.register.add_state(name=name, id=id, label=label)
+        return self.state_register.add_state(name=name, id=id, label=label)
+
+
+    def set_state(self, state_vars: tuple|list|Matrix, labels: Optional[list|tuple] = None):
+        """This method initializes the StateRegister attribute of the Model.
+
+        -------------------------------------------------------------------
+        -- Arguments
+        -------------------------------------------------------------------
+        -- state - iterable of symbolic state variables
+        -- labels - (optional) iterable of labels that may be used by the
+                    Plotter class. order labels must correspond to order
+                    of state_vars.
+        -------------------------------------------------------------------
+        -- Returns
+        -------------------------------------------------------------------
+        -- (Symbol) - the symbolic object of the state variable
+        -------------------------------------------------------------------
+        """
+        return self.state_register.set_state(state_vars=state_vars, labels=labels)
 
 
     def get_sym(self, name: str) -> Symbol:
@@ -287,32 +473,6 @@ class Model:
         -- (Symbol) - the symbolic object of the state variable
         -------------------------------------------------------------------
         """
-        return self.register.get_sym(name)
-
-
-    def print(self):
-
-        def _print_matrix(mat, register = {}):
-            if isinstance(mat, Tcsr_matrix):
-                mat = mat.toarray()
-
-            print('-' * 50)
-            print(name)
-            print('-' * 50)
-            _shape = mat.shape
-            for i in range(_shape[0] - 1):
-                if register:
-                    print(list(register.keys())[i])
-                for j in range(_shape[1] - 1):
-                    print(mat[i][j], end=" ")
-                print()
-            print()
-
-        mat, name = (self.A, "A")
-        _print_matrix(mat)
-        mat, name = (self.B, "B")
-        _print_matrix(mat)
-
-            
+        return self.state_register.get_sym(name)
 
 

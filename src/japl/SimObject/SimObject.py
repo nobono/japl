@@ -173,11 +173,11 @@ class SimObject:
             raise AssertionError(f"{msg_header} has no model")
 
         # check initial state aray
-        if len(self.X0) != self.model.A.shape[0]:
+        if len(self.X0) != self.model.state_dim:
             raise AssertionError(f"{msg_header} initial state \"X0\" ill-configured")
 
         # check state / output register
-        if len(self.model.register) != self.model.A.shape[0]:
+        if len(self.model.state_register) != self.model.state_dim:
             raise AssertionError(f"{msg_header} register ill-configured")
 
         # TODO make sure register size and model matrix sizes agree
@@ -188,7 +188,7 @@ class SimObject:
         return True
 
 
-    def step(self, X: np.ndarray, U: np.ndarray) -> np.ndarray:
+    def step(self, X: np.ndarray, U: np.ndarray, dt: float) -> np.ndarray:
         """This method is the update-step of the SimObject dynamic model. It calls
         the SimObject Model's step() function.
 
@@ -206,13 +206,14 @@ class SimObject:
         """
         # TODO: accounting for model inputs here?
         self.update(X)
-        return self.model.step(X, U)
+        return self.model.step(X, U, dt)
 
 
     def update(self, X: np.ndarray):
         pass
 
 
+    @DeprecationWarning
     def add_state(self, name: str, id: int, label: str = "") -> Symbol:
         """This method registers a SimObject state name and plotting label with a
         user-specified name. The purpose of this register is for ease of access to SimObject
@@ -286,8 +287,8 @@ class SimObject:
         elif isinstance(state_slice, str):
             if state_slice.lower() in ['t', 'time']:
                 return self.__T[:index]
-            elif state_slice in self.model.register:
-                return self.Y[:index, self.model.register[state_slice]["id"]]
+            elif state_slice in self.model.state_register:
+                return self.Y[:index, self.model.state_register[state_slice]["id"]]
             else:
                 raise Exception(f"SimObject \"{self.name}\" attempting to access state_selection \"{state_slice}\"\
                         but no state index is registered under this name.")
