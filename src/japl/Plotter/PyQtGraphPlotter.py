@@ -268,7 +268,7 @@ class PyQtGraphPlotter:
 
 
     # TODO this may belong in Sim class...
-    def _animate_func(self, frame, _simobj: SimObject, step_func: Callable, moving_bounds: bool = False):
+    def _animate_func(self, frame, simobj: SimObject, step_func: Callable, moving_bounds: bool = False):
 
         # # TEMP #############################################
         # # %-error time profile of pyqtgraph painting process
@@ -290,17 +290,17 @@ class PyQtGraphPlotter:
         #         moving_bounds=moving_bounds
         #         )
 
-        for subplot_id in range(len(_simobj.plot.get_config())):
+        for subplot_id in range(len(simobj.plot.get_config())):
             # get data from SimObject based on state_select user configuration
-            xdata, ydata = _simobj.get_plot_data(subplot_id, self.istep)
-            # pen = _simobj.plot._get_qt_pen(subplot_id=subplot_id)
-            pen = {"color": _simobj.plot.color_code, "width": _simobj.plot.size}
-            _simobj._update_patch_data(xdata, ydata, pen=pen, subplot_id=subplot_id)
+            xdata, ydata = simobj.get_plot_data(subplot_id, self.istep)
+            # pen = simobj.plot._get_qt_pen(subplot_id=subplot_id)
+            pen = {"color": simobj.plot.color_code, "width": simobj.plot.size}
+            simobj._update_patch_data(xdata, ydata, pen=pen, subplot_id=subplot_id)
 
         # drawing the instrument view of vehicle
         # TODO generalize: each simobj has its own body to draw.
         if self.instrument_view:
-            self.__draw_instrument_view(_simobj)
+            self.__draw_instrument_view(simobj)
 
         # TODO run post-animation func when finished
         if self.istep >= self.Nt:

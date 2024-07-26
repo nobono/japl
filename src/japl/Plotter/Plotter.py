@@ -89,7 +89,7 @@ class Plotter:
         return anim
 
 
-    def _animate_func(self, frame, _simobj: SimObject, step_func: Callable, moving_bounds: bool = False):
+    def _animate_func(self, frame, simobj: SimObject, step_func: Callable, moving_bounds: bool = False):
 
         self.istep = frame + 1
 
@@ -101,10 +101,10 @@ class Plotter:
         step_func(istep=self.istep)
 
         # update SimObject data
-        for subplot_id in range(len(_simobj.plot.get_config())):
+        for subplot_id in range(len(simobj.plot.get_config())):
             # get data from SimObject based on state_select user configuration
-            xdata, ydata = _simobj.get_plot_data(subplot_id, self.istep)
-            _simobj._update_patch_data(xdata, ydata, subplot_id=subplot_id)
+            xdata, ydata = simobj.get_plot_data(subplot_id, self.istep)
+            simobj._update_patch_data(xdata, ydata, subplot_id=subplot_id)
 
             # # exit on exception
             # if len(xdata) == 0:
@@ -118,7 +118,7 @@ class Plotter:
                     )
 
         # TODO this needs to account for several axes to plot on...
-        return _simobj.plot.traces
+        return simobj.plot.traces
 
 
     def _post_anim_func(self, _simobjs: list[SimObject]) -> None:
