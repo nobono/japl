@@ -34,7 +34,7 @@ setup(
         install_requires=[],
         packages=find_packages('.'),
         package_dir={'': '.'},
-        ext_modules=[ode_int_ext],
+        # ext_modules=[ode_int_ext],
         libraries=[],
         author="nobono",
         author_email="shincdavid@gmail.com",
