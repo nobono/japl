@@ -198,10 +198,10 @@ class Sim:
         """This method is the main step function for the Sim class."""
 
         # TODO make "ac" automatically the correct length
-        acc_ext = np.array([0, 0, -constants.g], dtype=float)
+        acc_ext = np.array([0, 0, 0], dtype=float)
         torque_ext = np.array([0, 0, 0], dtype=float)
 
-        mass = X[simobj.get_state_id("mass")]
+        mass = simobj.get_state(X, "mass")
 
         iota = np.radians(0.1)
 
@@ -219,9 +219,9 @@ class Sim:
             # TODO can we generalize this?
             # do we need to require model states for position,
             # velocity, quaternion...etc.
-            alt = X[simobj.model.get_state_id("z")]
-            vel = X[simobj.model.get_state_id(["vx", "vy", "vz"])]
-            quat = X[simobj.model.get_state_id(["q0", "q1", "q2", "q3"])]
+            alt = simobj.get_state(X, "z")
+            vel = simobj.get_state(X, ["vx", "vy", "vz"])
+            quat = simobj.get_state(X, ["q0", "q1", "q2", "q3"])
 
             # calculate current mach
             speed = float(np.linalg.norm(vel))
