@@ -49,7 +49,7 @@ dynamics: Matrix = X_new.diff(dt) #type:ignore
 lamf = Desym((state, input, dt), dynamics)
 # lamf = lambdify((state, input, dt), dynamics)
 
-outdir = "libraries/Custom"
+outdir = "japl/Library/Custom"
 
 # # Generate C code for the expression
 # [(c_name, c_code), (h_name, c_header)] = codegen(

@@ -147,9 +147,9 @@ fpa = []
 
 for i in range(30):
 
-    alt = X[simobj.get_state_id("z")]
-    vel = X[simobj.get_state_id(["vx", "vy", "vz"])]
-    quat = X[simobj.model.get_state_id(["q0", "q1", "q2", "q3"])]
+    alt = simobj.get_state(X, "z")
+    vel = simobj.get_state(X, ["vx", "vy", "vz"])
+    quat = simobj.get_state(X, ["q1", "q1", "q2", "q3"])
 
     # calculate current mach
     speed = float(np.linalg.norm(vel))

@@ -158,8 +158,11 @@ class SimObject:
         self.cg: float = kwargs.get("cg", 0)
 
 
-    def get_state_id(self, name: str|list[str]) -> int|list[int]:
-        return self.model.get_state_id(name)
+    def get_state(self, state: np.ndarray, names: str|list[str]) -> float|np.ndarray:
+        if isinstance(names, list):
+            return state[self.model.get_state_id(names)]
+        else:
+            return state[self.model.get_state_id(names)][0]
 
 
     def _pre_sim_checks(self) -> bool:
