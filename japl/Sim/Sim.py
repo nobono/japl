@@ -219,7 +219,7 @@ class Sim:
             # TODO can we generalize this?
             # do we need to require model states for position,
             # velocity, quaternion...etc.
-            alt = simobj.get_state(X, "z")
+            alt = simobj.get_state(X, ["z"])
             vel = simobj.get_state(X, ["vx", "vy", "vz"])
             quat = simobj.get_state(X, ["q0", "q1", "q2", "q3"])
 
