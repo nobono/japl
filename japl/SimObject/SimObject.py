@@ -159,10 +159,7 @@ class SimObject:
 
 
     def get_state(self, state: np.ndarray, names: str|list[str]) -> float|np.ndarray:
-        if isinstance(names, list):
-            return state[self.model.get_state_id(names)]
-        else:
-            return state[self.model.get_state_id(names)][0]
+        return state[self.model.get_state_id(names)]
 
 
     def _pre_sim_checks(self) -> bool:
