@@ -60,6 +60,7 @@ class Sim:
         self.max_step: float = kwargs.get("max_step", 0.2)
 
         # plotting
+        self.frame_rate: float = kwargs.get("frame_rate", 10)
         self.moving_bounds: bool = kwargs.get("moving_bounds", False)
         self.__instantiate_plot(**kwargs)
 
@@ -175,7 +176,7 @@ class Sim:
         simobj._set_T_array_ref(self.T) # simobj.T reference to sim.T
 
         # try to set animation frame intervals to real time
-        interval = int(max(1, self.dt * 1000))
+        interval_ms = int(max(1, (1 / self.frame_rate) * 1000))
         step_func = partial(self._step_solve,
                              step_func=self.step,
                              istep=0,
@@ -187,12 +188,13 @@ class Sim:
         anim_func = partial(self.plotter._animate_func,
                              simobj=simobj,
                              step_func=step_func,
+                             frame_rate=interval_ms,
                              moving_bounds=self.moving_bounds)
 
         anim = self.plotter.FuncAnimation(
                 func=anim_func,
                 frames=self.Nt,
-                interval=interval,
+                interval=interval_ms,
                 )
 
         self.plotter.show()

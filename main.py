@@ -110,7 +110,6 @@ if __name__ == "__main__":
             simobjs=[vehicle],
             integrate_method="rk4",
             events=[],
-            animate=1,
             aspect="equal",
             device_input_type="",
             moving_bounds=True,
@@ -121,6 +120,8 @@ if __name__ == "__main__":
             figsize=(10, 7),
             instrument_view=1,
             draw_cache_mode=0,
+            animate=1,
+            frame_rate=25,
             quiet=0, # TODO still working on this
             )
 
