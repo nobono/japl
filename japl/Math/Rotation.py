@@ -66,7 +66,7 @@ def tait_bryan_to_dcm(yaw_pitch_roll):
 
 def dcm_to_tait_bryan(dcm: np.ndarray) -> np.ndarray:
     # handle gimbal lock condition
-    if abs(abs(dcm[2][0]) - 1) < 1e-12:
+    if abs(abs(dcm[2][0]) - 1) < 1e-15:
         # set roll to zero and solve for yaw
         if dcm[2][0] < 0:
             yaw = np.arctan2(-dcm[0][1], -dcm[0][2])

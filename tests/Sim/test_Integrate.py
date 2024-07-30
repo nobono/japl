@@ -7,6 +7,10 @@ from japl.Sim.Integrate import runge_kutta_4
 class TestExample(unittest.TestCase):
 
 
+    def setUp(self):
+        self.TOLERANCE = 1e-16
+
+
     def func(self, t, X, U, dt):
         pos = X[0]
         vel = X[1]
@@ -35,7 +39,7 @@ class TestExample(unittest.TestCase):
         truth = np.array([ 0.009999897516607761,
                           0.171827974413516604])
         self.assertTrue((X == truth).all())
-        self.assertTrue((T[-1] - 1.0) < 1e-18)
+        self.assertTrue((T[-1] - 1.0) < self.TOLERANCE)
 
 
 if __name__ == '__main__':

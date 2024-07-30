@@ -94,7 +94,7 @@ def dcm_to_tait_bryan_sym(dcm: Matrix|MatrixSymbol) -> Expr:
             )
 
     dcm_to_tait_bryan_expr = Piecewise(
-            (piece1, Abs(Abs(dcm[2, 0]) - 1) < 1e-12), #type:ignore
+            (piece1, Abs(Abs(dcm[2, 0]) - 1) < 1e-15), #type:ignore
             (ret3, True)
             )
 

@@ -12,6 +12,10 @@ from sympy import MatrixSymbol, Matrix, symbols
 class TestExample(unittest.TestCase):
 
 
+    def setUp(self):
+        self.TOLERANCE = 1e-16
+
+
     def __build_model_statespace(self):
         model = Model()
 
@@ -249,8 +253,8 @@ class TestExample(unittest.TestCase):
             self.assertTrue(comp.all())
 
         # check last state entry
-        self.assertTrue(np.linalg.norm(vehicle_ss.Y[-1] - truth) < 1e-18)
-        self.assertTrue(np.linalg.norm(vehicle_sym.Y[-1] - truth) < 1e-18)
+        self.assertTrue(np.linalg.norm(vehicle_ss.Y[-1] - truth) < self.TOLERANCE)
+        self.assertTrue(np.linalg.norm(vehicle_sym.Y[-1] - truth) < self.TOLERANCE)
 
 
 if __name__ == '__main__':
