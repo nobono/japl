@@ -206,7 +206,6 @@ class Sim:
         torque_ext = np.array([0, 0, 0], dtype=self._dtype)
 
         mass = simobj.get_state(X, "mass")
-        # gravity = simobj.get_state(X, ["gravity_x", "gravity_y", "gravity_z"])
 
         iota = np.radians(0.1)
 
