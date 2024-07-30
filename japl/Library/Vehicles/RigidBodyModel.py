@@ -1,5 +1,5 @@
 import numpy as np
-from sympy import Matrix, symbols
+from sympy import Matrix, MatrixSymbol, symbols, Piecewise
 from japl import Model
 
 
