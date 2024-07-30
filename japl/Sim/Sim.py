@@ -241,7 +241,7 @@ class Sim:
             vel_hat = vel / speed                                       # flight path vector
 
             # projection vel_hat --> x-axis
-            zx_plane_norm = np.array([0, 1, 0])
+            zx_plane_norm = np.array([0, 1, 0], dtype=self._dtype)
             vel_hat_zx = ((vel_hat @ zx_plane_norm) / np.linalg.norm(zx_plane_norm)) * zx_plane_norm
             vel_hat_proj = vel_hat - vel_hat_zx
 
@@ -249,8 +249,8 @@ class Sim:
             yaw_angle, pitch_angle, roll_angle = Rotation.quat_to_tait_bryan(np.asarray(quat))
 
             # angle between proj vel_hat & xaxis
-            x_axis_intertial = np.array([1, 0, 0])
-            flight_path_angle = np.sign(vel_hat_proj[2]) * vec_ang(vel_hat_proj, x_axis_intertial)
+            x_axis_inertial = np.array([1, 0, 0], dtype=self._dtype)
+            flight_path_angle = np.sign(vel_hat_proj[2]) * vec_ang(vel_hat_proj, x_axis_inertial)
             alpha = pitch_angle - flight_path_angle                     # angle of attack
             phi = roll_angle
 

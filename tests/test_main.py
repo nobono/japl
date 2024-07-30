@@ -13,6 +13,7 @@ class TestExample(unittest.TestCase):
 
 
     def setUp(self):
+        self.aeromodel_path = "./aeromodel/aeromodel_psb.mat"
         self.TOLERANCE = 1e-16
 
 
@@ -93,7 +94,7 @@ class TestExample(unittest.TestCase):
         model.set_state(state)
 
         vehicle = SimObject(model=model, size=2, color='tab:blue')
-        vehicle.aerotable = AeroTable("./aeromodel/aeromodel_psb.mat")
+        vehicle.aerotable = AeroTable(self.aeromodel_path)
 
         vehicle.plot.set_config({
                     "Pos": {
@@ -164,7 +165,7 @@ class TestExample(unittest.TestCase):
         model = Model().from_expression(dt, state, input, dynamics)
 
         vehicle = SimObject(model=model, size=2, color='tab:blue')
-        vehicle.aerotable = AeroTable("./aeromodel/aeromodel_psb.mat")
+        vehicle.aerotable = AeroTable(self.aeromodel_path)
 
         vehicle.plot.set_config({
                     "Pos": {
@@ -225,23 +226,23 @@ class TestExample(unittest.TestCase):
         sim_sym = self.run_example(vehicle_sym)
 
         truth = np.array([
-            150.00000000000014210855,
-            0.00000000000000000000,
-            10000.00111889933941711206,
-            1500.00000000000000000000,
-            0.00000000000000000000,
-            -0.47741315793600341832,
-            0.00000000000000000000,
-            0.00020871625291801776,
-            0.00000000000000000000,
-            0.99999999999756350455,
-            0.00000000000000000000,
-            0.00000221291092111800,
-            0.00000000000000000000,
-            133.00000000000000000000,
-            0.00000000000000000000,
-            0.00000000000000000000,
-            -9.77586844288743428422,
+            150.000000000000142109,
+            0.000000000000000000,
+            10000.001118899339417112,
+            1500.000000000000000000,
+            0.000000000000000000,
+            -0.477413157934564958,
+            0.000000000000000000,
+            0.000208716253749863,
+            0.000000000000000000,
+            0.999999999997563505,
+            0.000000000000000000,
+            0.000002212910942367,
+            0.000000000000000000,
+            133.000000000000000000,
+            0.000000000000000000,
+            0.000000000000000000,
+            -9.775868442887434284,
             ])
 
         # symbolic expressions should be equivalent
