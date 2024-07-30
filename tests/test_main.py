@@ -217,17 +217,40 @@ class TestExample(unittest.TestCase):
     def test_compare(self):
         vehicle_ss = self.__build_model_statespace()
         vehicle_sym = self.__build_model_symbolic()
+        sim_ss = self.run_example(vehicle_ss)
+        sim_sym = self.run_example(vehicle_sym)
+
+        truth = np.array([
+            150.00000000000014210855,
+            0.00000000000000000000,
+            10000.00111889933941711206,
+            1500.00000000000000000000,
+            0.00000000000000000000,
+            -0.47741315793600341832,
+            0.00000000000000000000,
+            0.00020871625291801776,
+            0.00000000000000000000,
+            0.99999999999756350455,
+            0.00000000000000000000,
+            0.00000221291092111800,
+            0.00000000000000000000,
+            133.00000000000000000000,
+            0.00000000000000000000,
+            0.00000000000000000000,
+            -9.77586844288743428422,
+            ])
 
         # symbolic expressions should be equivalent
         self.assertTrue(vehicle_ss.model.expr == vehicle_sym.model.expr)
 
-        sim_ss = self.run_example(vehicle_ss)
-        sim_sym = self.run_example(vehicle_sym)
-
+        # check if state histories match
         for i in range(len(vehicle_ss.Y)):
             comp = vehicle_ss.Y[i] == vehicle_sym.Y[i]
-            assert comp.all()
-        pass
+            self.assertTrue(comp.all())
+
+        # check last state entry
+        self.assertTrue(np.linalg.norm(vehicle_ss.Y[-1] - truth) < 1e-18)
+        self.assertTrue(np.linalg.norm(vehicle_sym.Y[-1] - truth) < 1e-18)
 
 
 if __name__ == '__main__':
