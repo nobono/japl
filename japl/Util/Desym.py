@@ -7,7 +7,8 @@ from sympy import lambdify
 
 
 
-Max = lambda a, b: Piecewise((b, a < b), (a, True))      # vectorized sympy.Max()
+Max_ = lambda a, b: Piecewise((b, a < b), (a, True))      # vectorized sympy.Max()
+Min_ = lambda a, b: Piecewise((a, a < b), (b, True))      # vectorized sympy.Min()
 
 
 class Desym:
@@ -17,7 +18,8 @@ class Desym:
             'ImmutableMatrix': np.array,
             'MutableDenseMatrix': np.array,
             'ImmutableDenseMatrix': np.array,
-            'Max': Max,
+            'Max': Max_,
+            'Min': Min_,
             }
 
     def __init__(self,
