@@ -347,7 +347,7 @@ class PyQtGraphPlotter:
 
         # get quaternion from current state
         istate = _simobj.model.get_current_state()
-        iquat = _simobj.get_state(istate, ["q_0", "q_1", "q_2", "q_3"])
+        iquat = _simobj.get_state_array(istate, ["q_0", "q_1", "q_2", "q_3"])
 
         # get rotation matrix
         _iquat = quaternion.from_float_array(iquat)

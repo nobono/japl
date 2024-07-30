@@ -158,7 +158,7 @@ class SimObject:
         self.cg: float = kwargs.get("cg", 0)
 
 
-    def get_state(self, state: np.ndarray, names: str|list[str]) -> float|np.ndarray:
+    def get_state_array(self, state: np.ndarray, names: str|list[str]) -> float|np.ndarray:
         """This method gets values from the state array given the state
         names."""
         ret = self.model.get_state_id(names)
@@ -171,7 +171,7 @@ class SimObject:
             return state[ret]
 
 
-    def set_state(self, state: np.ndarray, names: str|list[str],
+    def set_state_array(self, state: np.ndarray, names: str|list[str],
                   vals: float|list|np.ndarray) -> None:
         """This method sets values of the state array according to the
         provided state names and provided values."""
@@ -183,6 +183,33 @@ class SimObject:
                 state[ret] = np.asarray(vals)
         else:
             state[ret] = np.asarray(vals)
+
+
+    def get_input_array(self, input: np.ndarray, names: str|list[str]) -> float|np.ndarray:
+        """This method gets values from the input array given the input
+        names."""
+        ret = self.model.get_input_id(names)
+        if isinstance(names, list):
+            if len(names) == 1:
+                return input[ret][0]
+            else:
+                return input[ret]
+        else:
+            return input[ret]
+
+
+    def set_input_array(self, input: np.ndarray, names: str|list[str],
+                  vals: float|list|np.ndarray) -> None:
+        """This method sets values of the input array according to the
+        provided input names and provided values."""
+        ret = self.model.get_input_id(names)
+        if isinstance(names, list):
+            if len(names) == 1:
+                input[ret][0] = np.asarray(vals)
+            else:
+                input[ret] = np.asarray(vals)
+        else:
+            input[ret] = np.asarray(vals)
 
 
     def _pre_sim_checks(self) -> bool:
@@ -201,7 +228,15 @@ class SimObject:
 
         # check state / output register
         if len(self.model.state_register) != self.model.state_dim:
-            raise AssertionError(f"{msg_header} register ill-configured")
+            raise AssertionError(f"{msg_header} state register ill-configured\n\
+                                 register-dim:{len(self.model.state_register)}\n\
+                                 model-state_dim:{self.model.state_dim}")
+
+        # check inputs
+        if len(self.model.input_register) != self.model.input_dim:
+            raise AssertionError(f"{msg_header} input register ill-configured\n\
+                                 register-dim:{len(self.model.input_register)}\n\
+                                 model-input_dim:{self.model.input_dim}")
 
         # TODO make sure register size and model matrix sizes agree
 

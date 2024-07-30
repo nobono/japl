@@ -139,12 +139,15 @@ class Sim:
     def _solve(self, simobj: SimObject) -> None:
         """This method handles running the Sim class using an ODE Solver"""
 
+        # setup input array
+        U = np.zeros(len(simobj.model.input_vars), dtype=self._dtype)
+
         sol = solve_ivp(
                 fun=self.step,
                 t_span=self.t_span,
                 t_eval=self.t_array,
                 y0=simobj.X0,
-                args=(self.dt, simobj,),
+                args=(U, self.dt, simobj,),
                 events=self.events,
                 rtol=self.rtol,
                 atol=self.atol,
@@ -200,14 +203,13 @@ class Sim:
         self.plotter.show()
 
 
-    def step(self, t, X, dt: float, simobj: SimObject):
+    def step(self, t: float, X: np.ndarray, U: np.ndarray, dt: float, simobj: SimObject):
         """This method is the main step function for the Sim class."""
 
-        # TODO make "ac" automatically the correct length
-        acc_ext = np.array([0, 0, 0], dtype=self._dtype)
-        torque_ext = np.array([0, 0, 0], dtype=self._dtype)
+        # acc_ext = simobj.get_input_array(U, ["acc_x", "acc_y", "acc_z"])
+        # torque_ext = simobj.get_input_array(U, ["torque_x", "torque_y", "torque_z"])
 
-        mass = simobj.get_state(X, "mass")
+        mass = simobj.get_state_array(X, "mass")
 
         iota = np.radians(0.1)
 
@@ -224,12 +226,12 @@ class Sim:
             # RigidBodyModel contains necessary states for Aeromodel update section
             # assert isinstance(simobj.model, RigidBodyModel)
 
-            alt = simobj.get_state(X, ["pos_z"])
-            vel = simobj.get_state(X, ["vel_x", "vel_y", "vel_z"])
-            quat = simobj.get_state(X, ["q_0", "q_1", "q_2", "q_3"])
+            alt = simobj.get_state_array(X, ["pos_z"])
+            vel = simobj.get_state_array(X, ["vel_x", "vel_y", "vel_z"])
+            quat = simobj.get_state_array(X, ["q_0", "q_1", "q_2", "q_3"])
 
-            simobj.set_state(X, "gravity_z", -self.atmosphere.grav_accel(alt))
-            gravity = simobj.get_state(X, ["gravity_x", "gravity_y", "gravity_z"])
+            simobj.set_state_array(X, "gravity_z", -self.atmosphere.grav_accel(alt))
+            gravity = simobj.get_state_array(X, ["gravity_x", "gravity_y", "gravity_z"])
 
             # calculate current mach
             speed = float(np.linalg.norm(vel))
@@ -283,20 +285,22 @@ class Sim:
 
                 My_coef = CLMB + (simobj.cg - simobj.aerotable.MRC[0]) * CNB
 
+                ########################################################
                 # calulate moments: (M_coef * q * Sref * Lref), where:
+                ########################################################
                 #       M_coef - moment coeficient
                 #       q      - dynamic pressure
                 #       Sref   - surface area reference (wing area)
                 #       Lref   - length reference (mean aerodynamic chord)
+                ########################################################
                 q = self.atmosphere.dynamic_pressure(vel, alt)
                 My = My_coef * q * simobj.aerotable.Sref * simobj.aerotable.Lref
                 zforce = CNB * q * simobj.aerotable.Sref
 
                 # update external moments
                 # (positive )
-                torque_ext[1] = My / simobj.Iyy
-                acc_ext[2] = acc_ext[2] + zforce / mass
-                # print(torque_ext[1], acc_ext[2], q)
+                simobj.set_input_array(U, "torque_y", My / simobj.Iyy)
+                simobj.set_input_array(U, "acc_z", zforce / mass)
 
             except Exception as e:
                 print(e)
@@ -304,7 +308,6 @@ class Sim:
 
         ########################################################################
 
-        U = np.concatenate([acc_ext, torque_ext])
         Xdot = simobj.step(X, U, dt)
 
         return Xdot
@@ -359,6 +362,9 @@ class Sim:
         tstep = self.t_array[istep]
         x0 = simobj.Y[istep - 1]
 
+        # setup input array
+        U = np.zeros(len(simobj.model.input_vars), dtype=self._dtype)
+
         match method:
             case "rk4":
                 X_new, T_new = runge_kutta_4(
@@ -366,7 +372,7 @@ class Sim:
                         t=tstep,
                         X=x0,
                         h=dt,
-                        args=(dt, simobj,),
+                        args=(U, dt, simobj,),
                         )
                 self.T[istep] = T_new
                 simobj.Y[istep] = X_new
@@ -376,7 +382,7 @@ class Sim:
                         t_span=(tstep_prev, tstep),
                         t_eval=[tstep],
                         y0=x0,
-                        args=(dt, simobj,),
+                        args=(U, dt, simobj,),
                         events=self.events,
                         rtol=rtol,
                         atol=atol,

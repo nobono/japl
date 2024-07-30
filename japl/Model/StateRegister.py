@@ -62,9 +62,9 @@ class StateRegister(dict):
         return var
 
 
-    def set_state(self, state_vars: tuple|list|Matrix, labels: Optional[list|tuple] = None):
+    def set(self, vars: tuple|list|Matrix, labels: Optional[list|tuple] = None):
         """register state and labels"""
-        for id, var in enumerate(state_vars): #type:ignore
+        for id, var in enumerate(vars): #type:ignore
             var_name = str(var)
             if labels and id < len(labels):
                 label = labels[id]
