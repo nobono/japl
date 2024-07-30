@@ -217,6 +217,10 @@ class TestExample(unittest.TestCase):
     def test_compare(self):
         vehicle_ss = self.__build_model_statespace()
         vehicle_sym = self.__build_model_symbolic()
+
+        # symbolic expressions should be equivalent
+        self.assertTrue(vehicle_ss.model.expr == vehicle_sym.model.expr)
+
         sim_ss = self.run_example(vehicle_ss)
         sim_sym = self.run_example(vehicle_sym)
 
