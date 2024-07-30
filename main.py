@@ -72,13 +72,13 @@ if __name__ == "__main__":
 
     vehicle.plot.set_config({
                 "Pos": {
-                    "xaxis": "x",
-                    "yaxis": "z",
+                    "xaxis": "pos_x",
+                    "yaxis": "pos_z",
                     "aspect": "auto",
                     },
                 "Vel": {
                     "xaxis": "t",
-                    "yaxis": "vz",
+                    "yaxis": "vel_z",
                     "aspect": "auto",
                     },
                 })

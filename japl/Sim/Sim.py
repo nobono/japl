@@ -222,9 +222,9 @@ class Sim:
             # RigidBodyModel contains necessary states for Aeromodel update section
             # assert isinstance(simobj.model, RigidBodyModel)
 
-            alt = simobj.get_state(X, ["z"])
-            vel = simobj.get_state(X, ["vx", "vy", "vz"])
-            quat = simobj.get_state(X, ["q0", "q1", "q2", "q3"])
+            alt = simobj.get_state(X, ["pos_z"])
+            vel = simobj.get_state(X, ["vel_x", "vel_y", "vel_z"])
+            quat = simobj.get_state(X, ["q_0", "q_1", "q_2", "q_3"])
 
             simobj.set_state(X, "gravity_z", -self.atmosphere.grav_accel(alt))
             gravity = simobj.get_state(X, ["gravity_x", "gravity_y", "gravity_z"])

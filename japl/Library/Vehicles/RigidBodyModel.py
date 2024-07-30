@@ -11,16 +11,16 @@ class RigidBodyModel(Model):
 dt = symbols("dt")
 
 # states
-pos = Matrix(symbols("x y z"))      # must be fixed for AeroModel
-vel = Matrix(symbols("vx vy vz"))   # must be fixed for AeroModel
-w = Matrix(symbols("wx wy wz"))
-q = Matrix(symbols("q0 q1 q2 q3"))  # must be fixed for AeroModel
+pos = Matrix(symbols("pos_x pos_y pos_z"))      # must be fixed for AeroModel
+vel = Matrix(symbols("vel_x vel_y vel_z"))   # must be fixed for AeroModel
+w = Matrix(symbols("angvel_x angvel_y angvel_z"))
+q = Matrix(symbols("q_0 q_1 q_2 q_3"))  # must be fixed for AeroModel
 mass = symbols("mass")
 gravity = Matrix(symbols("gravity_x gravity_y gravity_z"))
 
 # inputs
-acc = Matrix(symbols("ax ay az"))
-tq = Matrix(symbols("tqx tqy tqz"))
+acc = Matrix(symbols("acc_x acc_y acc_z"))
+tq = Matrix(symbols("torque_x torque_y torque_z"))
 
 # define state update
 w_skew = Matrix(w).hat()

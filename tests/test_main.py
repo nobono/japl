@@ -19,12 +19,12 @@ class TestExample(unittest.TestCase):
     def __build_model_statespace(self):
         model = Model()
 
-        x, y, z = symbols("x y z")              # must be fixed for AeroModel
-        vx, vy, vz = symbols("vx vy vz")        # must be fixed for AeroModel
-        ax, ay, az = symbols("ax ay az")
-        tqx, tqy, tqz = symbols("tqx tqy tqz")
-        wx, wy, wz = symbols("wx wy wz")
-        q0, q1, q2, q3 = symbols("q0 q1 q2 q3") # must be fixed for AeroModel
+        x, y, z = symbols("pos_x pos_y pos_z")              # must be fixed for AeroModel
+        vx, vy, vz = symbols("vel_x vel_y vel_z")        # must be fixed for AeroModel
+        ax, ay, az = symbols("acc_x acc_y acc_z")
+        tqx, tqy, tqz = symbols("torque_x torque_y torque_z")
+        wx, wy, wz = symbols("angvel_x angvel_y angvel_z")
+        q0, q1, q2, q3 = symbols("q_0 q_1 q_2 q_3") # must be fixed for AeroModel
         mass = symbols("mass")
         gravx, gravy,  gravz = symbols("gravity_x gravity_y gravity_z")
         dt = symbols("dt")
@@ -97,13 +97,13 @@ class TestExample(unittest.TestCase):
 
         vehicle.plot.set_config({
                     "Pos": {
-                        "xaxis": "x",
-                        "yaxis": "z",
+                        "xaxis": "pos_x",
+                        "yaxis": "pos_z",
                         "aspect": "auto",
                         },
                     "Vel": {
                         "xaxis": "t",
-                        "yaxis": "vz",
+                        "yaxis": "vel_z",
                         "aspect": "auto",
                         },
                     })
@@ -125,12 +125,12 @@ class TestExample(unittest.TestCase):
         
 
     def __build_model_symbolic(self):
-        pos = Matrix(symbols("x y z"))      # must be fixed for AeroModel
-        vel = Matrix(symbols("vx vy vz"))   # must be fixed for AeroModel
-        acc = Matrix(symbols("ax ay az"))
-        tq = Matrix(symbols("tqx tqy tqz"))
-        w = Matrix(symbols("wx wy wz"))
-        q = Matrix(symbols("q0 q1 q2 q3"))  # must be fixed for AeroModel
+        pos = Matrix(symbols("pos_x pos_y pos_z"))      # must be fixed for AeroModel
+        vel = Matrix(symbols("vel_x vel_y vel_z"))   # must be fixed for AeroModel
+        acc = Matrix(symbols("acc_x acc_y acc_z"))
+        tq = Matrix(symbols("torque_x torque_y torque_z"))
+        w = Matrix(symbols("angvel_x angvel_y angvel_z"))
+        q = Matrix(symbols("q_0 q_1 q_2 q_3"))  # must be fixed for AeroModel
         gravity = Matrix(symbols("gravity_x gravity_y gravity_z"))
 
         dt = symbols("dt")
@@ -168,13 +168,13 @@ class TestExample(unittest.TestCase):
 
         vehicle.plot.set_config({
                     "Pos": {
-                        "xaxis": "x",
-                        "yaxis": "z",
+                        "xaxis": "pos_x",
+                        "yaxis": "pos_z",
                         "aspect": "auto",
                         },
                     "Vel": {
                         "xaxis": "t",
-                        "yaxis": "vz",
+                        "yaxis": "vel_z",
                         "aspect": "auto",
                         },
                     })
