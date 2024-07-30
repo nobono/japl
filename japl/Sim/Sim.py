@@ -38,6 +38,8 @@ class Sim:
                  **kwargs,
                  ) -> None:
 
+        self._dtype = kwargs.get("dtype", np.float64)
+
         self.t_span = t_span
         self.dt = dt
         self.simobjs = simobjs
@@ -200,8 +202,8 @@ class Sim:
         """This method is the main step function for the Sim class."""
 
         # TODO make "ac" automatically the correct length
-        acc_ext = np.array([0, 0, 0], dtype=float)
-        torque_ext = np.array([0, 0, 0], dtype=float)
+        acc_ext = np.array([0, 0, 0], dtype=self._dtype)
+        torque_ext = np.array([0, 0, 0], dtype=self._dtype)
 
         mass = simobj.get_state(X, "mass")
         # gravity = simobj.get_state(X, ["gravity_x", "gravity_y", "gravity_z"])

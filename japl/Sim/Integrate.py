@@ -21,6 +21,7 @@ def runge_kutta_4(f: Callable, t: float, X: np.ndarray, h: float, args: tuple = 
     -- Returns:
     -------------------------------------------------------------------
     --- Xnew - state array for the next time step
+    --- Tnew - the next time step after integration
     -------------------------------------------------------------------
     """
 
