@@ -12,7 +12,7 @@ from japl import SimObject
 from japl import Model
 from japl import AeroTable
 
-from japl.Library.RigidBody import RigidBody
+from japl.Library.Vehicles import RigidBodyModel
 
 # ---------------------------------------------------
 
@@ -66,7 +66,7 @@ if __name__ == "__main__":
 
     # Model
     ####################################
-    model = RigidBody.model
+    model = RigidBodyModel.model
     vehicle = SimObject(model=model, size=2, color='tab:blue')
     vehicle.aerotable = AeroTable("./aeromodel/aeromodel_psb.mat")
 
@@ -96,7 +96,8 @@ if __name__ == "__main__":
     w0 = [0, 0, 0]
     quat0 = quaternion.from_euler_angles([0, 0, 0]).components
     mass0 = 133.0
-    vehicle.init_state([x0, v0, w0, quat0, mass0]) # TODO this should be moved to Model
+    gravity0 = [0, 0, -9.81]
+    vehicle.init_state([x0, v0, w0, quat0, mass0, gravity0]) # TODO this should be moved to Model
 
     # Sim
     ####################################
@@ -120,7 +121,7 @@ if __name__ == "__main__":
             figsize=(10, 7),
             instrument_view=1,
             draw_cache_mode=0,
-            quiet=1, # TODO still working on this
+            quiet=0, # TODO still working on this
             )
 
     # sim.plotter.add_text("debug")

@@ -20,6 +20,7 @@ from scipy.sparse import csr_matrix
 from scipy.sparse._csr import csr_matrix as Tcsr_matrix
 from sympy import Matrix, MatrixSymbol, Mul, Pow, Symbol, Expr
 from sympy.matrices.expressions.matexpr import MatrixElement
+from sympy import simplify
 
 from japl.Model.StateRegister import StateRegister
 from japl.Util.Desym import Desym
@@ -150,6 +151,8 @@ class Model:
         # TODO initialize self.state_dim somehow ...
         self._type = ModelType.Function
         self.set_state(state_vars)
+        self.state_vars = state_vars
+        self.input_vars = input_vars
         self.dt_var = dt_var
         self.vars = (state_vars, input_vars, dt_var)
         self.state_dim = len(state_vars)
@@ -191,9 +194,15 @@ class Model:
         -------------------------------------------------------------------
         """
         self.set_state(state_vars)
+        self.state_vars = state_vars
+        self.input_vars = input_vars
+        self.dt_var = dt_var
         self.dt_var = dt_var
         self.vars = (state_vars, input_vars, dt_var)
-        self.update_func = Desym(self.vars, A * state_vars + B * input_vars) #type:ignore
+        self.expr = A * state_vars + B * input_vars
+        if isinstance(self.expr, Expr) or isinstance(self.expr, Matrix):
+            self.expr = simplify(self.expr)
+        self.update_func = Desym(self.vars, self.expr) #type:ignore
         self.state_dim = A.shape[0]
         self.A = np.array(A)
         self.B = np.array(B)
@@ -234,6 +243,9 @@ class Model:
         """
         self._type = ModelType.Symbolic
         self.set_state(state_vars)
+        self.state_vars = state_vars
+        self.input_vars = input_vars
+        self.dt_var = dt_var
         self.dt_var = dt_var
         self.vars = (state_vars, input_vars, dt_var)
         self.expr = expr

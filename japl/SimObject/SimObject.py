@@ -159,6 +159,8 @@ class SimObject:
 
 
     def get_state(self, state: np.ndarray, names: str|list[str]) -> float|np.ndarray:
+        """This method gets values from the state array given the state
+        names."""
         ret = self.model.get_state_id(names)
         if isinstance(names, list):
             if len(names) == 1:
@@ -167,6 +169,20 @@ class SimObject:
                 return state[ret]
         else:
             return state[ret]
+
+
+    def set_state(self, state: np.ndarray, names: str|list[str],
+                  vals: float|list|np.ndarray) -> None:
+        """This method sets values of the state array according to the
+        provided state names and provided values."""
+        ret = self.model.get_state_id(names)
+        if isinstance(names, list):
+            if len(names) == 1:
+                state[ret][0] = np.asarray(vals)
+            else:
+                state[ret] = np.asarray(vals)
+        else:
+            state[ret] = np.asarray(vals)
 
 
     def _pre_sim_checks(self) -> bool:

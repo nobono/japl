@@ -4,7 +4,7 @@ import quaternion
 
 from japl import global_opts
 from japl.Aero.Atmosphere import Atmosphere
-from japl.Math.Rotation import quat_to_tait_bryan
+from japl.Math import Rotation
 from japl.Math.Vec import vec_ang
 from japl.SimObject.SimObject import SimObject
 from japl.DeviceInput.DeviceInput import DeviceInput
@@ -12,6 +12,8 @@ from japl.Plotter.Plotter import Plotter
 from japl.Plotter.PyQtGraphPlotter import PyQtGraphPlotter
 
 from japl.Sim.Integrate import runge_kutta_4
+
+from japl.Library.Vehicles.RigidBodyModel import RigidBodyModel
 
 from scipy.integrate import solve_ivp
 
@@ -202,6 +204,7 @@ class Sim:
         torque_ext = np.array([0, 0, 0], dtype=float)
 
         mass = simobj.get_state(X, "mass")
+        # gravity = simobj.get_state(X, ["gravity_x", "gravity_y", "gravity_z"])
 
         iota = np.radians(0.1)
 
@@ -215,13 +218,15 @@ class Sim:
         # Aeromodel
         ########################################################################
         if simobj.aerotable:
-            # get current states
-            # TODO can we generalize this?
-            # do we need to require model states for position,
-            # velocity, quaternion...etc.
+            # RigidBodyModel contains necessary states for Aeromodel update section
+            # assert isinstance(simobj.model, RigidBodyModel)
+
             alt = simobj.get_state(X, ["z"])
             vel = simobj.get_state(X, ["vx", "vy", "vz"])
             quat = simobj.get_state(X, ["q0", "q1", "q2", "q3"])
+
+            simobj.set_state(X, "gravity_z", -self.atmosphere.grav_accel(alt))
+            gravity = simobj.get_state(X, ["gravity_x", "gravity_y", "gravity_z"])
 
             # calculate current mach
             speed = float(np.linalg.norm(vel))
@@ -236,7 +241,7 @@ class Sim:
             vel_hat_proj = vel_hat - vel_hat_zx
 
             # get Trait-bryan angles (yaw, pitch, roll)
-            yaw_angle, pitch_angle, roll_angle = quat_to_tait_bryan(np.asarray(quat))
+            yaw_angle, pitch_angle, roll_angle = Rotation.quat_to_tait_bryan(np.asarray(quat))
 
             # angle between proj vel_hat & xaxis
             x_axis_intertial = np.array([1, 0, 0])

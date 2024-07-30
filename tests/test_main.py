@@ -22,6 +22,7 @@ class TestExample(unittest.TestCase):
         wx, wy, wz = symbols("wx wy wz")
         q0, q1, q2, q3 = symbols("q0 q1 q2 q3") # must be fixed for AeroModel
         mass = symbols("mass")
+        gravx, gravy,  gravz = symbols("gravity_x gravity_y gravity_z")
         dt = symbols("dt")
 
         Sq = np.array([
@@ -32,23 +33,27 @@ class TestExample(unittest.TestCase):
             ]) * 0.5
 
         A = np.array([
-            [0,0,0,  1,0,0,  0,0,0,  0,0,0,0,  0], # x
-            [0,0,0,  0,1,0,  0,0,0,  0,0,0,0,  0], # y
-            [0,0,0,  0,0,1,  0,0,0,  0,0,0,0,  0], # z
-            [0,0,0,  0,0,0,  0,0,0,  0,0,0,0,  0], # vx
-            [0,0,0,  0,0,0,  0,0,0,  0,0,0,0,  0], # vy
-            [0,0,0,  0,0,0,  0,0,0,  0,0,0,0,  0], # vz
+            [0,0,0,  1,0,0,  0,0,0,  0,0,0,0,  0,  0,0,0], # x
+            [0,0,0,  0,1,0,  0,0,0,  0,0,0,0,  0,  0,0,0], # y
+            [0,0,0,  0,0,1,  0,0,0,  0,0,0,0,  0,  0,0,0], # z
+            [0,0,0,  0,0,0,  0,0,0,  0,0,0,0,  0,  1,0,0], # vx
+            [0,0,0,  0,0,0,  0,0,0,  0,0,0,0,  0,  0,1,0], # vy
+            [0,0,0,  0,0,0,  0,0,0,  0,0,0,0,  0,  0,0,1], # vz
 
-            [0,0,0,  0,0,0,  0,0,0,  0,0,0,0,  0], # wx
-            [0,0,0,  0,0,0,  0,0,0,  0,0,0,0,  0], # wy
-            [0,0,0,  0,0,0,  0,0,0,  0,0,0,0,  0], # wz
+            [0,0,0,  0,0,0,  0,0,0,  0,0,0,0,  0,  0,0,0], # wx
+            [0,0,0,  0,0,0,  0,0,0,  0,0,0,0,  0,  0,0,0], # wy
+            [0,0,0,  0,0,0,  0,0,0,  0,0,0,0,  0,  0,0,0], # wz
 
-            [0,0,0,  0,0,0,  *Sq[0], 0,0,0,0,  0], # q0
-            [0,0,0,  0,0,0,  *Sq[1], 0,0,0,0,  0], # q1
-            [0,0,0,  0,0,0,  *Sq[2], 0,0,0,0,  0], # q2
-            [0,0,0,  0,0,0,  *Sq[3], 0,0,0,0,  0], # q3
+            [0,0,0,  0,0,0,  *Sq[0], 0,0,0,0,  0,  0,0,0], # q0
+            [0,0,0,  0,0,0,  *Sq[1], 0,0,0,0,  0,  0,0,0], # q1
+            [0,0,0,  0,0,0,  *Sq[2], 0,0,0,0,  0,  0,0,0], # q2
+            [0,0,0,  0,0,0,  *Sq[3], 0,0,0,0,  0,  0,0,0], # q3
 
-            [0,0,0,  0,0,0,  0,0,0,  0,0,0,0,  0], # mass
+            [0,0,0,  0,0,0,  0,0,0,  0,0,0,0,  0,  0,0,0], # mass
+
+            [0,0,0,  0,0,0,  0,0,0,  0,0,0,0,  0,  0,0,0], # gravityx
+            [0,0,0,  0,0,0,  0,0,0,  0,0,0,0,  0,  0,0,0], # gravityy
+            [0,0,0,  0,0,0,  0,0,0,  0,0,0,0,  0,  0,0,0], # gravityz
             ])
 
         B = np.array([
@@ -56,6 +61,7 @@ class TestExample(unittest.TestCase):
             [0,0,0,  0,0,0],
             [0,0,0,  0,0,0],
             [0,0,0,  0,0,0],
+
             [1,0,0,  0,0,0],
             [0,1,0,  0,0,0],
             [0,0,1,  0,0,0],
@@ -70,9 +76,14 @@ class TestExample(unittest.TestCase):
             [0,0,0,  0,0,0],
 
             [0,0,0,  0,0,0],
+
+            [0,0,0,  0,0,0],
+            [0,0,0,  0,0,0],
+            [0,0,0,  0,0,0],
             ])
 
-        state = Matrix([x, y, z, vx, vy, vz, wx, wy, wz, q0, q1, q2, q3, mass])
+        state = Matrix([x, y, z, vx, vy, vz, wx, wy, wz, q0, q1, q2, q3, mass,
+                        gravx, gravy, gravz])
         input = Matrix([ax, ay, az, tqx, tqy, tqz])
         model.from_statespace(dt, state, input, A, B)
         model.set_state(state)
@@ -103,7 +114,8 @@ class TestExample(unittest.TestCase):
         w0 = [0, 0, 0]
         quat0 = quaternion.from_euler_angles([0, 0, 0]).components
         mass0 = 133.0
-        vehicle.init_state([x0, v0, w0, quat0, mass0]) # TODO this should be moved to Model
+        gravity0 = [0, 0, -9.81]
+        vehicle.init_state([x0, v0, w0, quat0, mass0, gravity0]) # TODO this should be moved to Model
 
         return vehicle
         
@@ -115,6 +127,7 @@ class TestExample(unittest.TestCase):
         tq = Matrix(symbols("tqx tqy tqz"))
         w = Matrix(symbols("wx wy wz"))
         q = Matrix(symbols("q0 q1 q2 q3"))  # must be fixed for AeroModel
+        gravity = Matrix(symbols("gravity_x gravity_y gravity_z"))
 
         dt = symbols("dt")
         mass = symbols("mass")
@@ -126,20 +139,20 @@ class TestExample(unittest.TestCase):
         Sw[1:, 1:] = w_skew
 
         x_new = pos + vel * dt
-        v_new = vel + acc * dt
+        v_new = vel + (acc + gravity) * dt
         w_new = w + tq * dt
         q_new = q + (-0.5 * Sw * q) * dt
-        mass_new = mass
 
         X_new = Matrix([
             x_new.as_mutable(),
             v_new.as_mutable(),
             w_new.as_mutable(),
             q_new.as_mutable(),
-            mass_new,
+            mass,
+            gravity,
             ])
 
-        state = Matrix([pos, vel, w, q, mass])
+        state = Matrix([pos, vel, w, q, mass, gravity])
         input = Matrix([acc, tq])
 
         dynamics = X_new.diff(dt)
@@ -172,7 +185,8 @@ class TestExample(unittest.TestCase):
         w0 = [0, 0, 0]
         quat0 = quaternion.from_euler_angles([0, 0, 0]).components
         mass0 = 133.0
-        vehicle.init_state([x0, v0, w0, quat0, mass0]) # TODO this should be moved to Model
+        gravity0 = [0, 0, -9.81]
+        vehicle.init_state([x0, v0, w0, quat0, mass0, gravity0]) # TODO this should be moved to Model
 
         return vehicle
 
