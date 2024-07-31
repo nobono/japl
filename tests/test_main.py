@@ -14,6 +14,7 @@ class TestExample(unittest.TestCase):
 
     def setUp(self):
         self.aeromodel_path = "./aeromodel/aeromodel_psb.mat"
+        self.TOLERANCE_PLACES = 16
         self.TOLERANCE = 1e-16
 
 
@@ -254,8 +255,8 @@ class TestExample(unittest.TestCase):
             self.assertTrue(comp.all())
 
         # check last state entry
-        self.assertTrue(np.linalg.norm(vehicle_ss.Y[-1] - truth) < self.TOLERANCE)
-        self.assertTrue(np.linalg.norm(vehicle_sym.Y[-1] - truth) < self.TOLERANCE)
+        for i in range(vehicle_ss.model.state_dim):
+            self.assertAlmostEqual(vehicle_ss.Y[-1][i], truth[i], places=self.TOLERANCE_PLACES)
 
 
 if __name__ == '__main__':
