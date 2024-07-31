@@ -13,6 +13,7 @@ from japl import Model
 from japl import AeroTable
 
 from japl.Library.Vehicles import RigidBodyModel
+from japl.Library.Vehicles import MissileGeneric
 
 # ---------------------------------------------------
 
