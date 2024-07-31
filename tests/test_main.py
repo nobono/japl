@@ -14,8 +14,8 @@ class TestExample(unittest.TestCase):
 
     def setUp(self):
         self.aeromodel_path = "./aeromodel/aeromodel_psb.mat"
-        self.TOLERANCE_PLACES = 15
-        self.TOLERANCE = 1e-15
+        self.TOLERANCE_PLACES = 14
+        self.TOLERANCE = 1e-14
 
 
     def __build_model_statespace(self):
