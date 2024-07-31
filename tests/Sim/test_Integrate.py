@@ -8,7 +8,8 @@ class TestExample(unittest.TestCase):
 
 
     def setUp(self):
-        self.TOLERANCE = 1e-16
+        self.TOLERANCE_PLACES = 15
+        self.TOLERANCE = 1e-15
 
 
     def func(self, t, X, U, dt):
@@ -38,8 +39,8 @@ class TestExample(unittest.TestCase):
 
         truth = np.array([ 0.009999897516607761,
                           0.171827974413516604])
-        self.assertTrue((X == truth).all())
-        self.assertTrue((T[-1] - 1.0) < self.TOLERANCE)
+        self.assertListEqual(X.tolist(), truth.tolist())
+        self.assertAlmostEqual(T[-1], 1.0, places=self.TOLERANCE_PLACES)
 
 
 if __name__ == '__main__':
