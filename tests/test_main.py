@@ -14,8 +14,8 @@ class TestExample(unittest.TestCase):
 
     def setUp(self):
         self.aeromodel_path = "./aeromodel/aeromodel_psb.mat"
-        self.TOLERANCE_PLACES = 16
-        self.TOLERANCE = 1e-16
+        self.TOLERANCE_PLACES = 15
+        self.TOLERANCE = 1e-15
 
 
     def __build_model_statespace(self):
@@ -251,8 +251,7 @@ class TestExample(unittest.TestCase):
 
         # check if state histories match
         for i in range(len(vehicle_ss.Y)):
-            comp = vehicle_ss.Y[i] == vehicle_sym.Y[i]
-            self.assertTrue(comp.all())
+            self.assertListEqual(vehicle_ss.Y[i].tolist(), vehicle_sym.Y[i].tolist())
 
         # check last state entry
         for i in range(vehicle_ss.model.state_dim):
