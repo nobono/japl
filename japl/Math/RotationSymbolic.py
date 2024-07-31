@@ -14,6 +14,17 @@ def quat_conj_sym(q: Matrix|MatrixSymbol) -> Matrix:
     return Matrix([q[0], -q[1], -q[2], -q[3]]) #type:ignore
 
 
+def quat_mult_sym(q: Matrix|MatrixSymbol, p: Matrix|MatrixSymbol) -> Matrix:
+    if isinstance(q, MatrixSymbol):
+        q = q.as_mutable()
+    if isinstance(p, MatrixSymbol):
+        p = p.as_mutable()
+    return Matrix([p[0] * q[0] - p[1] * q[1] - p[2] * q[2] - p[3] * q[3], #type:ignore
+                   p[0] * q[1] + p[1] * q[0] + p[2] * q[3] - p[3] * q[2], #type:ignore
+                   p[0] * q[2] - p[1] * q[3] + p[2] * q[0] + p[3] * q[1], #type:ignore
+                   p[0] * q[3] + p[1] * q[2] - p[2] * q[1] + p[3] * q[0]]) #type:ignore
+
+
 def quat_to_dcm_sym(q: Matrix|MatrixSymbol) -> Matrix:
     if isinstance(q, MatrixSymbol):
         q = q.as_mutable()

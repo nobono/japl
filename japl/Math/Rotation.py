@@ -9,6 +9,13 @@ def quat_conj(q: np.ndarray) -> np.ndarray:
     return ret
 
 
+def quat_mult(q: np.ndarray, p: np.ndarray) -> np.ndarray:
+    return np.array([p[0] * q[0] - p[1] * q[1] - p[2] * q[2] - p[3] * q[3],
+                     p[0] * q[1] + p[1] * q[0] + p[2] * q[3] - p[3] * q[2],
+                     p[0] * q[2] - p[1] * q[3] + p[2] * q[0] + p[3] * q[1],
+                     p[0] * q[3] + p[1] * q[2] - p[2] * q[1] + p[3] * q[0]])
+
+
 def quat_to_dcm(q: np.ndarray|quaternion) -> np.ndarray:
     """This method returns a DCM rotation matrix given a quaternion array"""
 

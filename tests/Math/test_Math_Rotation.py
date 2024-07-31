@@ -2,12 +2,14 @@ import unittest
 import numpy as np
 import quaternion
 from japl.Math.Rotation import quat_conj
+from japl.Math.Rotation import quat_mult
 from japl.Math.Rotation import quat_to_dcm
 from japl.Math.Rotation import quat_to_tait_bryan
 from japl.Math.Rotation import tait_bryan_to_dcm
 from japl.Math.Rotation import dcm_to_tait_bryan
 from sympy import MatrixSymbol
 from japl.Math.RotationSymbolic import quat_conj_sym
+from japl.Math.RotationSymbolic import quat_mult_sym
 from japl.Math.RotationSymbolic import quat_to_dcm_sym
 from japl.Math.RotationSymbolic import quat_to_tait_bryan_sym
 from japl.Math.RotationSymbolic import tait_bryan_to_dcm_sym
@@ -28,6 +30,22 @@ class TestMathRotation(unittest.TestCase):
         conj = quat_conj(quat.components)
         self.assertTrue(quat.w == conj[0])
         self.assertTrue((quat.components[1:] == -conj[1:]).all())
+
+
+    def test_quat_mult(self):
+        quat1 = quaternion.from_euler_angles(np.radians(5), np.radians(0), np.radians(10))
+        quat2 = quaternion.from_euler_angles(np.radians(5), np.radians(10), np.radians(20))
+        ret = quat_mult(quat1.components, quat2.components)
+        truth = np.array([
+            0.936116806662859124,
+            0.022557566113149831,
+            0.084185982829369177,
+            0.340718653421610063,
+            ])
+        self.assertAlmostEqual(ret[0], truth[0], places=self.TOLERANCE_PLACES)
+        self.assertAlmostEqual(ret[1], truth[1], places=self.TOLERANCE_PLACES)
+        self.assertAlmostEqual(ret[2], truth[2], places=self.TOLERANCE_PLACES)
+        self.assertAlmostEqual(ret[3], truth[3], places=self.TOLERANCE_PLACES)
 
 
     def test_quat_to_dcm(self):
@@ -113,6 +131,34 @@ class TestMathRotation(unittest.TestCase):
         self.assertTrue(quat[1] == -conj[1]) #type:ignore
         self.assertTrue(quat[2] == -conj[2]) #type:ignore
         self.assertTrue(quat[3] == -conj[3]) #type:ignore
+
+
+    def test_quat_mult_sym(self):
+        quat1 = MatrixSymbol('q', 4, 1)
+        quat2 = MatrixSymbol('p', 4, 1)
+        quat1_ = quaternion.from_euler_angles(np.radians(5), np.radians(0), np.radians(10)).components
+        quat2_ = quaternion.from_euler_angles(np.radians(5), np.radians(10), np.radians(20)).components
+        qsubs = {quat1[0]: quat1_[0],
+                 quat1[1]: quat1_[1],
+                 quat1[2]: quat1_[2],
+                 quat1[3]: quat1_[3]}
+        psubs = {quat2[0]: quat2_[0],
+                 quat2[1]: quat2_[1],
+                 quat2[2]: quat2_[2],
+                 quat2[3]: quat2_[3]}
+        ret = quat_mult_sym(quat1, quat2)
+        ret = ret.subs(qsubs).subs(psubs)
+        ret = np.asarray(ret).squeeze()
+        truth = np.array([
+            0.936116806662859124,
+            0.022557566113149831,
+            0.084185982829369177,
+            0.340718653421610063,
+            ])
+        self.assertAlmostEqual(ret[0], truth[0], places=self.TOLERANCE_PLACES)
+        self.assertAlmostEqual(ret[1], truth[1], places=self.TOLERANCE_PLACES)
+        self.assertAlmostEqual(ret[2], truth[2], places=self.TOLERANCE_PLACES)
+        self.assertAlmostEqual(ret[3], truth[3], places=self.TOLERANCE_PLACES)
 
 
     def test_quat_to_dcm_sym(self):
