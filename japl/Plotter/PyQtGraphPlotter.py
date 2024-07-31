@@ -284,7 +284,10 @@ class PyQtGraphPlotter:
         nsteps = int(frame_rate / (self.dt * 1000))
         for _ in range(nsteps):
             self.istep += 1
-            step_func(istep=self.istep)
+            if self.istep <= self.Nt:
+                step_func(istep=self.istep)
+            else:
+                break
 
         # handle plot axes boundaries
         # self.update_axes_boundary(
