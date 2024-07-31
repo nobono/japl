@@ -19,7 +19,8 @@ class TestMathRotation(unittest.TestCase):
 
 
     def setUp(self) -> None:
-        self.EPSILON = 1e-15
+        self.TOLERANCE_PLACES = 15
+        self.TOLERANCE = 1e-15
 
 
     def test_quat_conj(self):
@@ -36,7 +37,7 @@ class TestMathRotation(unittest.TestCase):
         truth = np.array([[0.7146101771427564, -0.6130920223795969, 0.3368240888334651],
                           [0.633718360861996, 0.7712805763691759, 0.0593911746138847],
                           [-0.29619813272602374, 0.17101007166283433, 0.9396926207859084]])
-        self.assertTrue((dcm == truth).all())
+        self.assertListEqual(dcm.tolist(), truth.tolist())
 
 
     def test_tait_bryan_to_dcm(self):
@@ -45,7 +46,7 @@ class TestMathRotation(unittest.TestCase):
         truth = np.array([[0.925416578398323364, 0.018028311236297251, 0.378522306369792449],
                   [0.163175911166534821, 0.882564119259385604, -0.440969610529882372],
                   [-0.342020143325668713, 0.469846310392954158, 0.813797681349373803]])
-        self.assertTrue((dcm == truth).all())
+        self.assertListEqual(dcm.tolist(), truth.tolist())
 
 
     def test_dcm_to_tait_bryan(self):
@@ -54,14 +55,14 @@ class TestMathRotation(unittest.TestCase):
         dcm = quaternion.as_rotation_matrix(quat)
         tb_angles = dcm_to_tait_bryan(dcm)
         truth = np.array([0.725475843410945509, 0.300709698155427141, 0.180015088428340159])
-        self.assertTrue((tb_angles == truth).all())
+        self.assertListEqual(tb_angles.tolist(), truth.tolist())
 
 
     def test_quat_to_tait_bryan(self):
         quat = quaternion.from_float_array([0.925416578398323364, 0.030153689607045796, 0.171010071662834329, 0.336824088833465152])
         tb_angles = quat_to_tait_bryan(quat)
         truth = np.array([0.725475843410945509, 0.300709698155427141, 0.180015088428340159])
-        self.assertTrue((tb_angles == truth).all())
+        self.assertListEqual(tb_angles.tolist(), truth.tolist())
 
 
     def __angles_to_dcm_to_quat_to_dcm_to_angles(self, tait_bryan_angles):
@@ -75,30 +76,30 @@ class TestMathRotation(unittest.TestCase):
     def test_quat_to_tait_bryan_case1(self):
         tait_bryan_angles = np.radians([0, 45, 0])
         tb_angles_out = self.__angles_to_dcm_to_quat_to_dcm_to_angles(tait_bryan_angles)
-        self.assertTrue(abs(tb_angles_out[0] - tait_bryan_angles[0]) < self.EPSILON)
-        self.assertTrue(abs(tb_angles_out[1] - tait_bryan_angles[1]) < self.EPSILON)
-        self.assertTrue(abs(tb_angles_out[2] - tait_bryan_angles[2]) < self.EPSILON)
+        self.assertAlmostEqual(tb_angles_out[0], tait_bryan_angles[0], places=self.TOLERANCE_PLACES)
+        self.assertAlmostEqual(tb_angles_out[1], tait_bryan_angles[1], places=self.TOLERANCE_PLACES)
+        self.assertAlmostEqual(tb_angles_out[2], tait_bryan_angles[2], places=self.TOLERANCE_PLACES)
 
         tait_bryan_angles = np.radians([45, 0, 0])
         tb_angles_out = self.__angles_to_dcm_to_quat_to_dcm_to_angles(tait_bryan_angles)
-        self.assertTrue(abs(tb_angles_out[0] - tait_bryan_angles[0]) < self.EPSILON)
-        self.assertTrue(abs(tb_angles_out[1] - tait_bryan_angles[1]) < self.EPSILON)
-        self.assertTrue(abs(tb_angles_out[2] - tait_bryan_angles[2]) < self.EPSILON)
+        self.assertAlmostEqual(tb_angles_out[0], tait_bryan_angles[0], places=self.TOLERANCE_PLACES)
+        self.assertAlmostEqual(tb_angles_out[1], tait_bryan_angles[1], places=self.TOLERANCE_PLACES)
+        self.assertAlmostEqual(tb_angles_out[2], tait_bryan_angles[2], places=self.TOLERANCE_PLACES)
 
         tait_bryan_angles = np.radians([0, 0, 45])
         tb_angles_out = self.__angles_to_dcm_to_quat_to_dcm_to_angles(tait_bryan_angles)
-        self.assertTrue(abs(tb_angles_out[0] - tait_bryan_angles[0]) < self.EPSILON)
-        self.assertTrue(abs(tb_angles_out[1] - tait_bryan_angles[1]) < self.EPSILON)
-        self.assertTrue(abs(tb_angles_out[2] - tait_bryan_angles[2]) < self.EPSILON)
+        self.assertAlmostEqual(tb_angles_out[0], tait_bryan_angles[0], places=self.TOLERANCE_PLACES)
+        self.assertAlmostEqual(tb_angles_out[1], tait_bryan_angles[1], places=self.TOLERANCE_PLACES)
+        self.assertAlmostEqual(tb_angles_out[2], tait_bryan_angles[2], places=self.TOLERANCE_PLACES)
 
 
     def test_tait_bryan_angles_case2(self):
-        tait_bryan_angles = np.radians([10, 90, 5])
-        tb_angles_out = self.__angles_to_dcm_to_quat_to_dcm_to_angles(tait_bryan_angles)
+        tait_bryan_angles = np.array([10, 90, 5])
+        tb_angles_out = self.__angles_to_dcm_to_quat_to_dcm_to_angles(np.radians(tait_bryan_angles))
         tb_angles_out = np.degrees(tb_angles_out)
-        self.assertTrue(abs(tb_angles_out[0] - 175.0) < self.EPSILON)
-        self.assertTrue(abs(tb_angles_out[1] - 90.0) < self.EPSILON)
-        self.assertTrue(abs(tb_angles_out[2] - 0.0) < self.EPSILON)
+        self.assertAlmostEqual(tb_angles_out[0], 175.0, places=self.TOLERANCE_PLACES)
+        self.assertAlmostEqual(tb_angles_out[1], 90.0, places=self.TOLERANCE_PLACES)
+        self.assertAlmostEqual(tb_angles_out[2], 0.0, places=self.TOLERANCE_PLACES)
 
 
     ###################################################################################
@@ -125,7 +126,7 @@ class TestMathRotation(unittest.TestCase):
                           [0.633718360861996, 0.7712805763691759, 0.0593911746138847],
                           [-0.29619813272602374, 0.17101007166283433, 0.9396926207859084]])
         dcm_subbed = np.array(dcm.subs(subs)).squeeze()
-        self.assertTrue((dcm_subbed == truth).all())
+        self.assertListEqual(dcm_subbed.tolist(), truth.tolist())
 
 
     def test_tait_bryan_to_dcm_sym(self):
@@ -138,7 +139,7 @@ class TestMathRotation(unittest.TestCase):
                   [0.163175911166534821, 0.882564119259385604, -0.440969610529882372],
                   [-0.342020143325668713, 0.469846310392954158, 0.813797681349373803]])
         dcm_subbed = np.array(dcm.subs(subs)).squeeze()
-        self.assertTrue((dcm_subbed == truth).all())
+        self.assertListEqual(dcm_subbed.tolist(), truth.tolist())
 
 
     def test_dcm_to_tait_bryan_sym(self):
@@ -153,7 +154,7 @@ class TestMathRotation(unittest.TestCase):
                           0.300709698155427141,
                           0.180015088428340159])
         tb_angles_subbed = np.array(tb_angles.subs(subs)).squeeze()
-        self.assertTrue((tb_angles_subbed == truth).all())
+        self.assertListEqual(tb_angles_subbed.tolist(), truth.tolist())
 
 
     def test_quat_to_tait_bryan_sym(self):
@@ -167,7 +168,7 @@ class TestMathRotation(unittest.TestCase):
                           0.300709698155427141,
                           0.180015088428340159])
         tb_angles_subbed = np.array(tb_angles.subs(subs)).squeeze()
-        self.assertTrue((tb_angles_subbed == truth).all())
+        self.assertListEqual(tb_angles_subbed.tolist(), truth.tolist())
 
 
 if __name__ == '__main__':
