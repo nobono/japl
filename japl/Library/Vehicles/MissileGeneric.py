@@ -25,12 +25,13 @@ gravity = Matrix(symbols("gravity_x gravity_y gravity_z"))
 acc = Matrix(symbols("acc_x acc_y acc_z"))
 tq = Matrix(symbols("torque_x torque_y torque_z"))
 
-# define state update
-w_skew = Matrix(w).hat()
-Sw = Matrix(np.zeros((4,4)))
-Sw[0, :] = Matrix([0, *w]).T
-Sw[:, 0] = Matrix([0, *-w])
-Sw[1:, 1:] = w_skew
+wx, wy, wz = w
+Sw = Matrix([
+    [0,  -wx, -wy, -wz], #type:ignore
+    [wx,  0,   wz, -wy], #type:ignore
+    [wy, -wz,  0,   wx], #type:ignore
+    [wz,  wy, -wx,  0], #type:ignore
+    ])
 
 x_new = pos + vel * dt
 v_new = vel + (acc + gravity) * dt
