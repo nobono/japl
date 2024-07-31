@@ -3,6 +3,26 @@ from quaternion.numpy_quaternion import quaternion
 
 
 
+def Sq(q: np.ndarray) -> np.ndarray:
+    """quaternion dynamics matrix q_dot = dt * 0.5 * Sq * ang_vel"""
+    assert len(q) == 4
+    q0, q1, q2, q3 = q
+    return np.array([[-q1, -q2, -q3],
+                     [ q0, -q3,  q2],
+                     [ q3,  q0, -q1],
+                     [-q2,  q1,  q0]])
+
+
+def Sw(ang_vel: np.ndarray) -> np.ndarray:
+    """quaternion dynamics matrix q_dot = -dt * 0.5 * Sw * q"""
+    assert len(ang_vel) == 3
+    wx, wy, wz = ang_vel
+    return np.array([[0,  -wx, -wy, -wz],
+                     [wx,  0,   wz, -wy],
+                     [wy, -wz,  0,   wx],
+                     [wz,  wy, -wx,  0]])
+
+
 def quat_conj(q: np.ndarray) -> np.ndarray:
     assert len(q) == 4
     ret = np.array([q[0], -q[1], -q[2], -q[3]])

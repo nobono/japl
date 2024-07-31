@@ -7,6 +7,32 @@ from sympy import sin, cos, asin, atan2
 # This files contains methods which mirror Rotation.py
 # but are symbolically defined; returning sympy expressions.
 
+
+def Sq(q: Matrix|MatrixSymbol) -> Matrix:
+    """quaternion dynamics matrix q_dot = dt * 0.5 * Sq * ang_vel"""
+    if isinstance(q, MatrixSymbol):
+        q = q.as_mutable()
+    assert len(q) == 4
+    q0, q1, q2, q3 = q
+    return Matrix([[-q1, -q2, -q3], #type:ignore
+                   [ q0, -q3,  q2], #type:ignore
+                   [ q3,  q0, -q1], #type:ignore
+                   [-q2,  q1,  q0]]) #type:ignore
+
+
+def Sw(ang_vel: Matrix|MatrixSymbol) -> Matrix:
+    """quaternion dynamics matrix q_dot = -dt * 0.5 * Sw * q"""
+    if isinstance(ang_vel, MatrixSymbol):
+        ang_vel = ang_vel.as_mutable()
+    assert len(ang_vel) == 3
+    wx, wy, wz = ang_vel
+    return Matrix([[0,  -wx, -wy, -wz], #type:ignore
+                   [wx,  0,   wz, -wy], #type:ignore
+                   [wy, -wz,  0,   wx], #type:ignore
+                   [wz,  wy, -wx,  0]]) #type:ignore
+
+
+
 def quat_conj_sym(q: Matrix|MatrixSymbol) -> Matrix:
     if isinstance(q, MatrixSymbol):
         q = q.as_mutable()
