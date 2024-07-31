@@ -11,7 +11,7 @@ class TestDesym(unittest.TestCase):
         x, y = symbols("x y")
         expr = x + y + 2
         desym = Desym((x, y), expr)
-        self.assertTrue(desym.vars == (x, y))
+        self.assertEqual(desym.vars, (x, y))
 
 
     def test_desym_case2(self):
@@ -19,7 +19,7 @@ class TestDesym(unittest.TestCase):
         x, y = symbols("x y")
         expr = x + y + 2
         desym = Desym((x, y), expr)
-        self.assertTrue(desym(1, 2) == 5)
+        self.assertEqual(desym(1, 2), 5)
 
 
     def test_desym_case3(self):
@@ -27,7 +27,7 @@ class TestDesym(unittest.TestCase):
         x, y, z = symbols("x y z")
         expr = x + y + z + 2
         desym = Desym(((x, y), z), expr)
-        self.assertTrue(desym([1, 2], 3) == 8)
+        self.assertEqual(desym([1, 2], 3), 8)
 
 
     def test_desym_custom_modeuls_case1(self):
@@ -37,7 +37,7 @@ class TestDesym(unittest.TestCase):
         desym = Desym((x, y), expr)
         subs = {x: 1, y: 2}
         truth = expr.subs(subs)
-        self.assertTrue(desym(1, 2) == truth)
+        self.assertEqual(desym(1, 2), truth)
 
 
     def test_desym_custom_modeuls_case2(self):
@@ -47,7 +47,7 @@ class TestDesym(unittest.TestCase):
         desym = Desym((x, y), expr)
         subs = {x: 1, y: 2}
         truth = expr.subs(subs)
-        self.assertTrue(desym(1, 2) == truth)
+        self.assertEqual(desym(1, 2), truth)
 
 
 if __name__ == '__main__':
