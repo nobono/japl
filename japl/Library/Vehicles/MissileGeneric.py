@@ -70,22 +70,25 @@ fpos = Matrix([fpos_x(dt), fpos_y(dt), fpos_z(dt)])
 fvel = Matrix(fpos.diff(dt))
 facc = Matrix(fvel.diff(dt))
 
-diffsub = {
-          fvel[0]: vel[0], #type:ignore
-          fvel[1]: vel[1], #type:ignore
-          fvel[2]: vel[2], #type:ignore
-          facc[0]: v_new.diff(dt)[0], #type:ignore
-          facc[1]: v_new.diff(dt)[1], #type:ignore
-          facc[2]: v_new.diff(dt)[2], #type:ignore
+diffsub = (
+           # *[(old, new) for old, new in zip(fvel, vel)], #type:ignore
+           # *[(old, new) for old, new in zip(facc, v_new.diff(dt))], #type:ignore
 
-          # another way
-          # fvel_x: vel[0],
-          # fvel_y: vel[1],
-          # fvel_z: vel[2],
-          # facc_x: v_new.diff(dt)[0],
-          # facc_y: v_new.diff(dt)[1],
-          # facc_z: v_new.diff(dt)[2],
-          }
+           (fvel[0], vel[0]),
+           (fvel[1], vel[1]),
+           (fvel[2], vel[2]),
+           (facc[0], v_new.diff(dt)[0]),
+           (facc[1], v_new.diff(dt)[1]),
+           (facc[2], v_new.diff(dt)[2]),
+
+           # another way
+           # fvel_x: vel[0],
+           # fvel_y: vel[1],
+           # fvel_z: vel[2],
+           # facc_x: v_new.diff(dt)[0],
+           # facc_y: v_new.diff(dt)[1],
+           # facc_z: v_new.diff(dt)[2],
+           )
 
 speed_new = (fvel.dot(fvel))**0.5
 
@@ -101,7 +104,13 @@ X_new = Matrix([
 
 state = Matrix([pos, vel, w, q, mass, gravity, speed])
 input = Matrix([acc, tq])
-dynamics = Matrix(X_new.diff(dt).subs(diffsub))
+
+if isinstance(diffsub, tuple) or isinstance(diffsub, list):
+    diffsub_dict = {k: v for k, v in diffsub}
+else:
+    diffsub_dict = diffsub
+
+dynamics = Matrix(X_new.diff(dt).subs(diffsub_dict))
 
 
 model = RigidBodyModel().from_expression(dt, state, input, dynamics)
