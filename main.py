@@ -12,6 +12,9 @@ from japl import SimObject
 from japl import Model
 from japl import AeroTable
 
+from japl.Library.Vehicles import RigidBodyModel
+from japl.Library.Vehicles import MissileGeneric
+
 # ---------------------------------------------------
 
 
@@ -64,55 +67,19 @@ if __name__ == "__main__":
 
     # Model
     ####################################
-    pos = Matrix(symbols("x y z"))      # must be fixed for AeroModel
-    vel = Matrix(symbols("vx vy vz"))   # must be fixed for AeroModel
-    acc = Matrix(symbols("ax ay az"))
-    tq = Matrix(symbols("tqx tqy tqz"))
-    w = Matrix(symbols("wx wy wz"))
-    q = Matrix(symbols("q0 q1 q2 q3"))  # must be fixed for AeroModel
-
-    dt = symbols("dt")
-    mass = symbols("mass")
-
-    w_skew = Matrix(w).hat()        #type:ignore
-    Sw = Matrix(np.zeros((4,4)))
-    Sw[0, :] = Matrix([0, *w]).T
-    Sw[:, 0] = Matrix([0, *-w])     #type:ignore
-    Sw[1:, 1:] = w_skew
-
-    x_new = pos + vel * dt
-    v_new = vel + acc * dt
-    w_new = w + tq * dt
-    q_new = q + (-0.5 * Sw * q) * dt
-    mass_new = mass
-
-    X_new = Matrix([
-        x_new.as_mutable(),
-        v_new.as_mutable(),
-        w_new.as_mutable(),
-        q_new.as_mutable(),
-        mass_new,
-        ])
-
-    state = Matrix([pos, vel, w, q, mass])
-    input = Matrix([acc, tq])
-
-    dynamics: Matrix = X_new.diff(dt) #type:ignore
-
-    model = Model().from_expression(dt, state, input, dynamics)
-
+    model = MissileGeneric.model
     vehicle = SimObject(model=model, size=2, color='tab:blue')
     vehicle.aerotable = AeroTable("./aeromodel/aeromodel_psb.mat")
 
     vehicle.plot.set_config({
                 "Pos": {
-                    "xaxis": "x",
-                    "yaxis": "z",
+                    "xaxis": "pos_x",
+                    "yaxis": "pos_z",
                     "aspect": "auto",
                     },
                 "Vel": {
                     "xaxis": "t",
-                    "yaxis": "vz",
+                    "yaxis": "vel_z",
                     "aspect": "auto",
                     },
                 })
@@ -130,7 +97,9 @@ if __name__ == "__main__":
     w0 = [0, 0, 0]
     quat0 = quaternion.from_euler_angles([0, 0, 0]).components
     mass0 = 133.0
-    vehicle.init_state([x0, v0, w0, quat0, mass0]) # TODO this should be moved to Model
+    gravity0 = [0, 0, -9.81]
+    speed0 = 1500
+    vehicle.init_state([x0, v0, w0, quat0, mass0, gravity0, speed0]) # TODO this should be moved to Model
 
     # Sim
     ####################################
@@ -138,12 +107,11 @@ if __name__ == "__main__":
     # TODO dt is refresh rate for animation
     # but dt just create t_array for no animation
     sim = Sim(
-            t_span=[0, 1],
+            t_span=[0, 3.0],
             dt=.01,
             simobjs=[vehicle],
             integrate_method="rk4",
             events=[],
-            animate=1,
             aspect="equal",
             device_input_type="",
             moving_bounds=True,
@@ -154,7 +122,9 @@ if __name__ == "__main__":
             figsize=(10, 7),
             instrument_view=1,
             draw_cache_mode=0,
-            quiet=1, # TODO still working on this
+            animate=1,
+            frame_rate=25,
+            quiet=0,
             )
 
     # sim.plotter.add_text("debug")

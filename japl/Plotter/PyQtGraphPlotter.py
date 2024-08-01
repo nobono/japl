@@ -43,6 +43,7 @@ class PyQtGraphPlotter:
         self.antialias: bool = kwargs.get("antialias", True)
         self.instrument_view: bool = kwargs.get("instrument_view", False)
         self.draw_cache_mode: bool = kwargs.get("draw_cache_mode", False)
+        self.frame_rate: float = kwargs.get("frame_rate", 10)
 
         # debug
         self.quiet = kwargs.get("quiet", False)
@@ -268,7 +269,8 @@ class PyQtGraphPlotter:
 
 
     # TODO this may belong in Sim class...
-    def _animate_func(self, frame, simobj: SimObject, step_func: Callable, moving_bounds: bool = False):
+    def _animate_func(self, frame, simobj: SimObject, step_func: Callable,
+                      frame_rate: float, moving_bounds: bool = False):
 
         # # TEMP #############################################
         # # %-error time profile of pyqtgraph painting process
@@ -278,10 +280,14 @@ class PyQtGraphPlotter:
         #         ti.setText(f"{np.round(perr, 2)}")
         # self._tstart = time.time()
 
-        self.istep += 1
-
         # run ODE solver step
-        step_func(istep=self.istep)
+        nsteps = int(frame_rate / (self.dt * 1000))
+        for _ in range(nsteps):
+            self.istep += 1
+            if self.istep <= self.Nt:
+                step_func(istep=self.istep)
+            else:
+                break
 
         # handle plot axes boundaries
         # self.update_axes_boundary(
@@ -343,9 +349,8 @@ class PyQtGraphPlotter:
         ####################################################################
 
         # get quaternion from current state
-        quat_ids = _simobj.model.get_state_id(["q0", "q1", "q2", "q3"])
         istate = _simobj.model.get_current_state()
-        iquat = istate[quat_ids]
+        iquat = _simobj.get_state_array(istate, ["q_0", "q_1", "q_2", "q_3"])
 
         # get rotation matrix
         _iquat = quaternion.from_float_array(iquat)

@@ -4,7 +4,7 @@ import quaternion
 
 from japl import global_opts
 from japl.Aero.Atmosphere import Atmosphere
-from japl.Math.Rotation import quat_to_tait_bryan
+from japl.Math import Rotation
 from japl.Math.Vec import vec_ang
 from japl.SimObject.SimObject import SimObject
 from japl.DeviceInput.DeviceInput import DeviceInput
@@ -12,6 +12,8 @@ from japl.Plotter.Plotter import Plotter
 from japl.Plotter.PyQtGraphPlotter import PyQtGraphPlotter
 
 from japl.Sim.Integrate import runge_kutta_4
+
+from japl.Library.Vehicles.RigidBodyModel import RigidBodyModel
 
 from scipy.integrate import solve_ivp
 
@@ -36,6 +38,8 @@ class Sim:
                  **kwargs,
                  ) -> None:
 
+        self._dtype = kwargs.get("dtype", np.float64)
+
         self.t_span = t_span
         self.dt = dt
         self.simobjs = simobjs
@@ -56,6 +60,7 @@ class Sim:
         self.max_step: float = kwargs.get("max_step", 0.2)
 
         # plotting
+        self.frame_rate: float = kwargs.get("frame_rate", 10)
         self.moving_bounds: bool = kwargs.get("moving_bounds", False)
         self.__instantiate_plot(**kwargs)
 
@@ -134,12 +139,15 @@ class Sim:
     def _solve(self, simobj: SimObject) -> None:
         """This method handles running the Sim class using an ODE Solver"""
 
+        # setup input array
+        U = np.zeros(len(simobj.model.input_vars), dtype=self._dtype)
+
         sol = solve_ivp(
                 fun=self.step,
                 t_span=self.t_span,
                 t_eval=self.t_array,
                 y0=simobj.X0,
-                args=(self.dt, simobj,),
+                args=(U, self.dt, simobj,),
                 events=self.events,
                 rtol=self.rtol,
                 atol=self.atol,
@@ -171,7 +179,7 @@ class Sim:
         simobj._set_T_array_ref(self.T) # simobj.T reference to sim.T
 
         # try to set animation frame intervals to real time
-        interval = int(max(1, self.dt * 1000))
+        interval_ms = int(max(1, (1 / self.frame_rate) * 1000))
         step_func = partial(self._step_solve,
                              step_func=self.step,
                              istep=0,
@@ -183,25 +191,25 @@ class Sim:
         anim_func = partial(self.plotter._animate_func,
                              simobj=simobj,
                              step_func=step_func,
+                             frame_rate=interval_ms,
                              moving_bounds=self.moving_bounds)
 
         anim = self.plotter.FuncAnimation(
                 func=anim_func,
                 frames=self.Nt,
-                interval=interval,
+                interval=interval_ms,
                 )
 
         self.plotter.show()
 
 
-    def step(self, t, X, dt: float, simobj: SimObject):
+    def step(self, t: float, X: np.ndarray, U: np.ndarray, dt: float, simobj: SimObject):
         """This method is the main step function for the Sim class."""
 
-        # TODO make "ac" automatically the correct length
-        acc_ext = np.array([0, 0, -constants.g], dtype=float)
-        torque_ext = np.array([0, 0, 0], dtype=float)
+        # acc_ext = simobj.get_input_array(U, ["acc_x", "acc_y", "acc_z"])
+        # torque_ext = simobj.get_input_array(U, ["torque_x", "torque_y", "torque_z"])
 
-        mass = X[simobj.get_state_id("mass")]
+        mass = simobj.get_state_array(X, "mass")
 
         iota = np.radians(0.1)
 
@@ -215,32 +223,38 @@ class Sim:
         # Aeromodel
         ########################################################################
         if simobj.aerotable:
-            # get current states
-            # TODO can we generalize this?
-            # do we need to require model states for position,
-            # velocity, quaternion...etc.
-            alt = X[simobj.model.get_state_id("z")]
-            vel = X[simobj.model.get_state_id(["vx", "vy", "vz"])]
-            quat = X[simobj.model.get_state_id(["q0", "q1", "q2", "q3"])]
+            # RigidBodyModel contains necessary states for Aeromodel update section
+            # assert isinstance(simobj.model, RigidBodyModel)
+
+            alt = simobj.get_state_array(X, ["pos_z"])
+            vel = simobj.get_state_array(X, ["vel_x", "vel_y", "vel_z"])
+            quat = simobj.get_state_array(X, ["q_0", "q_1", "q_2", "q_3"])
+
+            # calc gravity and set in state array
+            simobj.set_state_array(X, "gravity_z", -self.atmosphere.grav_accel(alt))
 
             # calculate current mach
             speed = float(np.linalg.norm(vel))
             mach = (speed / self.atmosphere.speed_of_sound(alt))
 
+            # temp dev stuff
+            # print(simobj.get_state_array(X, "speed"), np.linalg.norm(vel),
+            #       simobj.get_state_array(X, "speed") - np.linalg.norm(vel))
+
             # calc angle of attack: (pitch_angle - flight_path_angle)
             vel_hat = vel / speed                                       # flight path vector
 
             # projection vel_hat --> x-axis
-            zx_plane_norm = np.array([0, 1, 0])
+            zx_plane_norm = np.array([0, 1, 0], dtype=self._dtype)
             vel_hat_zx = ((vel_hat @ zx_plane_norm) / np.linalg.norm(zx_plane_norm)) * zx_plane_norm
             vel_hat_proj = vel_hat - vel_hat_zx
 
             # get Trait-bryan angles (yaw, pitch, roll)
-            yaw_angle, pitch_angle, roll_angle = quat_to_tait_bryan(np.asarray(quat))
+            yaw_angle, pitch_angle, roll_angle = Rotation.quat_to_tait_bryan(np.asarray(quat))
 
             # angle between proj vel_hat & xaxis
-            x_axis_intertial = np.array([1, 0, 0])
-            flight_path_angle = np.sign(vel_hat_proj[2]) * vec_ang(vel_hat_proj, x_axis_intertial)
+            x_axis_inertial = np.array([1, 0, 0], dtype=self._dtype)
+            flight_path_angle = np.sign(vel_hat_proj[2]) * vec_ang(vel_hat_proj, x_axis_inertial)
             alpha = pitch_angle - flight_path_angle                     # angle of attack
             phi = roll_angle
 
@@ -275,20 +289,22 @@ class Sim:
 
                 My_coef = CLMB + (simobj.cg - simobj.aerotable.MRC[0]) * CNB
 
+                ########################################################
                 # calulate moments: (M_coef * q * Sref * Lref), where:
+                ########################################################
                 #       M_coef - moment coeficient
                 #       q      - dynamic pressure
                 #       Sref   - surface area reference (wing area)
                 #       Lref   - length reference (mean aerodynamic chord)
+                ########################################################
                 q = self.atmosphere.dynamic_pressure(vel, alt)
                 My = My_coef * q * simobj.aerotable.Sref * simobj.aerotable.Lref
                 zforce = CNB * q * simobj.aerotable.Sref
 
                 # update external moments
                 # (positive )
-                torque_ext[1] = My / simobj.Iyy
-                acc_ext[2] = acc_ext[2] + zforce / mass
-                # print(torque_ext[1], acc_ext[2], q)
+                simobj.set_input_array(U, "torque_y", My / simobj.Iyy)
+                simobj.set_input_array(U, "acc_z", zforce / mass)
 
             except Exception as e:
                 print(e)
@@ -296,7 +312,6 @@ class Sim:
 
         ########################################################################
 
-        U = np.concatenate([acc_ext, torque_ext])
         Xdot = simobj.step(X, U, dt)
 
         return Xdot
@@ -351,6 +366,9 @@ class Sim:
         tstep = self.t_array[istep]
         x0 = simobj.Y[istep - 1]
 
+        # setup input array
+        U = np.zeros(len(simobj.model.input_vars), dtype=self._dtype)
+
         match method:
             case "rk4":
                 X_new, T_new = runge_kutta_4(
@@ -358,7 +376,7 @@ class Sim:
                         t=tstep,
                         X=x0,
                         h=dt,
-                        args=(dt, simobj,),
+                        args=(U, dt, simobj,),
                         )
                 self.T[istep] = T_new
                 simobj.Y[istep] = X_new
@@ -368,7 +386,7 @@ class Sim:
                         t_span=(tstep_prev, tstep),
                         t_eval=[tstep],
                         y0=x0,
-                        args=(dt, simobj,),
+                        args=(U, dt, simobj,),
                         events=self.events,
                         rtol=rtol,
                         atol=atol,

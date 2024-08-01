@@ -48,7 +48,7 @@ class Atmosphere:
         # self._grav_accel = interp1d(self._alts, self._atmos.grav_accel)
 
 
-    def pressure(self, alt: float|list) -> float:
+    def pressure(self, alt: float|list|np.ndarray) -> float:
         # return np.interp(alt, self._alts, self._atmos.pressure)
         if hasattr(alt, "__len__"):
             return self._pressure[[round(i) for i in alt]] #type:ignore
@@ -56,7 +56,7 @@ class Atmosphere:
             return self._pressure[round(alt)] #type:ignore
 
     
-    def density(self, alt: float|list) -> float:
+    def density(self, alt: float|list|np.ndarray) -> float:
         # return np.interp(alt, self._alts, self._atmos.density)
         if hasattr(alt, "__len__"):
             return self._density[[round(i) for i in alt]] #type:ignore
@@ -64,7 +64,7 @@ class Atmosphere:
             return self._density[round(alt)] #type:ignore
 
 
-    def temperature(self, alt: float|list) -> float:
+    def temperature(self, alt: float|list|np.ndarray) -> float:
         # return np.interp(alt, self._alts, self._atmos.temperature)
         if hasattr(alt, "__len__"):
             return self._temperature_in_celsius[[round(i) for i in alt]] #type:ignore
@@ -72,7 +72,7 @@ class Atmosphere:
             return self._temperature_in_celsius[round(alt)] #type:ignore
     
 
-    def speed_of_sound(self, alt: float|list) -> float:
+    def speed_of_sound(self, alt: float|list|np.ndarray) -> float:
         # return np.interp(alt, self._alts, self._atmos.speed_of_sound)
         if hasattr(alt, "__len__"):
             return self._speed_of_sound[[round(i) for i in alt]] #type:ignore
@@ -80,7 +80,7 @@ class Atmosphere:
             return self._speed_of_sound[round(alt)] #type:ignore
 
 
-    def grav_accel(self, alt: float|list) -> float:
+    def grav_accel(self, alt: float|list|np.ndarray) -> float:
         # return np.interp(alt, self._alts, self._atmos.grav_accel)
         if hasattr(alt, "__len__"):
             return self._grav_accel[[round(i) for i in alt]] #type:ignore
@@ -88,10 +88,11 @@ class Atmosphere:
             return self._grav_accel[round(alt)] #type:ignore
 
 
-    def dynamic_pressure(self, vel: float|np.ndarray, alt: float) -> float:
+    def dynamic_pressure(self, vel: float|list|np.ndarray, alt: float|list|np.ndarray) -> float:
         if hasattr(vel, "__len__"):
-            return np.linalg.norm(vel)**2 * self.density(alt) / 2 #type:ignore
+            vel_mag = np.linalg.norm(vel)
         else:
-            return vel**2 * self.density(alt) / 2 #type:ignore
+            vel_mag = vel
+        return vel_mag**2 * self.density(alt) / 2 #type:ignore
 
 

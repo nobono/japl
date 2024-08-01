@@ -20,6 +20,7 @@ from scipy.sparse import csr_matrix
 from scipy.sparse._csr import csr_matrix as Tcsr_matrix
 from sympy import Matrix, MatrixSymbol, Mul, Pow, Symbol, Expr
 from sympy.matrices.expressions.matexpr import MatrixElement
+from sympy import simplify
 
 from japl.Model.StateRegister import StateRegister
 from japl.Util.Desym import Desym
@@ -43,6 +44,7 @@ class Model:
         self._type = ModelType.NotSet
         self._dtype = np.float64
         self.state_register = StateRegister()
+        self.input_register = StateRegister()
         self.update_func: Callable = lambda *_: None
         self.state_dim = 0
         self.expr = Expr(None)
@@ -150,9 +152,13 @@ class Model:
         # TODO initialize self.state_dim somehow ...
         self._type = ModelType.Function
         self.set_state(state_vars)
+        self.set_input(input_vars)
+        self.state_vars = state_vars
+        self.input_vars = input_vars
         self.dt_var = dt_var
         self.vars = (state_vars, input_vars, dt_var)
         self.state_dim = len(state_vars)
+        self.input_dim = len(input_vars)
         self.update_func = func
         assert isinstance(func, Callable)
         return self
@@ -191,10 +197,18 @@ class Model:
         -------------------------------------------------------------------
         """
         self.set_state(state_vars)
+        self.set_input(input_vars)
+        self.state_vars = state_vars
+        self.input_vars = input_vars
+        self.dt_var = dt_var
         self.dt_var = dt_var
         self.vars = (state_vars, input_vars, dt_var)
-        self.update_func = Desym(self.vars, A * state_vars + B * input_vars) #type:ignore
+        self.expr = A * state_vars + B * input_vars
+        if isinstance(self.expr, Expr) or isinstance(self.expr, Matrix):
+            self.expr = simplify(self.expr)
+        self.update_func = Desym(self.vars, self.expr) #type:ignore
         self.state_dim = A.shape[0]
+        self.input_dim = B.shape[1]
         self.A = np.array(A)
         self.B = np.array(B)
 
@@ -234,10 +248,15 @@ class Model:
         """
         self._type = ModelType.Symbolic
         self.set_state(state_vars)
+        self.set_input(input_vars)
+        self.state_vars = state_vars
+        self.input_vars = input_vars
+        self.dt_var = dt_var
         self.dt_var = dt_var
         self.vars = (state_vars, input_vars, dt_var)
         self.expr = expr
         self.state_dim = len(state_vars)
+        self.input_dim = len(input_vars)
         # create lambdified function from symbolic expression
         match expr.__class__(): #type:ignore
             case Expr():
@@ -269,6 +288,7 @@ class Model:
 
         # run state-register checks
         self.state_register._pre_sim_checks()
+        self.input_register._pre_sim_checks()
 
         return True
 
@@ -421,6 +441,34 @@ class Model:
             return self.state_register[names]["id"]
 
 
+    def get_input_id(self, names: str|list[str]) -> int|list[int]:
+        """This method get the sympy variable associated with the provided
+        name. variables must first be added to the StateRegister. If a list
+        of state names are provided, then a list of corresponding input ids
+        will be returned.
+
+        If sympy MatrixElement has been registered in the input e.g. 'x[i, j]',
+        then the provided name 'x' will return all indices of that particular
+        input.
+
+        -------------------------------------------------------------------
+        -- Arguments
+        -------------------------------------------------------------------
+        -- name - (str | list[str]) name of the symbolic input variable
+                name or a list of symbolic input variable names
+        -------------------------------------------------------------------
+        -- Returns
+        -------------------------------------------------------------------
+        -- (int | list[int]) - the index of the input variable in the
+                input array or list of indices.
+        -------------------------------------------------------------------
+        """
+        if isinstance(names, list):
+            return [self.input_register[k]["id"] for k in names]
+        else:
+            return self.input_register[names]["id"]
+
+
     @DeprecationWarning
     def add_state(self, name: str, id: int, label: str = "") -> Symbol:
         """This method registers a SimObject state name and plotting label
@@ -446,7 +494,7 @@ class Model:
         -------------------------------------------------------------------
         -- Arguments
         -------------------------------------------------------------------
-        -- state - iterable of symbolic state variables
+        -- state_vars - iterable of symbolic state variables
         -- labels - (optional) iterable of labels that may be used by the
                     Plotter class. order labels must correspond to order
                     of state_vars.
@@ -456,8 +504,26 @@ class Model:
         -- (Symbol) - the symbolic object of the state variable
         -------------------------------------------------------------------
         """
-        return self.state_register.set_state(state_vars=state_vars, labels=labels)
+        return self.state_register.set(vars=state_vars, labels=labels)
 
+
+    def set_input(self, input_vars: tuple|list|Matrix, labels: Optional[list|tuple] = None):
+        """This method initializes the (inputs) StateRegister attribute of the Model.
+
+        -------------------------------------------------------------------
+        -- Arguments
+        -------------------------------------------------------------------
+        -- input_vars - iterable of symbolic input variables
+        -- labels - (optional) iterable of labels that may be used by the
+                    Plotter class. order labels must correspond to order
+                    of input_vars.
+        -------------------------------------------------------------------
+        -- Returns
+        -------------------------------------------------------------------
+        -- (Symbol) - the symbolic object of the state variable
+        -------------------------------------------------------------------
+        """
+        return self.input_register.set(vars=input_vars, labels=labels)
 
     def get_sym(self, name: str) -> Symbol:
         """This method gets the symbolic variable associated
