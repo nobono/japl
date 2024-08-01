@@ -67,7 +67,7 @@ if __name__ == "__main__":
 
     # Model
     ####################################
-    model = RigidBodyModel.model
+    model = MissileGeneric.model
     vehicle = SimObject(model=model, size=2, color='tab:blue')
     vehicle.aerotable = AeroTable("./aeromodel/aeromodel_psb.mat")
 
@@ -98,7 +98,8 @@ if __name__ == "__main__":
     quat0 = quaternion.from_euler_angles([0, 0, 0]).components
     mass0 = 133.0
     gravity0 = [0, 0, -9.81]
-    vehicle.init_state([x0, v0, w0, quat0, mass0, gravity0]) # TODO this should be moved to Model
+    speed0 = 1500
+    vehicle.init_state([x0, v0, w0, quat0, mass0, gravity0, speed0]) # TODO this should be moved to Model
 
     # Sim
     ####################################
@@ -106,7 +107,7 @@ if __name__ == "__main__":
     # TODO dt is refresh rate for animation
     # but dt just create t_array for no animation
     sim = Sim(
-            t_span=[0, 1],
+            t_span=[0, 3.0],
             dt=.01,
             simobjs=[vehicle],
             integrate_method="rk4",
@@ -123,7 +124,7 @@ if __name__ == "__main__":
             draw_cache_mode=0,
             animate=1,
             frame_rate=25,
-            quiet=0, # TODO still working on this
+            quiet=0,
             )
 
     # sim.plotter.add_text("debug")

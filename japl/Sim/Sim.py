@@ -230,12 +230,16 @@ class Sim:
             vel = simobj.get_state_array(X, ["vel_x", "vel_y", "vel_z"])
             quat = simobj.get_state_array(X, ["q_0", "q_1", "q_2", "q_3"])
 
+            # calc gravity and set in state array
             simobj.set_state_array(X, "gravity_z", -self.atmosphere.grav_accel(alt))
-            gravity = simobj.get_state_array(X, ["gravity_x", "gravity_y", "gravity_z"])
 
             # calculate current mach
             speed = float(np.linalg.norm(vel))
             mach = (speed / self.atmosphere.speed_of_sound(alt))
+
+            # temp dev stuff
+            # print(simobj.get_state_array(X, "speed"), np.linalg.norm(vel),
+            #       simobj.get_state_array(X, "speed") - np.linalg.norm(vel))
 
             # calc angle of attack: (pitch_angle - flight_path_angle)
             vel_hat = vel / speed                                       # flight path vector
