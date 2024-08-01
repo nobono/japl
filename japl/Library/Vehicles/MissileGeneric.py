@@ -89,14 +89,6 @@ diffsub = {
 
 speed_new = (fvel.dot(fvel))**0.5
 
-##################################################
-# calculate dynamics manually & add to array
-# speed_dot = simplify(norm.diff(dt).subs(varsub))
-##################################################
-
-# vel_norm = ((vel.T * vel)**0.5)[0]
-# speed_dot = vel.dot((acc + gravity)) / vel_norm
-
 X_new = Matrix([
     x_new.as_mutable(),
     v_new.as_mutable(),
@@ -111,13 +103,24 @@ state = Matrix([pos, vel, w, q, mass, gravity, speed])
 input = Matrix([acc, tq])
 dynamics = Matrix(X_new.diff(dt).subs(diffsub))
 
+
+model = RigidBodyModel().from_expression(dt, state, input, dynamics)
+
+##################################################
+# calculate dynamics manually & add to array
+# speed_dot = simplify(norm.diff(dt).subs(varsub))
+##################################################
+
+# vel_norm = ((vel.T * vel)**0.5)[0]
+# speed_dot = vel.dot((acc + gravity)) / vel_norm
+
 # add to dynamics directly
 # dynamics = Matrix([dynamics,
 #                    speed_dot])
 
-
+##################################################
 # from_function example
-###########################################
+##################################################
 
 # A = dynamics.jacobian(state) #type:ignore
 # B = dynamics.jacobian(input) #type:ignore
@@ -147,6 +150,5 @@ dynamics = Matrix(X_new.diff(dt).subs(diffsub))
 #     Xdot = np.array([*x_new, *v_new, *w_new, *q_new, mass_new, *gravity_new, speed_new])
 #     return Xdot
 
-model = RigidBodyModel().from_expression(dt, state, input, dynamics)
 # model = RigidBodyModel().from_function(dt, state, input, func)
 
