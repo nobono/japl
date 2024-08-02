@@ -13,7 +13,7 @@ from japl.Plotter.PyQtGraphPlotter import PyQtGraphPlotter
 
 from japl.Sim.Integrate import runge_kutta_4
 
-from japl.Library.Vehicles.RigidBodyModel import RigidBodyModel
+# from japl.Library.Vehicles.RigidBodyModel import RigidBodyModel
 
 from scipy.integrate import solve_ivp
 
@@ -131,11 +131,27 @@ class Sim:
             self._solve_with_animation(simobj)
         else:
             # to solve all at once...
-            self._solve(simobj)
+            # self._solve(simobj)
+
+            # pre-allocate output arrays
+            self.T = np.zeros((self.Nt + 1, ))
+            simobj.Y = np.zeros((self.Nt + 1, len(simobj.X0)))
+            simobj.Y[0] = simobj.X0
+            simobj._set_T_array_ref(self.T) # simobj.T reference to sim.T
+
+            for istep in range(1, self.Nt + 1):
+                self._step_solve(step_func=self.step,
+                                 istep=istep,
+                                 dt=self.dt,
+                                 simobj=simobj,
+                                 method=self.integrate_method,
+                                 rtol=self.rtol,
+                                 atol=self.atol)
 
         return self
 
 
+    @DeprecationWarning
     def _solve(self, simobj: SimObject) -> None:
         """This method handles running the Sim class using an ODE Solver"""
 

@@ -158,7 +158,7 @@ class SimObject:
         self.cg: float = kwargs.get("cg", 0)
 
 
-    def get_state_array(self, state: np.ndarray, names: str|list[str]) -> float|np.ndarray:
+    def get_state_array(self, state: np.ndarray, names: str|list[str]) -> np.ndarray:
         """This method gets values from the state array given the state
         names."""
         ret = self.model.get_state_id(names)
