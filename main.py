@@ -13,7 +13,7 @@ from japl import Model
 from japl import AeroTable
 
 # from japl.Library.Vehicles import RigidBodyModel
-from japl.Library.Vehicles import MissileGeneric
+from japl.Library.Vehicles import MissileGeneric_example
 
 # ---------------------------------------------------
 
@@ -67,7 +67,7 @@ if __name__ == "__main__":
 
     # Model
     ####################################
-    model = MissileGeneric.model
+    model = MissileGeneric_example.model
     vehicle = SimObject(model=model, size=2, color='tab:blue')
     vehicle.aerotable = AeroTable("./aeromodel/aeromodel_psb.mat")
 
