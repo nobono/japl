@@ -8,7 +8,7 @@ from sympy import simplify
 
 
 
-class RigidBodyModel(Model):
+class MissileGeneric(Model):
     pass
 
 
@@ -120,5 +120,5 @@ dynamics = Matrix([
     ])
 
 
-model = RigidBodyModel().from_expression(dt, state, input, dynamics)
+model = MissileGeneric().from_expression(dt, state, input, dynamics)
 
