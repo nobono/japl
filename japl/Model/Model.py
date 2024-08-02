@@ -153,12 +153,12 @@ class Model:
         self._type = ModelType.Function
         self.set_state(state_vars)
         self.set_input(input_vars)
-        self.state_vars = state_vars
-        self.input_vars = input_vars
+        self.state_vars = self.state_register.get_vars()
+        self.input_vars = self.input_register.get_vars()
         self.dt_var = dt_var
-        self.vars = (state_vars, input_vars, dt_var)
-        self.state_dim = len(state_vars)
-        self.input_dim = len(input_vars)
+        self.vars = (self.state_vars, self.input_vars, dt_var)
+        self.state_dim = len(self.state_vars)
+        self.input_dim = len(self.input_vars)
         self.update_func = func
         assert isinstance(func, Callable)
         return self
@@ -198,12 +198,12 @@ class Model:
         """
         self.set_state(state_vars)
         self.set_input(input_vars)
-        self.state_vars = state_vars
-        self.input_vars = input_vars
+        self.state_vars = self.state_register.get_vars()
+        self.input_vars = self.input_register.get_vars()
         self.dt_var = dt_var
         self.dt_var = dt_var
-        self.vars = (state_vars, input_vars, dt_var)
-        self.expr = A * state_vars + B * input_vars
+        self.vars = (self.state_vars, input_vars, dt_var)
+        self.expr = A * self.state_vars + B * self.input_vars
         if isinstance(self.expr, Expr) or isinstance(self.expr, Matrix):
             self.expr = simplify(self.expr)
         self.update_func = Desym(self.vars, self.expr) #type:ignore
@@ -249,13 +249,13 @@ class Model:
         self._type = ModelType.Symbolic
         self.set_state(state_vars)
         self.set_input(input_vars)
-        self.state_vars = state_vars
-        self.input_vars = input_vars
+        self.state_vars = self.state_register.get_vars()
+        self.input_vars = self.input_register.get_vars()
         self.dt_var = dt_var
         self.dt_var = dt_var
-        self.vars = (state_vars, input_vars, dt_var)
+        self.vars = (self.state_vars, input_vars, dt_var)
         self.expr = expr
-        self.state_dim = len(state_vars)
+        self.state_dim = len(self.state_vars)
         self.input_dim = len(input_vars)
         # create lambdified function from symbolic expression
         match expr.__class__(): #type:ignore

@@ -2,7 +2,7 @@ from typing import Optional
 import numpy as np
 
 from sympy import Matrix, symbols
-from sympy import Symbol
+from sympy import Symbol, Function
 
 # ---------------------------------------------------
 
@@ -42,6 +42,21 @@ class StateRegister(dict):
         self._syms = sorted(self._syms, key=lambda x: self[str(x)]["id"])
 
 
+    def __process_variables(self, var) -> Symbol:
+        """This method helps process sympy symbolic variables before
+        storing into the register.
+
+        Handle cases when:
+            - variable passed is a sympy.Function e.g. "x(t)"
+        """
+        if isinstance(var, Symbol):
+            return var
+        elif isinstance(var, Function):
+            return Symbol(var.name) #type:ignore
+        else:
+            raise Exception("unhandled case.")
+
+
     @DeprecationWarning
     def add_state(self, name: str, id: int, label: str = "") -> Symbol:
         """This method registers a SimObject state name and plotting label with a
@@ -65,12 +80,17 @@ class StateRegister(dict):
     def set(self, vars: tuple|list|Matrix, labels: Optional[list|tuple] = None):
         """register state and labels"""
         for id, var in enumerate(vars): #type:ignore
+            var = self.__process_variables(var)
             var_name = str(var)
             if labels and id < len(labels):
                 label = labels[id]
             else:
                 label = var_name
             self.update({var_name: {"id": id, "label": label, "var": var}})
+
+
+    def get_vars(self) -> Matrix:
+        return Matrix([i["var"] for i in self.values()])
 
 
     def get_sym(self, name: str) -> Symbol:
