@@ -12,7 +12,7 @@ from japl import SimObject
 from japl import Model
 from japl import AeroTable
 
-from japl.Library.Vehicles import RigidBodyModel
+# from japl.Library.Vehicles import RigidBodyModel
 from japl.Library.Vehicles import MissileGeneric
 
 # ---------------------------------------------------
@@ -107,7 +107,7 @@ if __name__ == "__main__":
     # TODO dt is refresh rate for animation
     # but dt just create t_array for no animation
     sim = Sim(
-            t_span=[0, 3.0],
+            t_span=[0, 1.0],
             dt=.01,
             simobjs=[vehicle],
             integrate_method="rk4",
@@ -124,7 +124,7 @@ if __name__ == "__main__":
             draw_cache_mode=0,
             animate=1,
             frame_rate=25,
-            quiet=0,
+            quiet=1,
             )
 
     # sim.plotter.add_text("debug")
