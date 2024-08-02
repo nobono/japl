@@ -142,16 +142,6 @@ dynamics = dynamics.subs(varsub)
 
 model = MissileGeneric().from_expression(dt, state, input, dynamics)
 
-s_ = [0,0,10, 0,0,1, 0,0,0, 1,0,0,0, 5, 0,0,0, 0]
-i_ = [0,0,1, 0,0,0]
-dt_ = 0.01
-arg = [s_, i_, dt_]
-ret = model(*arg)
-pass
-
-match state[0].__class__:
-    case Function:
-        pass
 
 ##################################################
 # calculate dynamics manually & add to array
