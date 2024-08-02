@@ -12,7 +12,7 @@ from japl import SimObject
 from japl import Model
 from japl import AeroTable
 
-# from japl.Library.Vehicles import RigidBodyModel
+from japl.Library.Vehicles import RigidBodyModel
 from japl.Library.Vehicles import MissileGeneric_example
 
 # ---------------------------------------------------
@@ -107,7 +107,7 @@ if __name__ == "__main__":
     # TODO dt is refresh rate for animation
     # but dt just create t_array for no animation
     sim = Sim(
-            t_span=[0, 1.0],
+            t_span=[0, 0.1],
             dt=.01,
             simobjs=[vehicle],
             integrate_method="rk4",
@@ -122,7 +122,7 @@ if __name__ == "__main__":
             figsize=(10, 7),
             instrument_view=1,
             draw_cache_mode=0,
-            animate=1,
+            animate=0,
             frame_rate=25,
             quiet=1,
             )
@@ -131,6 +131,14 @@ if __name__ == "__main__":
     # sim.plotter.add_text("ytorque")
     # sim.plotter.add_text("iota")
     sim.run()
+
+    # speed = vehicle.get_state_array(vehicle.Y[-1], "speed")
+    # vel_norm = np.linalg.norm(vehicle.Y[-1][3:6])
+    # quat = vehicle.get_state_array(vehicle.Y[-1], ["q_0", "q_1", "q_2", "q_3"])
+    # print(vel_norm)
+    # print(vel_norm - speed)
+    # for i in vehicle.Y[-1]:
+    #     print("%.20f," % i)
 
 
     # plt.plot(np.degrees(alpha), CN)
