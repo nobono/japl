@@ -33,8 +33,6 @@ class Sim:
                  t_span: list|tuple,
                  dt: float,
                  simobjs: list[SimObject],
-                 events: list = [],
-                 animate: bool|int = False,
                  **kwargs,
                  ) -> None:
 
@@ -43,8 +41,8 @@ class Sim:
         self.t_span = t_span
         self.dt = dt
         self.simobjs = simobjs
-        self.events = events
-        self.animate = bool(animate) # choice of iterating solver over each dt step
+        self.events = kwargs.get("events", [])
+        self.animate: bool = kwargs.get("animate", False) # choice of iterating solver over each dt step
         self.integrate_method = kwargs.get("integrate_method", "odeint")
         assert self.integrate_method in ["odeint", "euler", "rk4"]
 
