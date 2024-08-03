@@ -9,6 +9,8 @@ from sympy import Function
 from sympy import simplify
 from japl import StateRegister
 
+from japl.Aero.AtmosphereSymbolic import AtmosphereSymbolic
+
 
 
 def process_subs(sub: tuple|list|dict) -> dict:
@@ -49,6 +51,10 @@ def process_var_definition(sub: tuple|list|Matrix) -> dict:
     return ret
 
 
+# def set_matrix_from_var(mat: Matrix, var: Symbol|Function, val: Expr) -> None:
+#     id = [i for i in mat if i == var]
+
+
 class MissileGeneric(Model):
     pass
 
@@ -59,22 +65,25 @@ dt = symbols("dt")
 ##################################################
 # States
 ##################################################
+
 pos_x, pos_y, pos_z = symbols("pos_x, pos_y, pos_z", cls=Function) #type:ignore
 vel_x, vel_y, vel_z = symbols("vel_x, vel_y, vel_z", cls=Function) #type:ignore
 w_x, w_y, w_z = symbols("angvel_x, angvel_y, angvel_z", cls=Function) #type:ignore
 q_0, q_1, q_2, q_3 = symbols("q_0, q_1, q_2, q_3", cls=Function) #type:ignore
+gravity_x, gravity_y, gravity_z = symbols("gravity_x gravity_y gravity_z")
 
 pos = Matrix([pos_x(t), pos_y(t), pos_z(t)])
 vel = Matrix([vel_x(t), vel_y(t), vel_z(t)])
 angvel = Matrix([w_x(t), w_y(t), w_z(t)])
 q = Matrix([q_0(t), q_1(t), q_2(t), q_3(t)])
 mass = symbols("mass")
-gravity = Matrix(symbols("gravity_x gravity_y gravity_z"))
+gravity = Matrix([gravity_x, gravity_y, gravity_z])
 speed = symbols("speed")
 
 ##################################################
 # Inputs
 ##################################################
+
 acc = Matrix(symbols("acc_x acc_y acc_z"))
 torque = Matrix(symbols("torque_x torque_y torque_z"))
 
@@ -90,29 +99,54 @@ pos_new = pos + vel * dt
 vel_new = vel + (acc + gravity) * dt
 angvel_new = angvel + torque * dt
 q_new = q + (-0.5 * Sw * q) * dt
+mass_new = mass
+gravity_new = gravity
+
+##################################################
+# Equations for Aerotable / Atmosphere
+##################################################
+
+atmosphere = AtmosphereSymbolic()
+pos_z_new = pos_new[2]
+# gz_dot = -atmosphere.grav_accel(pos_z(t)) #type:ignore
+# dynamics[16] = -atmosphere.grav_accel(Symbol("pos_z")) #type:ignore
 
 ##################################################
 # Subs for differential definitions
 ##################################################
+
+# gravity finite diff
+gacc = atmosphere.grav_accel(pos_z(t)) #type:ignore
+gacc_next = atmosphere.grav_accel(pos_z_new) #type:ignore
+gacc_dot = atmosphere.grav_accel(pos_z(t)).diff(t) #type:ignore
+gacc_delta = gacc_next - gacc #type:ignore
+gacc_dot = gacc_delta / dt
+
+# TODO: can we walk designing process by adhearing to
+# the chain rule?:
+#   - do definitinos satisfy the requirements for
+#       the chain rule?
 diff_definition = (
-        (pos.diff(t), pos_new.diff(dt)),
-        (vel.diff(t), vel_new.diff(dt)),
-        (angvel.diff(t), angvel_new.diff(dt)),
-        (q.diff(t), q_new.diff(dt)),
+        (pos.diff(t),       pos_new.diff(dt)),
+        (vel.diff(t),       vel_new.diff(dt)),
+        (angvel.diff(t),    angvel_new.diff(dt)),
+        (q.diff(t),         q_new.diff(dt)),
         )
 
-speed_new = (vel.dot(vel))**0.5
+# speed
+speed_new = sqrt(vel.dot(vel))
 
 ##################################################
 # Define State Update
 ##################################################
+
 X_new = Matrix([
     pos,
     vel,
     angvel,
     q,
-    mass,
-    gravity,
+    mass_new,
+    gravity_new,
     speed_new,
     ])
 
@@ -124,6 +158,7 @@ input = Matrix([acc, torque])
 # Process differential & state definitions
 # to substition format
 ##################################################
+
 diff_sub = process_subs(diff_definition)
 state_sub = process_var_definition(state)
 input_sub = process_var_definition(input)
@@ -131,12 +166,18 @@ input_sub = process_var_definition(input)
 ##################################################
 # Define dynamics
 ##################################################
+
 dynamics = Matrix(X_new.diff(t))
+# dynamic expression found via finite difference
+# added here:
+# dynamics[16] = gacc_dot
+
+# do substitions
 dynamics = dynamics.subs(diff_sub).doit()
 dynamics = dynamics.subs(state_sub).subs(input_sub)
 
-
-model = MissileGeneric().from_expression(dt, state, input, dynamics)
+model = MissileGeneric().from_expression(dt, state, input, dynamics,
+                                         modules=atmosphere.modules)
 
 
 ##################################################

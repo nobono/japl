@@ -126,8 +126,8 @@ if __name__ == "__main__":
            )
 
     sim = Sim(**sim_options,
-              t_span=[0, 4.0],
-              dt=.10,
+              t_span=[0, 0.1],
+              dt=.01,
               simobjs=[vehicle])
 
     # sim.plotter.add_text("debug")
