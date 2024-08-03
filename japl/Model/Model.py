@@ -228,7 +228,8 @@ class Model:
                         dt_var: Symbol,
                         state_vars: list|tuple|Matrix,
                         input_vars: list|tuple|Matrix,
-                        expr: Expr|Matrix|MatrixSymbol):
+                        expr: Expr|Matrix|MatrixSymbol,
+                        modules: dict = {}):
         """This method initializes a Model from a symbolic expression.
         a Sympy expression can be passed which then is lambdified
         (see Sympy.lambdify) with computational optimization (see Sympy.cse).
@@ -240,6 +241,7 @@ class Model:
         -- state_vars - iterable of symbolic state variables
         -- input_vars - iterable of symbolic input variables
         -- expr - Sympy symbolic expression
+        -- modules - pass custom library to Desym (see sympy.lambdify)
         -------------------------------------------------------------------
         -- Returns
         -------------------------------------------------------------------
@@ -260,11 +262,11 @@ class Model:
         # create lambdified function from symbolic expression
         match expr.__class__(): #type:ignore
             case Expr():
-                self.update_func = Desym(self.vars, expr)
+                self.update_func = Desym(self.vars, expr, modules=modules)
             case Matrix():
-                self.update_func = Desym(self.vars, expr)
+                self.update_func = Desym(self.vars, expr, modules=modules)
             case MatrixSymbol():
-                self.update_func = Desym(self.vars, expr)
+                self.update_func = Desym(self.vars, expr, modules=modules)
             case _:
                 raise Exception("function provided is not Callable.")
         return self
