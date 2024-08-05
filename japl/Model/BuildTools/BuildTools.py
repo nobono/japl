@@ -68,7 +68,7 @@ def _subs_for_direct_updates(state: Matrix, subs: dict|list[dict]) -> None:
         if isinstance(var, DirectUpdateSymbol):
             assert var.expr is not None
             if isinstance(subs, dict):
-                var.expr = var.expr.subs(sub)   #type:ignore
+                var.expr = var.expr.subs(subs)   #type:ignore
             elif isinstance(subs, list):
                 for sub in subs:
                     var.expr = var.expr.subs(sub)   #type:ignore
