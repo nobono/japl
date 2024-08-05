@@ -1,5 +1,5 @@
 from typing import Optional
-from sympy import Matrix
+from sympy import Matrix, Symbol
 from japl.Model.StateRegister import StateRegister
 from japl.Model.BuildTools.DirectUpdate import DirectUpdateSymbol
 
@@ -13,12 +13,16 @@ def build_model(state: Matrix,
     diff_sub = _process_subs(definitions)
     state_sub = _process_var_definition(state)
     input_sub = _process_var_definition(input)
-    # do substitions
-    dynamics = dynamics.subs(diff_sub).doit()
-    dynamics = dynamics.subs(state_sub).subs(input_sub)
     # process DirectUpdate.expr with diff & state subs
     _subs_for_direct_updates(state, [diff_sub, state_sub, input_sub])
     _subs_for_direct_updates(input, [diff_sub, state_sub, input_sub])
+    # now that subs applied to DirectUpdateSymbols,
+    # update state & input subs again
+    state_sub = _process_var_definition(state)
+    input_sub = _process_var_definition(input)
+    # do substitions
+    dynamics = dynamics.subs(diff_sub).doit()
+    dynamics = dynamics.subs(state_sub).subs(input_sub)
 
     return (state, input, dynamics)
 
@@ -58,20 +62,25 @@ def _process_var_definition(sub: tuple|list|Matrix) -> dict:
         if hasattr(var, "__len__"): # if Matrix
             for elem in var: #type:ignore
                 ret[elem] = StateRegister._process_variables(elem)
+        if isinstance(var, DirectUpdateSymbol):
+            assert var.state_expr is not None
+            ret[var.state_expr] = var.sub_expr
         else:
             ret[var] = StateRegister._process_variables(var)
     return ret
 
 
 def _subs_for_direct_updates(state: Matrix, subs: dict|list[dict]) -> None:
+    """applies substitions to DirectUpdateSymbol.expr which is the expression
+    that is lambdified for direct state updates."""
     for var in state:
         if isinstance(var, DirectUpdateSymbol):
-            assert var.expr is not None
+            assert var.sub_expr is not None     #type:ignore
             if isinstance(subs, dict):
-                var.expr = var.expr.subs(subs)   #type:ignore
+                var.sub_expr = var.sub_expr.subs(subs)   #type:ignore
             elif isinstance(subs, list):
                 for sub in subs:
-                    var.expr = var.expr.subs(sub)   #type:ignore
+                    var.sub_expr = var.sub_expr.subs(sub)   #type:ignore
             else:
                 raise Exception("unhandled case.")
 

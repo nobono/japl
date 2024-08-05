@@ -26,12 +26,18 @@ class DirectUpdateSymbol(Symbol):
 
 
     def __init__(self, name, **assumptions):
-        self.expr: Optional[Expr] = None
+        self.state_expr: Optional[Expr] = None
+        self.sub_expr: Optional[Expr] = None
         return super().__init__()
 
 
 class DirectUpdate(Matrix):
 
+    """Takes pair of symbolic definitions which can be added to the symbolic state
+    Matrix.
+        - for a provided Matrix, each element is converted to a DirectUpdateSymbol
+            which contains the "expr" attribute used to update the state during the
+            Sim.step()."""
 
     def __new__(cls, var: Symbol|Matrix|MatrixElement|Function|list, val, **assumptions):
         var = cls.get_symbol(var)
@@ -51,11 +57,18 @@ class DirectUpdate(Matrix):
 
     @staticmethod
     def get_symbol(var):
+        """Takes Matrix, Function, Symbol and returns DirectUpdateSymbol."""
         if isinstance(var, Symbol):
-            return DirectUpdateSymbol(var.name)
+            name = f"DU({str(var)})"
+            ret = DirectUpdateSymbol(name)
+            ret.state_expr = var
+            return ret
         match var.__class__():
             case Function():
-                return DirectUpdateSymbol(var.name) #type:ignore
+                name = f"DU({str(var)})"
+                ret = DirectUpdateSymbol(name) #type:ignore
+                ret.state_expr = var
+                return ret
             case Matrix():
                 return [DirectUpdate.get_symbol(elem) for elem in var]
             case list():
@@ -66,25 +79,26 @@ class DirectUpdate(Matrix):
 
     @staticmethod
     def create_update_map(var, val) -> tuple:
+        """sets DirectUpdateSymbol.expr and return update_map"""
         if isinstance(var, DirectUpdateSymbol):
-            var.expr = val
+            var.sub_expr = val
             return (var, val)
         match var.__class__():
             case Expr():
-                var.expr = val
+                var.sub_expr = val
                 return (var, val)
             case Function():
-                var.expr = val
+                var.sub_expr = val
                 return (var, val)
             case Matrix():
                 assert hasattr(val, "__len__")
                 for i, j in zip(var, val):
-                    i.expr = j
+                    i.sub_expr = j
                 return [(i, j) for i, j in zip(var, val)] #type:ignore
             case list():
                 assert hasattr(val, "__len__")
                 for i, j in zip(var, val):
-                    i.expr = j
+                    i.sub_expr = j
                 return [(i, j) for i, j in zip(var, val)] #type:ignore
             case _:
                 raise Exception("unhandled case.")

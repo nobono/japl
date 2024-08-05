@@ -266,12 +266,12 @@ class Model:
         self.state_vars = self.state_register.get_vars()
         self.input_vars = self.input_register.get_vars()
         self.dt_var = dt_var
-        self.vars = (self.state_vars, input_vars, dt_var)
+        self.vars = (self.state_vars, self.input_vars, dt_var)
         self.expr = dynamics_expr
         self.dynamics_expr = dynamics_expr
         self.direct_state_update_map = self.__process_direct_state_updates(self.state_vars)
         self.state_dim = len(self.state_vars)
-        self.input_dim = len(input_vars)
+        self.input_dim = len(self.input_vars)
         # create lambdified function from symbolic expression
         match dynamics_expr.__class__(): #type:ignore
             case Expr():
@@ -620,9 +620,9 @@ class Model:
         direct_state_update_map = {}
         for i, var in enumerate(state_vars): #type:ignore
             if isinstance(var, DirectUpdateSymbol):
-                assert var.expr is not None
+                assert var.sub_expr is not None
                 t = Symbol('t') # 't' variable needed to adhear to func arument format
-                func = Desym((t, *self.vars), var.expr, modules=self.modules)
+                func = Desym((t, *self.vars), var.sub_expr, modules=self.modules)
                 direct_state_update_map.update({i: func})
         return direct_state_update_map
 
