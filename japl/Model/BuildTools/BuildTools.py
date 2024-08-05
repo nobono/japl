@@ -1,0 +1,58 @@
+from sympy import Matrix
+from japl.Model.StateRegister import StateRegister
+from japl.Model.BuildTools.DirectUpdate import DirectUpdateSymbol
+
+
+
+def process_subs(sub: tuple|list|dict) -> dict:
+    """This method is used to convert differntial definitions
+    into a substitutable dict.
+        - handles substitions passed as Matrix"""
+    ret = {}
+    if isinstance(sub, tuple) or isinstance(sub, list):
+        # update a new dict with substition pairs.
+        # if pair is Matrix or MatrixSymbol (N x 1),
+        # update each element.
+        for old, new in sub:
+            if hasattr(old, "__len__") and hasattr(new, "__len__"):
+                for elem_old, elem_new in zip(old, new): #type:ignore
+                    ret[elem_old] = elem_new
+            else:
+                try:
+                    ret[old] = new
+                except Exception as e:
+                    raise Exception(e, "\nunhandled case. old and new need to both have '__len__'.")
+    else:
+        ret = sub
+    return ret
+
+
+def process_var_definition(sub: tuple|list|Matrix) -> dict:
+    """This method generates a 'subs' dict from provided
+    symbolic variables (Symbol, Function, Matrix). This is
+    used for substition of variables into a sympy expression.
+        - handles substitions passed as Matrix"""
+    assert hasattr(sub, "__len__")
+    ret = {}
+    # for each element get the name
+    for var in sub:
+        if hasattr(var, "__len__"): # if Matrix
+            for elem in var: #type:ignore
+                ret[elem] = StateRegister._process_variables(elem)
+        else:
+            ret[var] = StateRegister._process_variables(var)
+    return ret
+
+
+def subs_for_direct_updates(state: Matrix, subs: dict|list[dict]) -> None:
+    for var in state:
+        if isinstance(var, DirectUpdateSymbol):
+            assert var.expr is not None
+            if isinstance(subs, dict):
+                var.expr = var.expr.subs(sub)   #type:ignore
+            elif isinstance(subs, list):
+                for sub in subs:
+                    var.expr = var.expr.subs(sub)   #type:ignore
+            else:
+                raise Exception("unhandled case.")
+
