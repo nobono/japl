@@ -1,10 +1,29 @@
+from typing import Optional
 from sympy import Matrix
 from japl.Model.StateRegister import StateRegister
 from japl.Model.BuildTools.DirectUpdate import DirectUpdateSymbol
 
 
 
-def process_subs(sub: tuple|list|dict) -> dict:
+def build_model(state: Matrix,
+                input: Matrix,
+                dynamics: Matrix,
+                definitions: tuple = ()) -> tuple:
+    # handle formatting of provided definitions, state, input
+    diff_sub = _process_subs(definitions)
+    state_sub = _process_var_definition(state)
+    input_sub = _process_var_definition(input)
+    # do substitions
+    dynamics = dynamics.subs(diff_sub).doit()
+    dynamics = dynamics.subs(state_sub).subs(input_sub)
+    # process DirectUpdate.expr with diff & state subs
+    _subs_for_direct_updates(state, [diff_sub, state_sub, input_sub])
+    _subs_for_direct_updates(input, [diff_sub, state_sub, input_sub])
+
+    return (state, input, dynamics)
+
+
+def _process_subs(sub: tuple|list|dict) -> dict:
     """This method is used to convert differntial definitions
     into a substitutable dict.
         - handles substitions passed as Matrix"""
@@ -27,7 +46,7 @@ def process_subs(sub: tuple|list|dict) -> dict:
     return ret
 
 
-def process_var_definition(sub: tuple|list|Matrix) -> dict:
+def _process_var_definition(sub: tuple|list|Matrix) -> dict:
     """This method generates a 'subs' dict from provided
     symbolic variables (Symbol, Function, Matrix). This is
     used for substition of variables into a sympy expression.
@@ -44,7 +63,7 @@ def process_var_definition(sub: tuple|list|Matrix) -> dict:
     return ret
 
 
-def subs_for_direct_updates(state: Matrix, subs: dict|list[dict]) -> None:
+def _subs_for_direct_updates(state: Matrix, subs: dict|list[dict]) -> None:
     for var in state:
         if isinstance(var, DirectUpdateSymbol):
             assert var.expr is not None
