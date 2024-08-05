@@ -55,7 +55,7 @@ class DirectUpdate(Matrix):
             return DirectUpdateSymbol(var.name)
         match var.__class__():
             case Function():
-                return Symbol(var.name) #type:ignore
+                return DirectUpdateSymbol(var.name) #type:ignore
             case Matrix():
                 return [DirectUpdate.get_symbol(elem) for elem in var]
             case list():
