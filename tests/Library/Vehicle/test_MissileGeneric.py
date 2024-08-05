@@ -34,7 +34,7 @@ class test_MissileGeneric(unittest.TestCase):
         self.vehicle.init_state([x0, v0, w0, quat0, mass0, gravity0, speed0]) # TODO this should be moved to Model
 
 
-    def test_RigidBodyModel_case1(self):
+    def test_MissileGeneric_case1(self):
         sim = Sim(
                 t_span=[0, 0.1],
                 dt=.01,

@@ -214,7 +214,7 @@ class TestExample(unittest.TestCase):
                 figsize=(10, 7),
                 instrument_view=1,
                 draw_cache_mode=0,
-                quiet=1, # TODO still working on this
+                quiet=1,
                 )
         sim.run()
         return sim
