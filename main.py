@@ -13,7 +13,7 @@ from japl import Model
 from japl import AeroTable
 
 from japl.Aero.Atmosphere import Atmosphere
-from japl.Library.Vehicles import RigidBodyModel
+# from japl.Library.Vehicles import RigidBodyModel
 from japl.Library.Vehicles import MissileGeneric_example
 
 # ---------------------------------------------------
@@ -98,7 +98,8 @@ if __name__ == "__main__":
     w0 = [0, 0, 0]
     quat0 = quaternion.from_euler_angles([0, 0, 0]).components
     mass0 = 133.0
-    gravity0 = [0, 0, -Atmosphere().grav_accel(x0[2])]
+    # gravity0 = [0, 0, -Atmosphere().grav_accel(x0[2])]
+    gravity0 = [0, 0, 0]
     speed0 = 1500
     vehicle.init_state([x0, v0, w0, quat0, mass0, gravity0, speed0]) # TODO this should be moved to Model
 

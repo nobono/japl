@@ -34,7 +34,7 @@ class TestExample(unittest.TestCase):
         self.assertListEqual(list(model.vars), [state, input, dt])
         self.assertEqual(len(model.state_vars), model.state_dim)
         self.assertEqual(len(model.input_vars), model.input_dim)
-        self.assertEqual(model.update_func, func)
+        self.assertEqual(model.dynamics_func, func)
         self.assertListEqual(model([0, 0, 0, 0, 0, 0], [1, 0, 0], 0.01).tolist(), np.array([0, 0, 0, 1, 0, 0]).tolist())
 
 
