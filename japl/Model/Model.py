@@ -26,6 +26,7 @@ from japl.Model.StateRegister import StateRegister
 from japl.Util.Desym import Desym
 
 from japl.Model.BuildTools.DirectUpdate import DirectUpdateSymbol
+from japl.Model.BuildTools import BuildTools
 
 # ---------------------------------------------------
 
@@ -231,6 +232,7 @@ class Model:
                         state_vars: list|tuple|Matrix,
                         input_vars: list|tuple|Matrix,
                         dynamics_expr: Expr|Matrix|MatrixSymbol,
+                        definitions: tuple = (),
                         modules: dict = {}):
         """This method initializes a Model from a symbolic expression.
         a Sympy expression can be passed which then is lambdified
@@ -250,6 +252,13 @@ class Model:
         -- self - the initialized Model
         -------------------------------------------------------------------
         """
+        # first build model using provided definitions
+        state_vars,\
+        input_vars,\
+        dynamics_expr = BuildTools.build_model(state_vars,
+                                               input_vars,
+                                               dynamics_expr,
+                                               definitions)
         self._type = ModelType.Symbolic
         self.modules = modules
         self.set_state(state_vars)

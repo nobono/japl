@@ -10,62 +10,7 @@ from sympy import simplify
 from japl import StateRegister
 
 from japl.Aero.AtmosphereSymbolic import AtmosphereSymbolic
-from japl.Model.DirectUpdate import DirectUpdate
-from japl.Model.DirectUpdate import DirectUpdateSymbol
-
-
-
-def process_subs(sub: tuple|list|dict) -> dict:
-    """This method is used to convert differntial definitions
-    into a substitutable dict.
-        - handles substitions passed as Matrix"""
-    ret = {}
-    if isinstance(sub, tuple) or isinstance(sub, list):
-        # update a new dict with substition pairs.
-        # if pair is Matrix or MatrixSymbol (N x 1),
-        # update each element.
-        for old, new in sub:
-            if hasattr(old, "__len__") and hasattr(new, "__len__"):
-                for elem_old, elem_new in zip(old, new): #type:ignore
-                    ret[elem_old] = elem_new
-            else:
-                try:
-                    ret[old] = new
-                except Exception as e:
-                    raise Exception(e, "\nunhandled case. old and new need to both have '__len__'.")
-    else:
-        ret = sub
-    return ret
-
-
-def process_var_definition(sub: tuple|list|Matrix) -> dict:
-    """This method generates a 'subs' dict from provided
-    symbolic variables (Symbol, Function, Matrix). This is
-    used for substition of variables into a sympy expression.
-        - handles substitions passed as Matrix"""
-    assert hasattr(sub, "__len__")
-    ret = {}
-    # for each element get the name
-    for var in sub:
-        if hasattr(var, "__len__"): # if Matrix
-            for elem in var: #type:ignore
-                ret[elem] = StateRegister._process_variables(elem)
-        else:
-            ret[var] = StateRegister._process_variables(var)
-    return ret
-
-
-def subs_for_direct_updates(state: Matrix, subs: dict|list[dict]) -> None:
-    for var in state:
-        if isinstance(var, DirectUpdateSymbol):
-            assert var.expr is not None
-            if isinstance(subs, dict):
-                var.expr = var.expr.subs(sub)   #type:ignore
-            elif isinstance(subs, list):
-                for sub in subs:
-                    var.expr = var.expr.subs(sub)   #type:ignore
-            else:
-                raise Exception("unhandled case.")
+from japl.Model.BuildTools.DirectUpdate import DirectUpdate
 
 
 
@@ -176,32 +121,18 @@ state = Matrix([
 input = Matrix([acc, torque])
 
 ##################################################
-# Process differential & state definitions
-# to substition format
-##################################################
-
-diff_sub = process_subs(defs)
-state_sub = process_var_definition(state)
-input_sub = process_var_definition(input)
-
-##################################################
 # Define dynamics
 ##################################################
 
 dynamics = Matrix(state.diff(t))
-# dynamic expression found via finite difference
-# added here:
-# dynamics[16] = gacc_dot
 
-# do substitions
-dynamics = dynamics.subs(diff_sub).doit()
-dynamics = dynamics.subs(state_sub).subs(input_sub)
-
-# process DirectUpdate.expr with diff & state subs
-subs_for_direct_updates(state, [diff_sub, state_sub, input_sub])
+##################################################
+# Build Model
+##################################################
 
 model = MissileGeneric().from_expression(dt, state, input, dynamics,
-                                         modules=atmosphere.modules)
+                                         modules=atmosphere.modules,
+                                         definitions=defs)
 
 ##################################################
 # calculate dynamics manually & add to array
