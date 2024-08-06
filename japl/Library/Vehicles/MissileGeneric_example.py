@@ -92,12 +92,9 @@ mass_dot = mass_new.diff(dt)
 # Equations for Aerotable / Atmosphere
 ##################################################
 
+# gravity
 atmosphere = AtmosphereSymbolic()
 gravity_new = Matrix([0, 0, -atmosphere.grav_accel(pos_z)]) #type:ignore
-
-##################################################
-# Subs for differential definitions
-##################################################
 
 # gravity finite diff
 # gacc = atmosphere.grav_accel(pos_z(t)) #type:ignore
@@ -109,7 +106,6 @@ gravity_new = Matrix([0, 0, -atmosphere.grav_accel(pos_z)]) #type:ignore
 # speed
 speed_new = sqrt(vel.dot(vel))
 speed_dot = speed_new.diff(t)
-
 
 ##################################################
 # Differential Definitions
