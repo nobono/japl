@@ -61,12 +61,12 @@ def _process_var_definition(sub: tuple|list|Matrix) -> dict:
     for var in sub:
         if hasattr(var, "__len__"): # if Matrix
             for elem in var: #type:ignore
-                ret[elem] = StateRegister._process_variables(elem)
+                ret[elem] = StateRegister._extract_variable(elem)
         if isinstance(var, DirectUpdateSymbol):
             assert var.state_expr is not None
             ret[var.state_expr] = var.sub_expr
         else:
-            ret[var] = StateRegister._process_variables(var)
+            ret[var] = StateRegister._extract_variable(var)
     return ret
 
 

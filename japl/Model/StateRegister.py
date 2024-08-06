@@ -43,7 +43,7 @@ class StateRegister(dict):
 
 
     @staticmethod
-    def _process_variables(var) -> Symbol:
+    def _extract_variable(var) -> Symbol:
         """This method helps process sympy symbolic variables before
         storing into the register.
 
@@ -81,7 +81,7 @@ class StateRegister(dict):
     def set(self, vars: tuple|list|Matrix, labels: Optional[list|tuple] = None):
         """register state and labels"""
         for id, var in enumerate(vars): #type:ignore
-            var = self._process_variables(var)
+            var = self._extract_variable(var)
             var_name = str(var)
             if labels and id < len(labels):
                 label = labels[id]
