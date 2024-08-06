@@ -1,8 +1,10 @@
 from typing import Any
 import numpy as np
 from sympy import Expr
+from sympy import Symbol
 from sympy import Matrix
 from sympy import Piecewise
+from sympy import Function
 from sympy import lambdify
 
 
@@ -23,15 +25,21 @@ class Desym:
             }
 
     def __init__(self,
-                 vars: tuple[Any, ...]|list,
-                 func: Expr|Matrix,
+                 vars: Symbol|tuple[Any, ...]|list,
+                 func: Expr|Matrix|Function,
                  dummify: bool = False,
                  cse: bool = True,
+                 modules: dict = {},
                  array_arg: bool = False) -> None:
+        self.modules = modules
+        self.modules.update(self.custom_lambdify_dict)
         self.array_arg = array_arg      # option to pass args as single array
-        self.vars = tuple(vars)
+        if isinstance(vars, Symbol):
+            self.vars = (vars,)
+        else:
+            self.vars = tuple(vars)
         self.f = lambdify(self.vars, func,
-                          modules=[self.custom_lambdify_dict, "numpy"],
+                          modules=[self.modules, "numpy"],
                           dummify=dummify,
                           cse=cse)
 

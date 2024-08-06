@@ -25,6 +25,9 @@ from sympy import simplify
 from japl.Model.StateRegister import StateRegister
 from japl.Util.Desym import Desym
 
+from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
+from japl.BuildTools import BuildTools
+
 # ---------------------------------------------------
 
 
@@ -45,7 +48,8 @@ class Model:
         self._dtype = np.float64
         self.state_register = StateRegister()
         self.input_register = StateRegister()
-        self.update_func: Callable = lambda *_: None
+        self.dynamics_func: Callable = lambda *_: None
+        self.direct_state_update_map: dict = {}
         self.state_dim = 0
         self.expr = Expr(None)
         self.A = np.array([])
@@ -120,7 +124,7 @@ class Model:
         assert self.D.dtype in [float, int]
 
         # create the step function
-        self.update_func = lambda X, U: self.A @ X + self.B @ U
+        self.dynamics_func = lambda X, U: self.A @ X + self.B @ U
 
 
     def from_function(self,
@@ -153,13 +157,13 @@ class Model:
         self._type = ModelType.Function
         self.set_state(state_vars)
         self.set_input(input_vars)
-        self.state_vars = state_vars
-        self.input_vars = input_vars
+        self.state_vars = self.state_register.get_vars()
+        self.input_vars = self.input_register.get_vars()
         self.dt_var = dt_var
-        self.vars = (state_vars, input_vars, dt_var)
-        self.state_dim = len(state_vars)
-        self.input_dim = len(input_vars)
-        self.update_func = func
+        self.vars = (self.state_vars, self.input_vars, dt_var)
+        self.state_dim = len(self.state_vars)
+        self.input_dim = len(self.input_vars)
+        self.dynamics_func = func
         assert isinstance(func, Callable)
         return self
 
@@ -198,15 +202,14 @@ class Model:
         """
         self.set_state(state_vars)
         self.set_input(input_vars)
-        self.state_vars = state_vars
-        self.input_vars = input_vars
+        self.state_vars = self.state_register.get_vars()
+        self.input_vars = self.input_register.get_vars()
         self.dt_var = dt_var
-        self.dt_var = dt_var
-        self.vars = (state_vars, input_vars, dt_var)
-        self.expr = A * state_vars + B * input_vars
+        self.vars = (self.state_vars, input_vars, dt_var)
+        self.expr = A * self.state_vars + B * self.input_vars
         if isinstance(self.expr, Expr) or isinstance(self.expr, Matrix):
             self.expr = simplify(self.expr)
-        self.update_func = Desym(self.vars, self.expr) #type:ignore
+        self.dynamics_func = Desym(self.vars, self.expr) #type:ignore
         self.state_dim = A.shape[0]
         self.input_dim = B.shape[1]
         self.A = np.array(A)
@@ -228,7 +231,9 @@ class Model:
                         dt_var: Symbol,
                         state_vars: list|tuple|Matrix,
                         input_vars: list|tuple|Matrix,
-                        expr: Expr|Matrix|MatrixSymbol):
+                        dynamics_expr: Expr|Matrix|MatrixSymbol,
+                        definitions: tuple = (),
+                        modules: dict = {}):
         """This method initializes a Model from a symbolic expression.
         a Sympy expression can be passed which then is lambdified
         (see Sympy.lambdify) with computational optimization (see Sympy.cse).
@@ -239,32 +244,42 @@ class Model:
         -- dt_var - symbolic dt e
         -- state_vars - iterable of symbolic state variables
         -- input_vars - iterable of symbolic input variables
-        -- expr - Sympy symbolic expression
+        -- dynamics_expr - Sympy symbolic dynamics expression
+        -- modules - pass custom library to Desym (see sympy.lambdify)
         -------------------------------------------------------------------
         -- Returns
         -------------------------------------------------------------------
         -- self - the initialized Model
         -------------------------------------------------------------------
         """
+        # first build model using provided definitions
+        state_vars,\
+        input_vars,\
+        dynamics_expr = BuildTools.build_model(state_vars,
+                                               input_vars,
+                                               dynamics_expr,
+                                               definitions)
         self._type = ModelType.Symbolic
+        self.modules = modules
         self.set_state(state_vars)
         self.set_input(input_vars)
-        self.state_vars = state_vars
-        self.input_vars = input_vars
+        self.state_vars = self.state_register.get_vars()
+        self.input_vars = self.input_register.get_vars()
         self.dt_var = dt_var
-        self.dt_var = dt_var
-        self.vars = (state_vars, input_vars, dt_var)
-        self.expr = expr
-        self.state_dim = len(state_vars)
-        self.input_dim = len(input_vars)
+        self.vars = (self.state_vars, self.input_vars, dt_var)
+        self.expr = dynamics_expr
+        self.dynamics_expr = dynamics_expr
+        self.direct_state_update_map = self.__process_direct_state_updates(self.state_vars)
+        self.state_dim = len(self.state_vars)
+        self.input_dim = len(self.input_vars)
         # create lambdified function from symbolic expression
-        match expr.__class__(): #type:ignore
+        match dynamics_expr.__class__(): #type:ignore
             case Expr():
-                self.update_func = Desym(self.vars, expr)
+                self.dynamics_func = Desym(self.vars, dynamics_expr, modules=modules)
             case Matrix():
-                self.update_func = Desym(self.vars, expr)
+                self.dynamics_func = Desym(self.vars, dynamics_expr, modules=modules)
             case MatrixSymbol():
-                self.update_func = Desym(self.vars, expr)
+                self.dynamics_func = Desym(self.vars, dynamics_expr, modules=modules)
             case _:
                 raise Exception("function provided is not Callable.")
         return self
@@ -388,7 +403,7 @@ class Model:
     def __call__(self, *args) -> np.ndarray:
         """This method calls an update step to the model after the
         Model object has been initialized."""
-        return self.update_func(*args).flatten()
+        return self.dynamics_func(*args).flatten()
 
 
     def step(self, X: np.ndarray, U: np.ndarray, dt: float) -> np.ndarray:
@@ -409,7 +424,7 @@ class Model:
         self.__set_current_state(X)
         # self.__update_A_matrix_exprs(self.A, X)
         # return self.A @ X + self.B @ U
-        # return self.update_func(X, U).flatten()
+        # return self.dynamics_func(X, U).flatten()
         return self(X, U, dt)
 
 
@@ -541,4 +556,73 @@ class Model:
         """
         return self.state_register.get_sym(name)
 
+
+    # def __process_direct_state_updates(self, direct_state_update_dict: dict,
+    #                                 modules: dict = {}) -> dict:
+    #     """This method takes a direct_state_update_dict which maps direct state
+    #     updates of the model instead of integrating the dynamics.
+
+    #      - The input dict should be of format: {Symbol: [Expr|Callable]}
+    #      - and will be converted to format:    {state_id: Callable}.
+
+    #     -------------------------------------------------------------------
+    #     -- Arguments
+    #     -------------------------------------------------------------------
+    #     -- direct_state_update_dict - (dict) dict mapping state_vars to expression
+    #     -------------------------------------------------------------------
+    #     -- Returns
+    #     -------------------------------------------------------------------
+    #     -- (dict) - mapping state_var index to callable function
+    #     -------------------------------------------------------------------
+    #     """
+    #     ret = {}
+    #     for var, expr in direct_state_update_dict.items():
+    #         var_id: int = self.get_state_id(var) #type:ignore
+    #         match expr.__class__:
+    #             case Expr():
+    #                 ret.update({var_id: Desym(self.vars, expr, modules=modules)})
+    #             case Callable():
+    #                 ret.update({var_id: expr})
+    #             case _:
+    #                 raise Exception("unhandled case.")
+    #     return ret
+
+
+    def __process_direct_state_updates(self, state_vars: Matrix) -> dict:
+        """This method takes the state array / state_vars as input which
+        finds any DirectUpdate elements which map direct state updates of
+        the model instead of integrating the state dynamics.
+
+         - The input dict should be of format: {Symbol: [Expr|Callable]}
+         - and will be converted to format:    {state_id: Callable}.
+
+        -------------------------------------------------------------------
+        -- Arguments
+        -------------------------------------------------------------------
+        -- state_vars - [Matrix|list] 
+        -------------------------------------------------------------------
+        -- Returns
+        -------------------------------------------------------------------
+        -- (dict) - mapping state_var index to callable function
+        -------------------------------------------------------------------
+        """
+        # ret = {}
+        # for var, expr in direct_state_update.items():
+        #     var_id: int = self.get_state_id(var) #type:ignore
+        #     match expr.__class__:
+        #         case Expr():
+        #             ret.update({var_id: Desym(self.vars, expr, modules=modules)})
+        #         case Callable():
+        #             ret.update({var_id: expr})
+        #         case _:
+        #             raise Exception("unhandled case.")
+        # return ret
+        direct_state_update_map = {}
+        for i, var in enumerate(state_vars): #type:ignore
+            if isinstance(var, DirectUpdateSymbol):
+                assert var.sub_expr is not None
+                t = Symbol('t') # 't' variable needed to adhear to func arument format
+                func = Desym((t, *self.vars), var.sub_expr, modules=self.modules)
+                direct_state_update_map.update({i: func})
+        return direct_state_update_map
 

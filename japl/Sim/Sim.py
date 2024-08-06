@@ -13,7 +13,7 @@ from japl.Plotter.PyQtGraphPlotter import PyQtGraphPlotter
 
 from japl.Sim.Integrate import runge_kutta_4
 
-from japl.Library.Vehicles.RigidBodyModel import RigidBodyModel
+# from japl.Library.Vehicles.RigidBodyModel import RigidBodyModel
 
 from scipy.integrate import solve_ivp
 
@@ -33,8 +33,6 @@ class Sim:
                  t_span: list|tuple,
                  dt: float,
                  simobjs: list[SimObject],
-                 events: list = [],
-                 animate: bool|int = False,
                  **kwargs,
                  ) -> None:
 
@@ -43,8 +41,8 @@ class Sim:
         self.t_span = t_span
         self.dt = dt
         self.simobjs = simobjs
-        self.events = events
-        self.animate = bool(animate) # choice of iterating solver over each dt step
+        self.events = kwargs.get("events", [])
+        self.animate: bool = kwargs.get("animate", False) # choice of iterating solver over each dt step
         self.integrate_method = kwargs.get("integrate_method", "odeint")
         assert self.integrate_method in ["odeint", "euler", "rk4"]
 
@@ -131,11 +129,27 @@ class Sim:
             self._solve_with_animation(simobj)
         else:
             # to solve all at once...
-            self._solve(simobj)
+            # self._solve(simobj)
+
+            # pre-allocate output arrays
+            self.T = np.zeros((self.Nt + 1, ))
+            simobj.Y = np.zeros((self.Nt + 1, len(simobj.X0)))
+            simobj.Y[0] = simobj.X0
+            simobj._set_T_array_ref(self.T) # simobj.T reference to sim.T
+
+            for istep in range(1, self.Nt + 1):
+                self._step_solve(dynamics_func=self.step,
+                                 istep=istep,
+                                 dt=self.dt,
+                                 simobj=simobj,
+                                 method=self.integrate_method,
+                                 rtol=self.rtol,
+                                 atol=self.atol)
 
         return self
 
 
+    @DeprecationWarning
     def _solve(self, simobj: SimObject) -> None:
         """This method handles running the Sim class using an ODE Solver"""
 
@@ -181,7 +195,7 @@ class Sim:
         # try to set animation frame intervals to real time
         interval_ms = int(max(1, (1 / self.frame_rate) * 1000))
         step_func = partial(self._step_solve,
-                             step_func=self.step,
+                             dynamics_func=self.step,
                              istep=0,
                              dt=self.dt,
                              simobj=simobj,
@@ -206,6 +220,10 @@ class Sim:
     def step(self, t: float, X: np.ndarray, U: np.ndarray, dt: float, simobj: SimObject):
         """This method is the main step function for the Sim class."""
 
+        # apply any direct state updates (user defined)
+        for state_id, func in simobj.model.direct_state_update_map.items():
+            X[state_id] = func(t, X, U, dt)
+
         # acc_ext = simobj.get_input_array(U, ["acc_x", "acc_y", "acc_z"])
         # torque_ext = simobj.get_input_array(U, ["torque_x", "torque_y", "torque_z"])
 
@@ -226,12 +244,13 @@ class Sim:
             # RigidBodyModel contains necessary states for Aeromodel update section
             # assert isinstance(simobj.model, RigidBodyModel)
 
+
             alt = simobj.get_state_array(X, ["pos_z"])
             vel = simobj.get_state_array(X, ["vel_x", "vel_y", "vel_z"])
             quat = simobj.get_state_array(X, ["q_0", "q_1", "q_2", "q_3"])
 
             # calc gravity and set in state array
-            simobj.set_state_array(X, "gravity_z", -self.atmosphere.grav_accel(alt))
+            # simobj.set_state_array(X, "gravity_z", -self.atmosphere.grav_accel(alt))
 
             # calculate current mach
             speed = float(np.linalg.norm(vel))
@@ -318,7 +337,7 @@ class Sim:
 
 
     def _step_solve(self,
-                        step_func: Callable,
+                        dynamics_func: Callable,
                         istep: int,
                         dt: float,
                         simobj: SimObject,
@@ -372,7 +391,7 @@ class Sim:
         match method:
             case "rk4":
                 X_new, T_new = runge_kutta_4(
-                        f=step_func,
+                        f=dynamics_func,
                         t=tstep,
                         X=x0,
                         h=dt,
@@ -382,7 +401,7 @@ class Sim:
                 simobj.Y[istep] = X_new
             case "odeint":
                 sol = solve_ivp(
-                        fun=step_func,
+                        fun=dynamics_func,
                         t_span=(tstep_prev, tstep),
                         t_eval=[tstep],
                         y0=x0,
