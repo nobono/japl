@@ -83,7 +83,7 @@ def quat_to_dcm_sym(q: Matrix|MatrixSymbol) -> Matrix:
     return dcm
 
 
-def quat_to_tait_bryan_sym(q: Matrix|MatrixSymbol) -> Expr:
+def quat_to_tait_bryan_sym(q: Matrix|MatrixSymbol) -> Matrix:
     if isinstance(q, MatrixSymbol):
         q = q.as_mutable()
     assert q.shape == (4, 1)
@@ -106,37 +106,56 @@ def tait_bryan_to_dcm_sym(yaw_pitch_roll: Matrix|MatrixSymbol) -> Matrix:
     return dcm
 
 
-def dcm_to_tait_bryan_sym(dcm: Matrix|MatrixSymbol) -> Expr:
+def dcm_to_tait_bryan_sym(dcm: Matrix|MatrixSymbol) -> Matrix:
     if isinstance(dcm, MatrixSymbol):
         dcm = dcm.as_mutable()
     assert isinstance(dcm, Matrix)
     assert dcm.shape == (3, 3)
 
-    ret1 = Matrix([
-        atan2(-dcm[0, 1], -dcm[0, 2]), #type:ignore
-        asin(Max(dcm[2, 0], -1.0)), #type:ignore
-        0
-        ])
-    ret2 = Matrix([
-        atan2(dcm[0, 1], dcm[0, 2]),
-        -asin(Min(dcm[2, 0], 1.0)), #type:ignore
-        0
-        ])
-    ret3 = Matrix([
-        atan2(dcm[1, 0], dcm[0, 0]),
-        -asin(dcm[2, 0]),            #type:ignore
-        atan2(dcm[2, 1], dcm[2, 2])
-        ])
+    cond1 = dcm[2, 0] < 0 #type:ignore
+    cond2 = Abs(Abs(dcm[2, 0]) - 1) < 1e-15 #type:ignore
 
-    piece1 = Piecewise(
-            (ret1, dcm[2, 0] < 0), #type:ignore
-            (ret2, True)
+    ret1_m11 = atan2(-dcm[0, 1], -dcm[0, 2]) #type:ignore
+    ret1_m21 = asin(Max(dcm[2, 0], -1.0)) #type:ignore
+    ret1_m31 = 0
+
+    ret2_m11 = atan2(dcm[0, 1], dcm[0, 2])
+    ret2_m21 = -asin(Min(dcm[2, 0], 1.0)) #type:ignore
+    ret2_m31 = 0
+
+    ret3_m11 = atan2(dcm[1, 0], dcm[0, 0])
+    ret3_m21 = -asin(dcm[2, 0])            #type:ignore
+    ret3_m31 = atan2(dcm[2, 1], dcm[2, 2])
+
+    piece1_m11 = Piecewise(
+            (ret1_m11, cond1), #type:ignore
+            (ret2_m11, True)
+            )
+    piece1_m21 = Piecewise(
+            (ret1_m21, cond1), #type:ignore
+            (ret2_m21, True)
+            )
+    piece1_m31 = Piecewise(
+            (ret1_m31, cond1), #type:ignore
+            (ret2_m31, True)
             )
 
-    dcm_to_tait_bryan_expr = Piecewise(
-            (piece1, Abs(Abs(dcm[2, 0]) - 1) < 1e-15), #type:ignore
-            (ret3, True)
+    dcm_to_tait_bryan_expr_m11 = Piecewise(
+            (piece1_m11, cond2), #type:ignore
+            (ret3_m11, True)
             )
+    dcm_to_tait_bryan_expr_m21 = Piecewise(
+            (piece1_m21, cond2), #type:ignore
+            (ret3_m21, True)
+            )
+    dcm_to_tait_bryan_expr_m31 = Piecewise(
+            (piece1_m31, cond2), #type:ignore
+            (ret3_m31, True)
+            )
+
+    dcm_to_tait_bryan_expr = Matrix([dcm_to_tait_bryan_expr_m11,
+                                     dcm_to_tait_bryan_expr_m21,
+                                     dcm_to_tait_bryan_expr_m31])
 
     return dcm_to_tait_bryan_expr
 
