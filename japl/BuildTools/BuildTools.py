@@ -1,5 +1,6 @@
 from typing import Optional
-from sympy import Matrix, Symbol
+from sympy import Matrix, Symbol, Function
+from sympy import Derivative
 from japl.Model.StateRegister import StateRegister
 from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
 
@@ -9,6 +10,9 @@ def build_model(state: Matrix,
                 input: Matrix,
                 dynamics: Matrix,
                 definitions: tuple = ()) -> tuple:
+    # state & input array checks
+    _check_var_array_types(state, "state")
+    _check_var_array_types(input, "input")
     # handle formatting of provided definitions, state, input
     diff_sub = _create_subs_from_definitions(definitions)
     state_sub = _create_subs_from_vars(state)
@@ -24,9 +28,39 @@ def build_model(state: Matrix,
     dynamics = dynamics.subs(diff_sub).doit()
     dynamics = dynamics.subs(state_sub).subs(input_sub)
 
-    # TODO: add checks here for missing subs...
+    # check for any undefined differential expresion in dynamics
+    _check_dynamics_types(dynamics)
 
     return (state, input, dynamics)
+
+
+def _check_var_array_types(array, array_name: str = "array"):
+    """This method checks to make sure variables defined in the 
+    state & input arrays are of types Symbol, Function, or DirectUpdateSymbol.
+    These types can be reduced to a Symbol which the Model class uses to
+    register state & input variable indices."""
+    for i, elem in enumerate(array):
+        if isinstance(elem, Symbol):
+            continue
+        if isinstance(elem, Function):
+            continue
+        if isinstance(elem, DirectUpdateSymbol):
+            continue
+        else:
+            raise Exception(f"\n\n{array_name}-id[{i}]: cannot register a variable for "
+                    f"expression \n\n\t\"{elem}\":\n\tElements of the state array must be "
+                    f"either Symbol, Function, or DirectUpdate. Add to the array a "
+                    f"variable and assign to it the expression using the definitions tuple.")
+
+
+def _check_dynamics_types(dynamics):
+    """This method checks for any undefined Derivative types in the dynamics.
+    undefined Derivatives indicate a missing substition in the definitions."""
+    for i, elem in enumerate(dynamics):
+        if isinstance(elem, Derivative):
+            raise Exception(f"\n\ndynamics-id[{i}]: undefined differential expression "
+                            f"\n\n\t\"{elem}\"\n\t in the dynamics array. Assign this expression in "
+                            f"the definitions or update using DirectUpdate().")
 
 
 def _create_subs_from_definitions(sub: tuple|list|dict) -> dict:
@@ -65,7 +99,6 @@ def _create_subs_from_vars(sub: tuple|list|Matrix) -> dict:
             for elem in var: #type:ignore
                 ret[elem] = StateRegister._extract_variable(elem)
         elif isinstance(var, DirectUpdateSymbol):
-            assert var.state_expr is not None
             ret[var.state_expr] = var.sub_expr
         else:
             ret[var] = StateRegister._extract_variable(var)
@@ -77,7 +110,6 @@ def _apply_subs_to_direct_updates(state: Matrix, subs: dict|list[dict]) -> None:
     that is lambdified for direct state updates."""
     for var in state:
         if isinstance(var, DirectUpdateSymbol):
-            assert var.sub_expr is not None     #type:ignore
             if isinstance(subs, dict):
                 var.sub_expr = var.sub_expr.subs(subs)   #type:ignore
             elif isinstance(subs, list):
