@@ -48,7 +48,7 @@ def _check_var_array_types(array, array_name: str = "array"):
             continue
         else:
             raise Exception(f"\n\n{array_name}-id[{i}]: cannot register a variable for "
-                    f"expression \n\n\t\"{elem}\":\n\tElements of the state array must be "
+                    f"expression \n\n\t\"{elem}\":\n\n\tElements of the state array must be "
                     f"either Symbol, Function, or DirectUpdate. Add to the array a "
                     f"variable and assign to it the expression using the definitions tuple.")
 
@@ -59,7 +59,7 @@ def _check_dynamics_types(dynamics):
     for i, elem in enumerate(dynamics):
         if isinstance(elem, Derivative):
             raise Exception(f"\n\ndynamics-id[{i}]: undefined differential expression "
-                            f"\n\n\t\"{elem}\"\n\t in the dynamics array. Assign this expression in "
+                            f"\n\n\t\"{elem}\"\n\n\t in the dynamics array. Assign this expression in "
                             f"the definitions or update using DirectUpdate().")
 
 
