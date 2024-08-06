@@ -25,8 +25,8 @@ from sympy import simplify
 from japl.Model.StateRegister import StateRegister
 from japl.Util.Desym import Desym
 
-from japl.Model.BuildTools.DirectUpdate import DirectUpdateSymbol
-from japl.Model.BuildTools import BuildTools
+from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
+from japl.BuildTools import BuildTools
 
 # ---------------------------------------------------
 

@@ -10,7 +10,7 @@ from sympy import simplify
 from japl import StateRegister
 
 from japl.Aero.AtmosphereSymbolic import AtmosphereSymbolic
-from japl.Model.BuildTools.DirectUpdate import DirectUpdate
+from japl.BuildTools.DirectUpdate import DirectUpdate
 
 
 

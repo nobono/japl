@@ -6,7 +6,7 @@ from japl import Model
 from sympy import Function
 from sympy import simplify
 from japl.Aero.AtmosphereSymbolic import AtmosphereSymbolic
-from japl.Model.BuildTools.DirectUpdate import DirectUpdate
+from japl.BuildTools.DirectUpdate import DirectUpdate
 
 
 

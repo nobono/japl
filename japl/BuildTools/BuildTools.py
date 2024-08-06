@@ -1,7 +1,7 @@
 from typing import Optional
 from sympy import Matrix, Symbol
 from japl.Model.StateRegister import StateRegister
-from japl.Model.BuildTools.DirectUpdate import DirectUpdateSymbol
+from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
 
 
 

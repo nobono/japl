@@ -4,7 +4,7 @@ from sympy.core.function import Function
 from japl import Model
 
 from japl.Aero.AtmosphereSymbolic import AtmosphereSymbolic
-from japl.Model.BuildTools.DirectUpdate import DirectUpdate
+from japl.BuildTools.DirectUpdate import DirectUpdate
 
 
 
