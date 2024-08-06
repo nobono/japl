@@ -246,6 +246,18 @@ class AeroTable:
                 + self._get_CYB_IT(alpha, phi, mach, iota, method=method)
 
 
+    def get_MRC(self) -> float:
+        return self.MRC[0]
+
+
+    def get_Sref(self) -> float:
+        return self.Sref
+
+
+    def get_Lref(self) -> float:
+        return self.Lref
+
+
     def __repr__(self) -> str:
         members = [i for i in dir(self) if "__" not in i]
         return "\n".join(members)
