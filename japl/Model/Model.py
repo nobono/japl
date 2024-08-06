@@ -227,13 +227,23 @@ class Model:
         return self
 
 
+    def __set_modules(self, modules: dict|list[dict]) -> dict:
+        ret = {}
+        if isinstance(modules, list) or isinstance(modules, tuple):
+            for module in modules:
+                ret.update(module)
+        else:
+            ret.update(modules)
+        return ret
+
+
     def from_expression(self,
                         dt_var: Symbol,
                         state_vars: list|tuple|Matrix,
                         input_vars: list|tuple|Matrix,
                         dynamics_expr: Expr|Matrix|MatrixSymbol,
                         definitions: tuple = (),
-                        modules: dict = {}):
+                        modules: dict|list[dict] = {}):
         """This method initializes a Model from a symbolic expression.
         a Sympy expression can be passed which then is lambdified
         (see Sympy.lambdify) with computational optimization (see Sympy.cse).
@@ -260,7 +270,7 @@ class Model:
                                                dynamics_expr,
                                                definitions)
         self._type = ModelType.Symbolic
-        self.modules = modules
+        self.modules = self.__set_modules(modules)
         self.set_state(state_vars)
         self.set_input(input_vars)
         self.state_vars = self.state_register.get_vars()
@@ -275,11 +285,11 @@ class Model:
         # create lambdified function from symbolic expression
         match dynamics_expr.__class__(): #type:ignore
             case Expr():
-                self.dynamics_func = Desym(self.vars, dynamics_expr, modules=modules)
+                self.dynamics_func = Desym(self.vars, dynamics_expr, modules=self.modules)
             case Matrix():
-                self.dynamics_func = Desym(self.vars, dynamics_expr, modules=modules)
+                self.dynamics_func = Desym(self.vars, dynamics_expr, modules=self.modules)
             case MatrixSymbol():
-                self.dynamics_func = Desym(self.vars, dynamics_expr, modules=modules)
+                self.dynamics_func = Desym(self.vars, dynamics_expr, modules=self.modules)
             case _:
                 raise Exception("function provided is not Callable.")
         return self
