@@ -10,16 +10,16 @@ def build_model(state: Matrix,
                 dynamics: Matrix,
                 definitions: tuple = ()) -> tuple:
     # handle formatting of provided definitions, state, input
-    diff_sub = _process_subs(definitions)
-    state_sub = _process_var_definition(state)
-    input_sub = _process_var_definition(input)
+    diff_sub = _create_subs_from_definitions(definitions)
+    state_sub = _create_subs_from_vars(state)
+    input_sub = _create_subs_from_vars(input)
     # process DirectUpdate.expr with diff & state subs
-    _subs_for_direct_updates(state, [diff_sub, state_sub, input_sub])
-    _subs_for_direct_updates(input, [diff_sub, state_sub, input_sub])
+    _apply_subs_to_direct_updates(state, [diff_sub, state_sub, input_sub])
+    _apply_subs_to_direct_updates(input, [diff_sub, state_sub, input_sub])
     # now that subs applied to DirectUpdateSymbols,
     # update state & input subs again
-    state_sub = _process_var_definition(state)
-    input_sub = _process_var_definition(input)
+    state_sub = _create_subs_from_vars(state)
+    input_sub = _create_subs_from_vars(input)
     # do substitions
     dynamics = dynamics.subs(diff_sub).doit()
     dynamics = dynamics.subs(state_sub).subs(input_sub)
@@ -27,7 +27,7 @@ def build_model(state: Matrix,
     return (state, input, dynamics)
 
 
-def _process_subs(sub: tuple|list|dict) -> dict:
+def _create_subs_from_definitions(sub: tuple|list|dict) -> dict:
     """This method is used to convert differntial definitions
     into a substitutable dict.
         - handles substitions passed as Matrix"""
@@ -50,7 +50,7 @@ def _process_subs(sub: tuple|list|dict) -> dict:
     return ret
 
 
-def _process_var_definition(sub: tuple|list|Matrix) -> dict:
+def _create_subs_from_vars(sub: tuple|list|Matrix) -> dict:
     """This method generates a 'subs' dict from provided
     symbolic variables (Symbol, Function, Matrix). This is
     used for substition of variables into a sympy expression.
@@ -62,7 +62,7 @@ def _process_var_definition(sub: tuple|list|Matrix) -> dict:
         if hasattr(var, "__len__"): # if Matrix
             for elem in var: #type:ignore
                 ret[elem] = StateRegister._extract_variable(elem)
-        if isinstance(var, DirectUpdateSymbol):
+        elif isinstance(var, DirectUpdateSymbol):
             assert var.state_expr is not None
             ret[var.state_expr] = var.sub_expr
         else:
@@ -70,7 +70,7 @@ def _process_var_definition(sub: tuple|list|Matrix) -> dict:
     return ret
 
 
-def _subs_for_direct_updates(state: Matrix, subs: dict|list[dict]) -> None:
+def _apply_subs_to_direct_updates(state: Matrix, subs: dict|list[dict]) -> None:
     """applies substitions to DirectUpdateSymbol.expr which is the expression
     that is lambdified for direct state updates."""
     for var in state:
