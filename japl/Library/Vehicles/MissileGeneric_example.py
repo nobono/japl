@@ -1,13 +1,8 @@
-from pprint import pprint
-import numpy as np
-from sympy import Expr, Matrix, MatrixSymbol, Symbol, symbols, Piecewise
+from sympy import Matrix, Symbol, symbols
 from sympy import sqrt
-from sympy.matrices.expressions.matexpr import MatrixElement
 from japl import Model
 from japl.Math.MathSymbolic import zero_protect_sym
 from sympy import Function
-from sympy import simplify
-from japl import StateRegister
 
 from japl.Aero.AtmosphereSymbolic import AtmosphereSymbolic
 from japl.BuildTools.DirectUpdate import DirectUpdate
