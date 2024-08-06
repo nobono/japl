@@ -24,6 +24,8 @@ def build_model(state: Matrix,
     dynamics = dynamics.subs(diff_sub).doit()
     dynamics = dynamics.subs(state_sub).subs(input_sub)
 
+    # TODO: add checks here for missing subs...
+
     return (state, input, dynamics)
 
 
