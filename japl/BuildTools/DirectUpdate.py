@@ -42,11 +42,11 @@ class DirectUpdate(Matrix):
     def process_symbols(var, val) -> Matrix:
         """Takes Matrix, Function, Symbol and returns DirectUpdateSymbol."""
         if isinstance(var, Symbol):
-            name = f"DU({str(var)})"
+            name = str(var)
             return Matrix([DirectUpdateSymbol(name, state_expr=var, sub_expr=val)])
         match var.__class__():
             case Function():
-                name = f"DU({str(var)})"
+                name = str(var.name)
                 return Matrix([DirectUpdateSymbol(name, state_expr=var, sub_expr=val)])
             case Matrix():
                 return Matrix([DirectUpdate.process_symbols(var_elem, val_elem)\
