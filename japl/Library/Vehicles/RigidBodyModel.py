@@ -1,6 +1,10 @@
 import numpy as np
 from sympy import Matrix, MatrixSymbol, symbols, Piecewise
+from sympy.core.function import Function
 from japl import Model
+
+from japl.Aero.AtmosphereSymbolic import AtmosphereSymbolic
+from japl.BuildTools.DirectUpdate import DirectUpdate
 
 
 
@@ -8,46 +12,108 @@ class RigidBodyModel(Model):
     pass
 
 
+t = symbols("t")
 dt = symbols("dt")
 
-# states
-pos = Matrix(symbols("pos_x pos_y pos_z"))      # must be fixed for AeroModel
-vel = Matrix(symbols("vel_x vel_y vel_z"))   # must be fixed for AeroModel
-w = Matrix(symbols("angvel_x angvel_y angvel_z"))
-q = Matrix(symbols("q_0 q_1 q_2 q_3"))  # must be fixed for AeroModel
+pos_x = Function("pos_x")(t) #type:ignore
+pos_y = Function("pos_y")(t) #type:ignore
+pos_z = Function("pos_z")(t) #type:ignore
+
+vel_x = Function("vel_x")(t) #type:ignore
+vel_y = Function("vel_y")(t) #type:ignore
+vel_z = Function("vel_z")(t) #type:ignore
+
+angvel_x = Function("angvel_x")(t) #type:ignore
+angvel_y = Function("angvel_y")(t) #type:ignore
+angvel_z = Function("angvel_z")(t) #type:ignore
+
+q_0 = Function("q_0")(t) #type:ignore
+q_1 = Function("q_1")(t) #type:ignore
+q_2 = Function("q_2")(t) #type:ignore
+q_3 = Function("q_3")(t) #type:ignore
+
+gravity_x = Function("gravity_x")(t) #type:ignore
+gravity_y = Function("gravity_y")(t) #type:ignore
+gravity_z = Function("gravity_z")(t) #type:ignore
+
+acc_x = Function("acc_x")(t) #type:ignore
+acc_y = Function("acc_y")(t) #type:ignore
+acc_z = Function("acc_z")(t) #type:ignore
+
+torque_x = Function("torque_x")(t) #type:ignore
+torque_y = Function("torque_y")(t) #type:ignore
+torque_z = Function("torque_z")(t) #type:ignore
+
+##################################################
+# States
+##################################################
+
+pos = Matrix([pos_x, pos_y, pos_z])
+vel = Matrix([vel_x, vel_y, vel_z])
+angvel = Matrix([angvel_x, angvel_y, angvel_z])
+q = Matrix([q_0, q_1, q_2, q_3])
 mass = symbols("mass")
-gravity = Matrix(symbols("gravity_x gravity_y gravity_z"))
+gravity = Matrix([gravity_x, gravity_y, gravity_z])
+speed = symbols("speed", cls=Function)(t) #type:ignore
 
-# inputs
-acc = Matrix(symbols("acc_x acc_y acc_z"))
-tq = Matrix(symbols("torque_x torque_y torque_z"))
+##################################################
+# Inputs
+##################################################
 
-# define state update
-w_skew = Matrix(w).hat()
-Sw = Matrix(np.zeros((4,4)))
-Sw[0, :] = Matrix([0, *w]).T
-Sw[:, 0] = Matrix([0, *-w])
-Sw[1:, 1:] = w_skew
+acc = Matrix([acc_x, acc_y, acc_z])
+torque = Matrix([torque_x, torque_y, torque_z])
 
-x_new = pos + vel * dt
-v_new = vel + (acc + gravity) * dt
-w_new = w + tq * dt
-q_new = q + (-0.5 * Sw * q) * dt
-# mass_new = mass
-# gravity_new = gravity
+##################################################
+# Update Equations
+##################################################
 
-X_new = Matrix([
-    x_new.as_mutable(),
-    v_new.as_mutable(),
-    w_new.as_mutable(),
-    q_new.as_mutable(),
-    mass,
-    gravity,
+wx, wy, wz = angvel
+Sw = Matrix([
+    [ 0,   wx,  wy,  wz], #type:ignore
+    [-wx,  0,  -wz,  wy], #type:ignore
+    [-wy,  wz,   0, -wx], #type:ignore
+    [-wz, -wy,  wx,   0], #type:ignore
     ])
 
-state = Matrix([pos, vel, w, q, mass, gravity])
-input = Matrix([acc, tq])
+pos_new = pos + vel * dt
+vel_new = vel + (acc + gravity) * dt
+w_new = angvel + torque * dt
+q_new = q + (-0.5 * Sw * q) * dt
+mass_new = mass
 
-dynamics = X_new.diff(dt)
+pos_dot = pos_new.diff(dt)
+vel_dot = vel_new.diff(dt)
+w_dot = w_new.diff(dt)
+q_dot = q_new.diff(dt)
+mass_dot = mass_new.diff(dt)
 
-model = RigidBodyModel().from_expression(dt, state, input, dynamics)
+atmosphere = AtmosphereSymbolic()
+gravity_new = Matrix([0, 0, -atmosphere.grav_accel(pos_z)]) #type:ignore
+
+##################################################
+# Differential Definitions
+##################################################
+
+defs = (
+        (pos.diff(t),       pos_dot),
+        (vel.diff(t),       vel_dot),
+        (angvel.diff(t),    w_dot),
+        (q.diff(t),         q_dot),
+        )
+
+state = Matrix([
+    pos,
+    vel,
+    angvel,
+    q,
+    mass,
+    DirectUpdate(gravity, gravity_new),
+    ])
+
+input = Matrix([acc, torque])
+
+dynamics = state.diff(t)
+
+model = RigidBodyModel().from_expression(dt, state, input, dynamics,
+                                         definitions=defs,
+                                         modules=atmosphere.modules)

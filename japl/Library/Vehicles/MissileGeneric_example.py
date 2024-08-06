@@ -10,49 +10,8 @@ from sympy import simplify
 from japl import StateRegister
 
 from japl.Aero.AtmosphereSymbolic import AtmosphereSymbolic
+from japl.BuildTools.DirectUpdate import DirectUpdate
 
-
-
-def process_subs(sub: tuple|list|dict) -> dict:
-    """This method is used to convert differntial definitions
-    into a substitutable dict."""
-    ret = {}
-    if isinstance(sub, tuple) or isinstance(sub, list):
-        # update a new dict with substition pairs.
-        # if pair is Matrix or MatrixSymbol (N x 1),
-        # update each element.
-        for old, new in sub:
-            if hasattr(old, "__len__") and hasattr(new, "__len__"):
-                for elem_old, elem_new in zip(old, new): #type:ignore
-                    ret[elem_old] = elem_new
-            else:
-                try:
-                    ret[old] = new
-                except Exception as e:
-                    raise Exception(e, "\nunhandled case. old and new need to both have '__len__'.")
-    else:
-        ret = sub
-    return ret
-
-
-def process_var_definition(sub: tuple|list|Matrix) -> dict:
-    """This method generates a 'subs' dict from provided
-    symbolic variables (Symbol, Function, Matrix). This is
-    used for substition of variables into a sympy expression."""
-    assert hasattr(sub, "__len__")
-    ret = {}
-    # for each element get the name
-    for var in sub:
-        if hasattr(var, "__len__"): # if Matrix
-            for elem in var: #type:ignore
-                ret[elem] = StateRegister._process_variables(elem)
-        else:
-            ret[var] = StateRegister._process_variables(var)
-    return ret
-
-
-# def set_matrix_from_var(mat: Matrix, var: Symbol|Function, val: Expr) -> None:
-#     id = [i for i in mat if i == var]
 
 
 class MissileGeneric(Model):
@@ -70,7 +29,7 @@ pos_x, pos_y, pos_z = symbols("pos_x, pos_y, pos_z", cls=Function) #type:ignore
 vel_x, vel_y, vel_z = symbols("vel_x, vel_y, vel_z", cls=Function) #type:ignore
 w_x, w_y, w_z = symbols("angvel_x, angvel_y, angvel_z", cls=Function) #type:ignore
 q_0, q_1, q_2, q_3 = symbols("q_0, q_1, q_2, q_3", cls=Function) #type:ignore
-gravity_x, gravity_y, gravity_z = symbols("gravity_x gravity_y gravity_z")
+gravity_x, gravity_y, gravity_z = symbols("gravity_x, gravity_y, gravity_z") #type:ignore
 
 pos = Matrix([pos_x(t), pos_y(t), pos_z(t)])
 vel = Matrix([vel_x(t), vel_y(t), vel_z(t)])
@@ -78,7 +37,7 @@ angvel = Matrix([w_x(t), w_y(t), w_z(t)])
 q = Matrix([q_0(t), q_1(t), q_2(t), q_3(t)])
 mass = symbols("mass")
 gravity = Matrix([gravity_x, gravity_y, gravity_z])
-speed = symbols("speed")
+speed = symbols("speed", cls=Function)(t) #type:ignore
 
 ##################################################
 # Inputs
@@ -102,83 +61,78 @@ q_new = q + (-0.5 * Sw * q) * dt
 mass_new = mass
 gravity_new = gravity
 
+pos_dot = pos_new.diff(dt)
+vel_dot = vel_new.diff(dt)
+angvel_dot = angvel_new.diff(dt)
+q_dot = q_new.diff(dt)
+mass_dot = mass_new.diff(dt)
+gravity_dot = gravity_new.diff(dt)
+
 ##################################################
 # Equations for Aerotable / Atmosphere
 ##################################################
 
 atmosphere = AtmosphereSymbolic()
-pos_z_new = pos_new[2]
-# gz_dot = -atmosphere.grav_accel(pos_z(t)) #type:ignore
-# dynamics[16] = -atmosphere.grav_accel(Symbol("pos_z")) #type:ignore
+gravity_new = Matrix([0, 0, -atmosphere.grav_accel(pos_z(t))]) #type:ignore
 
 ##################################################
 # Subs for differential definitions
 ##################################################
 
 # gravity finite diff
-gacc = atmosphere.grav_accel(pos_z(t)) #type:ignore
-gacc_next = atmosphere.grav_accel(pos_z_new) #type:ignore
-gacc_dot = atmosphere.grav_accel(pos_z(t)).diff(t) #type:ignore
-gacc_delta = gacc_next - gacc #type:ignore
-gacc_dot = gacc_delta / dt
+# gacc = atmosphere.grav_accel(pos_z(t)) #type:ignore
+# gacc_next = atmosphere.grav_accel(pos_z_new) #type:ignore
+# gacc_dot = atmosphere.grav_accel(pos_z(t)).diff(t) #type:ignore
+# gacc_delta = gacc_next - gacc #type:ignore
+# gacc_dot = gacc_delta / dt
+
+# speed
+speed_new = sqrt(vel.dot(vel))
+speed_dot = speed_new.diff(t)
 
 # TODO: can we walk designing process by adhearing to
 # the chain rule?:
 #   - do definitinos satisfy the requirements for
 #       the chain rule?
-diff_definition = (
-        (pos.diff(t),       pos_new.diff(dt)),
-        (vel.diff(t),       vel_new.diff(dt)),
-        (angvel.diff(t),    angvel_new.diff(dt)),
-        (q.diff(t),         q_new.diff(dt)),
+defs = (
+        (pos.diff(t),       pos_dot),
+        (vel.diff(t),       vel_dot),
+        (angvel.diff(t),    angvel_dot),
+        (q.diff(t),         q_dot),
+        (mass.diff(t),      mass_dot),
+        (speed.diff(t),     speed_dot),
         )
-
-# speed
-speed_new = sqrt(vel.dot(vel))
 
 ##################################################
 # Define State Update
 ##################################################
 
-X_new = Matrix([
+state = Matrix([
     pos,
     vel,
     angvel,
     q,
-    mass_new,
-    gravity_new,
-    speed_new,
+    mass,
+    # gravity,
+    DirectUpdate(gravity, gravity_new),
+    speed,
     ])
 
-state = Matrix([pos, vel, angvel, q, mass, gravity, speed])
 input = Matrix([acc, torque])
-
-
-##################################################
-# Process differential & state definitions
-# to substition format
-##################################################
-
-diff_sub = process_subs(diff_definition)
-state_sub = process_var_definition(state)
-input_sub = process_var_definition(input)
 
 ##################################################
 # Define dynamics
 ##################################################
 
-dynamics = Matrix(X_new.diff(t))
-# dynamic expression found via finite difference
-# added here:
-# dynamics[16] = gacc_dot
+dynamics = Matrix(state.diff(t))
 
-# do substitions
-dynamics = dynamics.subs(diff_sub).doit()
-dynamics = dynamics.subs(state_sub).subs(input_sub)
+##################################################
+# Build Model
+##################################################
 
 model = MissileGeneric().from_expression(dt, state, input, dynamics,
-                                         modules=atmosphere.modules)
-
+                                         modules=atmosphere.modules,
+                                         definitions=defs)
 
 ##################################################
 # calculate dynamics manually & add to array
