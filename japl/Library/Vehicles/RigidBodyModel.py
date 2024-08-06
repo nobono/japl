@@ -15,7 +15,6 @@ class RigidBodyModel(Model):
 t = symbols("t")
 dt = symbols("dt")
 
-
 pos_x = Function("pos_x")(t) #type:ignore
 pos_y = Function("pos_y")(t) #type:ignore
 pos_z = Function("pos_z")(t) #type:ignore
@@ -37,6 +36,14 @@ gravity_x = Function("gravity_x")(t) #type:ignore
 gravity_y = Function("gravity_y")(t) #type:ignore
 gravity_z = Function("gravity_z")(t) #type:ignore
 
+acc_x = Function("acc_x")(t) #type:ignore
+acc_y = Function("acc_y")(t) #type:ignore
+acc_z = Function("acc_z")(t) #type:ignore
+
+torque_x = Function("torque_x")(t) #type:ignore
+torque_y = Function("torque_y")(t) #type:ignore
+torque_z = Function("torque_z")(t) #type:ignore
+
 ##################################################
 # States
 ##################################################
@@ -53,17 +60,12 @@ speed = symbols("speed", cls=Function)(t) #type:ignore
 # Inputs
 ##################################################
 
-# acc = Matrix(symbols("acc_x acc_y acc_z"))
-acc_x = Function("acc_x")(t) #type:ignore
-acc_y = Function("acc_y")(t) #type:ignore
-acc_z = Function("acc_z")(t) #type:ignore
-
-torque_x = Function("torque_x")(t) #type:ignore
-torque_y = Function("torque_y")(t) #type:ignore
-torque_z = Function("torque_z")(t) #type:ignore
-
 acc = Matrix([acc_x, acc_y, acc_z])
 torque = Matrix([torque_x, torque_y, torque_z])
+
+##################################################
+# Update Equations
+##################################################
 
 wx, wy, wz = angvel
 Sw = Matrix([
@@ -87,6 +89,10 @@ mass_dot = mass_new.diff(dt)
 
 atmosphere = AtmosphereSymbolic()
 gravity_new = Matrix([0, 0, -atmosphere.grav_accel(pos_z)]) #type:ignore
+
+##################################################
+# Differential Definitions
+##################################################
 
 defs = (
         (pos.diff(t),       pos_dot),
