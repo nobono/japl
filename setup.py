@@ -5,28 +5,24 @@ from setuptools import find_packages
 from setuptools import Extension
 import platform
 
+
+
 if platform.system().lower() == "windows":
     split_char = ';'
 else:
     split_char = ':'
 
-
+# get numpy include directory
 numpy_dir = os.path.dirname(np.__file__)
 numpy_include_dir = os.path.join(numpy_dir, "core", "include")
-# path_include_dirs = os.environ.get("PATH", "").split(split_char)
 if not os.path.exists(numpy_include_dir):
     raise Exception("numpy include dir could not be found")
 
-
+# OdeInt ext module
 ode_int_ext = Extension(name="odeint",
                         sources=["./japl/Sim/OdeInt.cpp"],
-                        include_dirs=[
-                            numpy_include_dir,
-                            # *path_include_dirs,
-                            "/usr/local/include/boost",
-                            "home/david/anaconda3/include",
-                            ],
-                        # extra_compile_args=[],
+                        include_dirs=[numpy_include_dir],
+                        extra_compile_args=["-std=c++14"],
                         # extra_link_args=["-shared"],
                         )
 
