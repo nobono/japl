@@ -26,7 +26,7 @@ class DirectUpdate(Matrix):
             which contains the "expr" attribute used to update the state during the
             Sim.step()."""
 
-    def __new__(cls, var: DUType, val: DUType, **assumptions):
+    def __new__(cls, var: DUType, val: DUType|Expr, **assumptions):
         var = cls.process_symbols(var, val)
         obj = super().__new__(cls, var, **assumptions) #type:ignore
         return obj

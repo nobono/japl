@@ -54,7 +54,6 @@ angvel = Matrix([angvel_x, angvel_y, angvel_z])
 q = Matrix([q_0, q_1, q_2, q_3])
 mass = symbols("mass")
 gravity = Matrix([gravity_x, gravity_y, gravity_z])
-speed = symbols("speed", cls=Function)(t) #type:ignore
 
 ##################################################
 # Inputs
@@ -101,6 +100,10 @@ defs = (
         (q.diff(t),         q_dot),
         )
 
+##################################################
+# Define State & Input Arrays
+##################################################
+
 state = Matrix([
     pos,
     vel,
@@ -112,8 +115,17 @@ state = Matrix([
 
 input = Matrix([acc, torque])
 
+##################################################
+# Define dynamics
+##################################################
+
 dynamics = state.diff(t)
+
+##################################################
+# Build Model
+##################################################
 
 model = RigidBodyModel().from_expression(dt, state, input, dynamics,
                                          definitions=defs,
                                          modules=atmosphere.modules)
+
