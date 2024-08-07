@@ -11,6 +11,10 @@ DUType = Union[Symbol, Matrix, MatrixElement, Function, list]
 
 class DirectUpdateSymbol(Symbol):
 
+    """This class inherits from sympy.Symbol so it can be added to the state/input
+    matrices. This class allows for direct substitution of a particular state variable
+    where state_expr references the state variable and sub_expr references the expression
+    or variable which will update the state."""
 
     def __init__(self, name: str, state_expr: Expr, sub_expr: Expr, **assumptions):
         self.state_expr = state_expr
@@ -34,7 +38,8 @@ class DirectUpdate(Matrix):
 
     def diff(self, *args, **kwargs) -> Matrix:
         """Overload diff() of DirectUpdate to force any derivative
-        to zero."""
+        to zero. We do not want the dynamics to update anything directly
+        updating the state."""
         return sympy_zeros(*self.shape)
 
 
