@@ -50,6 +50,7 @@ class Model:
         self.input_register = StateRegister()
         self.dynamics_func: Callable = lambda *_: None
         self.direct_state_update_map: dict = {}
+        self.direct_input_update_map: dict = {}
         self.state_dim = 0
         self.expr = Expr(None)
         self.A = np.array([])
@@ -280,6 +281,7 @@ class Model:
         self.expr = dynamics_expr
         self.dynamics_expr = dynamics_expr
         self.direct_state_update_map = self.__process_direct_state_updates(self.state_vars)
+        self.direct_input_update_map = self.__process_direct_state_updates(self.input_vars)
         self.state_dim = len(self.state_vars)
         self.input_dim = len(self.input_vars)
         # create lambdified function from symbolic expression
