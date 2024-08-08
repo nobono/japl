@@ -15,6 +15,24 @@ from japl.Aero.Atmosphere import Atmosphere
 class test_MissileGeneric(unittest.TestCase):
 
 
+    def test_MissileGeneric_case1(self):
+        simobj = self.create_simobj()
+        sim = Sim(
+                t_span=self.t_span,
+                dt=self.dt,
+                simobjs=[simobj],
+                integrate_method="rk4",
+                animate=0,
+                quiet=1,
+                )
+        sim.run()
+
+        truth = self.run_dynamics()
+
+        for state, tru in zip(simobj.Y[-1], truth[-1]):
+            self.assertAlmostEqual(state, tru, places=self.TOLERANCE_PLACES)
+
+
     def setUp(self):
         self.TOLERANCE_PLACES = 16
 
@@ -152,24 +170,6 @@ class test_MissileGeneric(unittest.TestCase):
             simobj.Y[istep] = X_new
         truth = simobj.Y
         return truth
-
-
-    def test_MissileGeneric_case1(self):
-        simobj = self.create_simobj()
-        sim = Sim(
-                t_span=self.t_span,
-                dt=self.dt,
-                simobjs=[simobj],
-                integrate_method="rk4",
-                animate=0,
-                quiet=1,
-                )
-        sim.run()
-
-        truth = self.run_dynamics()
-
-        for state, tru in zip(simobj.Y[-1], truth[-1]):
-            self.assertAlmostEqual(state, tru, places=self.TOLERANCE_PLACES)
 
 
 if __name__ == '__main__':

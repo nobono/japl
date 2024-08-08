@@ -14,6 +14,24 @@ from japl.Sim.Integrate import runge_kutta_4
 class test_RigidBodyModel(unittest.TestCase):
 
 
+    def test_RigidBodyModel_case1(self):
+        simobj = self.create_simobj()
+        sim = Sim(
+                t_span=self.t_span,
+                dt=self.dt,
+                simobjs=[simobj],
+                integrate_method="rk4",
+                animate=0,
+                quiet=1,
+                )
+        sim.run()
+
+        truth = self.run_dynamics()
+
+        for state, tru in zip(simobj.Y[-1], truth[-1]):
+            self.assertEqual(state, tru)
+
+
     def setUp(self):
         self.TOLERANCE_PLACES = 14
 
@@ -124,24 +142,6 @@ class test_RigidBodyModel(unittest.TestCase):
             simobj.Y[istep] = X_new
         truth = simobj.Y
         return truth
-
-
-    def test_RigidBodyModel_case1(self):
-        simobj = self.create_simobj()
-        sim = Sim(
-                t_span=self.t_span,
-                dt=self.dt,
-                simobjs=[simobj],
-                integrate_method="rk4",
-                animate=0,
-                quiet=1,
-                )
-        sim.run()
-
-        truth = self.run_dynamics()
-
-        for state, tru in zip(simobj.Y[-1], truth[-1]):
-            self.assertEqual(state, tru)
 
 
 if __name__ == '__main__':
