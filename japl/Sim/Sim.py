@@ -220,10 +220,6 @@ class Sim:
     def step(self, t: float, X: np.ndarray, U: np.ndarray, dt: float, simobj: SimObject):
         """This method is the main step function for the Sim class."""
 
-        # apply any direct state updates (user defined)
-        for state_id, func in simobj.model.direct_state_update_map.items():
-            X[state_id] = func(t, X, U, dt)
-
         # acc_ext = simobj.get_input_array(U, ["acc_x", "acc_y", "acc_z"])
         # torque_ext = simobj.get_input_array(U, ["torque_x", "torque_y", "torque_z"])
 
@@ -240,94 +236,89 @@ class Sim:
         ########################################################################
         # Aeromodel
         ########################################################################
-        if simobj.aerotable:
-            # RigidBodyModel contains necessary states for Aeromodel update section
-            # assert isinstance(simobj.model, RigidBodyModel)
+        # if simobj.aerotable:
+        #     # RigidBodyModel contains necessary states for Aeromodel update section
+        #     # assert isinstance(simobj.model, RigidBodyModel)
 
+        #     alt = simobj.get_state_array(X, ["pos_z"])
+        #     vel = simobj.get_state_array(X, ["vel_x", "vel_y", "vel_z"])
+        #     quat = simobj.get_state_array(X, ["q_0", "q_1", "q_2", "q_3"])
 
-            alt = simobj.get_state_array(X, ["pos_z"])
-            vel = simobj.get_state_array(X, ["vel_x", "vel_y", "vel_z"])
-            quat = simobj.get_state_array(X, ["q_0", "q_1", "q_2", "q_3"])
+        #     # calc gravity and set in state array
+        #     simobj.set_state_array(X, "gacc", -self.atmosphere.grav_accel(alt))
 
-            # calc gravity and set in state array
-            # simobj.set_state_array(X, "gravity_z", -self.atmosphere.grav_accel(alt))
+        #     # calculate current mach
+        #     speed = float(np.linalg.norm(vel))
+        #     mach = (speed / self.atmosphere.speed_of_sound(alt))
 
-            # calculate current mach
-            speed = float(np.linalg.norm(vel))
-            mach = (speed / self.atmosphere.speed_of_sound(alt))
+        #     # calc angle of attack: (pitch_angle - flight_path_angle)
+        #     vel_hat = vel / speed                                       # flight path vector
 
-            # temp dev stuff
-            # print(simobj.get_state_array(X, "speed"), np.linalg.norm(vel),
-            #       simobj.get_state_array(X, "speed") - np.linalg.norm(vel))
+        #     # projection vel_hat --> x-axis
+        #     zx_plane_norm = np.array([0, 1, 0], dtype=self._dtype)
+        #     vel_hat_zx = ((vel_hat @ zx_plane_norm) / np.linalg.norm(zx_plane_norm)) * zx_plane_norm
+        #     vel_hat_proj = vel_hat - vel_hat_zx
 
-            # calc angle of attack: (pitch_angle - flight_path_angle)
-            vel_hat = vel / speed                                       # flight path vector
+        #     # get Trait-bryan angles (yaw, pitch, roll)
+        #     yaw_angle, pitch_angle, roll_angle = Rotation.quat_to_tait_bryan(np.asarray(quat))
 
-            # projection vel_hat --> x-axis
-            zx_plane_norm = np.array([0, 1, 0], dtype=self._dtype)
-            vel_hat_zx = ((vel_hat @ zx_plane_norm) / np.linalg.norm(zx_plane_norm)) * zx_plane_norm
-            vel_hat_proj = vel_hat - vel_hat_zx
+        #     # angle between proj vel_hat & xaxis
+        #     x_axis_inertial = np.array([1, 0, 0], dtype=self._dtype)
+        #     flight_path_angle = np.sign(vel_hat_proj[2]) * vec_ang(vel_hat_proj, x_axis_inertial)
+        #     alpha = pitch_angle - flight_path_angle                     # angle of attack
+        #     phi = roll_angle
 
-            # get Trait-bryan angles (yaw, pitch, roll)
-            yaw_angle, pitch_angle, roll_angle = Rotation.quat_to_tait_bryan(np.asarray(quat))
+        #     ###################################################################
+        #     # pitching moment coeficient for iota increments
+        #     # My_coef = model.CLM(alpha,mach)+...
+        #     #           model.cmit(alpha*n,mach*n,model.increments.iota)+...
+        #     #          ((cg-model.MRC)/model.lref)*...
+        #     #          (model.CN(alpha,mach)+...
+        #     #           model.CNit(alpha*n,mach*n,model.increments.iota));
 
-            # angle between proj vel_hat & xaxis
-            x_axis_inertial = np.array([1, 0, 0], dtype=self._dtype)
-            flight_path_angle = np.sign(vel_hat_proj[2]) * vec_ang(vel_hat_proj, x_axis_inertial)
-            alpha = pitch_angle - flight_path_angle                     # angle of attack
-            phi = roll_angle
+        #     # % get dynamic pressure (N/m^2)
+        #     # qbar = (model.conv.lbf2n/model.conv.ft2m^2)*...
+        #     #         computeqbar(mach,model.conv.m2ft*alt);
 
-            ###################################################################
-            # pitching moment coeficient for iota increments
-            # My_coef = model.CLM(alpha,mach)+...
-            #           model.cmit(alpha*n,mach*n,model.increments.iota)+...
-            #          ((cg-model.MRC)/model.lref)*...
-            #          (model.CN(alpha,mach)+...
-            #           model.CNit(alpha*n,mach*n,model.increments.iota));
+        #     # Fvec = (qbar*model.sref)*...
+        #     #        ([-model.CA_Basic(alpha,mach)+...
+        #     #          -model.CA0(mach,alt,boost);...
+        #     #          -model.CN(alpha,mach)]+...% basic stability
+        #     #         [-model.cadit(alpha, mach, iota);...
+        #     #          -model.CNit(alpha, mach, iota)]);% b-plane steering
+        #     #
+        #     # My   = (qbar*model.sref*model.lref)*...
+        #     #        (model.CLM(alpha, mach)+...       % basic stability
+        #     #         model.cmit(alpha, mach, iota));   % b-plane steering
+        #     ###################################################################
 
-            # % get dynamic pressure (N/m^2)
-            # qbar = (model.conv.lbf2n/model.conv.ft2m^2)*...
-            #         computeqbar(mach,model.conv.m2ft*alt);
+        #     # lookup coefficients
+        #     try:
+        #         CLMB = -simobj.aerotable.get_CLMB_Total(alpha, phi, mach, iota)
+        #         CNB = simobj.aerotable.get_CNB_Total(alpha, phi, mach, iota)
 
-            # Fvec = (qbar*model.sref)*...
-            #        ([-model.CA_Basic(alpha,mach)+...
-            #          -model.CA0(mach,alt,boost);...
-            #          -model.CN(alpha,mach)]+...% basic stability
-            #         [-model.cadit(alpha, mach, iota);...
-            #          -model.CNit(alpha, mach, iota)]);% b-plane steering
-            #
-            # My   = (qbar*model.sref*model.lref)*...
-            #        (model.CLM(alpha, mach)+...       % basic stability
-            #         model.cmit(alpha, mach, iota));   % b-plane steering
-            ###################################################################
+        #         My_coef = CLMB + (simobj.cg - simobj.aerotable.MRC[0]) * CNB
 
-            # lookup coefficients
-            try:
-                CLMB = -simobj.aerotable.get_CLMB_Total(alpha, phi, mach, iota)
-                CNB = simobj.aerotable.get_CNB_Total(alpha, phi, mach, iota)
+        #         ########################################################
+        #         # calulate moments: (M_coef * q * Sref * Lref), where:
+        #         ########################################################
+        #         #       M_coef - moment coeficient
+        #         #       q      - dynamic pressure
+        #         #       Sref   - surface area reference (wing area)
+        #         #       Lref   - length reference (mean aerodynamic chord)
+        #         ########################################################
+        #         q = self.atmosphere.dynamic_pressure(vel, alt)
+        #         My = My_coef * q * simobj.aerotable.Sref * simobj.aerotable.Lref
+        #         zforce = CNB * q * simobj.aerotable.Sref
 
-                My_coef = CLMB + (simobj.cg - simobj.aerotable.MRC[0]) * CNB
+        #         # update external moments
+        #         # (positive )
+        #         simobj.set_input_array(U, "torque_y", My / simobj.Iyy)
+        #         simobj.set_input_array(U, "acc_z", zforce / mass)
 
-                ########################################################
-                # calulate moments: (M_coef * q * Sref * Lref), where:
-                ########################################################
-                #       M_coef - moment coeficient
-                #       q      - dynamic pressure
-                #       Sref   - surface area reference (wing area)
-                #       Lref   - length reference (mean aerodynamic chord)
-                ########################################################
-                q = self.atmosphere.dynamic_pressure(vel, alt)
-                My = My_coef * q * simobj.aerotable.Sref * simobj.aerotable.Lref
-                zforce = CNB * q * simobj.aerotable.Sref
-
-                # update external moments
-                # (positive )
-                simobj.set_input_array(U, "torque_y", My / simobj.Iyy)
-                simobj.set_input_array(U, "acc_z", zforce / mass)
-
-            except Exception as e:
-                print(e)
-                self.flag_stop = True
+        #     except Exception as e:
+        #         print(e)
+        #         self.flag_stop = True
 
         ########################################################################
 
@@ -397,6 +388,11 @@ class Sim:
                         h=dt,
                         args=(U, dt, simobj,),
                         )
+
+                # apply any direct state updates (user defined)
+                for state_id, func in simobj.model.direct_state_update_map.items():
+                    X_new[state_id] = func(tstep, X_new, U, dt)
+
                 self.T[istep] = T_new
                 simobj.Y[istep] = X_new
             case "odeint":
