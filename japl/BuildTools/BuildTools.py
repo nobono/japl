@@ -66,6 +66,23 @@ def build_model(state: Matrix,
     return (state, input, dynamics)
 
 
+def _get_array_var_names(array):
+    names = []
+    for i, elem in enumerate(array):
+        if isinstance(elem, Symbol):
+            names.append(elem.name)
+            continue
+        if isinstance(elem, Function):
+            names.append(elem.name) #type:ignore
+            continue
+        if isinstance(elem, DirectUpdateSymbol):
+            _get_array_var_names(elem.state_expr)
+            continue
+        else:
+            raise Exception("unhandled case.")
+    return names
+
+
 def _check_var_array_types(array, array_name: str = "array"):
     """This method checks to make sure variables defined in the 
     state & input arrays are of types Symbol, Function, or DirectUpdateSymbol.
