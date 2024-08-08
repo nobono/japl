@@ -35,13 +35,13 @@ class test_MissileGeneric(unittest.TestCase):
         gacc0 = -9.81
         speed0 = np.linalg.norm(v0)
         simobj.init_state([x0,
-                            v0,
-                            w0,
-                            quat0,
-                            mass0,
-                            gacc0,
-                            speed0,
-                            ])
+                           v0,
+                           w0,
+                           quat0,
+                           mass0,
+                           gacc0,
+                           speed0,
+                           ])
         self.dt = 0.01
         self.t_span = [0, 0.1]
 
