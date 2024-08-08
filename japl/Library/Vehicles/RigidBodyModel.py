@@ -40,9 +40,14 @@ torque_x = Function("torque_x", real=True)(t) #type:ignore
 torque_y = Function("torque_y", real=True)(t) #type:ignore
 torque_z = Function("torque_z", real=True)(t) #type:ignore
 
+force_x = Function("force_x", real=True)(t) #type:ignore
+force_y = Function("force_y", real=True)(t) #type:ignore
+force_z = Function("force_z", real=True)(t) #type:ignore
+
 Ixx = Symbol("Ixx", real=True)
 Iyy = Symbol("Iyy", real=True)
 Izz = Symbol("Izz", real=True)
+
 inertia = Matrix([
     [Ixx, 0, 0],
     [0, Iyy, 0],
@@ -60,18 +65,21 @@ vel = Matrix([vel_x, vel_y, vel_z])
 angvel = Matrix([angvel_x, angvel_y, angvel_z])
 quat = Matrix([q_0, q_1, q_2, q_3])
 mass = symbols("mass")
-# gravity = Matrix([gravity_x, gravity_y, gravity_z])
 
 ##################################################
 # Inputs
 ##################################################
 
-acc = Matrix([acc_x, acc_y, acc_z])
 torque = Matrix([torque_x, torque_y, torque_z])
+force = Matrix([force_x, force_y, force_z])
 
 ##################################################
 # Update Equations
 ##################################################
+
+acc = force / mass
+angacc = inertia.inv() * torque
+gravity = Matrix([0, 0, gacc])
 
 wx, wy, wz = angvel
 Sw = Matrix([
@@ -82,8 +90,8 @@ Sw = Matrix([
     ])
 
 pos_new = pos + vel * dt
-vel_new = vel + (acc + Matrix([0, 0, gacc])) * dt
-angvel_new = angvel + (inertia.inv() * torque) * dt
+vel_new = vel + (acc + gravity) * dt
+angvel_new = angvel + angacc * dt
 quat_new = quat + (-0.5 * Sw * quat) * dt
 mass_new = mass
 
@@ -92,9 +100,6 @@ vel_dot = vel_new.diff(dt)
 angvel_dot = angvel_new.diff(dt)
 quat_dot = quat_new.diff(dt)
 mass_dot = mass_new.diff(dt)
-
-atmosphere = AtmosphereSymbolic()
-gravity_new = -atmosphere.grav_accel(pos_z) #type:ignore
 
 ##################################################
 # Differential Definitions
@@ -117,15 +122,16 @@ state = Matrix([
     angvel,
     quat,
     mass,
+    Ixx,
+    Iyy,
+    Izz,
     gacc,
-    # DirectUpdate(gacc, gravity_new),
-    # DirectUpdate(gacc, Symbol("gacc")),
-    # DirectUpdate("Ixx", Ixx),
-    # DirectUpdate("Iyy", Iyy),
-    # DirectUpdate("Izz", Izz),
     ])
 
-input = Matrix([acc, torque])
+input = Matrix([
+    force,
+    torque,
+    ])
 
 ##################################################
 # Define dynamics
@@ -139,5 +145,5 @@ dynamics = state.diff(t)
 
 model = RigidBodyModel().from_expression(dt, state, input, dynamics,
                                          definitions=defs,
-                                         modules=atmosphere.modules)
+                                         modules=[])
 

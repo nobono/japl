@@ -31,12 +31,16 @@ class test_RigidBodyModel(unittest.TestCase):
         w0 = [0, 0, 0]
         quat0 = quaternion.from_euler_angles([0, 0, 0]).components
         mass0 = 133.0
+        Ixx0 = 1.309
+        Iyy0 = 58.27
+        Izz0 = 58.27
         gacc0 = -9.81
         simobj.init_state([x0,
                            v0,
                            w0,
                            quat0,
                            mass0,
+                           Ixx0, Iyy0, Izz0,
                            gacc0,
                            ])
         self.dt = 0.01
@@ -50,15 +54,18 @@ class test_RigidBodyModel(unittest.TestCase):
         angvel = X[6:9]
         quat = X[9:13]
         mass = X[13]
-        gacc = X[14]
+        Ixx = X[14]
+        Iyy = X[15]
+        Izz = X[16]
+        gacc = X[17]
 
         force = U[:3]
         torque = U[3:6]
 
         acc = force / mass
-        angacc = np.array([torque[0]/simobj.Ixx,
-                           torque[1]/simobj.Iyy,
-                           torque[2]/simobj.Izz])
+        angacc = np.array([torque[0]/Ixx,
+                           torque[1]/Iyy,
+                           torque[2]/Izz])
 
         gravity = np.array([0, 0, gacc])
 
@@ -75,6 +82,9 @@ class test_RigidBodyModel(unittest.TestCase):
         angvel_dot = angacc
         quat_dot = -(0.5 * Sw @ quat)
         mass_dot = 0
+        Ixx_dot = 0
+        Iyy_dot = 0
+        Izz_dot = 0
         gacc_dot = 0
 
         Xdot = np.array([
@@ -83,6 +93,9 @@ class test_RigidBodyModel(unittest.TestCase):
             *angvel_dot,
             *quat_dot,
             mass_dot,
+            Ixx_dot,
+            Iyy_dot,
+            Izz_dot,
             gacc_dot,
             ])
 

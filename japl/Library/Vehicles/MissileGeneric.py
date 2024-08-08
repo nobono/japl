@@ -52,13 +52,14 @@ force_z = Function("force_z", real=True)(t) #type:ignore
 Ixx = Symbol("Ixx", real=True)
 Iyy = Symbol("Iyy", real=True)
 Izz = Symbol("Izz", real=True)
+
 inertia = Matrix([
     [Ixx, 0, 0],
     [0, Iyy, 0],
     [0, 0, Izz],
     ])
 
-gacc: Function = Function("gacc", real=True)(t) #type:ignore
+gacc = Function("gacc", real=True)(t) #type:ignore
 
 ##################################################
 # States
@@ -83,17 +84,17 @@ cg = Symbol("cg", real=True)
 torque = Matrix([torque_x, torque_y, torque_z])
 force = Matrix([force_x, force_y, force_z])
 
-acc = force / mass
-angacc = inertia.inv() * torque
-
 ##################################################
 # Equations for Aerotable / Atmosphere
 ##################################################
 
+acc = force / mass
+angacc = inertia.inv() * torque
+
 # gravity
 atmosphere = AtmosphereSymbolic()
 gacc_new = -atmosphere.grav_accel(pos_z) #type:ignore
-gravity = Matrix([0.0, 0.0, gacc_new])
+gravity = Matrix([0, 0, gacc_new])
 
 ##################################################
 # Update Equations
@@ -101,10 +102,10 @@ gravity = Matrix([0.0, 0.0, gacc_new])
 
 wx, wy, wz = angvel
 Sw = Matrix([
-    [ 0.0,  wx,    wy,   wz], #type:ignore
-    [-wx,   0.0,  -wz,   wy], #type:ignore
-    [-wy,   wz,   0.0,  -wx], #type:ignore
-    [-wz,  -wy,    wx,  0.0], #type:ignore
+    [ 0,   wx,  wy,  wz], #type:ignore
+    [-wx,  0,  -wz,  wy], #type:ignore
+    [-wy,  wz,   0, -wx], #type:ignore
+    [-wz, -wy,  wx,   0], #type:ignore
     ])
 
 pos_new = pos + vel * dt
@@ -134,6 +135,21 @@ defs = (
 ##################################################
 # Define State & Input Arrays
 ##################################################
+# ------------------------------------------------
+# NOTE: when adding to state array:
+# ------------------------------------------------
+# - Functions wrt. time will be diff'd and be
+#   considered as part of the dynamics integration.
+#
+# - Symbols are treated as constants and get their
+#   value from Simobj.init_state()
+#
+# - Any relationship can be defined in the definition
+#   tuple above.
+# ------------------------------------------------
+
+# NOTE: speed needs to be directUpdate otherwise loss
+# of precision
 
 state = Matrix([
     pos,
@@ -141,8 +157,11 @@ state = Matrix([
     angvel,
     quat,
     mass,
-    DirectUpdate(gacc, gacc_new),
-    DirectUpdate("speed", vel.norm()) # NOTE: speed needs to be directUpdate otherwise loss of precision
+    Ixx,
+    Iyy,
+    Izz,
+    DirectUpdate(gacc, gacc_new), #type:ignore
+    DirectUpdate("speed", vel.norm())
     ])
 
 input = Matrix([
@@ -154,7 +173,7 @@ input = Matrix([
 # Define dynamics
 ##################################################
 
-dynamics = Matrix(state.diff(t))
+dynamics = state.diff(t)
 
 ##################################################
 # Build Model
