@@ -1,5 +1,5 @@
 import numpy as np
-from sympy import Matrix, MatrixSymbol, symbols, Piecewise
+from sympy import Matrix, symbols, Symbol
 from sympy.core.function import Function
 from japl import Model
 
@@ -15,34 +15,41 @@ class RigidBodyModel(Model):
 t = symbols("t")
 dt = symbols("dt")
 
-pos_x = Function("pos_x")(t) #type:ignore
-pos_y = Function("pos_y")(t) #type:ignore
-pos_z = Function("pos_z")(t) #type:ignore
+pos_x = Function("pos_x", real=True)(t) #type:ignore
+pos_y = Function("pos_y", real=True)(t) #type:ignore
+pos_z = Function("pos_z", real=True)(t) #type:ignore
 
-vel_x = Function("vel_x")(t) #type:ignore
-vel_y = Function("vel_y")(t) #type:ignore
-vel_z = Function("vel_z")(t) #type:ignore
+vel_x = Function("vel_x", real=True)(t) #type:ignore
+vel_y = Function("vel_y", real=True)(t) #type:ignore
+vel_z = Function("vel_z", real=True)(t) #type:ignore
 
-angvel_x = Function("angvel_x")(t) #type:ignore
-angvel_y = Function("angvel_y")(t) #type:ignore
-angvel_z = Function("angvel_z")(t) #type:ignore
+angvel_x = Function("angvel_x", real=True)(t) #type:ignore
+angvel_y = Function("angvel_y", real=True)(t) #type:ignore
+angvel_z = Function("angvel_z", real=True)(t) #type:ignore
 
-q_0 = Function("q_0")(t) #type:ignore
-q_1 = Function("q_1")(t) #type:ignore
-q_2 = Function("q_2")(t) #type:ignore
-q_3 = Function("q_3")(t) #type:ignore
+q_0 = Function("q_0", real=True)(t) #type:ignore
+q_1 = Function("q_1", real=True)(t) #type:ignore
+q_2 = Function("q_2", real=True)(t) #type:ignore
+q_3 = Function("q_3", real=True)(t) #type:ignore
 
-gravity_x = Function("gravity_x")(t) #type:ignore
-gravity_y = Function("gravity_y")(t) #type:ignore
-gravity_z = Function("gravity_z")(t) #type:ignore
+acc_x = Function("acc_x", real=True)(t) #type:ignore
+acc_y = Function("acc_y", real=True)(t) #type:ignore
+acc_z = Function("acc_z", real=True)(t) #type:ignore
 
-acc_x = Function("acc_x")(t) #type:ignore
-acc_y = Function("acc_y")(t) #type:ignore
-acc_z = Function("acc_z")(t) #type:ignore
+torque_x = Function("torque_x", real=True)(t) #type:ignore
+torque_y = Function("torque_y", real=True)(t) #type:ignore
+torque_z = Function("torque_z", real=True)(t) #type:ignore
 
-torque_x = Function("torque_x")(t) #type:ignore
-torque_y = Function("torque_y")(t) #type:ignore
-torque_z = Function("torque_z")(t) #type:ignore
+Ixx = Symbol("Ixx", real=True)
+Iyy = Symbol("Iyy", real=True)
+Izz = Symbol("Izz", real=True)
+inertia = Matrix([
+    [Ixx, 0, 0],
+    [0, Iyy, 0],
+    [0, 0, Izz],
+    ])
+
+gacc = Symbol("gacc", real=True)
 
 ##################################################
 # States
@@ -51,9 +58,9 @@ torque_z = Function("torque_z")(t) #type:ignore
 pos = Matrix([pos_x, pos_y, pos_z])
 vel = Matrix([vel_x, vel_y, vel_z])
 angvel = Matrix([angvel_x, angvel_y, angvel_z])
-q = Matrix([q_0, q_1, q_2, q_3])
+quat = Matrix([q_0, q_1, q_2, q_3])
 mass = symbols("mass")
-gravity = Matrix([gravity_x, gravity_y, gravity_z])
+# gravity = Matrix([gravity_x, gravity_y, gravity_z])
 
 ##################################################
 # Inputs
@@ -75,19 +82,19 @@ Sw = Matrix([
     ])
 
 pos_new = pos + vel * dt
-vel_new = vel + (acc + gravity) * dt
-w_new = angvel + torque * dt
-q_new = q + (-0.5 * Sw * q) * dt
+vel_new = vel + (acc + Matrix([0, 0, gacc])) * dt
+angvel_new = angvel + (inertia.inv() * torque) * dt
+quat_new = quat + (-0.5 * Sw * quat) * dt
 mass_new = mass
 
 pos_dot = pos_new.diff(dt)
 vel_dot = vel_new.diff(dt)
-w_dot = w_new.diff(dt)
-q_dot = q_new.diff(dt)
+angvel_dot = angvel_new.diff(dt)
+quat_dot = quat_new.diff(dt)
 mass_dot = mass_new.diff(dt)
 
 atmosphere = AtmosphereSymbolic()
-gravity_new = Matrix([0, 0, -atmosphere.grav_accel(pos_z)]) #type:ignore
+gravity_new = -atmosphere.grav_accel(pos_z) #type:ignore
 
 ##################################################
 # Differential Definitions
@@ -96,8 +103,8 @@ gravity_new = Matrix([0, 0, -atmosphere.grav_accel(pos_z)]) #type:ignore
 defs = (
         (pos.diff(t),       pos_dot),
         (vel.diff(t),       vel_dot),
-        (angvel.diff(t),    w_dot),
-        (q.diff(t),         q_dot),
+        (angvel.diff(t),    angvel_dot),
+        (quat.diff(t),      quat_dot),
         )
 
 ##################################################
@@ -108,9 +115,14 @@ state = Matrix([
     pos,
     vel,
     angvel,
-    q,
+    quat,
     mass,
-    DirectUpdate(gravity, gravity_new),
+    gacc,
+    # DirectUpdate(gacc, gravity_new),
+    # DirectUpdate(gacc, Symbol("gacc")),
+    # DirectUpdate("Ixx", Ixx),
+    # DirectUpdate("Iyy", Iyy),
+    # DirectUpdate("Izz", Izz),
     ])
 
 input = Matrix([acc, torque])

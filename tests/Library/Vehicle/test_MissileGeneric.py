@@ -7,6 +7,8 @@ from japl import Sim
 from japl import AeroTable
 from sympy import MatrixSymbol, Matrix, symbols
 from japl.Library.Vehicles import MissileGeneric
+from japl.Sim.Integrate import runge_kutta_4
+from japl.Aero.Atmosphere import Atmosphere
 
 
 
@@ -16,67 +18,144 @@ class test_MissileGeneric(unittest.TestCase):
     def setUp(self):
         self.TOLERANCE_PLACES = 14
 
+
+    def create_simobj(self):
         model = MissileGeneric.model
-        self.vehicle = SimObject(model=model, size=2, color='tab:blue')
-        self.vehicle.aerotable = AeroTable("./aeromodel/aeromodel_psb.mat")
-        self.vehicle.Ixx = 1.309 # (kg * m^2)
-        self.vehicle.Iyy = 58.27 # (kg * m^2)
-        self.vehicle.Izz = 58.27 # (kg * m^2)
-        self.vehicle.mass = 133 # (kg)
-        self.vehicle.cg = 1.42 # (m)
-        x0 = [0, 0, 10000]
-        v0 = [1500, 0, 0]
-        w0 = [0, 0, 0]
+        simobj = SimObject(model=model, size=2, color='tab:blue')
+        simobj.Ixx = 1.309 # (kg * m^2)
+        simobj.Iyy = 58.27 # (kg * m^2)
+        simobj.Izz = 58.27 # (kg * m^2)
+        simobj.mass = 133 # (kg)
+        simobj.cg = 1.42 # (m)
+        x0 = [0.0, 0.0, 10000]
+        v0 = [1500, 0.0, 0.0]
+        w0 = [0.0, 0.0, 0.0]
         quat0 = quaternion.from_euler_angles([0, 0, 0]).components
         mass0 = 133.0
-        gravity0 = [0, 0, -9.81]
+        gacc0 = -9.81
         speed0 = np.linalg.norm(v0)
-        self.vehicle.init_state([x0, v0, w0, quat0, mass0, gravity0, speed0]) # TODO this should be moved to Model
+        simobj.init_state([x0,
+                            v0,
+                            w0,
+                            quat0,
+                            mass0,
+                            gacc0,
+                            speed0,
+                            ])
+        self.dt = 0.01
+        self.t_span = [0, 0.1]
+
+        self.atmosphere = Atmosphere()
+        return simobj
+
+
+    def dynamics(self, t, X, U, dt, simobj):
+        pos = X[:3]
+        vel = X[3:6]
+        angvel = X[6:9]
+        quat = X[9:13]
+        mass = X[13]
+        gacc = X[14]
+        speed = X[15]
+
+        force = U[:3]
+        torque = U[3:6]
+
+        acc = force / mass
+        angacc = np.array([torque[0]/simobj.Ixx,
+                           torque[1]/simobj.Iyy,
+                           torque[2]/simobj.Izz])
+
+        gravity = np.array([0, 0, -self.atmosphere.grav_accel(pos[2])])
+
+        wx, wy, wz = angvel
+        Sw = np.array([
+            [ 0,   wx,  wy,  wz], #type:ignore
+            [-wx,  0,  -wz,  wy], #type:ignore
+            [-wy,  wz,   0, -wx], #type:ignore
+            [-wz, -wy,  wx,   0], #type:ignore
+            ])
+
+        pos_dot = vel
+        vel_dot = acc + gravity
+        angvel_dot = angacc
+        quat_dot = -(0.5 * Sw @ quat)
+        mass_dot = 0
+        gacc_dot = 0
+        speed_dot = 0
+
+        Xdot = np.array([
+            *pos_dot,
+            *vel_dot,
+            *angvel_dot,
+            *quat_dot,
+            mass_dot,
+            gacc_dot,
+            speed_dot,
+            ])
+
+        return Xdot
+
+
+    def direct_updates(self, X, U, dt):
+        pos = X[:3]
+        vel = X[3:6]
+        angvel = X[6:9]
+        quat = X[9:13]
+        mass = X[13]
+        gacc = X[14]
+        speed = X[15]
+
+        force = U[:3]
+        torque = U[3:6]
+
+        X[14] = -self.atmosphere.grav_accel(pos[2]) 
+        X[15] = np.linalg.norm(vel) 
+        return X
+
+
+    def run_dynamics(self):
+        Nt = int(self.t_span[1] / self.dt)
+        t_array = np.linspace(self.t_span[0], self.t_span[1], Nt + 1)
+        simobj = self.create_simobj()
+        simobj.Y = np.zeros((Nt + 1, len(simobj.X0)))
+        simobj.Y[0] = simobj.X0
+
+        U = np.zeros(len(simobj.model.input_vars))
+
+        for istep in range(1, Nt + 1):
+            tstep = t_array[istep]
+            X = simobj.Y[istep - 1]
+            X_new, T_new = runge_kutta_4(
+                    f=self.dynamics,
+                    t=tstep,
+                    X=X,
+                    h=self.dt,
+                    args=(U, self.dt, simobj,)
+                    )
+            # direct updates
+            X_new = self.direct_updates(X_new, U, self.dt)
+            simobj.Y[istep] = X_new
+        truth = simobj.Y
+        return truth
 
 
     def test_MissileGeneric_case1(self):
+        simobj = self.create_simobj()
         sim = Sim(
-                t_span=[0, 0.1],
-                dt=.01,
-                simobjs=[self.vehicle],
+                t_span=self.t_span,
+                dt=self.dt,
+                simobjs=[simobj],
                 integrate_method="rk4",
-                events=[],
-                aspect="equal",
-                device_input_type="",
-                moving_bounds=True,
-                rtol=1e-6,
-                atol=1e-6,
-                blit=False,
-                antialias=0,
-                figsize=(10, 7),
-                instrument_view=1,
-                draw_cache_mode=0,
                 animate=0,
-                frame_rate=25,
                 quiet=1,
                 )
         sim.run()
 
-        truth = [150.00000000000002842171,
-                 0.00000000000000000000,
-                 9999.95115103819807700347,
-                 1500.00000000000000000000,
-                 0.00000000000000000000,
-                 -0.97676241029288801698,
-                 0.00000000000000000000,
-                 0.00058360852455692492,
-                 0.00000000000000000000,
-                 0.99999999993436439194,
-                 0.00000000000000000000,
-                 0.00001145716553824678,
-                 0.00000000000000000000,
-                 133.00000000000000000000,
-                 0.00000000000000000000,
-                 0.00000000000000000000,
-                 -9.77586844288743428422]
-        for state, tru in zip(self.vehicle.Y[-1], truth):
-            self.assertAlmostEqual(state, tru, places=self.TOLERANCE_PLACES)
+        truth = self.run_dynamics()
 
+        for state, tru in zip(simobj.Y[-1], truth[-1]):
+            self.assertEqual(state, tru)
 
 
 if __name__ == '__main__':
