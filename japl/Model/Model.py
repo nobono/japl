@@ -241,8 +241,8 @@ class Model:
         model = cls()
         model._type = ModelType.Symbolic
         model.modules = model.__set_modules(modules)
-        model.set_state(state_vars)
-        model.set_input(input_vars)
+        model.set_state(state_vars) # NOTE: will convert any Function to Symbol
+        model.set_input(input_vars) # NOTE: will convert any Function to Symbol
         model.state_vars = model.state_register.get_vars()
         model.input_vars = model.input_register.get_vars()
         model.dt_var = dt_var
