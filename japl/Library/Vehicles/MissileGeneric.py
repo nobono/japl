@@ -179,7 +179,7 @@ dynamics = state.diff(t)
 # Build Model
 ##################################################
 
-model = MissileGeneric().from_expression(dt, state, input, dynamics,
+model = MissileGeneric.from_expression(dt, state, input, dynamics,
                                          modules=atmosphere.modules,
                                          definitions=defs)
 

@@ -49,10 +49,16 @@ class Model:
         self.state_register = StateRegister()
         self.input_register = StateRegister()
         self.dynamics_func: Callable = lambda *_: None
+        self.dynamics_expr = Expr(None)
+        self.modules: dict = {}
+        self.state_vars = Matrix([])
+        self.input_vars = Matrix([])
+        self.dt_var = Symbol("")
+        self.vars: tuple = ()
+        self.state_dim = 0
+        self.input_dim = 0
         self.direct_state_update_map: dict = {}
         self.direct_input_update_map: dict = {}
-        self.state_dim = 0
-        self.expr = Expr(None)
         self.A = np.array([])
         self.B = np.array([])
         self.C = np.array([])
@@ -128,7 +134,8 @@ class Model:
         self.dynamics_func = lambda X, U: self.A @ X + self.B @ U
 
 
-    def from_function(self,
+    @classmethod
+    def from_function(cls,
                       dt_var: Symbol,
                       state_vars: list|tuple|Matrix,
                       input_vars: list|tuple|Matrix,
@@ -151,25 +158,27 @@ class Model:
         -------------------------------------------------------------------
         -- Returns
         -------------------------------------------------------------------
-        -- self - the initialized Model
+        -- model - the initialized Model
         -------------------------------------------------------------------
         """
-        # TODO initialize self.state_dim somehow ...
-        self._type = ModelType.Function
-        self.set_state(state_vars)
-        self.set_input(input_vars)
-        self.state_vars = self.state_register.get_vars()
-        self.input_vars = self.input_register.get_vars()
-        self.dt_var = dt_var
-        self.vars = (self.state_vars, self.input_vars, dt_var)
-        self.state_dim = len(self.state_vars)
-        self.input_dim = len(self.input_vars)
-        self.dynamics_func = func
+        # TODO initialize model.state_dim somehow ...
+        model = cls()
+        model._type = ModelType.Function
+        model.set_state(state_vars)
+        model.set_input(input_vars)
+        model.state_vars = model.state_register.get_vars()
+        model.input_vars = model.input_register.get_vars()
+        model.dt_var = dt_var
+        model.vars = (model.state_vars, model.input_vars, dt_var)
+        model.state_dim = len(model.state_vars)
+        model.input_dim = len(model.input_vars)
+        model.dynamics_func = func
         assert isinstance(func, Callable)
-        return self
+        return model
 
 
-    def from_statespace(self,
+    @classmethod
+    def from_statespace(cls,
                         dt_var: Symbol,
                         state_vars: list|tuple|Matrix,
                         input_vars: list|tuple|Matrix,
@@ -198,34 +207,35 @@ class Model:
         -------------------------------------------------------------------
         -- Returns
         -------------------------------------------------------------------
-        -- self - the initialized Model
+        -- model - the initialized Model
         -------------------------------------------------------------------
         """
-        self.set_state(state_vars)
-        self.set_input(input_vars)
-        self.state_vars = self.state_register.get_vars()
-        self.input_vars = self.input_register.get_vars()
-        self.dt_var = dt_var
-        self.vars = (self.state_vars, input_vars, dt_var)
-        self.expr = A * self.state_vars + B * self.input_vars
-        if isinstance(self.expr, Expr) or isinstance(self.expr, Matrix):
-            self.expr = simplify(self.expr)
-        self.dynamics_func = Desym(self.vars, self.expr) #type:ignore
-        self.state_dim = A.shape[0]
-        self.input_dim = B.shape[1]
-        self.A = np.array(A)
-        self.B = np.array(B)
+        model = cls()
+        model.set_state(state_vars)
+        model.set_input(input_vars)
+        model.state_vars = model.state_register.get_vars()
+        model.input_vars = model.input_register.get_vars()
+        model.dt_var = dt_var
+        model.vars = (model.state_vars, input_vars, dt_var)
+        model.dynamics_expr = A * model.state_vars + B * model.input_vars
+        if isinstance(model.dynamics_expr, Expr) or isinstance(model.dynamics_expr, Matrix):
+            model.dynamics_expr = simplify(model.dynamics_expr)
+        model.dynamics_func = Desym(model.vars, model.dynamics_expr) #type:ignore
+        model.state_dim = A.shape[0]
+        model.input_dim = B.shape[1]
+        model.A = np.array(A)
+        model.B = np.array(B)
 
         if C is not None:
-            self.C = np.array(C)
+            model.C = np.array(C)
         else:
-            self.C = np.eye(self.A.shape[0])
+            model.C = np.eye(model.A.shape[0])
         if D is not None:
-            self.D = np.array(D)
+            model.D = np.array(D)
         else:
-            self.D = np.zeros_like(self.B)
+            model.D = np.zeros_like(model.B)
 
-        return self
+        return model
 
 
     def __set_modules(self, modules: dict|list[dict]) -> dict:
@@ -238,7 +248,8 @@ class Model:
         return ret
 
 
-    def from_expression(self,
+    @classmethod
+    def from_expression(cls,
                         dt_var: Symbol,
                         state_vars: list|tuple|Matrix,
                         input_vars: list|tuple|Matrix,
@@ -260,41 +271,41 @@ class Model:
         -------------------------------------------------------------------
         -- Returns
         -------------------------------------------------------------------
-        -- self - the initialized Model
+        -- cls - the initialized Model
         -------------------------------------------------------------------
         """
         # first build model using provided definitions
         state_vars,\
         input_vars,\
-        dynamics_expr = BuildTools.build_model(state_vars,
-                                               input_vars,
-                                               dynamics_expr,
+        dynamics_expr = BuildTools.build_model(Matrix(state_vars),
+                                               Matrix(input_vars),
+                                               Matrix(dynamics_expr),
                                                definitions)
-        self._type = ModelType.Symbolic
-        self.modules = self.__set_modules(modules)
-        self.set_state(state_vars)
-        self.set_input(input_vars)
-        self.state_vars = self.state_register.get_vars()
-        self.input_vars = self.input_register.get_vars()
-        self.dt_var = dt_var
-        self.vars = (self.state_vars, self.input_vars, dt_var)
-        self.expr = dynamics_expr
-        self.dynamics_expr = dynamics_expr
-        self.direct_state_update_map = self.__process_direct_state_updates(self.state_vars)
-        self.direct_input_update_map = self.__process_direct_state_updates(self.input_vars)
-        self.state_dim = len(self.state_vars)
-        self.input_dim = len(self.input_vars)
+        model = cls()
+        model._type = ModelType.Symbolic
+        model.modules = model.__set_modules(modules)
+        model.set_state(state_vars)
+        model.set_input(input_vars)
+        model.state_vars = model.state_register.get_vars()
+        model.input_vars = model.input_register.get_vars()
+        model.dt_var = dt_var
+        model.vars = (model.state_vars, model.input_vars, dt_var)
+        model.dynamics_expr = dynamics_expr
+        model.direct_state_update_map = model.__process_direct_state_updates(model.state_vars)
+        model.direct_input_update_map = model.__process_direct_state_updates(model.input_vars)
+        model.state_dim = len(model.state_vars)
+        model.input_dim = len(model.input_vars)
         # create lambdified function from symbolic expression
         match dynamics_expr.__class__(): #type:ignore
             case Expr():
-                self.dynamics_func = Desym(self.vars, dynamics_expr, modules=self.modules)
+                model.dynamics_func = Desym(model.vars, dynamics_expr, modules=model.modules)
             case Matrix():
-                self.dynamics_func = Desym(self.vars, dynamics_expr, modules=self.modules)
+                model.dynamics_func = Desym(model.vars, dynamics_expr, modules=model.modules)
             case MatrixSymbol():
-                self.dynamics_func = Desym(self.vars, dynamics_expr, modules=self.modules)
+                model.dynamics_func = Desym(model.vars, dynamics_expr, modules=model.modules)
             case _:
                 raise Exception("function provided is not Callable.")
-        return self
+        return model
 
 
     def _pre_sim_checks(self) -> bool:

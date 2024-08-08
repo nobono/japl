@@ -144,7 +144,7 @@ dynamics = state.diff(t)
 ##################################################
 
 # TODO: just move this to __init__
-model = RigidBodyModel().from_expression(dt, state, input, dynamics,
+model = RigidBodyModel.from_expression(dt, state, input, dynamics,
                                          definitions=defs,
                                          modules=[])
 
