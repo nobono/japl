@@ -1,7 +1,7 @@
 # from sympy.core.function import FunctionClass, UndefinedFunction
 from typing import Union
 from sympy import Symbol
-from sympy import Expr, Matrix, Function
+from sympy import Expr, Matrix, Function, Number
 from sympy.matrices.expressions.matexpr import MatrixElement
 from sympy import zeros as sympy_zeros
 
@@ -30,7 +30,7 @@ class DirectUpdate(Matrix):
             which contains the "expr" attribute used to update the state during the
             Sim.step()."""
 
-    def __new__(cls, var: DUType|str, val: DUType|Expr, **assumptions):
+    def __new__(cls, var: DUType|str, val: DUType|Expr|float|int|Number, **assumptions):
         var = cls.process_symbols(var, val)
         obj = super().__new__(cls, var, **assumptions) #type:ignore
         return obj

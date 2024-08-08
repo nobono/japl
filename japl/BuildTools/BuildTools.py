@@ -1,5 +1,5 @@
 from typing import Optional
-from sympy import Matrix, Symbol, Function, Expr, symbols
+from sympy import Matrix, Symbol, Function, Expr, symbols, Number
 from sympy import Derivative
 from sympy.core.function import UndefinedFunction
 from japl.Model.StateRegister import StateRegister
@@ -133,12 +133,15 @@ def _check_array_for_undefined_function(array: Matrix, array_name: str, array_co
         for ivar, var in enumerate(array_compare): #type:ignore
             if isinstance(var, DirectUpdateSymbol):
                 if isinstance(row, DirectUpdateSymbol):
-                    if row.sub_expr.has(var.state_expr): #type:ignore
-                        fail = True
-                        found = True
-                        error_msg += f"\n{array_name}[{ivar}] undefined variable: {var.state_expr} "
-                        if force_symbol:
-                            row.sub_expr = StateRegister._extract_variable(row.sub_expr)
+                    if row.sub_expr.__class__ in [Number, float, int]:
+                        pass
+                    else:
+                        if row.sub_expr.has(var.state_expr): #type:ignore
+                            fail = True
+                            found = True
+                            error_msg += f"\n{array_name}[{ivar}] undefined variable: {var.state_expr} "
+                            if force_symbol:
+                                row.sub_expr = StateRegister._extract_variable(row.sub_expr)
         if found:
             row_msg = f"of expression: {row} ({array_name} row {irow})"
             error_msg += row_msg
@@ -203,7 +206,10 @@ def _apply_subs_to_direct_updates(state: Matrix, subs: dict|list[dict]) -> None:
                 var.sub_expr = var.sub_expr.subs(subs)   #type:ignore
             elif isinstance(subs, list):
                 for sub in subs:
-                    var.sub_expr = var.sub_expr.subs(sub)   #type:ignore
+                    if var.sub_expr.__class__ in [Number, float, int]:
+                        pass
+                    else:
+                        var.sub_expr = var.sub_expr.subs(sub)   #type:ignore
             else:
                 raise Exception("unhandled case.")
 
