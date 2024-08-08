@@ -9,6 +9,7 @@ from sympy import MatrixSymbol, Matrix, symbols
 from japl.Library.Vehicles import MissileGeneric
 from japl.Sim.Integrate import runge_kutta_4
 from japl.Aero.Atmosphere import Atmosphere
+from japl.Aero.AeroTable import AeroTable
 
 
 
@@ -55,6 +56,10 @@ class test_MissileGeneric(unittest.TestCase):
         Izz0 = 58.27
         gacc0 = -9.81
         speed0 = np.linalg.norm(v0)
+        mach0 = speed0 / 343.0
+        alpha0 = 0
+        phi0 = 0
+        sos0 = 343
         simobj.init_state([x0,
                            v0,
                            w0,
@@ -63,11 +68,16 @@ class test_MissileGeneric(unittest.TestCase):
                            Ixx0, Iyy0, Izz0,
                            gacc0,
                            speed0,
+                           mach0,
+                           sos0,
+                           # alpha0,
+                           # phi0,
                            ])
         self.dt = 0.01
-        self.t_span = [0, 0.1]
+        self.t_span = [0, .03]
 
         self.atmosphere = Atmosphere()
+        # self.aerotable = AeroTable("./aeromodel/aeromodel_psb.mat")
         return simobj
 
 
@@ -82,6 +92,10 @@ class test_MissileGeneric(unittest.TestCase):
         Izz = X[16]
         gacc = X[17]
         speed = X[18]
+        mach = X[19]
+        # alpha = X[20]
+        # phi = X[21]
+        sos = X[20]
 
         force = U[:3]
         torque = U[3:6]
@@ -111,6 +125,9 @@ class test_MissileGeneric(unittest.TestCase):
         Izz_dot = 0
         gacc_dot = 0
         speed_dot = 0
+        mach_dot = 0
+        alpha_dot = 0
+        phi_dot = 0
 
         Xdot = np.array([
             *pos_dot,
@@ -123,26 +140,53 @@ class test_MissileGeneric(unittest.TestCase):
             Izz_dot,
             gacc_dot,
             speed_dot,
+            mach_dot,
+            # alpha_dot,
+            # phi_dot,
+            0,
             ])
 
         return Xdot
 
 
-    def direct_updates(self, X, U, dt, simobj):
+    def direct_updates(self, X, U, dt, simobj: SimObject):
         pos = X[:3]
         vel = X[3:6]
         angvel = X[6:9]
         quat = X[9:13]
         mass = X[13]
-        gacc = X[14]
-        speed = X[15]
+        Ixx = X[14]
+        Iyy = X[15]
+        Izz = X[16]
+        gacc = X[17]
+        speed = X[18]
+        mach = X[19]
+        # alpha = X[20]
+        # phi = X[21]
+        sos = X[20]
 
         force = U[:3]
         torque = U[3:6]
 
-        simobj.set_state_array(X, "gacc", -self.atmosphere.grav_accel(pos[2]))
-        simobj.set_state_array(X, "speed", np.linalg.norm(vel))
-        return X
+        alt = pos[2]
+        sos_new = self.atmosphere.speed_of_sound(alt)
+        speed_new = np.linalg.norm(vel)
+        mach_new = speed_new / sos_new
+
+        simobj.set_state_array(X, "gacc", -self.atmosphere.grav_accel(alt))
+        simobj.set_state_array(X, "speed", speed_new) #type:ignore
+        simobj.set_state_array(X, "mach", mach_new) #type:ignore
+        simobj.set_state_array(X, "sos", sos_new)
+
+        updates = {
+                "gacc": -self.atmosphere.grav_accel(alt),
+                "speed": speed_new,
+                "mach": mach_new,
+                "sos": sos_new,
+                }
+
+        update_map = {simobj.model.get_state_id(k): v for k, v in updates.items()}
+        return update_map
 
 
     def run_dynamics(self):
@@ -165,8 +209,12 @@ class test_MissileGeneric(unittest.TestCase):
                     h=self.dt,
                     args=args
                     )
+
             # direct updates
-            X_new = self.direct_updates(X_new, *args)
+            update_map = self.direct_updates(X, *args)
+            for state_id, val in update_map.items():
+                X_new[state_id] = val
+
             simobj.Y[istep] = X_new
         truth = simobj.Y
         return truth

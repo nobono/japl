@@ -374,7 +374,7 @@ class Sim:
         # setup time and initial state for step
         tstep_prev = self.t_array[istep - 1]
         tstep = self.t_array[istep]
-        x0 = simobj.Y[istep - 1]
+        X = simobj.Y[istep - 1]
 
         # setup input array
         U = np.zeros(len(simobj.model.input_vars), dtype=self._dtype)
@@ -384,14 +384,14 @@ class Sim:
                 X_new, T_new = runge_kutta_4(
                         f=dynamics_func,
                         t=tstep,
-                        X=x0,
+                        X=X,
                         h=dt,
                         args=(U, dt, simobj,),
                         )
 
                 # apply any direct state updates (user defined)
                 for state_id, func in simobj.model.direct_state_update_map.items():
-                    X_new[state_id] = func(tstep, X_new, U, dt)
+                    X_new[state_id] = func(tstep, X, U, dt)
 
                 self.T[istep] = T_new
                 simobj.Y[istep] = X_new
@@ -400,7 +400,7 @@ class Sim:
                         fun=dynamics_func,
                         t_span=(tstep_prev, tstep),
                         t_eval=[tstep],
-                        y0=x0,
+                        y0=X,
                         args=(U, dt, simobj,),
                         events=self.events,
                         rtol=rtol,

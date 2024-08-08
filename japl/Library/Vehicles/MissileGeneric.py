@@ -1,11 +1,14 @@
 from sympy import Matrix, Symbol, symbols
-from sympy import sqrt
+from sympy import sqrt, sign, rad
 from japl import Model
 from japl.Math.MathSymbolic import zero_protect_sym
 from sympy import Function
 
 from japl.Aero.AtmosphereSymbolic import AtmosphereSymbolic
+from japl.Aero.AeroTableSymbolic import AeroTableSymbolic
 from japl.BuildTools.DirectUpdate import DirectUpdate
+from japl.Math import RotationSymbolic
+from japl.Math import VecSymbolic
 
 
 
@@ -70,11 +73,11 @@ vel = Matrix([vel_x, vel_y, vel_z])
 angvel = Matrix([angvel_x, angvel_y, angvel_z])
 quat = Matrix([q_0, q_1, q_2, q_3])
 mass = symbols("mass")
-speed = Function("speed", real=True)(t) #type:ignore
+speed = Symbol("speed", real=True) #type:ignore
 mach = Function("mach", real=True)(t) #type:ignore
 
-alpha = Function("alpha", real=True)(t) #type:ignore
-phi = Function("phi", real=True)(t) #type:ignore
+alpha = Symbol("alpha", real=True) #type:ignore
+phi = Symbol("phi", real=True) #type:ignore
 cg = Symbol("cg", real=True)
 
 ##################################################
@@ -85,7 +88,7 @@ torque = Matrix([torque_x, torque_y, torque_z])
 force = Matrix([force_x, force_y, force_z])
 
 ##################################################
-# Equations for Aerotable / Atmosphere
+# Equations Atmosphere
 ##################################################
 
 acc = force / mass
@@ -95,6 +98,51 @@ angacc = inertia.inv() * torque
 atmosphere = AtmosphereSymbolic()
 gacc_new = -atmosphere.grav_accel(pos_z) #type:ignore
 gravity = Matrix([0, 0, gacc_new])
+
+##################################################
+# AeroTable
+##################################################
+sos = atmosphere.speed_of_sound(pos_z) #type:ignore
+mach_new = speed / sos #type:ignore
+
+# # calc angle of attack: (pitch_angle - flight_path_angle)
+# vel_hat = vel / speed   # flight path vector
+
+# # projection vel_hat --> x-axis
+# zx_plane_norm = Matrix([0, 1, 0])
+# vel_hat_zx = ((vel_hat.T @ zx_plane_norm) / zx_plane_norm.norm())[0] * zx_plane_norm
+# vel_hat_proj = vel_hat - vel_hat_zx
+
+# # get Trait-bryan angles (yaw, pitch, roll)
+# yaw_angle, pitch_angle, roll_angle = RotationSymbolic.quat_to_tait_bryan_sym(quat)
+
+# # angle between proj vel_hat & xaxis
+# x_axis_inertial = Matrix([1, 0, 0])
+# flight_path_angle = sign(vel_hat_proj[2]) * VecSymbolic.vec_ang_sym(vel_hat_proj, x_axis_inertial) #type:ignore
+# alpha_new = pitch_angle - flight_path_angle # angle of attack
+# phi_new = roll_angle
+
+# # aerotable
+# aero_file = "./aeromodel/aeromodel_psb.mat"
+# # aero_file = "../../../aeromodel/aeromodel_psb.mat"
+# aerotable = AeroTableSymbolic(aero_file)
+
+# iota = rad(0.1)
+# CLMB = -aerotable.get_CLMB_Total(alpha, phi, mach, iota) #type:ignore
+# CNB = aerotable.get_CNB_Total(alpha, phi, mach, iota) #type:ignore
+# My_coef = CLMB + (cg - aerotable.get_MRC()) * CNB #type:ignore
+
+# q = atmosphere.dynamic_pressure(vel, pos_z) #type:ignore
+# Sref = aerotable.get_Sref()
+# Lref = aerotable.get_Lref()
+# My = My_coef * q * Sref * Lref
+# zforce = CNB * q * Sref #type:ignore
+
+# torque_y_new = My / Iyy
+# torque_new = Matrix([torque_x, torque_y_new, torque_z])
+
+# acc_z_new = zforce / mass
+# acc_new = Matrix([acc_x, acc_y, acc_z_new])
 
 ##################################################
 # Update Equations
@@ -161,7 +209,11 @@ state = Matrix([
     Iyy,
     Izz,
     DirectUpdate(gacc, gacc_new), #type:ignore
-    DirectUpdate("speed", vel.norm())
+    DirectUpdate(speed, vel.norm()),
+    DirectUpdate(mach, mach_new), #type:ignore
+    DirectUpdate("sos", sos), #type:ignore
+    # alpha,
+    # phi,
     ])
 
 input = Matrix([
