@@ -88,6 +88,14 @@ class Sim:
         self.debug_profiler = {"t": 0.0, "t_total": 0.0, "count": 0, "t_ave": 0.0, "run": _debug_profiler_func}
 
 
+    def __init_run(self, simobj: SimObject):
+        # pre-allocate output arrays
+        self.T = np.zeros((self.Nt + 1, ))
+        simobj.Y = np.zeros((self.Nt + 1, len(simobj.X0)))
+        simobj.Y[0] = simobj.X0
+        simobj._set_T_array_ref(self.T) # simobj.T reference to sim.T
+
+
     def __instantiate_plot(self, **kwargs) -> None:
         """This method instantiates the plotter class into the Sim class (if defined).
         Otherwise, a default Plotter class is instantiated."""
@@ -131,11 +139,7 @@ class Sim:
             # to solve all at once...
             # self._solve(simobj)
 
-            # pre-allocate output arrays
-            self.T = np.zeros((self.Nt + 1, ))
-            simobj.Y = np.zeros((self.Nt + 1, len(simobj.X0)))
-            simobj.Y[0] = simobj.X0
-            simobj._set_T_array_ref(self.T) # simobj.T reference to sim.T
+            self.__init_run(simobj)
 
             for istep in range(1, self.Nt + 1):
                 self._step_solve(dynamics_func=self.step,
@@ -186,11 +190,7 @@ class Sim:
     def _solve_with_animation(self, simobj: SimObject) -> None:
         """This method handles the animation when running the Sim class."""
 
-        # pre-allocate output arrays
-        self.T = np.zeros((self.Nt + 1, ))
-        simobj.Y = np.zeros((self.Nt + 1, len(simobj.X0)))
-        simobj.Y[0] = simobj.X0
-        simobj._set_T_array_ref(self.T) # simobj.T reference to sim.T
+        self.__init_run(simobj)
 
         # try to set animation frame intervals to real time
         interval_ms = int(max(1, (1 / self.frame_rate) * 1000))
