@@ -3,6 +3,8 @@ from sympy import symbols, Matrix, Function, Symbol
 from japl.BuildTools.DirectUpdate import DirectUpdate
 from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
 from japl.BuildTools import BuildTools
+from japl import Model
+from pprint import pprint
 
 
 
@@ -37,7 +39,15 @@ class TestBuildTools(unittest.TestCase):
         return (t, dt, pos, vel, acc)
 
 
-    def test_BuildTools_case1(self):
+    def run_model(self, state: Matrix, input: Matrix, dynamics: Matrix):
+        # model = Model.from_expression(dt, state, input, dynamics,
+        #                               definitions=defs)
+        # subs = {k: 0 for k, v}
+        # model.dynamics_expr.subs(subs)
+        pass
+
+
+    def test_BuildTools_state_array_checks_case1(self):
         t, dt,\
         pos, vel, acc = self.setup_symbols()
 
@@ -49,15 +59,22 @@ class TestBuildTools(unittest.TestCase):
                 (pos.diff(t),       pos_dot),
                 (vel.diff(t),       vel_dot),
                 )
+        state = Matrix([pos, vel])
+        input = Matrix([acc])
+        dynamics = Matrix(state.diff(t))
 
-        state = Matrix([
-            pos,
-            vel,
-            ])
+        state, input, dynamics = BuildTools.build_model(state,
+                                                        input,
+                                                        dynamics,
+                                                        defs)
+        names = BuildTools._get_array_var_names(state)
 
-        input = Matrix([
-            acc,
-            ])
+        # self.run_model(state_vars, input_vars, dynamics_expr)
+
+        # model = Model.from_expression(dt, state, input, dynamics,
+        #                               definitions=defs)
+        # pprint(model.dynamics_expr)
+
 
 if __name__ == '__main__':
     unittest.main()
