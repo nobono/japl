@@ -33,12 +33,12 @@ class test_RigidBodyModel(unittest.TestCase):
         mass0 = 133.0
         gacc0 = -9.81
         simobj.init_state([x0,
-                            v0,
-                            w0,
-                            quat0,
-                            mass0,
-                            gacc0,
-                            ])
+                           v0,
+                           w0,
+                           quat0,
+                           mass0,
+                           gacc0,
+                           ])
         self.dt = 0.01
         self.t_span = [0, 0.1]
         return simobj
