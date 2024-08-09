@@ -381,6 +381,13 @@ class Sim:
 
         match method:
             case "rk4":
+
+                # apply any direct state updates (user defined)
+                for input_id, func in simobj.model.direct_input_update_map.items():
+                    U[input_id] = func(tstep, X, U, dt)
+                for state_id, func in simobj.model.direct_state_update_map.items():
+                    X[state_id] = func(tstep, X, U, dt)
+
                 X_new, T_new = runge_kutta_4(
                         f=dynamics_func,
                         t=tstep,
@@ -388,10 +395,6 @@ class Sim:
                         h=dt,
                         args=(U, dt, simobj,),
                         )
-
-                # apply any direct state updates (user defined)
-                for state_id, func in simobj.model.direct_state_update_map.items():
-                    X_new[state_id] = func(tstep, X, U, dt)
 
                 self.T[istep] = T_new
                 simobj.Y[istep] = X_new
