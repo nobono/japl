@@ -448,7 +448,7 @@ class Model:
         for i, var in enumerate(state_vars): #type:ignore
             if isinstance(var, DirectUpdateSymbol):
                 assert var.sub_expr is not None
-                t = Symbol('t') # 't' variable needed to adhear to func arument format
+                t = Symbol('t') # 't' variable needed to adhear to func argument format
                 func = Desym((t, *self.vars), var.sub_expr, modules=self.modules)
                 direct_state_update_map.update({i: func})
         return direct_state_update_map
