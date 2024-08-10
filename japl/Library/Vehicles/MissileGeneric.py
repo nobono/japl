@@ -16,6 +16,31 @@ class MissileGeneric(Model):
     pass
 
 
+################################################
+# Debug
+################################################
+def print_sym(var, msg: str = "DEBUG "):
+    print(msg, var)
+    return var
+
+debug_module = {
+        "print_sym": print_sym,
+        }
+print_sym = Function("print_sym") #type:ignore
+
+################################################
+# Tables
+################################################
+
+atmosphere = AtmosphereSymbolic()
+aero_file = "/home/david/work_projects/control/aeromodel/aeromodel_psb.mat"
+# aero_file = "../../../aeromodel/aeromodel_psb.mat"
+aerotable = AeroTableSymbolic(aero_file)
+
+################################################
+# Variables
+################################################
+
 t = symbols("t")
 dt = symbols("dt")
 
@@ -91,11 +116,10 @@ force = Matrix([force_x, force_y, force_z])
 # Equations Atmosphere
 ##################################################
 
-acc = force / mass
-angacc = inertia.inv() * torque
+acc = (force) / mass
+angacc = inertia.inv() * (torque)
 
 # gravity
-atmosphere = AtmosphereSymbolic()
 gacc_new = -atmosphere.grav_accel(pos_z) #type:ignore
 gravity = Matrix([0, 0, gacc_new])
 
@@ -105,44 +129,42 @@ gravity = Matrix([0, 0, gacc_new])
 sos = atmosphere.speed_of_sound(pos_z) #type:ignore
 mach_new = speed / sos #type:ignore
 
-# # calc angle of attack: (pitch_angle - flight_path_angle)
-# vel_hat = vel / speed   # flight path vector
+# calc angle of attack: (pitch_angle - flight_path_angle)
+vel_hat = vel / speed   # flight path vector
 
-# # projection vel_hat --> x-axis
-# zx_plane_norm = Matrix([0, 1, 0])
-# vel_hat_zx = ((vel_hat.T @ zx_plane_norm) / zx_plane_norm.norm())[0] * zx_plane_norm
-# vel_hat_proj = vel_hat - vel_hat_zx
+# projection vel_hat --> x-axis
+zx_plane_norm = Matrix([0, 1, 0])
+vel_hat_zx = ((vel_hat.T @ zx_plane_norm) / zx_plane_norm.norm())[0] * zx_plane_norm
+vel_hat_proj = vel_hat - vel_hat_zx
 
-# # get Trait-bryan angles (yaw, pitch, roll)
-# yaw_angle, pitch_angle, roll_angle = RotationSymbolic.quat_to_tait_bryan_sym(quat)
+# get Trait-bryan angles (yaw, pitch, roll)
+yaw_angle, pitch_angle, roll_angle = RotationSymbolic.quat_to_tait_bryan_sym(quat)
 
-# # angle between proj vel_hat & xaxis
-# x_axis_inertial = Matrix([1, 0, 0])
-# flight_path_angle = sign(vel_hat_proj[2]) * VecSymbolic.vec_ang_sym(vel_hat_proj, x_axis_inertial) #type:ignore
-# alpha_new = pitch_angle - flight_path_angle # angle of attack
-# phi_new = roll_angle
+# angle between proj vel_hat & xaxis
+x_axis_inertial = Matrix([1, 0, 0])
+flight_path_angle = sign(vel_hat_proj[2]) * VecSymbolic.vec_ang_sym(vel_hat_proj, x_axis_inertial) #type:ignore
+alpha_new = pitch_angle - flight_path_angle # angle of attack
+phi_new = roll_angle
 
-# # aerotable
-# aero_file = "./aeromodel/aeromodel_psb.mat"
-# # aero_file = "../../../aeromodel/aeromodel_psb.mat"
-# aerotable = AeroTableSymbolic(aero_file)
+iota = rad(0.1)
+CLMB = -aerotable.get_CLMB_Total(alpha, phi, mach, iota) #type:ignore
+CNB = aerotable.get_CNB_Total(alpha, phi, mach, iota) #type:ignore
+My_coef = CLMB + (cg - aerotable.get_MRC()) * CNB #type:ignore
 
-# iota = rad(0.1)
-# CLMB = -aerotable.get_CLMB_Total(alpha, phi, mach, iota) #type:ignore
-# CNB = aerotable.get_CNB_Total(alpha, phi, mach, iota) #type:ignore
-# My_coef = CLMB + (cg - aerotable.get_MRC()) * CNB #type:ignore
+q = atmosphere.dynamic_pressure(vel, pos_z) #type:ignore
+Sref = aerotable.get_Sref()
+Lref = aerotable.get_Lref()
+My = My_coef * q * Sref * Lref
 
-# q = atmosphere.dynamic_pressure(vel, pos_z) #type:ignore
-# Sref = aerotable.get_Sref()
-# Lref = aerotable.get_Lref()
-# My = My_coef * q * Sref * Lref
-# zforce = CNB * q * Sref #type:ignore
+force_z_aero = CNB * q * Sref #type:ignore
+force_aero = Matrix([0, 0, force_z_aero])
 
-# torque_y_new = My / Iyy
-# torque_new = Matrix([torque_x, torque_y_new, torque_z])
+torque_y_aero = My / Iyy
+torque_aero = Matrix([0, torque_y_aero, 0])
 
-# acc_z_new = zforce / mass
-# acc_new = Matrix([acc_x, acc_y, acc_z_new])
+# temp
+force_aero = Matrix([0, 0, 0])
+torque_aero = Matrix([0, 0, 0])
 
 ##################################################
 # Update Equations
@@ -162,15 +184,15 @@ angvel_new = angvel + angacc * dt
 quat_new = quat + (-0.5 * Sw * quat) * dt
 mass_new = mass
 
+##################################################
+# Differential Definitions
+##################################################
+
 pos_dot = pos_new.diff(dt)
 vel_dot = vel_new.diff(dt)
 angvel_dot = angvel_new.diff(dt)
 quat_dot = quat_new.diff(dt)
 mass_dot = mass_new.diff(dt)
-
-##################################################
-# Differential Definitions
-##################################################
 
 defs = (
         (pos.diff(t),       pos_dot),
@@ -178,6 +200,8 @@ defs = (
         (angvel.diff(t),    angvel_dot),
         (quat.diff(t),      quat_dot),
         (mass.diff(t),      mass_dot),
+        # (alpha,             alpha_new),
+        # (phi,               phi_new),
         )
 
 ##################################################
@@ -205,20 +229,22 @@ state = Matrix([
     angvel,
     quat,
     mass,
+    cg,
     Ixx,
     Iyy,
     Izz,
     DirectUpdate(gacc, gacc_new), #type:ignore
     DirectUpdate(speed, vel.norm()),
     DirectUpdate(mach, mach_new), #type:ignore
-    DirectUpdate("sos", sos), #type:ignore
-    # alpha,
-    # phi,
+    DirectUpdate(alpha, alpha_new),
+    DirectUpdate(phi, phi_new),
     ])
 
 input = Matrix([
-    force,
-    torque,
+    DirectUpdate(force, force_aero),
+    # force,
+    DirectUpdate(torque, torque_aero),
+    # torque,
     ])
 
 ##################################################
@@ -232,6 +258,7 @@ dynamics = state.diff(t)
 ##################################################
 
 model = MissileGeneric.from_expression(dt, state, input, dynamics,
-                                         modules=atmosphere.modules,
+                                         modules=[atmosphere.modules, aerotable.modules,
+                                                  debug_module],
                                          definitions=defs)
 
