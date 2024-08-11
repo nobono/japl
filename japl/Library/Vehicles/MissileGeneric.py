@@ -223,8 +223,6 @@ defs = (
 # NOTE: speed needs to be directUpdate otherwise loss
 # of precision
 
-Vel2 = Matrix(symbols("vel2_x, vel2_y, vel2_z"))
-
 state = Matrix([
     pos,
     vel,
