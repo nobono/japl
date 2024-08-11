@@ -156,18 +156,18 @@ class test_MissileGeneric(unittest.TestCase):
     def direct_updates(self, X, U, dt, simobj: SimObject):
         pos = X[:3]
         vel = X[3:6]
-        # angvel = X[6:9]
-        # quat = X[9:13]
-        # mass = X[13]
-        # cg = X[14]
-        # Ixx = X[15]
-        # Iyy = X[16]
-        # Izz = X[17]
-        # gacc = X[18]
-        # speed = X[19]
-        # mach = X[20]
-        # alpha = X[21]
-        # phi = X[22]
+        angvel = X[6:9]
+        quat = X[9:13]
+        mass = X[13]
+        cg = X[14]
+        Ixx = X[15]
+        Iyy = X[16]
+        Izz = X[17]
+        gacc = X[18]
+        speed = X[19]
+        mach = X[20]
+        alpha = X[21]
+        phi = X[22]
 
         force = U[:3]
         torque = U[3:6]
@@ -177,16 +177,12 @@ class test_MissileGeneric(unittest.TestCase):
         speed_new = np.linalg.norm(vel)
         mach_new = speed_new / sos_new
 
-        # NOTE: problem:
-        # aerotable needs updated speed in state to match the 
-        # symbolic model. but here it does not get that.
         (alpha_new,
          phi_new,
          force_aero,
          torque_aero,
-         ) = self.aerotable_update(X, U,
-                                   speed_new=speed_new,
-                                   mach_new=mach_new)
+         ) = self.aerotable_update(pos, vel, quat, cg, Iyy,
+                                   speed_new, mach_new, alpha, phi)
 
         force_new = force + force_aero
         torque_new = torque + torque_aero
@@ -211,22 +207,9 @@ class test_MissileGeneric(unittest.TestCase):
         return (state_update_map, input_update_map)
 
 
-    def aerotable_update(self, X: np.ndarray, U: np.ndarray, **kwargs):
-        pos = X[:3]
-        vel = X[3:6]
-        quat = X[9:13]
-        mass = X[13]
-        cg = X[14]
-        Iyy = X[16]
-        speed = X[19]
-        mach = X[20]
-        alpha = X[21]
-        phi = X[22]
+    def aerotable_update(self, pos, vel, quat, cg, Iyy, speed, mach, alpha, phi):
 
         alt = pos[2]
-
-        speed = kwargs.get("speed_new")
-        mach = kwargs.get("mach_new")
 
         # calc angle of attack: (pitch_angle - flight_path_angle)
         vel_hat = vel / speed
@@ -296,12 +279,6 @@ class test_MissileGeneric(unittest.TestCase):
                     h=self.dt,
                     args=args
                     )
-
-            # # direct updates
-            # (state_update_map,
-            #  input_update_map) = self.direct_updates(X, *args)
-            # for state_id, val in state_update_map.items():
-            #     X_new[state_id] = val
 
             simobj.Y[istep] = X_new
         truth = simobj.Y
