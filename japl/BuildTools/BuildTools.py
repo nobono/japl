@@ -38,7 +38,6 @@ def build_model(state: Matrix,
 
     # apply definitions sub to state & input
     # via DirectUpdateSymbol
-    # breakpoint()
     _apply_definitions_to_array(state, def_subs)
     _apply_definitions_to_array(input, def_subs)
 
@@ -48,16 +47,11 @@ def build_model(state: Matrix,
     def_state_subs = {}
     def_state_subs.update(def_subs)
     def_state_subs.update(state_subs)
-    # TODO:
-    # TODO:
-    # TODO:
-    # TODO:
-    # TODO:
+
     # TODO: left off here,
     # determining weather should sub input_subs
     # or not.
     def_state_subs = _apply_subs_to_dict(def_state_subs)
-    # input_
 
     all_subs = {}
     all_subs.update(def_subs)
