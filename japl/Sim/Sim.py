@@ -385,12 +385,8 @@ class Sim:
                 # apply any direct state updates (user defined)
                 for input_id, func in simobj.model.direct_input_update_map.items():
                     U[input_id] = func(tstep, X, U, dt)
-                    # print(input_id, func(tstep, X, U, dt))
                 for state_id, func in simobj.model.direct_state_update_map.items():
                     X[state_id] = func(tstep, X, U, dt)
-
-                print("STEP---------------------------")
-                print("DEB ", X[5])
 
                 X_new, T_new = runge_kutta_4(
                         f=dynamics_func,

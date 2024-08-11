@@ -45,9 +45,9 @@ def build_model(state: Matrix,
     # NOTE: testing this ##############
     # NOTE: dont subs input_subs when subbing
     # dynamics --possibly even when subbing state.
-    defstate_subs = {}
-    defstate_subs.update(def_subs)
-    defstate_subs.update(state_subs)
+    def_state_subs = {}
+    def_state_subs.update(def_subs)
+    def_state_subs.update(state_subs)
     # TODO:
     # TODO:
     # TODO:
@@ -56,7 +56,7 @@ def build_model(state: Matrix,
     # TODO: left off here,
     # determining weather should sub input_subs
     # or not.
-    defstate_subs = _apply_subs_to_dict(defstate_subs)
+    def_state_subs = _apply_subs_to_dict(def_state_subs)
     # input_
 
     all_subs = {}
@@ -77,8 +77,6 @@ def build_model(state: Matrix,
     # _apply_subs_to_direct_updates(state, all_subs)
     _apply_subs_to_direct_updates(state, state_var_subs)
     _apply_subs_to_direct_updates(input, state_var_subs)
-    # deb(state)
-    # quit()
 
 
     ###################################
@@ -97,8 +95,7 @@ def build_model(state: Matrix,
     # do substitions
     # dynamics = dynamics.subs(def_subs).doit()
     # dynamics = dynamics.subs(state_subs).subs(input_subs)
-    # breakpoint()
-    dynamics = dynamics.subs(defstate_subs)
+    dynamics = dynamics.subs(all_subs)
 
     # sub input
     input_name_subs = {}

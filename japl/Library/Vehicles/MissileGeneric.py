@@ -33,7 +33,7 @@ print_sym = Function("print_sym") #type:ignore
 ################################################
 
 atmosphere = AtmosphereSymbolic()
-aero_file = "/home/david/work_projects/control/aeromodel/aeromodel_psb.mat"
+aero_file = "/Users/david/work_projects/control/aeromodel/aeromodel_psb.mat"
 # aero_file = "../../../aeromodel/aeromodel_psb.mat"
 aerotable = AeroTableSymbolic(aero_file)
 
@@ -223,6 +223,8 @@ defs = (
 # NOTE: speed needs to be directUpdate otherwise loss
 # of precision
 
+Vel2 = Matrix(symbols("vel2_x, vel2_y, vel2_z"))
+
 state = Matrix([
     pos,
     vel,
@@ -242,9 +244,7 @@ state = Matrix([
 
 input = Matrix([
     DirectUpdate(force, force_aero),
-    # force,
     DirectUpdate(torque, torque_aero),
-    # torque,
     ])
 
 ##################################################
