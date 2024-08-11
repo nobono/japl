@@ -200,8 +200,6 @@ defs = (
         (angvel.diff(t),    angvel_dot),
         (quat.diff(t),      quat_dot),
         (mass.diff(t),      mass_dot),
-        # (alpha,             alpha_new),
-        # (phi,               phi_new),
         )
 
 ##################################################
