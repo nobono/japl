@@ -117,7 +117,6 @@ def build_model(state: Matrix,
     _check_dynamics_for_undefined_diffs(dynamics)
     _check_dynamics_for_undefined_function(dynamics, state)
 
-    # breakpoint()
     return (state, input, dynamics)
 
 

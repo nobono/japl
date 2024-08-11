@@ -172,6 +172,11 @@ class test_MissileGeneric(unittest.TestCase):
         force = U[:3]
         torque = U[3:6]
 
+        alt = pos[2]
+        sos_new = self.atmosphere.speed_of_sound(alt)
+        speed_new = np.linalg.norm(vel)
+        mach_new = speed_new / sos_new
+
         # NOTE: problem:
         # aerotable needs updated speed in state to match the 
         # symbolic model. but here it does not get that.
@@ -179,15 +184,12 @@ class test_MissileGeneric(unittest.TestCase):
          phi_new,
          force_aero,
          torque_aero,
-         ) = self.aerotable_update(X, U)
+         ) = self.aerotable_update(X, U,
+                                   speed_new=speed_new,
+                                   mach_new=mach_new)
 
         force_new = force + force_aero
         torque_new = torque + torque_aero
-
-        alt = pos[2]
-        sos_new = self.atmosphere.speed_of_sound(alt)
-        speed_new = np.linalg.norm(vel)
-        mach_new = speed_new / sos_new
 
         state_updates = {
                 "gacc": -self.atmosphere.grav_accel(alt),
@@ -209,7 +211,7 @@ class test_MissileGeneric(unittest.TestCase):
         return (state_update_map, input_update_map)
 
 
-    def aerotable_update(self, X: np.ndarray, U: np.ndarray):
+    def aerotable_update(self, X: np.ndarray, U: np.ndarray, **kwargs):
         pos = X[:3]
         vel = X[3:6]
         quat = X[9:13]
@@ -223,8 +225,11 @@ class test_MissileGeneric(unittest.TestCase):
 
         alt = pos[2]
 
+        speed = kwargs.get("speed_new")
+        mach = kwargs.get("mach_new")
+
         # calc angle of attack: (pitch_angle - flight_path_angle)
-        vel_hat = vel / np.linalg.norm(vel)                                       # flight path vector
+        vel_hat = vel / speed
 
         # projection vel_hat --> x-axis
         zx_plane_norm = np.array([0, 1, 0])
