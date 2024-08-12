@@ -134,7 +134,7 @@ vel_hat = vel / speed   # flight path vector
 
 # projection vel_hat --> x-axis
 zx_plane_norm = Matrix([0, 1, 0])
-vel_hat_zx = ((vel_hat.T @ zx_plane_norm) / zx_plane_norm.norm())[0] * zx_plane_norm
+vel_hat_zx = ((vel_hat.dot(zx_plane_norm)) / zx_plane_norm.norm()) * zx_plane_norm
 vel_hat_proj = vel_hat - vel_hat_zx
 
 # get Trait-bryan angles (yaw, pitch, roll)
@@ -146,9 +146,9 @@ flight_path_angle = sign(vel_hat_proj[2]) * VecSymbolic.vec_ang_sym(vel_hat_proj
 alpha_new = pitch_angle - flight_path_angle # angle of attack
 phi_new = roll_angle
 
-iota = rad(0.1)
-CLMB = -aerotable.get_CLMB_Total(alpha, phi, mach, iota) #type:ignore
-CNB = aerotable.get_CNB_Total(alpha, phi, mach, iota) #type:ignore
+iota = rad(3.3)
+CLMB = -aerotable.get_CLMB_Total(alpha_new, phi_new, mach_new, iota) #type:ignore
+CNB = aerotable.get_CNB_Total(alpha_new, phi_new, mach_new, iota) #type:ignore
 My_coef = CLMB + (cg - aerotable.get_MRC()) * CNB #type:ignore
 
 q = atmosphere.dynamic_pressure(vel, pos_z) #type:ignore
@@ -159,12 +159,14 @@ My = My_coef * q * Sref * Lref
 force_z_aero = CNB * q * Sref #type:ignore
 force_aero = Matrix([0, 0, force_z_aero])
 
-torque_y_aero = My / Iyy
-torque_aero = Matrix([0, torque_y_aero, 0])
+# torque_y_aero = My / Iyy
+# torque_aero = Matrix([0, torque_y_aero, 0])
 
 # temp
-force_aero = Matrix([0, 0, 0])
-torque_aero = Matrix([0, 0, 0])
+# force_aero = Matrix([0, 0, 1])
+torque_aero = Matrix([0, 1, 0])
+
+extra = pos[2]
 
 ##################################################
 # Update Equations
@@ -236,11 +238,14 @@ state = Matrix([
     DirectUpdate(mach, mach_new), #type:ignore
     DirectUpdate(alpha, alpha_new),
     DirectUpdate(phi, phi_new),
+    DirectUpdate("extra", extra),
     ])
 
 input = Matrix([
     DirectUpdate(force, force_aero),
     DirectUpdate(torque, torque_aero),
+    # force,
+    # torque,
     ])
 
 ##################################################

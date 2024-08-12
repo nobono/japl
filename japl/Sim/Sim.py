@@ -388,6 +388,9 @@ class Sim:
                 for state_id, func in simobj.model.direct_state_update_map.items():
                     X[state_id] = func(tstep, X, U, dt)
 
+                # print("STEP--------------------")
+                # print("DEB ", X[-1])
+
                 X_new, T_new = runge_kutta_4(
                         f=dynamics_func,
                         t=tstep,
