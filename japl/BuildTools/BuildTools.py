@@ -1,3 +1,4 @@
+import os
 from typing import Optional
 from sympy import Matrix, Symbol, Function, Expr, symbols, Number
 from sympy import Derivative
@@ -7,6 +8,7 @@ from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
 
 from japl.BuildTools.CodeGen import *
 from pprint import pprint
+from pprint import pformat
 import sympy as sp
 
 
@@ -56,7 +58,7 @@ def build_model(state: Matrix,
     all_subs = {}
     all_subs.update(def_subs)
     all_subs.update(state_subs)
-    all_subs.update(input_subs)
+    # all_subs.update(input_subs)
     all_subs = _apply_subs_to_dict(all_subs)
 
     # breakpoint()
@@ -111,7 +113,27 @@ def build_model(state: Matrix,
     _check_dynamics_for_undefined_diffs(dynamics)
     _check_dynamics_for_undefined_function(dynamics, state)
 
+    # write_array(state, "./temp_state.py")
+    # write_array(input, "./temp_input.py")
+    # write_array(dynamics, "./temp_dynamics.py")
     return (state, input, dynamics)
+
+
+def write_array(array, out_path: str):
+    # data = pformat(array)
+    if os.path.exists(out_path):
+        option = "r+"
+    else:
+        option = "a+"
+    with open(out_path, option) as f:
+        f.seek(0)
+        for elem in array:
+            if isinstance(elem, DirectUpdateSymbol):
+                data = pformat(elem.sub_expr)
+            else:
+                data = pformat(elem)
+            f.write(data)
+            f.write('\n')
 
 
 def _apply_subs_to_expr(expr, subs: dict|list[dict]):
