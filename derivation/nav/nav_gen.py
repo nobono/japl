@@ -78,8 +78,11 @@ d_v = Matrix([d_v_x, d_v_y,d_v_z])
 u = Matrix([d_ang, d_v])
 
 # input noise
+
+# gyroscope noise
 d_ang_x_var, d_ang_y_var, d_ang_z_var = symbols("daxVar dayVar dazVar", real=True)
 
+# accelerometer noise
 d_v_x_var, d_v_y_var, d_v_z_var = symbols("dvxVar dvyVar dvzVar", real=True)
 
 var_u = Matrix.diag(d_ang_x_var, d_ang_y_var, d_ang_z_var, d_v_x_var, d_v_y_var, d_v_z_var)
