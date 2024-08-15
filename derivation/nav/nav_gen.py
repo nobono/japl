@@ -45,9 +45,16 @@ def create_symmetric_cov_matrix(n):
 def generate_kalman_gain_equations(P, state, observation, variance, varname = "K"):
     H = Matrix([observation]).jacobian(state)
     innov_var = H * P * H.T +  Matrix([variance])
+    assert(innov_var.shape[0] == 1)
+    assert(innov_var.shape[1] == 1)
     K = (P * H.T) / innov_var[0, 0]
     K_simple = cse(K, symbols(f"{varname}0:1000"), optimizations="basic")
     return K_simple
+
+
+####################################################################################
+####################################################################################
+####################################################################################
 
 
 dt = symbols("dt", real=True)
@@ -149,7 +156,7 @@ args = symbols("q0, q1, q2, q3,"            # quaternion
                "dt")
 
 print('Writing covariance propagation to file ...')
-cov_code_generator = OctaveCodeGenerator("./generated/cov_predict.m")
+cov_code_generator = OctaveCodeGenerator("./derivation/nav/generated/cov_predict.m")
 cov_code_generator.print_string("Equations for covariance matrix prediction, without process noise!")
 cov_code_generator.write_function_definition(name="cov_predict",
                                              args=args,

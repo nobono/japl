@@ -10,7 +10,11 @@ class OctaveCodeGenerator:
         self.file = open(self.file_name, 'w')
 
     def print_string(self, string):
-        self.file.write("// " + string + "\n")
+        self.file.write("% " + string + "\n")
+
+    def write_lines(self, string, prefix = "", postfix = "\n"):
+        for line in string.split('\n'):
+            self.file.write(prefix + line + postfix)
 
     def get_ccode(self, expression):
         # return ccode(expression, type_aliases={real:float32})
@@ -22,9 +26,8 @@ class OctaveCodeGenerator:
             # write_string = write_string + "const ftype " + str(item[0]) + " = " + self.get_ccode(item[1]) + ";\n" #type:ignore
             write_string = write_string + str(item[0]) + " = " + self.get_ccode(item[1]) + ";\n" #type:ignore
 
-        write_string = write_string + "\n\n"
         write_string = self.transform_to_octave_style(write_string)
-        self.file.write(write_string)
+        self.write_lines(write_string, prefix="\t")
 
     def write_matrix(self, matrix, variable_name, is_symmetric=False, pre_bracket="(", post_bracket=")", separator=", "):
         write_string = ""
@@ -43,8 +46,7 @@ class OctaveCodeGenerator:
                         write_string = write_string + variable_name + pre_bracket + str(i+1) + separator + str(j+1) + post_bracket + " = " + self.get_ccode(matrix[i,j]) + ";\n"
                         write_string = self.transform_to_octave_style(write_string)
 
-        write_string = write_string + "\n\n"
-        self.file.write(write_string)
+        self.write_lines(write_string, prefix="\t")
 
 
     def transform_to_octave_style(self, input_string):
