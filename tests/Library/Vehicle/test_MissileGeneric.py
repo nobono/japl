@@ -7,7 +7,7 @@ from japl import Sim
 from japl import AeroTable
 from sympy import MatrixSymbol, Matrix, symbols
 from japl.Library.Vehicles import MissileGeneric
-from japl.Sim.Integrate import runge_kutta_4
+from japl.Sim.Integrate import runge_kutta_4, euler
 from japl.Aero.Atmosphere import Atmosphere
 from japl.Aero.AeroTable import AeroTable
 from japl.Math import Rotation
@@ -24,7 +24,7 @@ class test_MissileGeneric(unittest.TestCase):
                 t_span=self.t_span,
                 dt=self.dt,
                 simobjs=[simobj],
-                integrate_method="rk4",
+                integrate_method="euler",
                 animate=0,
                 quiet=1,
                 )
@@ -40,7 +40,7 @@ class test_MissileGeneric(unittest.TestCase):
     def setUp(self):
         self.TOLERANCE_PLACES = 16
         self.dt = 0.01
-        self.t_span = [0, 0.1]
+        self.t_span = [0, 0.08]
 
 
     def create_simobj(self):
@@ -65,6 +65,7 @@ class test_MissileGeneric(unittest.TestCase):
         mach0 = speed0 / 343.0
         alpha0 = 0
         phi0 = 0
+        extra0 = 0
 
         simobj.init_state([x0,
                            v0,
@@ -78,11 +79,11 @@ class test_MissileGeneric(unittest.TestCase):
                            mach0,
                            alpha0,
                            phi0,
-                           0,
+                           extra0,
                            ])
 
         self.atmosphere = Atmosphere()
-        self.aerotable = AeroTable("/Users/david/work_projects/control/aeromodel/aeromodel_psb.mat")
+        self.aerotable = AeroTable("/home/david/work_projects/control/aeromodel/aeromodel_psb.mat")
         return simobj
 
 
@@ -186,14 +187,15 @@ class test_MissileGeneric(unittest.TestCase):
         force_aero,
         torque_aero,
         extra,
-        ) = self.aerotable_update(pos, vel, quat, cg, Iyy,
-                           speed_new, mach_new)
+        ) = self.aerotable_update(pos, vel,
+                                  quat, cg, Iyy,
+                                  speed_new, mach)
 
-        force_new = force + force_aero
-        torque_new = torque + torque_aero
+        force_new = force_aero
+        torque_new = torque_aero
 
         state_updates = {
-                "gacc": -self.atmosphere.grav_accel(alt),
+                "gacc": -9.81,#-self.atmosphere.grav_accel(alt),
                 "speed": speed_new,
                 "mach": mach_new,
                 "alpha": alpha_new,
@@ -221,7 +223,7 @@ class test_MissileGeneric(unittest.TestCase):
         vel_hat = vel / speed
 
         # projection vel_hat --> x-axis
-        zx_plane_norm = np.array([0, 1, 0])
+        zx_plane_norm = np.array([0, 1, 0], dtype=float)
         vel_hat_zx = ((vel_hat @ zx_plane_norm) / np.linalg.norm(zx_plane_norm)) * zx_plane_norm
         vel_hat_proj = vel_hat - vel_hat_zx
 
@@ -229,12 +231,13 @@ class test_MissileGeneric(unittest.TestCase):
         yaw_angle, pitch_angle, roll_angle = Rotation.quat_to_tait_bryan(np.asarray(quat))
 
         # angle between proj vel_hat & xaxis
-        x_axis_inertial = np.array([1, 0, 0])
-        flight_path_angle = np.sign(vel_hat_proj[2]) * Vec.vec_ang(vel_hat_proj, x_axis_inertial)
+        x_axis_inertial = np.array([1, 0, 0], dtype=float)
+        ang = Vec.vec_ang(vel_hat_proj, x_axis_inertial)
+        flight_path_angle = np.sign(vel_hat_proj[2]) * ang
         alpha_new = pitch_angle - flight_path_angle                     # angle of attack
         phi_new = roll_angle
 
-        iota = np.radians(3.3)
+        iota = 0.0
         CLMB = -self.aerotable.get_CLMB_Total(alpha_new, phi_new, mach, iota) #type:ignore
         CNB = self.aerotable.get_CNB_Total(alpha_new, phi_new, mach, iota) #type:ignore
         My_coef = CLMB + (cg - self.aerotable.get_MRC()) * CNB #type:ignore
@@ -251,10 +254,14 @@ class test_MissileGeneric(unittest.TestCase):
         torque_aero = np.array([0, torque_y_new, 0])
 
         # temp
-        # force_aero = np.array([0, 0, 1])
+        force_aero = np.array([0, 0, 1])
         torque_aero = np.array([0, 1, 0])
 
-        extra = pos[2]
+        extra = alpha_new
+
+        print(ang)
+        # print(vel_hat_proj[2])
+        # print(x_axis_inertial)
 
         return (alpha_new, phi_new, force_aero, torque_aero,
                 extra,
@@ -282,13 +289,21 @@ class test_MissileGeneric(unittest.TestCase):
             for state_id, val in state_update_map.items():
                 X[state_id] = val
 
+            # print("TRU %.18f" % X[-1])
             # print("TRU ", X[-1])
 
-            X_new, T_new = runge_kutta_4(
+            # X_new, T_new = runge_kutta_4(
+            #         f=self.dynamics,
+            #         t=tstep,
+            #         X=X,
+            #         h=self.dt,
+            #         args=args
+            #         )
+            X_new, T_new = euler(
                     f=self.dynamics,
                     t=tstep,
                     X=X,
-                    h=self.dt,
+                    dt=self.dt,
                     args=args
                     )
 
