@@ -12,6 +12,7 @@ from japl.Plotter.Plotter import Plotter
 from japl.Plotter.PyQtGraphPlotter import PyQtGraphPlotter
 
 from japl.Sim.Integrate import runge_kutta_4
+from japl.Sim.Integrate import euler
 
 # from japl.Library.Vehicles.RigidBodyModel import RigidBodyModel
 
@@ -379,18 +380,28 @@ class Sim:
         # setup input array
         U = np.zeros(len(simobj.model.input_vars), dtype=self._dtype)
 
+        # apply any direct state updates (user defined)
+        for input_id, func in simobj.model.direct_input_update_map.items():
+            U[input_id] = func(tstep, X, U, dt)
+        for state_id, func in simobj.model.direct_state_update_map.items():
+            X[state_id] = func(tstep, X, U, dt)
+
+        # print("STEP--------------------")
+        # print("DEB %.18f" % X[-1])
+        # print("DEB ", X[-1])
+
         match method:
+            case "euler":
+                X_new, T_new = euler(
+                        f=dynamics_func,
+                        t=tstep,
+                        X=X,
+                        dt=dt,
+                        args=(U, dt, simobj,),
+                        )
+                self.T[istep] = T_new
+                simobj.Y[istep] = X_new
             case "rk4":
-
-                # apply any direct state updates (user defined)
-                for input_id, func in simobj.model.direct_input_update_map.items():
-                    U[input_id] = func(tstep, X, U, dt)
-                for state_id, func in simobj.model.direct_state_update_map.items():
-                    X[state_id] = func(tstep, X, U, dt)
-
-                # print("STEP--------------------")
-                # print("DEB ", X[-1])
-
                 X_new, T_new = runge_kutta_4(
                         f=dynamics_func,
                         t=tstep,
@@ -398,7 +409,6 @@ class Sim:
                         h=dt,
                         args=(U, dt, simobj,),
                         )
-
                 self.T[istep] = T_new
                 simobj.Y[istep] = X_new
             case "odeint":
