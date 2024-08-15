@@ -164,10 +164,7 @@ cov_code_generator.write_function_definition(name="cov_predict",
 cov_code_generator.write_subexpressions(P_new_simple[0])
 cov_code_generator.write_matrix(matrix=Matrix(P_new_simple[1]),
                                 variable_name="nextP",
-                                is_symmetric=True,
-                                pre_bracket="(",
-                                post_bracket=")",
-                                separator=", ")
+                                is_symmetric=True)
 
 cov_code_generator.close()
 
