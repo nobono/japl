@@ -219,13 +219,15 @@ class AeroTable:
                        method=method)[0]
 
 
-    def get_CA_Boost_Total(self, alpha: float, phi: float, mach: float, alt: float, iota: float, method: str = "linear") -> float:
+    def get_CA_Boost_Total(self, alpha: float, phi: float, mach: float, alt: float, iota: float,
+                           method: str = "linear") -> float:
         return self._get_CA_Basic(alpha, phi, mach, method=method)\
                 + self._get_CA_0_Boost(phi, mach, alt, method=method)\
                 + self._get_CA_IT(alpha, phi, mach, iota, method=method)
 
 
-    def get_CA_Coast_Total(self, alpha: float, phi: float, mach: float, alt: float, iota: float, method: str = "linear") -> float:
+    def get_CA_Coast_Total(self, alpha: float, phi: float, mach: float, alt: float, iota: float,
+                           method: str = "linear") -> float:
         return self._get_CA_Basic(alpha, phi, mach, method=method)\
                 + self._get_CA_0_Coast(phi, mach, alt, method=method)\
                 + self._get_CA_IT(alpha, phi, mach, iota, method=method)
