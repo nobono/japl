@@ -1,0 +1,19 @@
+[flake8]
+# max-line-length = 120
+# indent-size = 4
+# max-blank-lines = 3
+# show-source = True
+
+#############################################################
+# Ingores
+#############################################################
+# E203: whitespace before ':'
+# E266: too many leading '#' for block comment
+# E501: line too long
+# W503: line break before binary operator
+# E227: missing whitespace around bitshift / binary operator
+#       (e.g. str|int|float)
+# E303: too many blank lines
+# E126: continuation line over-indented for hanging indent
+#############################################################
+ignore = E203, E266, E501, W503, E227, E303, E126
