@@ -280,12 +280,6 @@ class SimObject:
         self.X0 = _X0
 
 
-    @DeprecationWarning
-    def _output_data(self, y) -> None:
-        """stores solution data from solver into sim object"""
-        self.Y = y
-
-
     def get_plot_data(self, subplot_id: int, index: int) -> tuple[np.ndarray, np.ndarray]:
         """This method returns state data from the SimObject according
         to the user specified state_select."""

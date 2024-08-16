@@ -57,26 +57,6 @@ class StateRegister(dict):
             raise Exception("unhandled case.")
 
 
-    @DeprecationWarning
-    def add_state(self, name: str, id: int, label: str = "") -> Symbol:
-        """This method registers a SimObject state name and plotting label with a
-        user-specified name. The purpose of this register is for ease of access to SimObject
-        states without having to use the state index number.
-
-        -------------------------------------------------------------------
-        -- Arguments
-        -------------------------------------------------------------------
-        -- name - user-specified name of state
-        -- id - state index number
-        -- label - (optional) string other than "name" that will be displayed
-                    in plots / visualization
-        -------------------------------------------------------------------
-        """
-        var = symbols(name)
-        self.update({name: {"id": id, "label": label, "var": var}})
-        return var
-
-
     def set(self, vars: tuple|list|Matrix, labels: Optional[list|tuple] = None):
         """register state and labels"""
         for id, var in enumerate(vars):  # type:ignore
