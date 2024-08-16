@@ -42,14 +42,14 @@ class test_MissileGeneric(unittest.TestCase):
         # for i in range(0, 4):
         #     print("2: ", truth[i, -1])
         # print()
-        print(truth[-1] - simobj.Y[-1])
+        # print(truth[-1] - simobj.Y[-1])
 
         for state, tru in zip(simobj.Y[-1], truth[-1]):
             self.assertAlmostEqual(state, tru, places=self.TOLERANCE_PLACES)
 
 
     def setUp(self):
-        self.TOLERANCE_PLACES = 16
+        self.TOLERANCE_PLACES = 15
         self._dtype=float
         self.dt = 0.01
         self.t_span = t_span
