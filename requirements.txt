@@ -16,3 +16,4 @@ pyqtgraph==0.13.7
 numpy-quaternion==2023.0.3
 plotext==5.2.8
 inputs==0.5
+pytest==8.3.2
