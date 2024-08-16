@@ -1,6 +1,6 @@
 from sympy import Matrix, MatrixSymbol, Expr
 from sympy.functions.elementary.trigonometric import InverseTrigonometricFunction
-from sympy import acos
+from sympy import acos, atan2
 
 
 def vec_norm(vec: Matrix|MatrixSymbol) -> Expr:
@@ -16,4 +16,6 @@ def vec_ang_sym(vec1: Matrix|MatrixSymbol, vec2: Matrix|MatrixSymbol) -> Inverse
         vec1 = vec1.as_mutable()
     if isinstance(vec2, MatrixSymbol):
         vec2 = vec2.as_mutable()
-    return acos(vec1.dot(vec2) / (vec1.norm() * vec2.norm())) #type:ignore
+    dot_product = vec1.dot(vec2)
+    cross_product_norm = vec1.cross(vec2).norm()
+    return atan2(cross_product_norm, dot_product) #type:ignore
