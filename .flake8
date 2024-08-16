@@ -1,5 +1,5 @@
 [flake8]
-# max-line-length = 120
+max-line-length = 120
 # indent-size = 4
 # max-blank-lines = 3
 # show-source = True
@@ -20,7 +20,7 @@
 #############################################################
 ignore = E203,
          E266,
-         E501,
+         # E501,
          W503,
          E227,
          E303,
