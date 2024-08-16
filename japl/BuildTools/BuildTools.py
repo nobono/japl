@@ -1,20 +1,14 @@
 import os
-from typing import Optional
-from sympy import Matrix, Symbol, Function, Expr, symbols, Number
+from sympy import Matrix, Symbol, Function, Expr, Number
 from sympy import Derivative
-from sympy.core.function import UndefinedFunction
 from japl.Model.StateRegister import StateRegister
 from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
-
-from japl.BuildTools.CodeGen import *
-from pprint import pprint
 from pprint import pformat
-import sympy as sp
 
 
 
 def create_error_header(msg: str, char: str = "-", char_len: int = 40) -> str:
-    seg = char*char_len
+    seg = char * char_len
     header = "\n\n" + seg + f"\n{msg}:\n" + seg + "\n"
     return header
 
@@ -62,7 +56,7 @@ def build_model(state: Matrix,
     all_subs = _apply_subs_to_dict(all_subs)
 
     # breakpoint()
-    # NOTE: need 
+    # NOTE: need
     # diff_defs
     # state_defs
     # input_defs
@@ -163,12 +157,12 @@ def _apply_subs_to_dict(subs: dict):
 
 def _create_array_var_subs(array):
     """From state / input arrays create subs for var
-    names. This represents pulling values from the X, U 
+    names. This represents pulling values from the X, U
     array in the step update methods."""
     subs = {}
     for elem in array:
         if isinstance(elem, DirectUpdateSymbol):
-            symbol = Symbol(f"{elem.state_expr.name}")
+            symbol = Symbol(f"{elem.state_expr.name}")  # type:ignore
             subs.update({elem.state_expr: symbol})
         else:
             symbol = Symbol(elem.name)
@@ -178,12 +172,12 @@ def _create_array_var_subs(array):
 
 def _get_array_var_names(array):
     names = []
-    for i, elem in enumerate(array):
+    for _, elem in enumerate(array):
         if isinstance(elem, Symbol):
             names.append(elem.name)
             continue
         if isinstance(elem, Function):
-            names.append(elem.name) #type:ignore
+            names.append(elem.name)  # type:ignore
             continue
         if isinstance(elem, DirectUpdateSymbol):
             _get_array_var_names(elem.state_expr)
@@ -194,7 +188,7 @@ def _get_array_var_names(array):
 
 
 def _check_var_array_types(array, array_name: str = "array"):
-    """This method checks to make sure variables defined in the 
+    """This method checks to make sure variables defined in the
     state & input arrays are of types Symbol, Function, or DirectUpdateSymbol.
     These types can be reduced to a Symbol which the Model class uses to
     register state & input variable indices."""
@@ -207,9 +201,9 @@ def _check_var_array_types(array, array_name: str = "array"):
             continue
         else:
             raise Exception(f"\n\n{array_name}-id[{i}]: cannot register a variable for "
-                    f"expression \n\n\t\"{elem}\":\n\n\tElements of the state array must be "
-                    f"either Symbol, Function, or DirectUpdate. Add to the array a "
-                    f"variable and assign to it the expression using the definitions tuple.")
+                            f"expression \n\n\t\"{elem}\":\n\n\tElements of the state array must be "
+                            f"either Symbol, Function, or DirectUpdate. Add to the array a "
+                            f"variable and assign to it the expression using the definitions tuple.")
 
 
 def _check_dynamics_for_undefined_diffs(dynamics):
@@ -223,23 +217,21 @@ def _check_dynamics_for_undefined_diffs(dynamics):
 
 
 def _check_dynamics_for_undefined_function(dynamics: Matrix, state: Matrix):
-    seg = "-"*40
-    error_header = "\n\n" + seg +\
-                    "\nUndefined functions found in dynamics:" +\
-                   "\n" + seg
+    seg = "-" * 40
+    error_header = "\n\n" + seg + "\nUndefined functions found in dynamics:" + "\n" + seg
     fail = False
     var_msg = []
-    for irow, row in enumerate(dynamics): #type:ignore
+    for irow, row in enumerate(dynamics):  # type:ignore
         found = False
-        for ivar, var in enumerate(state): #type:ignore
+        for ivar, var in enumerate(state):  # type:ignore
             if isinstance(var, DirectUpdateSymbol):
                 if isinstance(var.state_expr, Function):
-                    if row.has(var.state_expr): #type:ignore
+                    if row.has(var.state_expr):  # type:ignore
                         fail = True
                         found = True
                         var_msg += [f"state[{ivar}] undefined variable: {var.state_expr} "]
             elif isinstance(var, Function):
-                if row.has(var): #type:ignore
+                if row.has(var):  # type:ignore
                     fail = True
                     found = True
                     var_msg += [f"state[{ivar}] undefined variable: {var} "]
@@ -256,15 +248,15 @@ def _check_array_for_undefined_function(array: Matrix, array_name: str, array_co
                                         force_symbol: bool = False) -> None:
     error_msg = create_error_header(f"Undefined functions found in {array_name}")
     fail = False
-    for irow, row in enumerate(array): #type:ignore
+    for irow, row in enumerate(array):  # type:ignore
         found = False
-        for ivar, var in enumerate(array_compare): #type:ignore
+        for ivar, var in enumerate(array_compare):  # type:ignore
             if isinstance(var, DirectUpdateSymbol):
                 if isinstance(row, DirectUpdateSymbol):
                     if row.sub_expr.__class__ in [Number, float, int]:
                         pass
                     elif row.sub_expr.__class__ in [Symbol, Function]:
-                        if row.sub_expr.has(var.state_expr): #type:ignore
+                        if row.sub_expr.has(var.state_expr):  # type:ignore
                             fail = True
                             found = True
                             error_msg += f"\n{array_name}[{ivar}] undefined variable: {var.state_expr} "
@@ -288,7 +280,7 @@ def _create_subs_from_definitions(sub: tuple|list|dict) -> dict:
         # update each element.
         for old, new in sub:
             if hasattr(old, "__len__") and hasattr(new, "__len__"):
-                for elem_old, elem_new in zip(old, new): #type:ignore
+                for elem_old, elem_new in zip(old, new):  # type:ignore
                     ret[elem_old] = elem_new
             else:
                 try:
@@ -311,7 +303,7 @@ def _create_subs_from_array(array: tuple|list|Matrix) -> dict:
     for var in array:
         # NOTE: unused?######################################
         # if hasattr(var, "__len__"): # if Matrix
-        #     for elem in var: #type:ignore
+        #     for elem in var:  # type:ignore
         #         ret[elem] = StateRegister._extract_variable(elem)
         # NOTE: unused?######################################
         if isinstance(var, DirectUpdateSymbol):
@@ -332,20 +324,20 @@ def _apply_subs_to_direct_updates(state: Matrix, subs: dict|list[dict]) -> None:
     for var in state:
         if isinstance(var, DirectUpdateSymbol):
             if isinstance(subs, dict):
-                var.sub_expr = var.sub_expr.subs(subs)   #type:ignore
+                var.sub_expr = var.sub_expr.subs(subs)    # type:ignore
             elif isinstance(subs, list):
                 for sub in subs:
                     if var.sub_expr.__class__ in [Number, float, int]:
                         pass
                     else:
-                        var.sub_expr = var.sub_expr.subs(sub)   #type:ignore
+                        var.sub_expr = var.sub_expr.subs(sub)    # type:ignore
             else:
                 raise Exception("unhandled case.")
 
 
 def _apply_definitions_to_array(array: Matrix, subs: dict):
     for var, sub in subs.items():
-        for ielem, elem in enumerate(array): #type:ignore
+        for ielem, elem in enumerate(array):  # type:ignore
             if var == elem:
                 if isinstance(elem, Symbol):
                     array[ielem] = DirectUpdateSymbol(f"{str(elem)}", state_expr=elem, sub_expr=sub)
@@ -353,9 +345,8 @@ def _apply_definitions_to_array(array: Matrix, subs: dict):
                 # and converted to a state Symbol. I don't know if this should be done here or
                 # in a "check" method but let's roll with it.
                 elif isinstance(elem, Function):
-                    array[ielem] = DirectUpdateSymbol(f"{str(elem.name)}", state_expr=elem, sub_expr=sub) #type:ignore
+                    array[ielem] = DirectUpdateSymbol(f"{str(elem.name)}", state_expr=elem, sub_expr=sub)  # type:ignore
                 elif isinstance(elem, Expr):
-                    array[ielem] = DirectUpdateSymbol(f"{str(elem.name)}", state_expr=elem, sub_expr=sub) #type:ignore
+                    array[ielem] = DirectUpdateSymbol(f"{str(elem.name)}", state_expr=elem, sub_expr=sub)  # type:ignore
                 else:
                     raise Exception("unhandled case.")
-
