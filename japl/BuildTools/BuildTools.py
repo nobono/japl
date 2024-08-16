@@ -52,15 +52,6 @@ def build_model(state: Matrix,
     # apply subs to dynamics
     dynamics = dynamics.subs(all_subs).doit()
 
-    # sub input
-    input_name_subs = {}
-    for var in input:
-        if isinstance(var, DirectUpdateSymbol):
-            input_name_subs.update({var.state_expr: Symbol(var.name)})
-        elif isinstance(var, Symbol):
-            pass
-    dynamics = dynamics.subs(input_name_subs)
-
     # check for any undefined differential expresion in dynamics
     _check_dynamics_for_undefined_diffs(dynamics)
     _check_dynamics_for_undefined_function(dynamics, state)
