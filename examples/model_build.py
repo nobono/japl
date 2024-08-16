@@ -4,7 +4,6 @@ from sympy import symbols, Matrix, MatrixSymbol
 import numpy as np
 
 
-
 dt = symbols("dt")
 x = MatrixSymbol('x', 3, 1)
 v = MatrixSymbol('v', 3, 1)
@@ -21,10 +20,10 @@ Sq = Matrix([
     [-q[2], q[1], q[0]],
     ])
 
-w_skew = Matrix(w).hat()        #type:ignore
-Sw = Matrix(np.zeros((4,4)))
+w_skew = Matrix(w).hat()    # type:ignore
+Sw = Matrix(np.zeros((4, 4)))
 Sw[0, :] = Matrix([0, *w]).T
-Sw[:, 0] = Matrix([0, *-w])     #type:ignore
+Sw[:, 0] = Matrix([0, *-w])     # type:ignore
 Sw[1:, 1:] = w_skew
 
 
@@ -47,7 +46,7 @@ X = Matrix([x, v, w, q, mass])
 U = Matrix([a, tq])
 
 
-dynamics: Matrix = X_new.diff(dt) #type:ignore
+dynamics: Matrix = X_new.diff(dt)   # type:ignore
 
 A = dynamics.jacobian(X)
 B = dynamics.jacobian(U)
@@ -62,6 +61,13 @@ pprint(B)
 print()
 pprint(X_dot)
 print()
-pprint(dyn_func([0,0,0, 1,0,0, 0,0,0, 1,0,0,0], [0,1,0, 0,0,0]))
+pprint(dyn_func(
+    [0, 0, 0,
+     1, 0, 0,
+     0, 0, 0,
+     1, 0, 0, 0],
+    [0, 1, 0,
+     0, 0, 0]
+    ))
 
 pass
