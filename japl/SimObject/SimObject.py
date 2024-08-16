@@ -1,42 +1,28 @@
-# ---------------------------------------------------
-
+import japl
+import numpy as np
 from collections.abc import Generator
 from typing import Optional
-
-# ---------------------------------------------------
-
-from matplotlib.axes import Axes
-import numpy as np
-
-# ---------------------------------------------------
-
-import astropy.units as u
-from astropy.units.quantity import Quantity
-
-from pyqtgraph import GraphicsView, PlotCurveItem, PlotDataItem, mkPen
-from pyqtgraph import CircleROI
-from pyqtgraph.Qt.QtGui import QPen
 from sympy import Symbol
-
-# ---------------------------------------------------
-
-import japl
 from japl.Aero.AeroTable import AeroTable
-from japl.Util.UnitCheck import assert_physical_type
 from japl.Model.Model import Model
-from japl.Model.Model import ModelType
 from japl.Util.Util import flatten_list
-
-# ---------------------------------------------------
-
-from matplotlib.patches import Circle
+from pyqtgraph import PlotDataItem, mkPen
+from pyqtgraph.Qt.QtGui import QPen
 from matplotlib.lines import Line2D
 from matplotlib import colors as mplcolors
+# from pyqtgraph import GraphicsView, PlotCurveItem,
+# from pyqtgraph import CircleROI
+# from matplotlib.axes import Axes
+# import astropy.units as u
+# from astropy.units.quantity import Quantity
+# from japl.Util.UnitCheck import assert_physical_type
+# from japl.Model.Model import ModelType
+# from matplotlib.patches import Circle
 
 
 
 # class ShapeCollection:
-#     
+#
 #     """This is a class which abstracts the line / shape plots of different
 #     plotting backends."""
 
@@ -46,10 +32,11 @@ from matplotlib import colors as mplcolors
 #         self.color = color
 #         self.radius = radius
 
-#     
+
 #     def setup(self):
 #         self.patch = Circle((0, 0), radius=size, color=color)
 #         self.trace = Line2D([0], [0], color=color)
+
 
 
 class _PlotInterface:
@@ -173,7 +160,7 @@ class SimObject:
 
 
     def set_state_array(self, state: np.ndarray, names: str|list[str],
-                  vals: float|list|np.ndarray) -> None:
+                        vals: float|list|np.ndarray) -> None:
         """This method sets values of the state array according to the
         provided state names and provided values."""
         ret = self.model.get_state_id(names)
@@ -200,7 +187,7 @@ class SimObject:
 
 
     def set_input_array(self, input: np.ndarray, names: str|list[str],
-                  vals: float|list|np.ndarray) -> None:
+                        vals: float|list|np.ndarray) -> None:
         """This method sets values of the input array according to the
         provided input names and provided values."""
         ret = self.model.get_input_id(names)
@@ -337,7 +324,7 @@ class SimObject:
         if index is None:
             index = len(self.Y) - 1
         else:
-            index += 1 # instead of grabbin "up-to" index, grab last index as well
+            index += 1  # instead of grabbin "up-to" index, grab last index as well
 
         if isinstance(state_slice, tuple) or isinstance(state_slice, list):
             return self.Y[:index, state_slice[0]:state_slice[1]]
@@ -353,10 +340,10 @@ class SimObject:
                         but no state index is registered under this name.")
         else:
             return np.array([])
-            
+
 
     def _set_T_array_ref(self, _T) -> None:
-        """This method is used to reference the internal __T time array to the 
+        """This method is used to reference the internal __T time array to the
         Sim class Time array 'T'. This method exists to avoid redundant time arrays in
         various SimObjects."""
 
@@ -365,5 +352,3 @@ class SimObject:
 
     def _update_patch_data(self, xdata: np.ndarray, ydata: np.ndarray, subplot_id: int, **kwargs) -> None:
         self.plot._update_patch_data(xdata, ydata, subplot_id=subplot_id, **kwargs)
-
-
