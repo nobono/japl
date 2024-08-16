@@ -91,16 +91,17 @@ class AeroTable:
         self.MRC = data_dict.get("MRC", None)
 
         ############################################################
+        # Convert to SI units
         # TODO make input and ouput of units better...
-        # TEMP: currently aero data available is in imperial units
+        # NOTE: currently aero data available is in imperial units
         ############################################################
         self.increments.alpha = self.increments.alpha * self.__deg2rad
         self.increments.phi = self.increments.phi * self.__deg2rad
         self.increments.alt = self.increments.alt * self.__ft2m
         self.increments.iota = self.increments.iota * self.__deg2rad
         self.increments.iota_prime = self.increments.iota_prime * self.__deg2rad
-        self.Sref = self.__inch_sq_2_m_sq
-        self.Lref = self.__inch2m
+        self.Sref = self.Sref * self.__inch_sq_2_m_sq
+        self.Lref = self.Lref * self.__inch2m
         self.MRC = data_dict.get("MRC", None)
         ############################################################
 
