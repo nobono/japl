@@ -28,26 +28,13 @@ def build_model(state: Matrix,
     # handle formatting of provided definitions, state, input
     def_subs = _create_subs_from_definitions(definitions)
 
-    # create subs from
-    state_subs = _create_subs_from_array(state)
-    input_subs = _create_subs_from_array(input)
+    # create subs for state / input symbols
+    state_subs = _create_symbol_subs(state)
+    input_subs = _create_symbol_subs(input)
 
     # apply definitions sub to state & input
-    # via DirectUpdateSymbol
     _apply_definitions_to_array(state, def_subs)
     _apply_definitions_to_array(input, def_subs)
-
-    # NOTE: testing this ##############
-    # NOTE: dont subs input_subs when subbing
-    # dynamics --possibly even when subbing state.
-    def_state_subs = {}
-    def_state_subs.update(def_subs)
-    def_state_subs.update(state_subs)
-
-    # TODO: left off here,
-    # determining weather should sub input_subs
-    # or not.
-    def_state_subs = _apply_subs_to_dict(def_state_subs)
 
     all_subs = {}
     all_subs.update(def_subs)
@@ -55,39 +42,15 @@ def build_model(state: Matrix,
     all_subs.update(input_subs)
     all_subs = _apply_subs_to_dict(all_subs)
 
-    # breakpoint()
-    # NOTE: need
-    # diff_defs
-    # state_defs
-    # input_defs
-    # state_var_subs
-    # input_var_subs
-    state_var_subs = _create_array_var_subs(state)
-    input_var_subs = _create_array_var_subs(input)
-    # _apply_subs_to_direct_updates(state, all_subs)
-    _apply_subs_to_direct_updates(state, state_var_subs)
-    _apply_subs_to_direct_updates(input, state_var_subs)
-    _apply_subs_to_direct_updates(state, input_var_subs)
-    _apply_subs_to_direct_updates(input, input_var_subs)
-
+    _apply_subs_to_direct_updates(state, state_subs)
+    _apply_subs_to_direct_updates(input, state_subs)
+    _apply_subs_to_direct_updates(state, input_subs)
+    _apply_subs_to_direct_updates(input, input_subs)
 
     ###################################
 
-    # process DirectUpdate.expr with diff & state subs
-    # _apply_subs_to_direct_updates(state, [def_subs, state_subs, input_subs])
-    # _apply_subs_to_direct_updates(input, [def_subs, state_subs, input_subs])
-
-    # NOTE: may not need this ####################################
-    # now that subs applied to DirectUpdateSymbols,
-    # update state & input subs again
-    # state_sub = _create_subs_from_vars(state)
-    # input_sub = _create_subs_from_vars(input)
-    # NOTE: may not need this ####################################
-
-    # do substitions
-    # dynamics = dynamics.subs(def_subs).doit()
-    # dynamics = dynamics.subs(state_subs).subs(input_subs)
-    dynamics = dynamics.subs(all_subs)
+    # apply subs to dynamics
+    dynamics = dynamics.subs(all_subs).doit()
 
     # sub input
     input_name_subs = {}
@@ -97,13 +60,6 @@ def build_model(state: Matrix,
         elif isinstance(var, Symbol):
             pass
     dynamics = dynamics.subs(input_name_subs)
-
-    # TODO: this needs to be re-evaluated. May not be neccessary
-    # or best emthod of checking
-    # _check_array_for_undefined_function(state, "state", state, force_symbol=False)
-    # _check_array_for_undefined_function(state, "state", input, force_symbol=False)
-    # _check_array_for_undefined_function(input, "input", state, force_symbol=False)
-    # _check_array_for_undefined_function(input, "input", input, force_symbol=False)
 
     # check for any undefined differential expresion in dynamics
     _check_dynamics_for_undefined_diffs(dynamics)
@@ -155,18 +111,24 @@ def _apply_subs_to_dict(subs: dict):
     return subs
 
 
-def _create_array_var_subs(array):
-    """From state / input arrays create subs for var
-    names. This represents pulling values from the X, U
-    array in the step update methods."""
+def _create_symbol_subs(array):
+    """This method generates a 'subs' dict from provided array of
+    symbolic variables which map Symbols, Functions, DirectUpdateSymbol
+    to a basic sympy Symbol. This represents pulling values from the X, U
+    arrays in the step update methods."""
     subs = {}
     for elem in array:
         if isinstance(elem, DirectUpdateSymbol):
             symbol = Symbol(f"{elem.state_expr.name}")  # type:ignore
             subs.update({elem.state_expr: symbol})
-        else:
+        elif isinstance(elem, Symbol):
             symbol = Symbol(elem.name)
             subs.update({elem: symbol})
+        elif isinstance(elem, Function):
+            symbol = Symbol(elem.name)  # type: ignore
+            subs.update({elem: symbol})
+        else:
+            raise Exception("unhandled case.")
     return subs
 
 
@@ -292,32 +254,6 @@ def _create_subs_from_definitions(sub: tuple|list|dict) -> dict:
     return ret
 
 
-def _create_subs_from_array(array: tuple|list|Matrix) -> dict:
-    """This method generates a 'subs' dict from provided
-    symbolic variables (Symbol, Function, Matrix). This is
-    used for substitution of variables into a sympy expression.
-        - handles substitions passed as Matrix"""
-    assert hasattr(array, "__len__")
-    ret = {}
-    # for each element get the name
-    for var in array:
-        # NOTE: unused?######################################
-        # if hasattr(var, "__len__"): # if Matrix
-        #     for elem in var:  # type:ignore
-        #         ret[elem] = StateRegister._extract_variable(elem)
-        # NOTE: unused?######################################
-        if isinstance(var, DirectUpdateSymbol):
-            # ret[var.state_expr] = var.sub_expr
-            ret[var.state_expr] = StateRegister._extract_variable(var.state_expr)
-        elif isinstance(var, Function):
-            ret[var] = StateRegister._extract_variable(var)
-        elif isinstance(var, Symbol):
-            ret[var] = StateRegister._extract_variable(var)
-        else:
-            raise Exception("unhandled case.")
-    return ret
-
-
 def _apply_subs_to_direct_updates(state: Matrix, subs: dict|list[dict]) -> None:
     """applies substitions to DirectUpdateSymbol.expr which is the expression
     that is lambdified for direct state updates."""
@@ -336,6 +272,9 @@ def _apply_subs_to_direct_updates(state: Matrix, subs: dict|list[dict]) -> None:
 
 
 def _apply_definitions_to_array(array: Matrix, subs: dict):
+    """This method is for applying substitions to an array of
+    symbolic variables. substitions are made by instantiating
+    a DirectUpdateSymbol for the original symbol."""
     for var, sub in subs.items():
         for ielem, elem in enumerate(array):  # type:ignore
             if var == elem:
