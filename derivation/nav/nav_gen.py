@@ -1,7 +1,8 @@
-from sympy import Matrix, Symbol, symbols, sqrt, cse, MatrixSymbol
-import numpy as np
-from code_gen import *
-from pprint import pprint
+from sympy import Matrix, Symbol, symbols, cse, MatrixSymbol
+# from code_gen import OctaveCodeGenerator
+# from code_gen import CCodeGenerator
+# import numpy as np
+# from pprint import pprint
 
 
 
@@ -10,13 +11,13 @@ def quat_to_dcm(q):
     q1 = q[1]
     q2 = q[2]
     q3 = q[3]
-    Rot = Matrix([[1 - 2*(q2**2 + q3**2), 2*(q1*q2 - q0*q3)    , 2*(q1*q3 + q0*q2)    ],
-                 [2*(q1*q2 + q0*q3)     , 1 - 2*(q1**2 + q3**2), 2*(q2*q3 - q0*q1)    ],
-                 [2*(q1*q3-q0*q2)       , 2*(q2*q3 + q0*q1)    , 1 - 2*(q1**2 + q2**2)]])
+    Rot = Matrix([[1 - 2*(q2**2 + q3**2), 2*(q1*q2 - q0*q3)    , 2*(q1*q3 + q0*q2)    ],    # noqa
+                 [2*(q1*q2 + q0*q3)     , 1 - 2*(q1**2 + q3**2), 2*(q2*q3 - q0*q1)    ],    # noqa
+                 [2*(q1*q3-q0*q2)       , 2*(q2*q3 + q0*q1)    , 1 - 2*(q1**2 + q2**2)]])   # noqa
     return Rot
 
 
-def quat_mult(p,q):
+def quat_mult(p, q):
     r = Matrix([p[0] * q[0] - p[1] * q[1] - p[2] * q[2] - p[3] * q[3],
                 p[0] * q[1] + p[1] * q[0] + p[2] * q[3] - p[3] * q[2],
                 p[0] * q[2] - p[1] * q[3] + p[2] * q[0] + p[3] * q[1],
@@ -35,19 +36,19 @@ def create_cov_matrix(i, j):
 
 def create_symmetric_cov_matrix(n):
     # define a symbolic covariance matrix
-    P = Matrix(n,n,create_cov_matrix)
+    P = Matrix(n, n, create_cov_matrix)
     for index in range(n):
         for j in range(n):
             if index > j:
-                P[index,j] = P[j,index]
+                P[index, j] = P[j, index]
     return P
 
 
-def generate_kalman_gain_equations(P, state, observation, variance, varname = "K"):
+def generate_kalman_gain_equations(P, state, observation, variance, varname: str = "K"):
     H = Matrix([observation]).jacobian(state)
-    innov_var = H * P * H.T +  Matrix([variance])
-    assert(innov_var.shape[0] == 1)
-    assert(innov_var.shape[1] == 1)
+    innov_var = H * P * H.T + Matrix([variance])
+    assert (innov_var.shape[0] == 1)
+    assert (innov_var.shape[1] == 1)
     K = (P * H.T) / innov_var[0, 0]
     K_simple = cse(K, symbols(f"{varname}0:1000"), optimizations="basic")
     return K_simple
@@ -207,7 +208,7 @@ accel_true = accel - accel_bias
 
 dcm_to_earth = quat_to_dcm(quat)
 dcm_to_body = dcm_to_earth.T
-gravity_ef = Matrix([0, 0, -1]) # gravity earth-frame
+gravity_ef = Matrix([0, 0, -1])  # gravity earth-frame
 gravity_bf = dcm_to_body * gravity_ef
 
 ##################################################
@@ -215,10 +216,10 @@ gravity_bf = dcm_to_body * gravity_ef
 ##################################################
 wx, wy, wz = gyro_true
 Sw = Matrix([
-    [ 0,   wx,  wy,  wz], #type:ignore
-    [-wx,  0,  -wz,  wy], #type:ignore
-    [-wy,  wz,   0, -wx], #type:ignore
-    [-wz, -wy,  wx,   0], #type:ignore
+    [0, wx, wy, wz],    # type:ignore
+    [-wx, 0, -wz, wy],  # type:ignore
+    [-wy, wz, 0, -wx],  # type:ignore
+    [-wz, -wy, wx, 0],  # type:ignore
     ])
 
 quat_new = quat + (-0.5 * Sw * quat) * dt
@@ -235,7 +236,7 @@ accel_x_var, accel_y_var, accel_z_var = symbols('accel_x_var accel_y_var accel_z
 acc_x_var, acc_y_var, acc_z_var = symbols('acc_x_var acc_y_var acc_z_var')
 Q = Matrix.diag([gyro_x_var, gyro_y_var, gyro_z_var, accel_x_var, accel_y_var, accel_z_var])
 
-# Observation Noise 
+# Observation Noise
 R_accel_x, R_accel_y, R_accel_z = symbols('R_accel_x R_accel_y R_accel_z')
 R_mag_world_x, R_mag_world_y, R_mag_world_z = symbols('R_mag_world_x R_mag_world_y R_mag_world_z')
 R_vel_x, R_vel_y, R_vel_z = symbols('R_vel_x R_vel_y R_vel_z')
@@ -254,7 +255,7 @@ P_new = A * P * A.T + G * Q * G.T
 ##################################################
 # Observations
 ##################################################
-# Body Frame Accelerometer Observation   
+# Body Frame Accelerometer Observation
 obs_accel = (dcm_to_earth * gravity_bf) - accel_bias
 H_accel_x = obs_accel[0].diff(state).T
 H_accel_y = obs_accel[1].diff(state).T
@@ -277,5 +278,3 @@ innov_var_accel_z = H_accel_z * P * H_accel_z.T + Matrix([R_accel_z])
 K_accel_x = P * H_accel_x.T / innov_var_accel_x[0, 0]
 K_accel_y = P * H_accel_y.T / innov_var_accel_y[0, 0]
 K_accel_z = P * H_accel_z.T / innov_var_accel_z[0, 0]
-
-

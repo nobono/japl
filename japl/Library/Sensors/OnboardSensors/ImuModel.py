@@ -1,10 +1,8 @@
 import numpy as np
-from japl import Model
-from sympy import symbols, Matrix, lambdify
+# from japl import Model
+# from sympy import symbols, Matrix, lambdify
 
 
-
-# model = Model().from_expression
 
 class SensorBase:
 
@@ -32,7 +30,7 @@ class SensorBase:
             [misalignment[1], misalignment[2], 1],
             ])
 
-    
+
     def _calc_measurement(self, time, true_val):
         return self.M @ self.S @ true_val + self.bias + self.noise
 

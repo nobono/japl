@@ -1,7 +1,7 @@
 from sympy import Matrix, symbols, Symbol
 from sympy.core.function import Function
 from japl import Model
-from japl.BuildTools.DirectUpdate import DirectUpdate
+# from japl.BuildTools.DirectUpdate import DirectUpdate
 
 
 
@@ -12,34 +12,34 @@ class RigidBodyModel(Model):
 t = symbols("t")
 dt = symbols("dt")
 
-pos_x = Function("pos_x", real=True)(t) #type:ignore
-pos_y = Function("pos_y", real=True)(t) #type:ignore
-pos_z = Function("pos_z", real=True)(t) #type:ignore
+pos_x = Function("pos_x", real=True)(t)  # type:ignore
+pos_y = Function("pos_y", real=True)(t)  # type:ignore
+pos_z = Function("pos_z", real=True)(t)  # type:ignore
 
-vel_x = Function("vel_x", real=True)(t) #type:ignore
-vel_y = Function("vel_y", real=True)(t) #type:ignore
-vel_z = Function("vel_z", real=True)(t) #type:ignore
+vel_x = Function("vel_x", real=True)(t)  # type:ignore
+vel_y = Function("vel_y", real=True)(t)  # type:ignore
+vel_z = Function("vel_z", real=True)(t)  # type:ignore
 
-angvel_x = Function("angvel_x", real=True)(t) #type:ignore
-angvel_y = Function("angvel_y", real=True)(t) #type:ignore
-angvel_z = Function("angvel_z", real=True)(t) #type:ignore
+angvel_x = Function("angvel_x", real=True)(t)  # type:ignore
+angvel_y = Function("angvel_y", real=True)(t)  # type:ignore
+angvel_z = Function("angvel_z", real=True)(t)  # type:ignore
 
-q_0 = Function("q_0", real=True)(t) #type:ignore
-q_1 = Function("q_1", real=True)(t) #type:ignore
-q_2 = Function("q_2", real=True)(t) #type:ignore
-q_3 = Function("q_3", real=True)(t) #type:ignore
+q_0 = Function("q_0", real=True)(t)  # type:ignore
+q_1 = Function("q_1", real=True)(t)  # type:ignore
+q_2 = Function("q_2", real=True)(t)  # type:ignore
+q_3 = Function("q_3", real=True)(t)  # type:ignore
 
-acc_x = Function("acc_x", real=True)(t) #type:ignore
-acc_y = Function("acc_y", real=True)(t) #type:ignore
-acc_z = Function("acc_z", real=True)(t) #type:ignore
+acc_x = Function("acc_x", real=True)(t)  # type:ignore
+acc_y = Function("acc_y", real=True)(t)  # type:ignore
+acc_z = Function("acc_z", real=True)(t)  # type:ignore
 
-torque_x = Function("torque_x", real=True)(t) #type:ignore
-torque_y = Function("torque_y", real=True)(t) #type:ignore
-torque_z = Function("torque_z", real=True)(t) #type:ignore
+torque_x = Function("torque_x", real=True)(t)  # type:ignore
+torque_y = Function("torque_y", real=True)(t)  # type:ignore
+torque_z = Function("torque_z", real=True)(t)  # type:ignore
 
-force_x = Function("force_x", real=True)(t) #type:ignore
-force_y = Function("force_y", real=True)(t) #type:ignore
-force_z = Function("force_z", real=True)(t) #type:ignore
+force_x = Function("force_x", real=True)(t)  # type:ignore
+force_y = Function("force_y", real=True)(t)  # type:ignore
+force_z = Function("force_z", real=True)(t)  # type:ignore
 
 Ixx = Symbol("Ixx", real=True)
 Iyy = Symbol("Iyy", real=True)
@@ -80,10 +80,10 @@ gravity = Matrix([0, 0, gacc])
 
 wx, wy, wz = angvel
 Sw = Matrix([
-    [ 0,   wx,  wy,  wz], #type:ignore
-    [-wx,  0,  -wz,  wy], #type:ignore
-    [-wy,  wz,   0, -wx], #type:ignore
-    [-wz, -wy,  wx,   0], #type:ignore
+    [0, wx, wy, wz],  # type:ignore
+    [-wx, 0, -wz, wy],  # type:ignore
+    [-wy, wz, 0, -wx],  # type:ignore
+    [-wz, -wy, wx, 0],  # type:ignore
     ])
 
 pos_new = pos + vel * dt
@@ -103,10 +103,10 @@ mass_dot = mass_new.diff(dt)
 ##################################################
 
 defs = (
-        (pos.diff(t),       pos_dot),
-        (vel.diff(t),       vel_dot),
-        (angvel.diff(t),    angvel_dot),
-        (quat.diff(t),      quat_dot),
+        (pos.diff(t), pos_dot),
+        (vel.diff(t), vel_dot),
+        (angvel.diff(t), angvel_dot),
+        (quat.diff(t), quat_dot),
         )
 
 ##################################################
@@ -140,7 +140,9 @@ dynamics = state.diff(t)
 # Build Model
 ##################################################
 
-model = RigidBodyModel.from_expression(dt, state, input, dynamics,
-                                         definitions=defs,
-                                         modules=[])
-
+model = RigidBodyModel.from_expression(dt,
+                                       state,
+                                       input,
+                                       dynamics,
+                                       definitions=defs,
+                                       modules=[])

@@ -1,28 +1,20 @@
 from functools import partial
 import numpy as np
-
 from typing import Callable, Optional
 from typing import Generator
-
-from pyqtgraph.Qt.QtWidgets import QGridLayout, QWidget, QWidgetItem
 import quaternion
-
-
-from japl.Math.Rotation import quat_to_tait_bryan
 from japl.SimObject.SimObject import SimObject
-
+# from japl.Math.Rotation import quat_to_tait_bryan
 import pyqtgraph as pg
-from pyqtgraph import GraphItem, GraphicsLayoutWidget, PlotCurveItem, PlotDataItem, PlotItem, QtGui, TextItem, ViewBox, mkColor, mkPen
+from pyqtgraph import GraphItem, GraphicsLayoutWidget, PlotDataItem, TextItem, ViewBox
 from pyqtgraph import QtWidgets
-from pyqtgraph import PlotWidget
 from pyqtgraph.Qt import QtCore
-from pyqtgraph.Qt.QtCore import QRectF
 from pyqtgraph.Qt.QtGui import QKeySequence, QTransform
-
+# from pyqtgraph.Qt.QtWidgets import QGridLayout, QWidget, QWidgetItem
+# from pyqtgraph import PlotItem, QtGui, mkColor, mkPen, PlotCurveItem
+# from pyqtgraph import PlotWidget
+# from pyqtgraph.Qt.QtCore import QRectF
 from matplotlib import colors as mplcolors
-
-import time
-# ---------------------------------------------------
 
 
 
@@ -65,7 +57,6 @@ class PyQtGraphPlotter:
             for _, v in mplcolors.TABLEAU_COLORS.items():
                 yield str(v)
 
-
     # --------------------------------------------------------------------------------------
     # ViewBoxes
     # --------------------------------------------------------------------------------------
@@ -94,7 +85,7 @@ class PyQtGraphPlotter:
             text_viewbox.addItem(TextItem(
                 text,
                 color=color,
-                anchor=(0, 3 - spacing*ntext),
+                anchor=(0, 3 - spacing * ntext),
                 ))
 
 
@@ -134,7 +125,7 @@ class PyQtGraphPlotter:
                 symbol=None,
                 pxMode=False
                 )
-        view.addItem(vector_item) #type:ignore
+        view.addItem(vector_item)  # type:ignore
 
     # --------------------------------------------------------------------------------------
 
@@ -157,104 +148,104 @@ class PyQtGraphPlotter:
 
     def add_simobject(self, simobj: SimObject) -> None:
 
-            if self.quiet:
-                return
+        if self.quiet:
+            return
 
-            self.simobjs += [simobj]
+        self.simobjs += [simobj]
 
-            # setup window for each simobj
-            _win = GraphicsLayoutWidget()
-            _win.resize(*(np.array([*self.figsize]) * 100))
-            _win.show()
-            self.wins += [_win]
+        # setup window for each simobj
+        _win = GraphicsLayoutWidget()
+        _win.resize(*(np.array([*self.figsize]) * 100))
+        _win.show()
+        self.wins += [_win]
 
-            # shortcut keys callbacks for each simobj view
-            _shortcut = QtWidgets.QShortcut(QKeySequence("Q"), _win)
-            _shortcut.activated.connect(self.close_windows) #type:ignore
-            self.shortcuts += [_shortcut]
+        # shortcut keys callbacks for each simobj view
+        _shortcut = QtWidgets.QShortcut(QKeySequence("Q"), _win)
+        _shortcut.activated.connect(self.close_windows)  # type:ignore
+        self.shortcuts += [_shortcut]
 
-            # setup user-defined plots for each simobj
-            for i, (title, axes) in enumerate(simobj.plot.get_config().items()):
-                _plot_item = _win.addPlot(row=i, col=0, colspan=2, title=title, name=title)   # add PlotItem to View
-                _plot_item.showGrid(True, True, 0.5)    # enable grid
-                _aspect = axes.get("aspect", self.aspect)   # look for aspect in plot config; default to class init
-                _plot_item.setAspectLocked(_aspect == "equal")
-                _pen = {"color": simobj.plot.color_code, "width": simobj.size}
-                _graphic_item = PlotDataItem(x=[], y=[], pen=_pen,
-                                             useCache=self.draw_cache_mode,
-                                             antialias=self.antialias,
-                                             autoDownsample=True,
-                                             downsampleMethod="peak",
-                                             clipToView=True,
-                                             skipFiniteCheck=True,
-                                             )
-                _plot_item.addItem(_graphic_item)   # init PlotCurve
-                simobj.plot.qt_traces += [_graphic_item]   # add GraphicsItem reference to SimObject
+        # setup user-defined plots for each simobj
+        for i, (title, axes) in enumerate(simobj.plot.get_config().items()):
+            _plot_item = _win.addPlot(row=i, col=0, colspan=2, title=title, name=title)   # add PlotItem to View
+            _plot_item.showGrid(True, True, 0.5)    # enable grid
+            _aspect = axes.get("aspect", self.aspect)   # look for aspect in plot config; default to class init
+            _plot_item.setAspectLocked(_aspect == "equal")
+            _pen = {"color": simobj.plot.color_code, "width": simobj.size}
+            _graphic_item = PlotDataItem(x=[], y=[], pen=_pen,
+                                         useCache=self.draw_cache_mode,
+                                         antialias=self.antialias,
+                                         autoDownsample=True,
+                                         downsampleMethod="peak",
+                                         clipToView=True,
+                                         skipFiniteCheck=True,
+                                         )
+            _plot_item.addItem(_graphic_item)   # init PlotCurve
+            simobj.plot.qt_traces += [_graphic_item]   # add GraphicsItem reference to SimObject
 
-            # setup vehicle viewer widget
-            if self.instrument_view:
-                _view = ViewBox(name="instrument_view")
-                _view.setAspectLocked(True)
-                _view.setRange(xRange=[-1,1], yRange=[-1, 1])
-                _win.addItem(_view, row=(i + 1), col=0, colspan=1) #type:ignore
+        # setup vehicle viewer widget
+        if self.instrument_view:
+            _view = ViewBox(name="instrument_view")
+            _view.setAspectLocked(True)
+            _view.setRange(xRange=[-1, 1], yRange=[-1, 1])
+            _win.addItem(_view, row=(i + 1), col=0, colspan=1)  # type:ignore
 
-                # ViewBox for text
-                _text_view = ViewBox()
-                _text_view.setRange(xRange=[-1, 1], yRange=[-1, 1])
-                _win.addItem(_text_view, row=(i + 1), col=1, colspan=1) #type:ignore
+            # ViewBox for text
+            _text_view = ViewBox()
+            _text_view.setRange(xRange=[-1, 1], yRange=[-1, 1])
+            _win.addItem(_text_view, row=(i + 1), col=1, colspan=1)  # type:ignore
 
-                self.attitude_graph_item: GraphItem = pg.GraphItem()
-                _view.addItem(self.attitude_graph_item) #type:ignore
+            self.attitude_graph_item: GraphItem = pg.GraphItem()
+            _view.addItem(self.attitude_graph_item)  # type:ignore
 
-                # missile drawing
-                L = .5
-                H = .05
-                nose_len = 0.1
-                cx, cy = (0, 0)
+            # missile drawing
+            L = .5
+            H = .05
+            nose_len = 0.1
+            cx, cy = (0, 0)
 
-                # Define positions of nodes
-                self.attitude_graph_verts = np.array([
-                    [cx, cy],
-                    [cx - L, cy - H],
-                    [cx - L, cy + H],
-                    [cx + L, cy + H],
-                    [cx + L, cy - H],
-                    [cx + L + nose_len, cy]
-                ])
+            # Define positions of nodes
+            self.attitude_graph_verts = np.array([
+                [cx, cy],
+                [cx - L, cy - H],
+                [cx - L, cy + H],
+                [cx + L, cy + H],
+                [cx + L, cy - H],
+                [cx + L + nose_len, cy]
+            ])
 
-                # Define the set of connections in the graph
-                self.attitude_graph_conn = np.array([
-                    [1, 2],
-                    [2, 3],
-                    [3, 5],
-                    [5, 4],
-                    [4, 1],
-                ])
+            # Define the set of connections in the graph
+            self.attitude_graph_conn = np.array([
+                [1, 2],
+                [2, 3],
+                [3, 5],
+                [5, 4],
+                [4, 1],
+            ])
 
-                # Define the symbol to use for each node (this is optional)
-                # self.symbols = ['x', 'x', 'x', 'x', 'x', 'x']
-                self.symbols = None
+            # Define the symbol to use for each node (this is optional)
+            # self.symbols = ['x', 'x', 'x', 'x', 'x', 'x']
+            self.symbols = None
 
-                # Define the line style for each connection (this is optional)
-                self.attitude_graph_lines = np.array(
-                        [(100, 100, 255, 255, 8)] * len(self.attitude_graph_conn),
-                        dtype=[
-                            ('red', np.ubyte),
-                            ('green', np.ubyte),
-                            ('blue', np.ubyte),
-                            ('alpha', np.ubyte),
-                            ('width', float),
-                            ])
+            # Define the line style for each connection (this is optional)
+            self.attitude_graph_lines = np.array(
+                    [(100, 100, 255, 255, 8)] * len(self.attitude_graph_conn),
+                    dtype=[
+                        ('red', np.ubyte),
+                        ('green', np.ubyte),
+                        ('blue', np.ubyte),
+                        ('alpha', np.ubyte),
+                        ('width', float),
+                        ])
 
-                # Update the graph
-                self.attitude_graph_item.setData(
-                        pos=self.attitude_graph_verts,
-                        adj=self.attitude_graph_conn,
-                        pen=self.attitude_graph_lines,
-                        size=1,
-                        symbol=self.symbols,
-                        pxMode=False
-                        )
+            # Update the graph
+            self.attitude_graph_item.setData(
+                    pos=self.attitude_graph_verts,
+                    adj=self.attitude_graph_conn,
+                    pen=self.attitude_graph_lines,
+                    size=1,
+                    symbol=self.symbols,
+                    pxMode=False
+                    )
 
 
     def FuncAnimation(self,
@@ -268,9 +259,9 @@ class PyQtGraphPlotter:
         self.timer.start(interval)
 
 
-    # TODO this may belong in Sim class...
     def _animate_func(self, frame, simobj: SimObject, step_func: Callable,
                       frame_rate: float, moving_bounds: bool = False):
+        # TODO this may belong in Sim class...
 
         # # TEMP #############################################
         # # %-error time profile of pyqtgraph painting process
@@ -358,8 +349,8 @@ class PyQtGraphPlotter:
 
         # swap rows 1 & 2; swap cols 1 & 2
         yz_swapped_dcm = np.array([dcm[0], dcm[2], dcm[1],
-                                dcm[6], dcm[8], dcm[7],
-                                dcm[3], dcm[5], dcm[4]])
+                                   dcm[6], dcm[8], dcm[7],
+                                   dcm[3], dcm[5], dcm[4]])
 
         transform = QTransform(*yz_swapped_dcm)
         self.attitude_graph_item.setTransform(transform)
@@ -377,7 +368,7 @@ class PyQtGraphPlotter:
     #     width = lim[1] - lim[0]
     #     height = lim[3] - lim[2]
 
-    #     newRect = QRectF(x, y, width, height) #type:ignore
+    #     newRect = QRectF(x, y, width, height)  # type:ignore
     #     self.widget.setRange(newRect, padding=padding)
 
 
@@ -397,7 +388,8 @@ class PyQtGraphPlotter:
     #     pass
 
 
-    # def update_axes_boundary(self, ax: Axes, pos: list|tuple, margin: float = 0.1, moving_bounds: bool = False) -> None:
+    # def update_axes_boundary(self, ax: Axes, pos: list|tuple, margin: float = 0.1,
+    #                          moving_bounds: bool = False) -> None:
     #     """
     #         This method handles the plot axes boundaries during FuncAnimation frames.
 
@@ -422,7 +414,7 @@ class PyQtGraphPlotter:
     #     Y_RANGE_LIM = int(X_RANGE_LIM / aspect_ratio)
 
     #     # weight the amount to move the border proportional to how close
-    #     # the object cetner is to the border limit. Also account for the 
+    #     # the object cetner is to the border limit. Also account for the
     #     # scale of the current plot window (xlen, ylen) in the amount to
     #     # change the current boundary.
 
@@ -503,5 +495,3 @@ class PyQtGraphPlotter:
     # def autoscale(self, xdata: np.ndarray|list, ydata: np.ndarray|list) -> None:
     #     # autoscale
     #     self.set_lim([min(xdata) - 0.2, max(xdata) + 0.2, min(ydata) - 0.2, max(ydata) + 0.2])
-
-

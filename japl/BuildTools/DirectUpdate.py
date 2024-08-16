@@ -32,7 +32,7 @@ class DirectUpdate(Matrix):
 
     def __new__(cls, var: DUType|str, val: DUType|Expr|float|int|Number, **assumptions):
         var = cls.process_symbols(var, val)
-        obj = super().__new__(cls, var, **assumptions) #type:ignore
+        obj = super().__new__(cls, var, **assumptions)  # type:ignore
         return obj
 
 
@@ -56,11 +56,10 @@ class DirectUpdate(Matrix):
                 name = str(var.name)
                 return Matrix([DirectUpdateSymbol(name, state_expr=var, sub_expr=val)])
             case Matrix():
-                return Matrix([DirectUpdate.process_symbols(var_elem, val_elem)\
-                        for var_elem, val_elem in zip(var, val)])
+                return Matrix([DirectUpdate.process_symbols(var_elem, val_elem)
+                               for var_elem, val_elem in zip(var, val)])
             case list():
-                return Matrix([DirectUpdate.process_symbols(var_elem, val_elem)\
-                        for var_elem, val_elem in zip(var, val)])
+                return Matrix([DirectUpdate.process_symbols(var_elem, val_elem)
+                               for var_elem, val_elem in zip(var, val)])
             case _:
                 raise Exception("unhandled case.")
-

@@ -1,10 +1,8 @@
-import sympy as sp
 from sympy import Matrix, Symbol, symbols
-from sympy import sqrt, sign, rad
+from sympy import sign, rad
 from japl import Model
-from japl.Math.MathSymbolic import zero_protect_sym
+# from japl.Math.MathSymbolic import zero_protect_sym
 from sympy import Function
-
 from japl.Aero.AtmosphereSymbolic import AtmosphereSymbolic
 from japl.Aero.AeroTableSymbolic import AeroTableSymbolic
 from japl.BuildTools.DirectUpdate import DirectUpdate
@@ -29,10 +27,11 @@ def print_sym(var, msg: str = "DEB "):
     print(msg, "%.18f" % var)
     return var
 
+
 debug_module = {
         "print_sym": print_sym,
         }
-print_sym = Function("print_sym") #type:ignore
+print_sym = Function("print_sym")  # type:ignore
 
 ################################################
 # Tables
@@ -50,38 +49,38 @@ aerotable = AeroTableSymbolic(aero_file)
 t = symbols("t")
 dt = symbols("dt")
 
-pos_x = Function("pos_x", real=True)(t) #type:ignore
-pos_y = Function("pos_y", real=True)(t) #type:ignore
-pos_z = Function("pos_z", real=True)(t) #type:ignore
+pos_x = Function("pos_x", real=True)(t)  # type:ignore
+pos_y = Function("pos_y", real=True)(t)  # type:ignore
+pos_z = Function("pos_z", real=True)(t)  # type:ignore
 
-vel_x = Function("vel_x", real=True)(t) #type:ignore
-vel_y = Function("vel_y", real=True)(t) #type:ignore
-vel_z = Function("vel_z", real=True)(t) #type:ignore
+vel_x = Function("vel_x", real=True)(t)  # type:ignore
+vel_y = Function("vel_y", real=True)(t)  # type:ignore
+vel_z = Function("vel_z", real=True)(t)  # type:ignore
 
-angvel_x = Function("angvel_x", real=True)(t) #type:ignore
-angvel_y = Function("angvel_y", real=True)(t) #type:ignore
-angvel_z = Function("angvel_z", real=True)(t) #type:ignore
+angvel_x = Function("angvel_x", real=True)(t)  # type:ignore
+angvel_y = Function("angvel_y", real=True)(t)  # type:ignore
+angvel_z = Function("angvel_z", real=True)(t)  # type:ignore
 
-angacc_x = Symbol("angacc_x", real=True) #type:ignore
-angacc_y = Symbol("angacc_y", real=True) #type:ignore
-angacc_z = Symbol("angacc_z", real=True) #type:ignore
+angacc_x = Symbol("angacc_x", real=True)  # type:ignore
+angacc_y = Symbol("angacc_y", real=True)  # type:ignore
+angacc_z = Symbol("angacc_z", real=True)  # type:ignore
 
-q_0 = Function("q_0", real=True)(t) #type:ignore
-q_1 = Function("q_1", real=True)(t) #type:ignore
-q_2 = Function("q_2", real=True)(t) #type:ignore
-q_3 = Function("q_3", real=True)(t) #type:ignore
+q_0 = Function("q_0", real=True)(t)  # type:ignore
+q_1 = Function("q_1", real=True)(t)  # type:ignore
+q_2 = Function("q_2", real=True)(t)  # type:ignore
+q_3 = Function("q_3", real=True)(t)  # type:ignore
 
-acc_x = Symbol("acc_x", real=True) #type:ignore
-acc_y = Symbol("acc_y", real=True) #type:ignore
-acc_z = Symbol("acc_z", real=True) #type:ignore
+acc_x = Symbol("acc_x", real=True)  # type:ignore
+acc_y = Symbol("acc_y", real=True)  # type:ignore
+acc_z = Symbol("acc_z", real=True)  # type:ignore
 
-torque_x = Function("torque_x", real=True)(t) #type:ignore
-torque_y = Function("torque_y", real=True)(t) #type:ignore
-torque_z = Function("torque_z", real=True)(t) #type:ignore
+torque_x = Function("torque_x", real=True)(t)  # type:ignore
+torque_y = Function("torque_y", real=True)(t)  # type:ignore
+torque_z = Function("torque_z", real=True)(t)  # type:ignore
 
-force_x = Function("force_x", real=True)(t) #type:ignore
-force_y = Function("force_y", real=True)(t) #type:ignore
-force_z = Function("force_z", real=True)(t) #type:ignore
+force_x = Function("force_x", real=True)(t)  # type:ignore
+force_y = Function("force_y", real=True)(t)  # type:ignore
+force_z = Function("force_z", real=True)(t)  # type:ignore
 
 Ixx = Symbol("Ixx", real=True)
 Iyy = Symbol("Iyy", real=True)
@@ -93,7 +92,7 @@ inertia = Matrix([
     [0, 0, Izz],
     ])
 
-gacc = Function("gacc", real=True)(t) #type:ignore
+gacc = Function("gacc", real=True)(t)  # type:ignore
 
 ##################################################
 # States
@@ -104,11 +103,11 @@ vel = Matrix([vel_x, vel_y, vel_z])
 angvel = Matrix([angvel_x, angvel_y, angvel_z])
 quat = Matrix([q_0, q_1, q_2, q_3])
 mass = symbols("mass")
-speed = Symbol("speed", real=True) #type:ignore
-mach = Function("mach", real=True)(t) #type:ignore
+speed = Symbol("speed", real=True)  # type:ignore
+mach = Function("mach", real=True)(t)  # type:ignore
 
-alpha = Symbol("alpha", real=True) #type:ignore
-phi = Symbol("phi", real=True) #type:ignore
+alpha = Symbol("alpha", real=True)  # type:ignore
+phi = Symbol("phi", real=True)  # type:ignore
 cg = Symbol("cg", real=True)
 
 ##################################################
@@ -133,10 +132,10 @@ gravity = Matrix([0, 0, gacc])
 ##################################################
 
 alt = pos[2]
-gacc_new = atmosphere.grav_accel(alt) #type:ignore
-sos = atmosphere.speed_of_sound(alt) #type:ignore
+gacc_new = atmosphere.grav_accel(alt)  # type:ignore
+sos = atmosphere.speed_of_sound(alt)  # type:ignore
 speed_new = vel.norm()
-mach_new = speed_new / sos #type:ignore
+mach_new = speed_new / sos  # type:ignore
 
 # calc angle of attack: (pitch_angle - flight_path_angle)
 vel_hat = vel / speed   # flight path vector
@@ -153,21 +152,21 @@ yaw_angle, pitch_angle, roll_angle = RotationSymbolic.quat_to_tait_bryan_sym(qua
 x_axis_inertial = Matrix([1, 0, 0])
 ang = VecSymbolic.vec_ang_sym(vel_hat_proj, x_axis_inertial)
 
-flight_path_angle = sign(vel_hat_proj[2]) * ang #type:ignore
-alpha_new = pitch_angle - flight_path_angle # angle of attack
+flight_path_angle = sign(vel_hat_proj[2]) * ang  # type:ignore
+alpha_new = pitch_angle - flight_path_angle  # angle of attack
 phi_new = roll_angle
 
 iota = rad(0.1)
-CLMB = -aerotable.get_CLMB_Total(alpha, phi, mach, iota) #type:ignore
-CNB = aerotable.get_CNB_Total(alpha, phi, mach, iota) #type:ignore
-My_coef = CLMB + (cg - aerotable.get_MRC()) * CNB #type:ignore
+CLMB = -aerotable.get_CLMB_Total(alpha, phi, mach, iota)  # type:ignore
+CNB = aerotable.get_CNB_Total(alpha, phi, mach, iota)  # type:ignore
+My_coef = CLMB + (cg - aerotable.get_MRC()) * CNB  # type:ignore
 
-q = atmosphere.dynamic_pressure(vel, pos_z) #type:ignore
+q = atmosphere.dynamic_pressure(vel, pos_z)  # type:ignore
 Sref = aerotable.get_Sref()
 Lref = aerotable.get_Lref()
 My = My_coef * q * Sref * Lref
 
-force_z_aero = CNB * q * Sref #type:ignore
+force_z_aero = CNB * q * Sref  # type:ignore
 force_aero = Matrix([0, 0, force_z_aero])
 force_new = force + force_aero
 
@@ -181,10 +180,10 @@ torque_new = torque + torque_aero
 
 wx, wy, wz = angvel
 Sw = Matrix([
-    [ 0,   wx,  wy,  wz], #type:ignore
-    [-wx,  0,  -wz,  wy], #type:ignore
-    [-wy,  wz,   0, -wx], #type:ignore
-    [-wz, -wy,  wx,   0], #type:ignore
+    [0, wx, wy, wz],  # type:ignore
+    [-wx, 0, -wz, wy],  # type:ignore
+    [-wy, wz, 0, -wx],  # type:ignore
+    [-wz, -wy, wx, 0],  # type:ignore
     ])
 
 pos_new = pos + vel * dt
@@ -204,11 +203,11 @@ quat_dot = quat_new.diff(dt)
 mass_dot = mass_new.diff(dt)
 
 defs = (
-        (pos.diff(t),       pos_dot),
-        (vel.diff(t),       vel_dot),
-        (angvel.diff(t),    angvel_dot),
-        (quat.diff(t),      quat_dot),
-        (mass.diff(t),      mass_dot),
+        (pos.diff(t), pos_dot),
+        (vel.diff(t), vel_dot),
+        (angvel.diff(t), angvel_dot),
+        (quat.diff(t), quat_dot),
+        (mass.diff(t), mass_dot),
         )
 
 ##################################################
@@ -240,9 +239,9 @@ state = Matrix([
     Ixx,
     Iyy,
     Izz,
-    DirectUpdate(gacc, gacc_new), #type:ignore
+    DirectUpdate(gacc, gacc_new),  # type:ignore
     DirectUpdate(speed, speed_new),
-    DirectUpdate(mach, mach_new), #type:ignore
+    DirectUpdate(mach, mach_new),  # type:ignore
     DirectUpdate(alpha, alpha_new),
     DirectUpdate(phi, phi_new),
     ])
@@ -262,8 +261,11 @@ dynamics = state.diff(t)
 # Build Model
 ##################################################
 
-model = MissileGeneric.from_expression(dt, state, input, dynamics,
-                                         modules=[atmosphere.modules, aerotable.modules,
-                                                  debug_module],
-                                         definitions=defs)
-
+model = MissileGeneric.from_expression(dt,
+                                       state,
+                                       input,
+                                       dynamics,
+                                       modules=[atmosphere.modules,
+                                                aerotable.modules,
+                                                debug_module],
+                                       definitions=defs)

@@ -1,18 +1,15 @@
-import cProfile
+import cProfile  # noqa
 import argparse
-
 import numpy as np
-from numpy.linalg import norm
+# from numpy.linalg import norm
 import quaternion
-from sympy import Matrix, symbols
-
+# from sympy import Matrix, symbols
 import japl
 from japl import Sim
 from japl import SimObject
-from japl import Model
+# from japl import Model
 from japl import AeroTable
-
-from japl.Aero.Atmosphere import Atmosphere
+# from japl.Aero.Atmosphere import Atmosphere
 # from japl.Library.Vehicles import RigidBodyModel
 from japl.Library.Vehicles import MissileGeneric_example
 
@@ -88,11 +85,11 @@ if __name__ == "__main__":
     # Inits
     ####################################
 
-    vehicle.Ixx = 1.309 # (kg * m^2)
-    vehicle.Iyy = 58.27 # (kg * m^2)
-    vehicle.Izz = 58.27 # (kg * m^2)
-    vehicle.mass = 133 # (kg)
-    vehicle.cg = 1.42 # (m)
+    vehicle.Ixx = 1.309  # (kg * m^2)
+    vehicle.Iyy = 58.27  # (kg * m^2)
+    vehicle.Izz = 58.27  # (kg * m^2)
+    vehicle.mass = 133  # (kg)
+    vehicle.cg = 1.42  # (m)
     x0 = [0, 0, 10000]
     v0 = [1500, 0, 0]
     w0 = [0, 0, 0]
@@ -101,7 +98,7 @@ if __name__ == "__main__":
     # gravity0 = [0, 0, -Atmosphere().grav_accel(x0[2])]
     gravity0 = [0, 0, 0]
     speed0 = 1500
-    vehicle.init_state([x0, v0, w0, quat0, mass0, gravity0, speed0]) # TODO this should be moved to Model
+    vehicle.init_state([x0, v0, w0, quat0, mass0, gravity0, speed0])  # TODO this should be moved to Model
 
     # Sim
     ####################################
@@ -200,4 +197,3 @@ if __name__ == "__main__":
     # plot_config = config.get("plot", {})
     # output_manager = OutputManager(vehicle, args, plot_config, T, Y, plot_points, figsize=(8, 6))
     # output_manager.plots()
-

@@ -1,11 +1,11 @@
 from typing import Callable
 import numpy as np
-import quaternion
+# import quaternion
 
 from japl import global_opts
 from japl.Aero.Atmosphere import Atmosphere
-from japl.Math import Rotation
-from japl.Math.Vec import vec_ang
+# from japl.Math import Rotation
+# from japl.Math.Vec import vec_ang
 from japl.SimObject.SimObject import SimObject
 from japl.DeviceInput.DeviceInput import DeviceInput
 from japl.Plotter.Plotter import Plotter
@@ -20,7 +20,7 @@ from scipy.integrate import solve_ivp
 
 from functools import partial
 
-from scipy import constants
+# from scipy import constants
 
 import time
 
@@ -43,7 +43,7 @@ class Sim:
         self.dt = dt
         self.simobjs = simobjs
         self.events = kwargs.get("events", [])
-        self.animate: bool = kwargs.get("animate", False) # choice of iterating solver over each dt step
+        self.animate: bool = kwargs.get("animate", False)  # choice of iterating solver over each dt step
         self.integrate_method = kwargs.get("integrate_method", "odeint")
         assert self.integrate_method in ["odeint", "euler", "rk4"]
 
@@ -78,7 +78,7 @@ class Sim:
         # TODO make this its own class so we can use
         # it to profile other classes?
         def _debug_profiler_func():
-            if self.debug_profiler["count"] > 1: # 't' is initally 0, discard this point
+            if self.debug_profiler["count"] > 1:  # 't' is initally 0, discard this point
                 _dt = (time.time() - self.debug_profiler['t'])
                 self.debug_profiler["t_total"] += _dt
                 self.debug_profiler["t_ave"] = self.debug_profiler["t_total"] / self.debug_profiler["count"]
@@ -94,7 +94,7 @@ class Sim:
         self.T = np.zeros((self.Nt + 1, ))
         simobj.Y = np.zeros((self.Nt + 1, len(simobj.X0)))
         simobj.Y[0] = simobj.X0
-        simobj._set_T_array_ref(self.T) # simobj.T reference to sim.T
+        simobj._set_T_array_ref(self.T)  # simobj.T reference to sim.T
 
 
     def __instantiate_plot(self, **kwargs) -> None:
@@ -174,7 +174,7 @@ class Sim:
                 )
         self.T = sol['t']
         simobj.Y = sol['y'].T
-        simobj._set_T_array_ref(self.T) # simobj.T reference to sim.T
+        simobj._set_T_array_ref(self.T)  # simobj.T reference to sim.T
 
         # TODO handle visualization afterwards...
 
@@ -196,20 +196,20 @@ class Sim:
         # try to set animation frame intervals to real time
         interval_ms = int(max(1, (1 / self.frame_rate) * 1000))
         step_func = partial(self._step_solve,
-                             dynamics_func=self.step,
-                             istep=0,
-                             dt=self.dt,
-                             simobj=simobj,
-                             method=self.integrate_method,
-                             rtol=self.rtol,
-                             atol=self.atol)
+                            dynamics_func=self.step,
+                            istep=0,
+                            dt=self.dt,
+                            simobj=simobj,
+                            method=self.integrate_method,
+                            rtol=self.rtol,
+                            atol=self.atol)
         anim_func = partial(self.plotter._animate_func,
-                             simobj=simobj,
-                             step_func=step_func,
-                             frame_rate=interval_ms,
-                             moving_bounds=self.moving_bounds)
+                            simobj=simobj,
+                            step_func=step_func,
+                            frame_rate=interval_ms,
+                            moving_bounds=self.moving_bounds)
 
-        anim = self.plotter.FuncAnimation(
+        anim = self.plotter.FuncAnimation(  # noqa
                 func=anim_func,
                 frames=self.Nt,
                 interval=interval_ms,
@@ -224,13 +224,13 @@ class Sim:
         # acc_ext = simobj.get_input_array(U, ["acc_x", "acc_y", "acc_z"])
         # torque_ext = simobj.get_input_array(U, ["torque_x", "torque_y", "torque_z"])
 
-        mass = simobj.get_state_array(X, "mass")
+        mass = simobj.get_state_array(X, "mass")  # noqa
 
         iota = np.radians(0.1)
 
         # device input
         if self.device_input_type:
-            iota = -self.device_input_data["ly"] * 0.69
+            iota = -self.device_input_data["ly"] * 0.69  # noqa
         # force = np.array([1000*lx, 0, 1000*ly])
         # acc_ext = acc_ext + force / mass
 
@@ -450,4 +450,3 @@ class Sim:
         # TODO do this better...
         if self.flag_stop:
             self.plotter.exit()
-

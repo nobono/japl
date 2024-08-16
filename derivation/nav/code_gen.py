@@ -12,7 +12,7 @@ class OctaveCodeGenerator:
     def print_string(self, string):
         self.file.write("% " + string + "\n")
 
-    def write_lines(self, string, prefix = "", postfix = "\n"):
+    def write_lines(self, string, prefix: str = "", postfix: str = "\n"):
         for line in string.split('\n'):
             self.file.write(prefix + line + postfix)
 
@@ -20,30 +20,40 @@ class OctaveCodeGenerator:
         # return ccode(expression, type_aliases={real:float32})
         return octave_code(expression)
 
-    def write_subexpressions(self,subexpressions):
+    def write_subexpressions(self, subexpressions):
         write_string = ""
         for item in subexpressions:
-            # write_string = write_string + "const ftype " + str(item[0]) + " = " + self.get_ccode(item[1]) + ";\n" #type:ignore
-            write_string = write_string + str(item[0]) + " = " + self.get_ccode(item[1]) + ";\n" #type:ignore
+            write_string = write_string + str(item[0]) + " = " + self.get_ccode(item[1]) + ";\n"  # type:ignore
 
         write_string = self.transform_to_octave_style(write_string)
         self.write_lines(write_string, prefix="\t")
 
-    def write_matrix(self, matrix, variable_name, is_symmetric=False, pre_bracket="(", post_bracket=")", separator=", "):
+    def write_matrix(self,
+                     matrix,
+                     variable_name,
+                     is_symmetric=False,
+                     pre_bracket="(",
+                     post_bracket=")",
+                     separator=", "):
         write_string = ""
-
         if matrix.shape[0] * matrix.shape[1] == 1:
             write_string = write_string + variable_name + " = " + self.get_ccode(matrix[0]) + ";\n"
         elif matrix.shape[0] == 1 or matrix.shape[1] == 1:
-            for i in range(0,len(matrix)):
-                write_string = write_string + variable_name + pre_bracket + str(i+1) + post_bracket + " = " + self.get_ccode(matrix[i]) + ";\n"
+            for i in range(0, len(matrix)):
+                write_string = write_string + variable_name +\
+                               pre_bracket + str(i + 1) +\
+                               post_bracket + " = " +\
+                               self.get_ccode(matrix[i]) + ";\n"
                 write_string = self.transform_to_octave_style(write_string)
-
         else:
             for j in range(0, matrix.shape[1]):
                 for i in range(0, matrix.shape[0]):
                     if j >= i or not is_symmetric:
-                        write_string = write_string + variable_name + pre_bracket + str(i+1) + separator + str(j+1) + post_bracket + " = " + self.get_ccode(matrix[i,j]) + ";\n"
+                        write_string = write_string + variable_name +\
+                                pre_bracket +\
+                                str(i + 1) + separator + str(j + 1) +\
+                                post_bracket + " = " +\
+                                self.get_ccode(matrix[i, j]) + ";\n"
                         write_string = self.transform_to_octave_style(write_string)
 
         self.write_lines(write_string, prefix="\t")
@@ -58,12 +68,12 @@ class OctaveCodeGenerator:
             var_name = match.group(1)  # The variable name (e.g., var)
             try:
                 i = int(match.group(2)) + 1  # First index, converted to integer and incremented by 1
-            except:
+            except Exception as _:  # noqa
                 i = str(match.group(2)) + '+1'
 
             try:
                 j = int(match.group(3)) + 1  # Second index, converted to integer and incremented by 1
-            except:
+            except Exception as _:  # noqa
                 j = str(match.group(3)) + '+1'
             return f"{var_name}({i}, {j})"
 
@@ -84,12 +94,6 @@ class OctaveCodeGenerator:
         self.file.close()
 
 
-# Test the function
-# input_string = "var[i][j] + thing[1][4] + hahaha[5][9]"
-# output_string = transform_to_octave_style(input_string)
-# print(output_string)
-
-
 class CCodeGenerator:
     def __init__(self, file_name):
         self.file_name = file_name
@@ -99,31 +103,43 @@ class CCodeGenerator:
         self.file.write("// " + string + "\n")
 
     def get_ccode(self, expression):
-        return ccode(expression, type_aliases={real:float32})
+        return ccode(expression, type_aliases={real: float32})
 
-    def write_subexpressions(self,subexpressions):
+    def write_subexpressions(self, subexpressions):
         write_string = ""
         for item in subexpressions:
-            # write_string = write_string + "const ftype " + str(item[0]) + " = " + self.get_ccode(item[1]) + ";\n" #type:ignore
-            write_string = write_string + str(item[0]) + " = " + self.get_ccode(item[1]) + ";\n" #type:ignore
+            write_string = write_string + str(item[0]) + " = " + self.get_ccode(item[1]) + ";\n"  # type:ignore
 
         write_string = write_string + "\n\n"
         self.file.write(write_string)
 
-    def write_matrix(self, matrix, variable_name, is_symmetric=False, pre_bracket="[", post_bracket="]", separator="]["):
+    def write_matrix(self,
+                     matrix,
+                     variable_name,
+                     is_symmetric=False,
+                     pre_bracket="[",
+                     post_bracket="]",
+                     separator="]["):
         write_string = ""
-
         if matrix.shape[0] * matrix.shape[1] == 1:
             write_string = write_string + variable_name + " = " + self.get_ccode(matrix[0]) + ";\n"
         elif matrix.shape[0] == 1 or matrix.shape[1] == 1:
-            for i in range(0,len(matrix)):
-                write_string = write_string + variable_name + pre_bracket + str(i+1) + post_bracket + " = " + self.get_ccode(matrix[i]) + ";\n"
+            for i in range(0, len(matrix)):
+                write_string = write_string + variable_name +\
+                               pre_bracket +\
+                               str(i + 1) +\
+                               post_bracket + " = " +\
+                               self.get_ccode(matrix[i]) + ";\n"
 
         else:
             for j in range(0, matrix.shape[1]):
                 for i in range(0, matrix.shape[0]):
                     if j >= i or not is_symmetric:
-                        write_string = write_string + variable_name + pre_bracket + str(i+1) + separator + str(j+1) + post_bracket + " = " + self.get_ccode(matrix[i,j]) + ";\n"
+                        write_string = write_string + variable_name +\
+                                       pre_bracket +\
+                                       str(i + 1) + separator + str(j + 1) +\
+                                       post_bracket + " = " +\
+                                       self.get_ccode(matrix[i, j]) + ";\n"
 
         write_string = write_string + "\n\n"
         self.file.write(write_string)

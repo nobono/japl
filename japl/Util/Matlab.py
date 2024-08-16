@@ -1,4 +1,4 @@
-import pickle
+# import pickle
 from scipy.io import loadmat
 from astropy import units as u
 import numpy as np
@@ -11,15 +11,12 @@ and saving them to a .pickle"""
 
 
 
-__ft2m = (1.0 * u.imperial.foot).to_value(u.m) #type:ignore
-__inch2m = (1.0 * u.imperial.inch).to_value(u.m) #type:ignore
-__inch_sq2m_sq = (1.0 * u.imperial.inch**2).to_value(u.m**2) #type:ignore
+__ft2m = (1.0 * u.imperial.foot).to_value(u.m)  # type:ignore
+__inch2m = (1.0 * u.imperial.inch).to_value(u.m)  # type:ignore
+__inch_sq2m_sq = (1.0 * u.imperial.inch**2).to_value(u.m**2)  # type:ignore
 __deg2rad = (np.pi / 180.0)
-__lbminch2Nm = (1.0 * u.imperial.lbm * u.imperial.inch**2).to_value(u.kg * u.m**2) #type:ignore
+__lbminch2Nm = (1.0 * u.imperial.lbm * u.imperial.inch**2).to_value(u.kg * u.m**2)  # type:ignore
 
-
-__aero_data_path = "/home/david/work_projects/control/aeromodel/aeromodel_bs.mat"
-__aero_data_path_psb = "/home/david/work_projects/control/aeromodel/aeromodel_psb.mat"
 
 # matfile = loadmat(__aero_data_path)
 # matfile_psb = loadmat(__aero_data_path_psb)
@@ -159,12 +156,12 @@ class MatStruct:
         unpacking matlab file data."""
         try:
             data = data.squeeze()
-        except Exception as _:
-            pass
+        except Exception as e:
+            Warning(e)
         try:
             data = data.item()
-        except Exception as _:
-            pass
+        except Exception as e:
+            Warning(e)
         return data
 
 
@@ -195,7 +192,7 @@ class MatFile:
             for k, v in self._raw_data.items():
                 if "__" not in k:
                     if self.is_struct(v):
-                        self.__setattr__(k, MatStruct(v)) # MatStruct is recursive
+                        self.__setattr__(k, MatStruct(v))  # MatStruct is recursive
                     else:
                         self.__setattr__(k, self.safe_unpack(v))
         elif isinstance(self._raw_data, np.ndarray):
@@ -238,5 +235,3 @@ class MatFile:
 #     __aero_data_path_psb = "/home/david/work_projects/control/aeromodel/aeromodel_psb.mat"
 
 #     data = MatFile(__aero_data_path)
-
-

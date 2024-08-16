@@ -27,9 +27,11 @@ class TestExample(unittest.TestCase):
 
     def test_from_function(self):
         state, input, dt, dynamics = self.setup()
+
         def func(X, U, dt):
             subs = {"vx": 0, "vy": 0, "vz": 0, "ax": 1, "ay": 0, "az": 0}
             return np.array(dynamics.subs(subs))
+
         model = Model.from_function(dt, state, input, func)
         self.assertListEqual(list(model.vars), [state, input, dt])
         self.assertEqual(len(model.state_vars), model.state_dim)

@@ -1,6 +1,4 @@
 import numpy as np
-from numpy.typing import ArrayLike
-from scipy.interpolate import interpn
 from ambiance import Atmosphere as AmbianceAtmosphere
 # from cached_interpolate import CachingInterpolant
 
@@ -22,70 +20,40 @@ class Atmosphere:
         self._speed_of_sound = self._atmos.speed_of_sound.copy()
         self._grav_accel = self._atmos.grav_accel.copy()
 
-        # self._pressure = CachingInterpolant(
-        #     x=self._alts,
-        #     y=self._atmos.pressure,
-        # )
-        # self._density = CachingInterpolant(
-        #     x=self._alts,
-        #     y=self._atmos.density,
-        # )
-        # self._temperature = CachingInterpolant(
-        #     x=self._alts,
-        #     y=self._atmos.temperature,
-        # )
-        # self._speed_of_sound = CachingInterpolant(
-        #     x=self._alts,
-        #     y=self._atmos.speed_of_sound,
-        # )
-        # self._grav_accel = CachingInterpolant(
-        #     x=self._alts,
-        #     y=self._atmos.grav_accel,
-        # )
-        # self._density = interp1d(self._alts, self._atmos.density)
-        # self._temperature = interp1d(self._alts, self._atmos.temperature)
-        # self._speed_of_sound = interp1d(self._alts, self._atmos.speed_of_sound)
-        # self._grav_accel = interp1d(self._alts, self._atmos.grav_accel)
-
 
     def pressure(self, alt: float|list|np.ndarray) -> float:
-        # return np.interp(alt, self._alts, self._atmos.pressure)
         if hasattr(alt, "__len__"):
-            return self._pressure[[round(i) for i in alt]] #type:ignore
+            return self._pressure[[round(i) for i in alt]]  # type:ignore
         else:
-            return self._pressure[round(alt)] #type:ignore
+            return self._pressure[round(alt)]  # type:ignore
 
-    
+
     def density(self, alt: float|list|np.ndarray) -> float:
-        # return np.interp(alt, self._alts, self._atmos.density)
         if hasattr(alt, "__len__"):
-            return self._density[[round(i) for i in alt]] #type:ignore
+            return self._density[[round(i) for i in alt]]  # type:ignore
         else:
-            return self._density[round(alt)] #type:ignore
+            return self._density[round(alt)]  # type:ignore
 
 
     def temperature(self, alt: float|list|np.ndarray) -> float:
-        # return np.interp(alt, self._alts, self._atmos.temperature)
         if hasattr(alt, "__len__"):
-            return self._temperature_in_celsius[[round(i) for i in alt]] #type:ignore
+            return self._temperature_in_celsius[[round(i) for i in alt]]  # type:ignore
         else:
-            return self._temperature_in_celsius[round(alt)] #type:ignore
-    
+            return self._temperature_in_celsius[round(alt)]  # type:ignore
+
 
     def speed_of_sound(self, alt: float|list|np.ndarray) -> float:
-        # return np.interp(alt, self._alts, self._atmos.speed_of_sound)
         if hasattr(alt, "__len__"):
-            return self._speed_of_sound[[round(i) for i in alt]] #type:ignore
+            return self._speed_of_sound[[round(i) for i in alt]]  # type:ignore
         else:
-            return self._speed_of_sound[round(alt)] #type:ignore
+            return self._speed_of_sound[round(alt)]  # type:ignore
 
 
     def grav_accel(self, alt: float|list|np.ndarray) -> float:
-        # return np.interp(alt, self._alts, self._atmos.grav_accel)
         if hasattr(alt, "__len__"):
-            return self._grav_accel[[round(i) for i in alt]] #type:ignore
+            return self._grav_accel[[round(i) for i in alt]]  # type:ignore
         else:
-            return self._grav_accel[round(alt)] #type:ignore
+            return self._grav_accel[round(alt)]  # type:ignore
 
 
     def dynamic_pressure(self, vel: float|list|np.ndarray, alt: float|list|np.ndarray) -> float:
@@ -93,6 +61,4 @@ class Atmosphere:
             vel_mag = np.linalg.norm(vel)
         else:
             vel_mag = vel
-        return vel_mag**2 * self.density(alt) / 2 #type:ignore
-
-
+        return vel_mag**2 * self.density(alt) / 2  # type:ignore

@@ -24,7 +24,7 @@ class TestAeroTableSymbolic(unittest.TestCase):
         iota = np.radians(0.1)
         vars = symbols("alpha phi mach alt iota")
         expr = self.aerotable_sym.get_CA_Boost_Total(*vars)
-        get_CA_Boost_Total_sym_func = Desym(vars, expr, #type:ignore
+        get_CA_Boost_Total_sym_func = Desym(vars, expr,  # type:ignore
                                             modules=self.aerotable_sym.modules)
         for alt in self.alts:
             ret1 = self.aerotable.get_CA_Boost_Total(alpha, phi, mach, alt, iota)
@@ -39,7 +39,7 @@ class TestAeroTableSymbolic(unittest.TestCase):
         iota = np.radians(0.1)
         vars = symbols("alpha phi mach alt iota")
         expr = self.aerotable_sym.get_CA_Coast_Total(*vars)
-        sym_func = Desym(vars, expr, #type:ignore
+        sym_func = Desym(vars, expr,  # type:ignore
                          modules=self.aerotable_sym.modules)
         for alt in self.alts:
             ret1 = self.aerotable.get_CA_Coast_Total(alpha, phi, mach, alt, iota)
@@ -53,11 +53,11 @@ class TestAeroTableSymbolic(unittest.TestCase):
         iota = np.radians(0.1)
         vars = symbols("alpha phi mach iota")
         expr = self.aerotable_sym.get_CNB_Total(*vars)
-        sym_func = Desym(vars, expr, #type:ignore
+        sym_func = Desym(vars, expr,  # type:ignore
                          modules=self.aerotable_sym.modules)
         for alpha in np.linspace(0, .2, 20):
             ret1 = self.aerotable.get_CNB_Total(alpha, phi, mach, iota)
-            ret2 = sym_func(alpha, phi, mach,iota)
+            ret2 = sym_func(alpha, phi, mach, iota)
             self.assertEqual(ret1, ret2)
 
 
@@ -67,11 +67,11 @@ class TestAeroTableSymbolic(unittest.TestCase):
         iota = np.radians(0.1)
         vars = symbols("alpha phi mach iota")
         expr = self.aerotable_sym.get_CLMB_Total(*vars)
-        sym_func = Desym(vars, expr, #type:ignore
+        sym_func = Desym(vars, expr,  # type:ignore
                          modules=self.aerotable_sym.modules)
         for alpha in np.linspace(0, .2, 20):
             ret1 = self.aerotable.get_CLMB_Total(alpha, phi, mach, iota)
-            ret2 = sym_func(alpha, phi, mach,iota)
+            ret2 = sym_func(alpha, phi, mach, iota)
             self.assertEqual(ret1, ret2)
 
 
@@ -81,11 +81,11 @@ class TestAeroTableSymbolic(unittest.TestCase):
         iota = np.radians(0.1)
         vars = symbols("alpha phi mach iota")
         expr = self.aerotable_sym.get_CLNB_Total(*vars)
-        sym_func = Desym(vars, expr, #type:ignore
+        sym_func = Desym(vars, expr,  # type:ignore
                          modules=self.aerotable_sym.modules)
         for alpha in np.linspace(0, .2, 20):
             ret1 = self.aerotable.get_CLNB_Total(alpha, phi, mach, iota)
-            ret2 = sym_func(alpha, phi, mach,iota)
+            ret2 = sym_func(alpha, phi, mach, iota)
             self.assertEqual(ret1, ret2)
 
 
