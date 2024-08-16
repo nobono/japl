@@ -18,15 +18,15 @@ class TestBuildTools(unittest.TestCase):
     def setup_symbols(self):
         t = symbols("t")
         dt = symbols("dt")
-        pos_x = Function("pos_x", real=True)(t) #type:ignore
-        pos_y = Function("pos_y", real=True)(t) #type:ignore
-        pos_z = Function("pos_z", real=True)(t) #type:ignore
-        vel_x = Function("vel_x", real=True)(t) #type:ignore
-        vel_y = Function("vel_y", real=True)(t) #type:ignore
-        vel_z = Function("vel_z", real=True)(t) #type:ignore
-        acc_x = Symbol("acc_x", real=True) #type:ignore
-        acc_y = Symbol("acc_y", real=True) #type:ignore
-        acc_z = Symbol("acc_z", real=True) #type:ignore
+        pos_x = Function("pos_x", real=True)(t)  # type:ignore
+        pos_y = Function("pos_y", real=True)(t)  # type:ignore
+        pos_z = Function("pos_z", real=True)(t)  # type:ignore
+        vel_x = Function("vel_x", real=True)(t)  # type:ignore
+        vel_y = Function("vel_y", real=True)(t)  # type:ignore
+        vel_z = Function("vel_z", real=True)(t)  # type:ignore
+        acc_x = Symbol("acc_x", real=True)  # type:ignore
+        acc_y = Symbol("acc_y", real=True)  # type:ignore
+        acc_z = Symbol("acc_z", real=True)  # type:ignore
         pos = Matrix([pos_x,
                       pos_y,
                       pos_z])
@@ -48,16 +48,15 @@ class TestBuildTools(unittest.TestCase):
 
 
     def test_BuildTools_state_array_checks_case1(self):
-        t, dt,\
-        pos, vel, acc = self.setup_symbols()
+        (t, dt, pos, vel, acc) = self.setup_symbols()
 
         pos_new = pos + vel * dt
         vel_new = vel + acc * dt
         pos_dot = pos_new.diff(dt)
         vel_dot = vel_new.diff(dt)
         defs = (
-                (pos.diff(t),       pos_dot),
-                (vel.diff(t),       vel_dot),
+                (pos.diff(t), pos_dot),
+                (vel.diff(t), vel_dot),
                 )
         state = Matrix([pos, vel])
         input = Matrix([acc])

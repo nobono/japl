@@ -1,15 +1,14 @@
 import unittest
 import numpy as np
 import quaternion
-from japl import Model
 from japl import SimObject
 from japl import Sim
 from japl import AeroTable
-from sympy import MatrixSymbol, Matrix, symbols
+# from japl import Model
+# from sympy import MatrixSymbol, Matrix, symbols
 from japl.Library.Vehicles import MissileGeneric
-from japl.Sim.Integrate import runge_kutta_4, euler
+from japl.Sim.Integrate import runge_kutta_4
 from japl.Aero.Atmosphere import Atmosphere
-from japl.Aero.AeroTable import AeroTable
 from japl.Math import Rotation
 from japl.Math import Vec
 
@@ -51,7 +50,7 @@ class test_MissileGeneric(unittest.TestCase):
 
     def setUp(self):
         self.TOLERANCE_PLACES = 15
-        self._dtype=float
+        self._dtype = float
         self.dt = 0.01
         self.t_span = [0, 0.1]
         self.atmosphere = Atmosphere()
@@ -61,11 +60,11 @@ class test_MissileGeneric(unittest.TestCase):
     def create_simobj(self):
         model = MissileGeneric.model
         simobj = SimObject(model=model, size=2, color='tab:blue', dtype=self._dtype)
-        simobj.Ixx = 1.309 # (kg * m^2)
-        simobj.Iyy = 58.27 # (kg * m^2)
-        simobj.Izz = 58.27 # (kg * m^2)
-        simobj.mass = 133 # (kg)
-        simobj.cg = 1.42 # (m)
+        simobj.Ixx = 1.309  # (kg * m^2)
+        simobj.Iyy = 58.27  # (kg * m^2)
+        simobj.Izz = 58.27  # (kg * m^2)
+        simobj.mass = 133  # (kg)
+        simobj.cg = 1.42  # (m)
         x0 = [0, 0, 10000]
         v0 = [1500, 0, 0]
         w0 = [0, 0, 0]
@@ -101,37 +100,37 @@ class test_MissileGeneric(unittest.TestCase):
 
 
     def dynamics(self, t, X, U, dt, simobj):
-        pos = X[:3]
+        # pos = X[:3]
         vel = X[3:6]
         angvel = X[6:9]
         quat = X[9:13]
         mass = X[13]
-        cg = X[14]
+        # cg = X[14]
         Ixx = X[15]
         Iyy = X[16]
         Izz = X[17]
         gacc = X[18]
-        speed = X[19]
-        mach = X[20]
-        alpha = X[21]
-        phi = X[22]
+        # speed = X[19]
+        # mach = X[20]
+        # alpha = X[21]
+        # phi = X[22]
 
         force = U[:3]
         torque = U[3:6]
 
         acc = force / mass
-        angacc = np.array([torque[0]/Ixx,
-                           torque[1]/Iyy,
-                           torque[2]/Izz], dtype=self._dtype)
+        angacc = np.array([torque[0] / Ixx,
+                           torque[1] / Iyy,
+                           torque[2] / Izz], dtype=self._dtype)
 
-        gravity = np.array([0,0,gacc])
+        gravity = np.array([0, 0, gacc])
 
         wx, wy, wz = angvel
         Sw = np.array([
-            [ 0,   wx,  wy,  wz], #type:ignore
-            [-wx,  0,  -wz,  wy], #type:ignore
-            [-wy,  wz,   0, -wx], #type:ignore
-            [-wz, -wy,  wx,   0], #type:ignore
+            [0, wx, wy, wz],  # type:ignore
+            [-wx, 0, -wz, wy],  # type:ignore
+            [-wy, wz, 0, -wx],  # type:ignore
+            [-wz, -wy, wx, 0],  # type:ignore
             ], dtype=self._dtype)
 
         pos_dot = vel
@@ -172,18 +171,18 @@ class test_MissileGeneric(unittest.TestCase):
     def direct_updates(self, X, U, dt, simobj: SimObject):
         pos = X[:3]
         vel = X[3:6]
-        angvel = X[6:9]
-        quat = X[9:13]
-        mass = X[13]
-        cg = X[14]
-        Ixx = X[15]
-        Iyy = X[16]
-        Izz = X[17]
-        gacc = X[18]
-        speed = X[19]
-        mach = X[20]
-        alpha = X[21]
-        phi = X[22]
+        # angvel = X[6:9]
+        # quat = X[9:13]
+        # mass = X[13]
+        # cg = X[14]
+        # Ixx = X[15]
+        # Iyy = X[16]
+        # Izz = X[17]
+        # gacc = X[18]
+        # speed = X[19]
+        # mach = X[20]
+        # alpha = X[21]
+        # phi = X[22]
 
         force = U[:3]
         torque = U[3:6]
@@ -194,12 +193,10 @@ class test_MissileGeneric(unittest.TestCase):
         speed_new = np.linalg.norm(vel)
         mach_new = speed_new / sos_new
 
-        (
-        alpha_new,
-        phi_new,
-        force_aero,
-        torque_aero,
-        ) = self.aerotable_update(X)
+        (alpha_new,
+         phi_new,
+         force_aero,
+         torque_aero) = self.aerotable_update(X)
 
         force_new = force + force_aero
         torque_new = torque + torque_aero
@@ -249,16 +246,16 @@ class test_MissileGeneric(unittest.TestCase):
         phi_new = roll_angle
 
         iota = np.radians(0.1)
-        CLMB = -self.aerotable.get_CLMB_Total(alpha, phi, mach, iota) #type:ignore
-        CNB = self.aerotable.get_CNB_Total(alpha, phi, mach, iota) #type:ignore
-        My_coef = CLMB + (cg - self.aerotable.get_MRC()) * CNB #type:ignore
+        CLMB = -self.aerotable.get_CLMB_Total(alpha, phi, mach, iota)  # type:ignore
+        CNB = self.aerotable.get_CNB_Total(alpha, phi, mach, iota)  # type:ignore
+        My_coef = CLMB + (cg - self.aerotable.get_MRC()) * CNB  # type:ignore
 
-        q = self.atmosphere.dynamic_pressure(vel, alt) #type:ignore
+        q = self.atmosphere.dynamic_pressure(vel, alt)  # type:ignore
         Sref = self.aerotable.get_Sref()
         Lref = self.aerotable.get_Lref()
         My = My_coef * q * Sref * Lref
 
-        force_z_aero = CNB * q * Sref #type:ignore
+        force_z_aero = CNB * q * Sref  # type:ignore
         force_aero = np.array([0, 0, force_z_aero], dtype=self._dtype)
 
         torque_y_new = My / Iyy
