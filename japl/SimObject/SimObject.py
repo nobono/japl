@@ -2,7 +2,6 @@ import japl
 import numpy as np
 from collections.abc import Generator
 from typing import Optional
-from sympy import Symbol
 from japl.Aero.AeroTable import AeroTable
 from japl.Model.Model import Model
 from japl.Util.Util import flatten_list
@@ -10,6 +9,7 @@ from pyqtgraph import PlotDataItem, mkPen
 from pyqtgraph.Qt.QtGui import QPen
 from matplotlib.lines import Line2D
 from matplotlib import colors as mplcolors
+# from sympy import Symbol
 # from pyqtgraph import GraphicsView, PlotCurveItem,
 # from pyqtgraph import CircleROI
 # from matplotlib.axes import Axes
@@ -250,31 +250,12 @@ class SimObject:
         -- X_dot - state dynamics "Xdot = A*X + B*U"
         -------------------------------------------------------------------
         """
-        # TODO: accounting for model inputs here?
         self.update(X)
         return self.model.step(X, U, dt)
 
 
     def update(self, X: np.ndarray):
         pass
-
-
-    @DeprecationWarning
-    def add_state(self, name: str, id: int, label: str = "") -> Symbol:
-        """This method registers a SimObject state name and plotting label with a
-        user-specified name. The purpose of this register is for ease of access to SimObject
-        states without having to use the satte index number.
-
-        -------------------------------------------------------------------
-        -- Arguments
-        -------------------------------------------------------------------
-        -- name - user-specified name of state
-        -- id - state index number
-        -- label - (optional) string other than "name" that will be displayed
-                    in plots / visualization
-        -------------------------------------------------------------------
-        """
-        return self.model.add_state(name=name, id=id, label=label)
 
 
     def init_state(self, state: np.ndarray|list, dtype: type = float) -> None:
