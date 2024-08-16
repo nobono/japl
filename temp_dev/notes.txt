@@ -1,0 +1,7 @@
+08/12/24:
+  - mode from expression differs from written test in test_MissileGeneric.
+  The difference originates in the aerotable portion of the model where
+  differences in how sympy and numpy convert a variable from degrees to
+  radians. there's an (insignificant) delta of ~2.7e-17.
+
+  something else may also be causing this because the errors grow with time.

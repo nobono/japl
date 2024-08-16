@@ -1,9 +1,6 @@
-import numpy as np
 from sympy import Matrix, symbols, Symbol
 from sympy.core.function import Function
 from japl import Model
-
-from japl.Aero.AtmosphereSymbolic import AtmosphereSymbolic
 from japl.BuildTools.DirectUpdate import DirectUpdate
 
 
@@ -143,7 +140,6 @@ dynamics = state.diff(t)
 # Build Model
 ##################################################
 
-# TODO: just move this to __init__
 model = RigidBodyModel.from_expression(dt, state, input, dynamics,
                                          definitions=defs,
                                          modules=[])

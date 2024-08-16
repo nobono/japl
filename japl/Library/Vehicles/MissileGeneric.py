@@ -1,17 +1,51 @@
+import sympy as sp
 from sympy import Matrix, Symbol, symbols
-from sympy import sqrt
+from sympy import sqrt, sign, rad
 from japl import Model
 from japl.Math.MathSymbolic import zero_protect_sym
 from sympy import Function
 
 from japl.Aero.AtmosphereSymbolic import AtmosphereSymbolic
+from japl.Aero.AeroTableSymbolic import AeroTableSymbolic
 from japl.BuildTools.DirectUpdate import DirectUpdate
+from japl.Math import RotationSymbolic
+from japl.Math import VecSymbolic
 
 
 
 class MissileGeneric(Model):
     pass
 
+
+################################################
+# Debug
+################################################
+# class deb_print(Matrix):
+#     def dot(self, *args, **kwargs):
+#         print(self.flat())
+#         return super().dot(*args, **kwargs)
+
+def print_sym(var, msg: str = "DEB "):
+    print(msg, "%.18f" % var)
+    return var
+
+debug_module = {
+        "print_sym": print_sym,
+        }
+print_sym = Function("print_sym") #type:ignore
+
+################################################
+# Tables
+################################################
+
+atmosphere = AtmosphereSymbolic()
+aero_file = "./aeromodel/aeromodel_psb.mat"
+# aero_file = "../../../aeromodel/aeromodel_psb.mat"
+aerotable = AeroTableSymbolic(aero_file)
+
+################################################
+# Variables
+################################################
 
 t = symbols("t")
 dt = symbols("dt")
@@ -70,11 +104,11 @@ vel = Matrix([vel_x, vel_y, vel_z])
 angvel = Matrix([angvel_x, angvel_y, angvel_z])
 quat = Matrix([q_0, q_1, q_2, q_3])
 mass = symbols("mass")
-speed = Function("speed", real=True)(t) #type:ignore
+speed = Symbol("speed", real=True) #type:ignore
 mach = Function("mach", real=True)(t) #type:ignore
 
-alpha = Function("alpha", real=True)(t) #type:ignore
-phi = Function("phi", real=True)(t) #type:ignore
+alpha = Symbol("alpha", real=True) #type:ignore
+phi = Symbol("phi", real=True) #type:ignore
 cg = Symbol("cg", real=True)
 
 ##################################################
@@ -85,16 +119,61 @@ torque = Matrix([torque_x, torque_y, torque_z])
 force = Matrix([force_x, force_y, force_z])
 
 ##################################################
-# Equations for Aerotable / Atmosphere
+# Equations Atmosphere
 ##################################################
 
 acc = force / mass
 angacc = inertia.inv() * torque
 
 # gravity
-atmosphere = AtmosphereSymbolic()
-gacc_new = -atmosphere.grav_accel(pos_z) #type:ignore
-gravity = Matrix([0, 0, gacc_new])
+gravity = Matrix([0, 0, gacc])
+
+##################################################
+# AeroTable
+##################################################
+
+alt = pos[2]
+gacc_new = atmosphere.grav_accel(alt) #type:ignore
+sos = atmosphere.speed_of_sound(alt) #type:ignore
+speed_new = vel.norm()
+mach_new = speed_new / sos #type:ignore
+
+# calc angle of attack: (pitch_angle - flight_path_angle)
+vel_hat = vel / speed   # flight path vector
+
+# projection vel_hat --> x-axis
+zx_plane_norm = Matrix([0, 1, 0])
+vel_hat_zx = ((vel_hat.dot(zx_plane_norm)) / zx_plane_norm.norm()) * zx_plane_norm
+vel_hat_proj = vel_hat - vel_hat_zx
+
+# get Trait-bryan angles (yaw, pitch, roll)
+yaw_angle, pitch_angle, roll_angle = RotationSymbolic.quat_to_tait_bryan_sym(quat)
+
+# angle between proj vel_hat & xaxis
+x_axis_inertial = Matrix([1, 0, 0])
+ang = VecSymbolic.vec_ang_sym(vel_hat_proj, x_axis_inertial)
+
+flight_path_angle = sign(vel_hat_proj[2]) * ang #type:ignore
+alpha_new = pitch_angle - flight_path_angle # angle of attack
+phi_new = roll_angle
+
+iota = rad(0.1)
+CLMB = -aerotable.get_CLMB_Total(alpha, phi, mach, iota) #type:ignore
+CNB = aerotable.get_CNB_Total(alpha, phi, mach, iota) #type:ignore
+My_coef = CLMB + (cg - aerotable.get_MRC()) * CNB #type:ignore
+
+q = atmosphere.dynamic_pressure(vel, pos_z) #type:ignore
+Sref = aerotable.get_Sref()
+Lref = aerotable.get_Lref()
+My = My_coef * q * Sref * Lref
+
+force_z_aero = CNB * q * Sref #type:ignore
+force_aero = Matrix([0, 0, force_z_aero])
+force_new = force + force_aero
+
+torque_y_aero = My / Iyy
+torque_aero = Matrix([0, torque_y_aero, 0])
+torque_new = torque + torque_aero
 
 ##################################################
 # Update Equations
@@ -114,15 +193,15 @@ angvel_new = angvel + angacc * dt
 quat_new = quat + (-0.5 * Sw * quat) * dt
 mass_new = mass
 
+##################################################
+# Differential Definitions
+##################################################
+
 pos_dot = pos_new.diff(dt)
 vel_dot = vel_new.diff(dt)
 angvel_dot = angvel_new.diff(dt)
 quat_dot = quat_new.diff(dt)
 mass_dot = mass_new.diff(dt)
-
-##################################################
-# Differential Definitions
-##################################################
 
 defs = (
         (pos.diff(t),       pos_dot),
@@ -157,16 +236,20 @@ state = Matrix([
     angvel,
     quat,
     mass,
+    cg,
     Ixx,
     Iyy,
     Izz,
     DirectUpdate(gacc, gacc_new), #type:ignore
-    DirectUpdate("speed", vel.norm())
+    DirectUpdate(speed, speed_new),
+    DirectUpdate(mach, mach_new), #type:ignore
+    DirectUpdate(alpha, alpha_new),
+    DirectUpdate(phi, phi_new),
     ])
 
 input = Matrix([
-    force,
-    torque,
+    DirectUpdate(force, force_new),
+    DirectUpdate(torque, torque_new),
     ])
 
 ##################################################
@@ -180,6 +263,7 @@ dynamics = state.diff(t)
 ##################################################
 
 model = MissileGeneric.from_expression(dt, state, input, dynamics,
-                                         modules=atmosphere.modules,
+                                         modules=[atmosphere.modules, aerotable.modules,
+                                                  debug_module],
                                          definitions=defs)
 

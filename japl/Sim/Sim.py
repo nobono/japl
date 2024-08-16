@@ -12,6 +12,7 @@ from japl.Plotter.Plotter import Plotter
 from japl.Plotter.PyQtGraphPlotter import PyQtGraphPlotter
 
 from japl.Sim.Integrate import runge_kutta_4
+from japl.Sim.Integrate import euler
 
 # from japl.Library.Vehicles.RigidBodyModel import RigidBodyModel
 
@@ -88,6 +89,14 @@ class Sim:
         self.debug_profiler = {"t": 0.0, "t_total": 0.0, "count": 0, "t_ave": 0.0, "run": _debug_profiler_func}
 
 
+    def __init_run(self, simobj: SimObject):
+        # pre-allocate output arrays
+        self.T = np.zeros((self.Nt + 1, ))
+        simobj.Y = np.zeros((self.Nt + 1, len(simobj.X0)))
+        simobj.Y[0] = simobj.X0
+        simobj._set_T_array_ref(self.T) # simobj.T reference to sim.T
+
+
     def __instantiate_plot(self, **kwargs) -> None:
         """This method instantiates the plotter class into the Sim class (if defined).
         Otherwise, a default Plotter class is instantiated."""
@@ -131,11 +140,7 @@ class Sim:
             # to solve all at once...
             # self._solve(simobj)
 
-            # pre-allocate output arrays
-            self.T = np.zeros((self.Nt + 1, ))
-            simobj.Y = np.zeros((self.Nt + 1, len(simobj.X0)))
-            simobj.Y[0] = simobj.X0
-            simobj._set_T_array_ref(self.T) # simobj.T reference to sim.T
+            self.__init_run(simobj)
 
             for istep in range(1, self.Nt + 1):
                 self._step_solve(dynamics_func=self.step,
@@ -186,11 +191,7 @@ class Sim:
     def _solve_with_animation(self, simobj: SimObject) -> None:
         """This method handles the animation when running the Sim class."""
 
-        # pre-allocate output arrays
-        self.T = np.zeros((self.Nt + 1, ))
-        simobj.Y = np.zeros((self.Nt + 1, len(simobj.X0)))
-        simobj.Y[0] = simobj.X0
-        simobj._set_T_array_ref(self.T) # simobj.T reference to sim.T
+        self.__init_run(simobj)
 
         # try to set animation frame intervals to real time
         interval_ms = int(max(1, (1 / self.frame_rate) * 1000))
@@ -328,15 +329,15 @@ class Sim:
 
 
     def _step_solve(self,
-                        dynamics_func: Callable,
-                        istep: int,
-                        dt: float,
-                        simobj: SimObject,
-                        method: str,
-                        rtol: float = 1e-6,
-                        atol: float = 1e-6,
-                        max_step: float = 0.2
-                        ) -> None:
+                    dynamics_func: Callable,
+                    istep: int,
+                    dt: float,
+                    simobj: SimObject,
+                    method: str,
+                    rtol: float = 1e-6,
+                    atol: float = 1e-6,
+                    max_step: float = 0.2
+                    ) -> None:
         """
             This method is an update step for the ODE solver from time step 't' to 't + dt';
         used by FuncAnimation.
@@ -374,43 +375,77 @@ class Sim:
         # setup time and initial state for step
         tstep_prev = self.t_array[istep - 1]
         tstep = self.t_array[istep]
-        x0 = simobj.Y[istep - 1]
+        X = simobj.Y[istep - 1]
 
         # setup input array
         U = np.zeros(len(simobj.model.input_vars), dtype=self._dtype)
 
+        ####################################################################
+        # apply direct state updates
+        ####################################################################
+        # NOTE: avoid overwriting states by using X_temp to
+        # process all direct updates before storing values
+        # back into X_new.
+        ####################################################################
+        # apply direct updates to input
+        U_temp = {}
+        for input_id, func in simobj.model.direct_input_update_map.items():
+            U_temp[input_id] = func(tstep, X, U, dt)
+        for input_id, val in U_temp.items():
+            U[input_id] = val
+
+        # apply direct updates to state
+        X_temp = {}
+        for state_id, func in simobj.model.direct_state_update_map.items():
+            X_temp[state_id] = func(tstep, X, U, dt)
+        for state_id, val in X_temp.items():
+            X[state_id] = val
+
+        ####################################################################
+        # Integration Methods
+        ####################################################################
         match method:
+            case "euler":
+                X_new, T_new = euler(
+                        f=dynamics_func,
+                        t=tstep,
+                        X=X,
+                        dt=dt,
+                        args=(U, dt, simobj,),
+                        )
             case "rk4":
                 X_new, T_new = runge_kutta_4(
                         f=dynamics_func,
                         t=tstep,
-                        X=x0,
+                        X=X,
                         h=dt,
                         args=(U, dt, simobj,),
                         )
-
-                # apply any direct state updates (user defined)
-                for state_id, func in simobj.model.direct_state_update_map.items():
-                    X_new[state_id] = func(tstep, X_new, U, dt)
-
-                self.T[istep] = T_new
-                simobj.Y[istep] = X_new
             case "odeint":
                 sol = solve_ivp(
                         fun=dynamics_func,
                         t_span=(tstep_prev, tstep),
                         t_eval=[tstep],
-                        y0=x0,
+                        y0=X,
                         args=(U, dt, simobj,),
                         events=self.events,
                         rtol=rtol,
                         atol=atol,
                         max_step=max_step
                         )
-                self.T[istep] = sol['t'][0]
-                simobj.Y[istep] = sol['y'].T[0]
+                X_new = sol['y'].T[0]
+                T_new = sol['t'][0]
             case _:
                 raise Exception(f"integration method {self.integrate_method} is not defined")
+
+
+        # store results
+        self.T[istep] = T_new
+        simobj.Y[istep] = X_new
+
+        # print("STEP--------------------")
+        # print("DEB %.16f" % X[-1])
+        # print("DEB ", X[-1])
 
         # TODO do this better...
         if self.flag_stop:

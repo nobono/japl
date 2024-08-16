@@ -91,49 +91,6 @@ class Model:
         return self._iX_reference.copy()
 
 
-    @DeprecationWarning
-    def ss(self,
-           A: np.ndarray,
-           B: np.ndarray,
-           C: Optional[np.ndarray] = None,
-           D: Optional[np.ndarray] = None) -> None:
-
-        self._type = ModelType.StateSpace
-
-        self.A = np.array(A)
-        self.B = np.array(B)
-
-        if C is not None:
-            self.C = np.array(C)
-        else:
-            self.C = np.eye(self.A.shape[0])
-
-        if D is not None:
-            self.D = np.array(D)
-        else:
-            self.D = np.zeros_like(self.B)
-
-        self.state_dim = self.A.shape[0]
-
-        # handle user-defined state references in state-space matrices
-        self.__handle_sym_expr_references()
-
-        # reduce complexity of mat mult.
-        # self.A = csr_matrix(self.A.astype(self._dtype))
-        # self.B = csr_matrix(self.B.astype(self._dtype))
-        # self.C = csr_matrix(self.C.astype(self._dtype))
-        # self.D = csr_matrix(self.D.astype(self._dtype))
-
-        # failing here, means matrix contains symbolic references still
-        assert self.A.dtype in [float, int]
-        assert self.B.dtype in [float, int]
-        assert self.C.dtype in [float, int]
-        assert self.D.dtype in [float, int]
-
-        # create the step function
-        self.dynamics_func = lambda X, U: self.A @ X + self.B @ U
-
-
     @classmethod
     def from_function(cls,
                       dt_var: Symbol,
@@ -284,8 +241,8 @@ class Model:
         model = cls()
         model._type = ModelType.Symbolic
         model.modules = model.__set_modules(modules)
-        model.set_state(state_vars)
-        model.set_input(input_vars)
+        model.set_state(state_vars) # NOTE: will convert any Function to Symbol
+        model.set_input(input_vars) # NOTE: will convert any Function to Symbol
         model.state_vars = model.state_register.get_vars()
         model.input_vars = model.input_register.get_vars()
         model.dt_var = dt_var
@@ -329,98 +286,6 @@ class Model:
         self.input_register._pre_sim_checks()
 
         return True
-
-
-    @DeprecationWarning
-    def __get_symbolic_name(self, var: Symbol|MatrixSymbol|MatrixElement) -> str:
-        if isinstance(var, Symbol):
-            return var.name
-        elif isinstance(var, MatrixSymbol):
-            return var.name
-        elif isinstance(var, MatrixElement):
-            return var.symbol.name #type:ignore
-        else:
-            raise Exception("wrong arg type.")
-
-    @DeprecationWarning
-    def __handle_sym_expr_references(self) -> None:
-        """
-            This method handles the user-defined state references (strings) provided
-        within the state space model matrices.
-
-        Use of StateRegister allows for non-linear state-space matrices such as:
-            A = [
-                    [1, 0],
-                    [0, 'xpos'],
-                ]
-
-        where the registered state corresponds to the following names:
-            X = ['xpos', 'ypos', 'ypos']
-
-        The general intended operations ecapsulated by this class are as follows:
-            - check user-defined state-space matrix for any strings (state references).
-
-            - store info of [i][j] indices of matrix, the state-references id of the sympy expression
-                used, coefficents in expression and powers of sympy state var reference.
-
-        The info gathered in the previous section will be applied in Model.step().
-        """
-
-        # TODO this only checks matrix A... expand to B (C? and D?)
-        _len = self.A.shape[0]
-        for i in range(_len):
-            for j in range(_len):
-                val = self.A[i, j]
-                try:
-                    self.A[i, j] = float(val) #type:ignore
-                except Exception as _:
-
-                    # split symbolic matrix bin as (coefficent, state-variable)
-                    if isinstance(val, Expr):
-                        coef_mul: tuple = val.as_coeff_Mul()
-                        coef = self._dtype(coef_mul[0])
-                        var: Symbol|MatrixElement = coef_mul[1] #type:ignore
-
-                        # check if exponents on symbolic state variable exist
-                        if isinstance(var, Pow):
-                            exp = self._dtype(var.exp)
-                        else:
-                            exp = None
-
-                        # var_name = self.__get_symbolic_name(var)
-                        var_name = str(var)
-
-                        # check if state reference is registered
-                        if var_name not in self.state_register:
-                            raise Exception(f"User defined state references \"{var_name}\"\
-                                    in state-space matrix but \"{var_name}\" is not a registered state")
-                        else:
-                            # store state references in state-space matrix
-                            state_id = self.state_register[var_name]["id"]
-                            self._sym_references.append({"A_slice": (i, j), "state_id": state_id, "coef": coef, "exp": exp})
-                            self.A[i:i+1, j:j+1] = coef
-
-        # ensure Model matrices have type float
-        # since sympy expressions are allowed in 
-        # original definition.
-        self.A = self.A.astype(float)
-
-
-    # TODO this can be generalized to mats B, C, D...
-    @DeprecationWarning
-    def __update_A_matrix_exprs(self, A: np.ndarray|Tcsr_matrix, X: np.ndarray) -> None:
-        """This method uses the info gathered in "__handle_sym_expr_references()"
-        as well as the current state 'X' for the time step and applies the changes
-        in matrix A.
-        """
-        for sim_ref in self._sym_references:
-            A_slice = sim_ref["A_slice"]
-            state_id = sim_ref["state_id"]
-            if sim_ref["exp"] is not None:
-                val = X[state_id]**sim_ref["exp"]
-            else:
-                val = X[state_id]
-            A[A_slice[0], A_slice[1]] = sim_ref["coef"] * val
 
 
     def __call__(self, *args) -> np.ndarray:
@@ -507,25 +372,6 @@ class Model:
             return self.input_register[names]["id"]
 
 
-    @DeprecationWarning
-    def add_state(self, name: str, id: int, label: str = "") -> Symbol:
-        """This method registers a SimObject state name and plotting label
-        with a user-specified name. The purpose of this register is for ease
-        of access to SimObject states without having to use the satte index
-        number.
-
-        -------------------------------------------------------------------
-        -- Arguments
-        -------------------------------------------------------------------
-        -- name - user-specified name of state
-        -- id - state index number
-        -- label - (optional) string other than "name" that will be displayed
-                    in plots / visualization
-        -------------------------------------------------------------------
-        """
-        return self.state_register.add_state(name=name, id=id, label=label)
-
-
     def set_state(self, state_vars: tuple|list|Matrix, labels: Optional[list|tuple] = None):
         """This method initializes the StateRegister attribute of the Model.
 
@@ -580,37 +426,6 @@ class Model:
         return self.state_register.get_sym(name)
 
 
-    # def __process_direct_state_updates(self, direct_state_update_dict: dict,
-    #                                 modules: dict = {}) -> dict:
-    #     """This method takes a direct_state_update_dict which maps direct state
-    #     updates of the model instead of integrating the dynamics.
-
-    #      - The input dict should be of format: {Symbol: [Expr|Callable]}
-    #      - and will be converted to format:    {state_id: Callable}.
-
-    #     -------------------------------------------------------------------
-    #     -- Arguments
-    #     -------------------------------------------------------------------
-    #     -- direct_state_update_dict - (dict) dict mapping state_vars to expression
-    #     -------------------------------------------------------------------
-    #     -- Returns
-    #     -------------------------------------------------------------------
-    #     -- (dict) - mapping state_var index to callable function
-    #     -------------------------------------------------------------------
-    #     """
-    #     ret = {}
-    #     for var, expr in direct_state_update_dict.items():
-    #         var_id: int = self.get_state_id(var) #type:ignore
-    #         match expr.__class__:
-    #             case Expr():
-    #                 ret.update({var_id: Desym(self.vars, expr, modules=modules)})
-    #             case Callable():
-    #                 ret.update({var_id: expr})
-    #             case _:
-    #                 raise Exception("unhandled case.")
-    #     return ret
-
-
     def __process_direct_state_updates(self, state_vars: Matrix) -> dict:
         """This method takes the state array / state_vars as input which
         finds any DirectUpdate elements which map direct state updates of
@@ -629,22 +444,11 @@ class Model:
         -- (dict) - mapping state_var index to callable function
         -------------------------------------------------------------------
         """
-        # ret = {}
-        # for var, expr in direct_state_update.items():
-        #     var_id: int = self.get_state_id(var) #type:ignore
-        #     match expr.__class__:
-        #         case Expr():
-        #             ret.update({var_id: Desym(self.vars, expr, modules=modules)})
-        #         case Callable():
-        #             ret.update({var_id: expr})
-        #         case _:
-        #             raise Exception("unhandled case.")
-        # return ret
         direct_state_update_map = {}
         for i, var in enumerate(state_vars): #type:ignore
             if isinstance(var, DirectUpdateSymbol):
                 assert var.sub_expr is not None
-                t = Symbol('t') # 't' variable needed to adhear to func arument format
+                t = Symbol('t') # 't' variable needed to adhear to func argument format
                 func = Desym((t, *self.vars), var.sub_expr, modules=self.modules)
                 direct_state_update_map.update({i: func})
         return direct_state_update_map

@@ -1,9 +1,15 @@
+import os
 from typing import Optional
 from sympy import Matrix, Symbol, Function, Expr, symbols, Number
 from sympy import Derivative
 from sympy.core.function import UndefinedFunction
 from japl.Model.StateRegister import StateRegister
 from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
+
+from japl.BuildTools.CodeGen import *
+from pprint import pprint
+from pprint import pformat
+import sympy as sp
 
 
 
@@ -37,9 +43,45 @@ def build_model(state: Matrix,
     _apply_definitions_to_array(state, def_subs)
     _apply_definitions_to_array(input, def_subs)
 
+    # NOTE: testing this ##############
+    # NOTE: dont subs input_subs when subbing
+    # dynamics --possibly even when subbing state.
+    def_state_subs = {}
+    def_state_subs.update(def_subs)
+    def_state_subs.update(state_subs)
+
+    # TODO: left off here,
+    # determining weather should sub input_subs
+    # or not.
+    def_state_subs = _apply_subs_to_dict(def_state_subs)
+
+    all_subs = {}
+    all_subs.update(def_subs)
+    all_subs.update(state_subs)
+    all_subs.update(input_subs)
+    all_subs = _apply_subs_to_dict(all_subs)
+
+    # breakpoint()
+    # NOTE: need 
+    # diff_defs
+    # state_defs
+    # input_defs
+    # state_var_subs
+    # input_var_subs
+    state_var_subs = _create_array_var_subs(state)
+    input_var_subs = _create_array_var_subs(input)
+    # _apply_subs_to_direct_updates(state, all_subs)
+    _apply_subs_to_direct_updates(state, state_var_subs)
+    _apply_subs_to_direct_updates(input, state_var_subs)
+    _apply_subs_to_direct_updates(state, input_var_subs)
+    _apply_subs_to_direct_updates(input, input_var_subs)
+
+
+    ###################################
+
     # process DirectUpdate.expr with diff & state subs
-    _apply_subs_to_direct_updates(state, [def_subs, state_subs, input_subs])
-    _apply_subs_to_direct_updates(input, [def_subs, state_subs, input_subs])
+    # _apply_subs_to_direct_updates(state, [def_subs, state_subs, input_subs])
+    # _apply_subs_to_direct_updates(input, [def_subs, state_subs, input_subs])
 
     # NOTE: may not need this ####################################
     # now that subs applied to DirectUpdateSymbols,
@@ -49,21 +91,106 @@ def build_model(state: Matrix,
     # NOTE: may not need this ####################################
 
     # do substitions
-    dynamics = dynamics.subs(def_subs).doit()
-    dynamics = dynamics.subs(state_subs).subs(input_subs)
+    # dynamics = dynamics.subs(def_subs).doit()
+    # dynamics = dynamics.subs(state_subs).subs(input_subs)
+    dynamics = dynamics.subs(all_subs)
+
+    # sub input
+    input_name_subs = {}
+    for var in input:
+        if isinstance(var, DirectUpdateSymbol):
+            input_name_subs.update({var.state_expr: Symbol(var.name)})
+        elif isinstance(var, Symbol):
+            pass
+    dynamics = dynamics.subs(input_name_subs)
 
     # TODO: this needs to be re-evaluated. May not be neccessary
     # or best emthod of checking
-    _check_array_for_undefined_function(state, "state", state, force_symbol=True)
-    _check_array_for_undefined_function(state, "state", input, force_symbol=True)
-    _check_array_for_undefined_function(input, "input", state, force_symbol=True)
-    _check_array_for_undefined_function(input, "input", input, force_symbol=True)
+    # _check_array_for_undefined_function(state, "state", state, force_symbol=False)
+    # _check_array_for_undefined_function(state, "state", input, force_symbol=False)
+    # _check_array_for_undefined_function(input, "input", state, force_symbol=False)
+    # _check_array_for_undefined_function(input, "input", input, force_symbol=False)
 
     # check for any undefined differential expresion in dynamics
     _check_dynamics_for_undefined_diffs(dynamics)
     _check_dynamics_for_undefined_function(dynamics, state)
 
+    # write_array(state, "./temp_state.py")
+    # write_array(input, "./temp_input.py")
+    # write_array(dynamics, "./temp_dynamics.py")
     return (state, input, dynamics)
+
+
+def write_array(array, out_path: str):
+    # data = pformat(array)
+    if os.path.exists(out_path):
+        option = "r+"
+    else:
+        option = "a+"
+    with open(out_path, option) as f:
+        f.seek(0)
+        for elem in array:
+            if isinstance(elem, DirectUpdateSymbol):
+                data = pformat(elem.sub_expr)
+            else:
+                data = pformat(elem)
+            f.write(data)
+            f.write('\n')
+
+
+def _get_direct_updates(array):
+    return [i for i in array if isinstance(i, DirectUpdateSymbol)]
+
+
+def _get_sub_expr(array):
+    return [i.sub_expr for i in array if isinstance(i, DirectUpdateSymbol)]
+
+
+def _apply_subs_to_expr(expr, subs: dict|list[dict]):
+    if isinstance(subs, dict):
+        return expr.subs(subs)
+    elif isinstance(subs, list):
+        for sub in subs:
+            expr.subs(sub)
+        return expr
+
+
+def _apply_subs_to_dict(subs: dict):
+    for key, val in subs.items():
+        subs[key] = _apply_subs_to_expr(val, subs)
+    return subs
+
+
+def _create_array_var_subs(array):
+    """From state / input arrays create subs for var
+    names. This represents pulling values from the X, U 
+    array in the step update methods."""
+    subs = {}
+    for elem in array:
+        if isinstance(elem, DirectUpdateSymbol):
+            symbol = Symbol(f"{elem.state_expr.name}")
+            subs.update({elem.state_expr: symbol})
+        else:
+            symbol = Symbol(elem.name)
+            subs.update({elem: symbol})
+    return subs
+
+
+def _get_array_var_names(array):
+    names = []
+    for i, elem in enumerate(array):
+        if isinstance(elem, Symbol):
+            names.append(elem.name)
+            continue
+        if isinstance(elem, Function):
+            names.append(elem.name) #type:ignore
+            continue
+        if isinstance(elem, DirectUpdateSymbol):
+            _get_array_var_names(elem.state_expr)
+            continue
+        else:
+            raise Exception("unhandled case.")
+    return names
 
 
 def _check_var_array_types(array, array_name: str = "array"):
@@ -89,7 +216,7 @@ def _check_dynamics_for_undefined_diffs(dynamics):
     """This method checks for any undefined Derivative types in the dynamics.
     undefined Derivatives indicate a missing substition in the definitions."""
     for i, elem in enumerate(dynamics):
-        if isinstance(elem, Derivative):
+        if elem.has(Derivative):
             raise Exception(f"\n\ndynamics-id[{i}]: undefined differential expression "
                             f"\n\n\t\"{elem}\"\n\n\t in the dynamics array. Assign this expression in "
                             f"the definitions or update using DirectUpdate().")
@@ -106,10 +233,11 @@ def _check_dynamics_for_undefined_function(dynamics: Matrix, state: Matrix):
         found = False
         for ivar, var in enumerate(state): #type:ignore
             if isinstance(var, DirectUpdateSymbol):
-                if row.has(var.state_expr): #type:ignore
-                    fail = True
-                    found = True
-                    var_msg += [f"state[{ivar}] undefined variable: {var.state_expr} "]
+                if isinstance(var.state_expr, Function):
+                    if row.has(var.state_expr): #type:ignore
+                        fail = True
+                        found = True
+                        var_msg += [f"state[{ivar}] undefined variable: {var.state_expr} "]
             elif isinstance(var, Function):
                 if row.has(var): #type:ignore
                     fail = True
@@ -135,7 +263,7 @@ def _check_array_for_undefined_function(array: Matrix, array_name: str, array_co
                 if isinstance(row, DirectUpdateSymbol):
                     if row.sub_expr.__class__ in [Number, float, int]:
                         pass
-                    else:
+                    elif row.sub_expr.__class__ in [Symbol, Function]:
                         if row.sub_expr.has(var.state_expr): #type:ignore
                             fail = True
                             found = True
@@ -187,7 +315,8 @@ def _create_subs_from_array(array: tuple|list|Matrix) -> dict:
         #         ret[elem] = StateRegister._extract_variable(elem)
         # NOTE: unused?######################################
         if isinstance(var, DirectUpdateSymbol):
-            ret[var.state_expr] = var.sub_expr
+            # ret[var.state_expr] = var.sub_expr
+            ret[var.state_expr] = StateRegister._extract_variable(var.state_expr)
         elif isinstance(var, Function):
             ret[var] = StateRegister._extract_variable(var)
         elif isinstance(var, Symbol):

@@ -25,15 +25,13 @@ class test_RigidBodyModel(unittest.TestCase):
                 quiet=1,
                 )
         sim.run()
-
         truth = self.run_dynamics()
-
         for state, tru in zip(simobj.Y[-1], truth[-1]):
             self.assertEqual(state, tru)
 
 
     def setUp(self):
-        self.TOLERANCE_PLACES = 14
+        self.TOLERANCE_PLACES = 15
 
 
     def create_simobj(self):
@@ -58,7 +56,9 @@ class test_RigidBodyModel(unittest.TestCase):
                            w0,
                            quat0,
                            mass0,
-                           Ixx0, Iyy0, Izz0,
+                           Ixx0,
+                           Iyy0,
+                           Izz0,
                            gacc0,
                            ])
         self.dt = 0.01
@@ -120,6 +120,21 @@ class test_RigidBodyModel(unittest.TestCase):
         return Xdot
 
 
+    def direct_updates(self, X, U, dt, simobj: SimObject):
+        pos = X[:3]
+        vel = X[3:6]
+        angvel = X[6:9]
+        quat = X[9:13]
+        mass = X[13]
+        Ixx = X[14]
+        Iyy = X[15]
+        Izz = X[16]
+        gacc = X[17]
+        force = U[:3]
+        torque = U[3:6]
+        return (X, U)
+
+
     def run_dynamics(self):
         Nt = int(self.t_span[1] / self.dt)
         t_array = np.linspace(self.t_span[0], self.t_span[1], Nt + 1)
@@ -127,18 +142,24 @@ class test_RigidBodyModel(unittest.TestCase):
         simobj.Y = np.zeros((Nt + 1, len(simobj.X0)))
         simobj.Y[0] = simobj.X0
 
-        U = np.zeros(len(simobj.model.input_vars))
 
         for istep in range(1, Nt + 1):
             tstep = t_array[istep]
             X = simobj.Y[istep - 1]
+            U = np.zeros(len(simobj.model.input_vars))
+            args = (U, self.dt, simobj,)
+
+            # direct updates
+            X, U = self.direct_updates(X, U, self.dt, simobj)
+
             X_new, T_new = runge_kutta_4(
                     f=self.dynamics,
                     t=tstep,
                     X=X,
                     h=self.dt,
-                    args=(U, self.dt, simobj,)
+                    args=args,
                     )
+
             simobj.Y[istep] = X_new
         truth = simobj.Y
         return truth
