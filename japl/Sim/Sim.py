@@ -380,30 +380,29 @@ class Sim:
         # setup input array
         U = np.zeros(len(simobj.model.input_vars), dtype=self._dtype)
 
-        ####################################################################
+        ##################################################################
         # apply direct state updates
-        ####################################################################
+        ##################################################################
         # NOTE: avoid overwriting states by using X_temp to
         # process all direct updates before storing values
         # back into X_new.
-        ####################################################################
+        ##################################################################
+
         # apply direct updates to input
-        U_temp = {}
-        for input_id, func in simobj.model.direct_input_update_map.items():
-            U_temp[input_id] = func(tstep, X, U, dt)
-        for input_id, val in U_temp.items():
-            U[input_id] = val
+        U_temp = simobj.model.direct_input_update_func(tstep, X, U, dt).flatten()
+        for i in range(len(U_temp)):
+            if not np.isnan(U_temp[i]):
+                U[i] = U_temp[i]
 
         # apply direct updates to state
-        X_temp = {}
-        for state_id, func in simobj.model.direct_state_update_map.items():
-            X_temp[state_id] = func(tstep, X, U, dt)
-        for state_id, val in X_temp.items():
-            X[state_id] = val
+        X_temp = simobj.model.direct_state_update_func(tstep, X, U, dt).flatten()
+        for i in range(len(X_temp)):
+            if not np.isnan(X_temp[i]):
+                X[i] = X_temp[i]
 
-        ####################################################################
+        ##################################################################
         # Integration Methods
-        ####################################################################
+        ##################################################################
         match method:
             case "euler":
                 X_new, T_new = euler(

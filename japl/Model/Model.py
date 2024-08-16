@@ -1,25 +1,11 @@
-# ---------------------------------------------------
-
 from typing import Callable, Optional
-
-# ---------------------------------------------------
-
 import numpy as np
-
-# ---------------------------------------------------
-
-# from control.iosys import StateSpace
-
-# ---------------------------------------------------
-
 from enum import Enum
-
-# ---------------------------------------------------
-
 # from scipy.sparse import csr_matrix
 # from scipy.sparse._csr import csr_matrix as Tcsr_matrix
 # from sympy.matrices.expressions.matexpr import MatrixElement
-from sympy import Matrix, MatrixSymbol, Symbol, Expr
+from sympy import Matrix, MatrixSymbol, Symbol, Expr, Function
+from sympy import nan as sp_nan
 from sympy import simplify
 
 from japl.Model.StateRegister import StateRegister
@@ -57,8 +43,8 @@ class Model:
         self.vars: tuple = ()
         self.state_dim = 0
         self.input_dim = 0
-        self.direct_state_update_map: dict = {}
-        self.direct_input_update_map: dict = {}
+        self.direct_state_update_func: Callable
+        self.direct_input_update_func: Callable
         self.A = np.array([])
         self.B = np.array([])
         self.C = np.array([])
@@ -250,8 +236,8 @@ class Model:
         model.dt_var = dt_var
         model.vars = (model.state_vars, model.input_vars, dt_var)
         model.dynamics_expr = dynamics_expr
-        model.direct_state_update_map = model.__process_direct_state_updates(model.state_vars)
-        model.direct_input_update_map = model.__process_direct_state_updates(model.input_vars)
+        model.direct_state_update_func = model.__process_direct_state_updates(model.state_vars)
+        model.direct_input_update_func = model.__process_direct_state_updates(model.input_vars)
         model.state_dim = len(model.state_vars)
         model.input_dim = len(model.input_vars)
         # create lambdified function from symbolic expression
@@ -428,13 +414,11 @@ class Model:
         return self.state_register.get_sym(name)
 
 
-    def __process_direct_state_updates(self, state_vars: Matrix) -> dict:
-        """This method takes the state array / state_vars as input which
-        finds any DirectUpdate elements which map direct state updates of
-        the model instead of integrating the state dynamics.
-
-         - The input dict should be of format: {Symbol: [Expr|Callable]}
-         - and will be converted to format:    {state_id: Callable}.
+    def __process_direct_state_updates(self, state_vars: Matrix):
+        """This method creates an update function from a symbolic state
+        Matrix. Any DirectUpdate elements will be updated using its
+        substitution expression, "sub_expr", while Symbol & Function
+        elements result in NaN.
 
         -------------------------------------------------------------------
         -- Arguments
@@ -443,14 +427,19 @@ class Model:
         -------------------------------------------------------------------
         -- Returns
         -------------------------------------------------------------------
-        -- (dict) - mapping state_var index to callable function
+        -- (Callable) - lambdified sympy expression
         -------------------------------------------------------------------
         """
-        direct_state_update_map = {}
-        for i, var in enumerate(state_vars):  # type:ignore
+        state_updates = []
+        for var in state_vars:  # type:ignore
             if isinstance(var, DirectUpdateSymbol):
-                assert var.sub_expr is not None
-                t = Symbol('t')  # 't' variable needed to adhear to func argument format
-                func = Desym((t, *self.vars), var.sub_expr, modules=self.modules)
-                direct_state_update_map.update({i: func})
-        return direct_state_update_map
+                state_updates.append(var.sub_expr)
+            elif isinstance(var, Symbol):
+                state_updates.append(sp_nan)
+            elif isinstance(var, Function):
+                state_updates.append(sp_nan)
+            else:
+                raise Exception("unhandled case.")
+        t = Symbol('t')  # 't' variable needed to adhear to func argument format
+        update_func = Desym((t, *self.vars), Matrix(state_updates), modules=self.modules)
+        return update_func
