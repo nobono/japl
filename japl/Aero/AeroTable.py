@@ -64,27 +64,27 @@ class AeroTable:
         except Exception as e:
             raise Exception(e)
 
-        self._CA_inv = data_dict.get("CA_inv", None).table   # (alpha, phi, mach)
-        self._CA_Basic = data_dict.get("CA_Basic", None).table   # (alpha, phi, mach)
-        self._CA_0_Boost = data_dict.get("CA_0_Boost", None).table   # (phi, mach, alt)
-        self._CA_0_Coast = data_dict.get("CA_0_Coast", None).table   # (phi, mach, alt)
-        self._CA_IT = data_dict.get("CA_IT", None).table   # (alpha, phi, mach, iota)
-        self._CYB_Basic = data_dict.get("CYB_Basic", None).table   # (alpha, phi, mach)
-        self._CYB_IT = data_dict.get("CYB_IT", None).table   # (alpha, phi, mach, iota)
-        self._CNB_Basic = data_dict.get("CNB_Basic", None).table   # (alpha, phi, mach)
-        self._CNB_IT = data_dict.get("CNB_IT", None).table   # (alpha, phi, mach, iota)
-        self._CLLB_Basic = data_dict.get("CLLB_Basic", None).table   # (alpha, phi, mach)
-        self._CLLB_IT = data_dict.get("CLLB_IT", None).table   # (alpha, phi, mach, iota)
-        self._CLMB_Basic = data_dict.get("CLMB_Basic", None).table   # (alpha, phi, mach)
-        self._CLMB_IT = data_dict.get("CLMB_IT", None).table   # (alpha, phi, mach, iota)
-        self._CLNB_Basic = data_dict.get("CLNB_Basic", None).table   # (alpha, phi, mach)
-        self._CLNB_IT = data_dict.get("CLNB_IT", None).table   # (alpha, phi, mach, iota)
-        self._Fin2_CN = data_dict.get("Fin2_CN", None).table   # (alpha, phi, mach, iota)
-        self._Fin2_CBM = data_dict.get("Fin2_CBM", None).table   # (alpha, phi, mach, iota)
-        self._Fin2_CHM = data_dict.get("Fin2_CHM", None).table   # (alpha, phi, mach, iota)
-        self._Fin4_CN = data_dict.get("Fin4_CN", None).table   # (alpha, phi, mach, iota)
-        self._Fin4_CBM = data_dict.get("Fin4_CBM", None).table   # (alpha, phi, mach, iota)
-        self._Fin4_CHM = data_dict.get("Fin4_CHM", None).table   # (alpha, phi, mach, iota)
+        self._CA_inv = data_dict.get("CA_inv", None).table          # (alpha, phi, mach)
+        self._CA_Basic = data_dict.get("CA_Basic", None).table      # (alpha, phi, mach)
+        self._CA_0_Boost = data_dict.get("CA_0_Boost", None).table  # (phi, mach, alt)
+        self._CA_0_Coast = data_dict.get("CA_0_Coast", None).table  # (phi, mach, alt)
+        self._CA_IT = data_dict.get("CA_IT", None).table            # (alpha, phi, mach, iota)
+        self._CYB_Basic = data_dict.get("CYB_Basic", None).table    # (alpha, phi, mach)
+        self._CYB_IT = data_dict.get("CYB_IT", None).table          # (alpha, phi, mach, iota)
+        self._CNB_Basic = data_dict.get("CNB_Basic", None).table    # (alpha, phi, mach)
+        self._CNB_IT = data_dict.get("CNB_IT", None).table          # (alpha, phi, mach, iota)
+        self._CLLB_Basic = data_dict.get("CLLB_Basic", None).table  # (alpha, phi, mach)
+        self._CLLB_IT = data_dict.get("CLLB_IT", None).table        # (alpha, phi, mach, iota)
+        self._CLMB_Basic = data_dict.get("CLMB_Basic", None).table  # (alpha, phi, mach)
+        self._CLMB_IT = data_dict.get("CLMB_IT", None).table        # (alpha, phi, mach, iota)
+        self._CLNB_Basic = data_dict.get("CLNB_Basic", None).table  # (alpha, phi, mach)
+        self._CLNB_IT = data_dict.get("CLNB_IT", None).table        # (alpha, phi, mach, iota)
+        self._Fin2_CN = data_dict.get("Fin2_CN", None).table        # (alpha, phi, mach, iota)
+        self._Fin2_CBM = data_dict.get("Fin2_CBM", None).table      # (alpha, phi, mach, iota)
+        self._Fin2_CHM = data_dict.get("Fin2_CHM", None).table      # (alpha, phi, mach, iota)
+        self._Fin4_CN = data_dict.get("Fin4_CN", None).table        # (alpha, phi, mach, iota)
+        self._Fin4_CBM = data_dict.get("Fin4_CBM", None).table      # (alpha, phi, mach, iota)
+        self._Fin4_CHM = data_dict.get("Fin4_CHM", None).table      # (alpha, phi, mach, iota)
 
         self.Sref = data_dict.get("Sref", None)
         self.Lref = data_dict.get("Lref", None)
@@ -269,18 +269,3 @@ class AeroTable:
     def __repr__(self) -> str:
         members = [i for i in dir(self) if "__" not in i]
         return "\n".join(members)
-
-
-# if __name__ == "__main__":
-#     t = AeroTable("/home/david/work_projects/control/aeromodel/aeromodel.pickle")
-#     import time
-
-#     N = 10000
-#     st = time.time()
-#     for i in range(N):
-#         t.get_CA_Boost_Total(1, 0, .3, 1000, 0)
-#         t.get_CNB_Total(1, 0, .3, 0)
-#         t.get_CYB_Total(1, 0, .3, 0)
-#         t.get_CLMB_Total(1, 0, .3, 0)
-#         t.get_CLNB_Total(1, 0, .3, 0)
-#     print(1/((time.time() - st) / N))
