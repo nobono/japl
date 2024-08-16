@@ -1,5 +1,4 @@
 from typing import Optional
-import numpy as np
 
 from sympy import Matrix, symbols
 from sympy import Symbol, Function
@@ -53,7 +52,7 @@ class StateRegister(dict):
         if isinstance(var, Symbol):
             return var
         elif isinstance(var, Function):
-            return Symbol(var.name) #type:ignore
+            return Symbol(var.name)  # type:ignore
         else:
             raise Exception("unhandled case.")
 
@@ -80,7 +79,7 @@ class StateRegister(dict):
 
     def set(self, vars: tuple|list|Matrix, labels: Optional[list|tuple] = None):
         """register state and labels"""
-        for id, var in enumerate(vars): #type:ignore
+        for id, var in enumerate(vars):  # type:ignore
             var = self._extract_variable(var)
             var_name = str(var)
             if labels and id < len(labels):

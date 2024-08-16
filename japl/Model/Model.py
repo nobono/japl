@@ -16,10 +16,10 @@ from enum import Enum
 
 # ---------------------------------------------------
 
-from scipy.sparse import csr_matrix
-from scipy.sparse._csr import csr_matrix as Tcsr_matrix
-from sympy import Matrix, MatrixSymbol, Mul, Pow, Symbol, Expr
-from sympy.matrices.expressions.matexpr import MatrixElement
+# from scipy.sparse import csr_matrix
+# from scipy.sparse._csr import csr_matrix as Tcsr_matrix
+# from sympy.matrices.expressions.matexpr import MatrixElement
+from sympy import Matrix, MatrixSymbol, Symbol, Expr
 from sympy import simplify
 
 from japl.Model.StateRegister import StateRegister
@@ -77,15 +77,17 @@ class Model:
         self._sym_references: list[dict] = []
 
 
-    # TODO these only used right now to access quaternion in
-    # Plotter. maybe we can dispense with these somehow...
     def __set_current_state(self, X: np.ndarray):
+        # TODO this only used right now to access quaternion in
+        # Plotter. maybe we can dispense with these somehow...
         """Setter for Model state reference array \"Model._iX_reference\".
         This method should only be called by Model.step()."""
         self._iX_reference = X
 
 
     def get_current_state(self) -> np.ndarray:
+        # TODO this only used right now to access quaternion in
+        # Plotter. maybe we can dispense with these somehow...
         """Getter for Model state reference array. Used to access the
         state array between time steps outside of the Sim class."""
         return self._iX_reference.copy()
@@ -177,7 +179,7 @@ class Model:
         model.dynamics_expr = A * model.state_vars + B * model.input_vars
         if isinstance(model.dynamics_expr, Expr) or isinstance(model.dynamics_expr, Matrix):
             model.dynamics_expr = simplify(model.dynamics_expr)
-        model.dynamics_func = Desym(model.vars, model.dynamics_expr) #type:ignore
+        model.dynamics_func = Desym(model.vars, model.dynamics_expr)  # type:ignore
         model.state_dim = A.shape[0]
         model.input_dim = B.shape[1]
         model.A = np.array(A)
@@ -232,17 +234,17 @@ class Model:
         -------------------------------------------------------------------
         """
         # first build model using provided definitions
-        state_vars,\
-        input_vars,\
-        dynamics_expr = BuildTools.build_model(Matrix(state_vars),
-                                               Matrix(input_vars),
-                                               Matrix(dynamics_expr),
-                                               definitions)
+        (state_vars,
+         input_vars,
+         dynamics_expr) = BuildTools.build_model(Matrix(state_vars),
+                                                 Matrix(input_vars),
+                                                 Matrix(dynamics_expr),
+                                                 definitions)
         model = cls()
         model._type = ModelType.Symbolic
         model.modules = model.__set_modules(modules)
-        model.set_state(state_vars) # NOTE: will convert any Function to Symbol
-        model.set_input(input_vars) # NOTE: will convert any Function to Symbol
+        model.set_state(state_vars)  # NOTE: will convert any Function to Symbol
+        model.set_input(input_vars)  # NOTE: will convert any Function to Symbol
         model.state_vars = model.state_register.get_vars()
         model.input_vars = model.input_register.get_vars()
         model.dt_var = dt_var
@@ -253,7 +255,7 @@ class Model:
         model.state_dim = len(model.state_vars)
         model.input_dim = len(model.input_vars)
         # create lambdified function from symbolic expression
-        match dynamics_expr.__class__(): #type:ignore
+        match dynamics_expr.__class__():  # type:ignore
             case Expr():
                 model.dynamics_func = Desym(model.vars, dynamics_expr, modules=model.modules)
             case Matrix():
@@ -437,7 +439,7 @@ class Model:
         -------------------------------------------------------------------
         -- Arguments
         -------------------------------------------------------------------
-        -- state_vars - [Matrix|list] 
+        -- state_vars - [Matrix|list]
         -------------------------------------------------------------------
         -- Returns
         -------------------------------------------------------------------
@@ -445,11 +447,10 @@ class Model:
         -------------------------------------------------------------------
         """
         direct_state_update_map = {}
-        for i, var in enumerate(state_vars): #type:ignore
+        for i, var in enumerate(state_vars):  # type:ignore
             if isinstance(var, DirectUpdateSymbol):
                 assert var.sub_expr is not None
-                t = Symbol('t') # 't' variable needed to adhear to func argument format
+                t = Symbol('t')  # 't' variable needed to adhear to func argument format
                 func = Desym((t, *self.vars), var.sub_expr, modules=self.modules)
                 direct_state_update_map.update({i: func})
         return direct_state_update_map
-
