@@ -73,6 +73,8 @@ def build_model(state: Matrix,
     # _apply_subs_to_direct_updates(state, all_subs)
     _apply_subs_to_direct_updates(state, state_var_subs)
     _apply_subs_to_direct_updates(input, state_var_subs)
+    _apply_subs_to_direct_updates(state, input_var_subs)
+    _apply_subs_to_direct_updates(input, input_var_subs)
 
 
     ###################################

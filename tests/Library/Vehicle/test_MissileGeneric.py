@@ -1,6 +1,3 @@
-t_span = [0, 0.1]
-
-
 import unittest
 import numpy as np
 import quaternion
@@ -35,12 +32,16 @@ class test_MissileGeneric(unittest.TestCase):
 
         truth = self.run_dynamics()
 
+        # debug printing
+        # state_id = -2
+        # fmt = "%.16f"
+        # rng = (-10, 0)
         # print()
-        # for i in range(0, 4):
-        #     print("1: ", simobj.Y[i, -1])
+        # for i in range(*rng):
+        #     print(f"symb: {fmt}" % simobj.Y[i, state_id])
         # print()
-        # for i in range(0, 4):
-        #     print("2: ", truth[i, -1])
+        # for i in range(*rng):
+        #     print(f"func: {fmt}" % truth[i, state_id])
         # print()
         # print(truth[-1] - simobj.Y[-1])
 
@@ -52,7 +53,7 @@ class test_MissileGeneric(unittest.TestCase):
         self.TOLERANCE_PLACES = 15
         self._dtype=float
         self.dt = 0.01
-        self.t_span = t_span
+        self.t_span = [0, 0.1]
         self.atmosphere = Atmosphere()
         self.aerotable = AeroTable("/home/david/work_projects/control/aeromodel/aeromodel_psb.mat")
 
@@ -86,7 +87,9 @@ class test_MissileGeneric(unittest.TestCase):
                            quat0,
                            mass0,
                            cg0,
-                           Ixx0, Iyy0, Izz0,
+                           Ixx0,
+                           Iyy0,
+                           Izz0,
                            gacc0,
                            speed0,
                            mach0,
@@ -121,7 +124,7 @@ class test_MissileGeneric(unittest.TestCase):
                            torque[1]/Iyy,
                            torque[2]/Izz], dtype=self._dtype)
 
-        gravity = np.array([0, 0, -self.atmosphere.grav_accel(pos[2])], dtype=self._dtype)
+        gravity = np.array([0,0,gacc])
 
         wx, wy, wz = angvel
         Sw = np.array([
@@ -186,6 +189,7 @@ class test_MissileGeneric(unittest.TestCase):
         torque = U[3:6]
 
         alt = pos[2]
+        gacc_new = self.atmosphere.grav_accel(alt)
         sos_new = self.atmosphere.speed_of_sound(alt)
         speed_new = np.linalg.norm(vel)
         mach_new = speed_new / sos_new
@@ -197,9 +201,10 @@ class test_MissileGeneric(unittest.TestCase):
         torque_aero,
         ) = self.aerotable_update(X)
 
-        force_new = force_aero
-        torque_new = torque_aero
+        force_new = force + force_aero
+        torque_new = torque + torque_aero
 
+        X[18] = gacc_new
         X[19] = speed_new
         X[20] = mach_new
         X[21] = alpha_new
@@ -253,8 +258,8 @@ class test_MissileGeneric(unittest.TestCase):
         Lref = self.aerotable.get_Lref()
         My = My_coef * q * Sref * Lref
 
-        force_z = CNB * q * Sref #type:ignore
-        force_aero = np.array([0, 0, force_z], dtype=self._dtype)
+        force_z_aero = CNB * q * Sref #type:ignore
+        force_aero = np.array([0, 0, force_z_aero], dtype=self._dtype)
 
         torque_y_new = My / Iyy
         torque_aero = np.array([0, torque_y_new, 0], dtype=self._dtype)
@@ -268,11 +273,11 @@ class test_MissileGeneric(unittest.TestCase):
         simobj = self.create_simobj()
         simobj.Y = np.zeros((Nt + 1, len(simobj.X0)), dtype=self._dtype)
         simobj.Y[0] = simobj.X0
-        U = np.zeros(len(simobj.model.input_vars))
 
         for istep in range(1, Nt + 1):
             tstep = t_array[istep]
             X = simobj.Y[istep - 1]
+            U = np.zeros(len(simobj.model.input_vars))
             args = (U, self.dt, simobj)
 
             # direct update for input
@@ -285,13 +290,6 @@ class test_MissileGeneric(unittest.TestCase):
                     h=self.dt,
                     args=args
                     )
-            # X_new, T_new = euler(
-            #         f=self.dynamics,
-            #         t=tstep,
-            #         X=X,
-            #         dt=self.dt,
-            #         args=args
-            #         )
 
             simobj.Y[istep] = X_new
         truth = simobj.Y

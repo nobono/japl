@@ -329,15 +329,15 @@ class Sim:
 
 
     def _step_solve(self,
-                        dynamics_func: Callable,
-                        istep: int,
-                        dt: float,
-                        simobj: SimObject,
-                        method: str,
-                        rtol: float = 1e-6,
-                        atol: float = 1e-6,
-                        max_step: float = 0.2
-                        ) -> None:
+                    dynamics_func: Callable,
+                    istep: int,
+                    dt: float,
+                    simobj: SimObject,
+                    method: str,
+                    rtol: float = 1e-6,
+                    atol: float = 1e-6,
+                    max_step: float = 0.2
+                    ) -> None:
         """
             This method is an update step for the ODE solver from time step 't' to 't + dt';
         used by FuncAnimation.

@@ -10,11 +10,7 @@ from japl.Aero.AeroTableSymbolic import AeroTableSymbolic
 from japl.BuildTools.DirectUpdate import DirectUpdate
 from japl.Math import RotationSymbolic
 from japl.Math import VecSymbolic
-from japl.Math.Vec import vec_ang
 
-
-# from mpmath import mp
-# mp.dps = 30
 
 
 class MissileGeneric(Model):
@@ -130,14 +126,15 @@ acc = force / mass
 angacc = inertia.inv() * torque
 
 # gravity
-gacc_new = -atmosphere.grav_accel(pos_z) #type:ignore
-gravity = Matrix([0, 0, gacc_new])
+gravity = Matrix([0, 0, gacc])
 
 ##################################################
 # AeroTable
 ##################################################
 
-sos = atmosphere.speed_of_sound(pos[2]) #type:ignore
+alt = pos[2]
+gacc_new = atmosphere.grav_accel(alt) #type:ignore
+sos = atmosphere.speed_of_sound(alt) #type:ignore
 speed_new = vel.norm()
 mach_new = speed_new / sos #type:ignore
 
@@ -172,9 +169,11 @@ My = My_coef * q * Sref * Lref
 
 force_z_aero = CNB * q * Sref #type:ignore
 force_aero = Matrix([0, 0, force_z_aero])
+force_new = force + force_aero
 
 torque_y_aero = My / Iyy
 torque_aero = Matrix([0, torque_y_aero, 0])
+torque_new = torque + torque_aero
 
 ##################################################
 # Update Equations
@@ -241,7 +240,7 @@ state = Matrix([
     Ixx,
     Iyy,
     Izz,
-    DirectUpdate(gacc, gacc), #type:ignore
+    DirectUpdate(gacc, gacc_new), #type:ignore
     DirectUpdate(speed, speed_new),
     DirectUpdate(mach, mach_new), #type:ignore
     DirectUpdate(alpha, alpha_new),
@@ -249,8 +248,8 @@ state = Matrix([
     ])
 
 input = Matrix([
-    DirectUpdate(force, force_aero),
-    DirectUpdate(torque, torque_aero),
+    DirectUpdate(force, force_new),
+    DirectUpdate(torque, torque_new),
     ])
 
 ##################################################
