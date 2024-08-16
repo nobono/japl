@@ -123,13 +123,14 @@ class SimObject:
     def __init__(self, model: Model = Model(), **kwargs) -> None:
 
         assert isinstance(model, Model)
+        self._dtype = kwargs.get("dtype", float)
         self.name = kwargs.get("name", "SimObject")
         self.color = kwargs.get("color")
         self.size = kwargs.get("size", 1)
         self.model = model
         self.state_dim = self.model.state_dim
         self.X0 = np.zeros((self.state_dim,))
-        self.Y = np.array([])
+        self.Y = np.array([], dtype=self._dtype)
         self.__T = np.array([])
 
         self._setup_model(**kwargs)
@@ -289,7 +290,7 @@ class SimObject:
         return self.model.add_state(name=name, id=id, label=label)
 
 
-    def init_state(self, state: np.ndarray|list) -> None:
+    def init_state(self, state: np.ndarray|list, dtype: type = float) -> None:
         """This method takes a numpy array or list (or nested list) and stores this data
         into the initial state SimObject.X0. This method is for user convenience when initializing
         a dynamics model.
@@ -303,7 +304,7 @@ class SimObject:
 
         if isinstance(state, list):
             state = flatten_list(state)
-        _X0 = np.asarray(state).flatten()
+        _X0 = np.asarray(state, dtype=dtype).flatten()
 
         if _X0.shape != self.X0.shape:
             raise Exception("attempting to initialize state X0 but array sizes do not match.")
