@@ -35,7 +35,7 @@ class TestMathRotation(unittest.TestCase):
                 }
         ret = ret.subs(subs)
         truth = 0.653325805624606071
-        self.assertTrue(ret.evalf() == truth) #type:ignore
+        self.assertTrue(ret.evalf() == truth)  # type:ignore
 
 
     def get_rand_vec(self):
@@ -70,10 +70,10 @@ class TestMathRotation(unittest.TestCase):
                     "vec2_y": vec2[1],
                     "vec2_z": vec2[2],
                     }
-            vec_ang_sym_ret = vec_ang_sym.subs(subs).n(sympy_precision) #type:ignore
+            vec_ang_sym_ret = vec_ang_sym.subs(subs).n(sympy_precision)  # type:ignore
             ret1 += [vec_ang_ret]
             ret2 += [vec_ang_sym_ret]
-            self.assertAlmostEqual(vec_ang_ret, float(vec_ang_sym_ret), places=self.TOLERANCE_PLACES) #type:ignore
+            self.assertAlmostEqual(vec_ang_ret, float(vec_ang_sym_ret), places=self.TOLERANCE_PLACES)  # type:ignore
 
 
 if __name__ == '__main__':
