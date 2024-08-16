@@ -44,6 +44,42 @@ class test_MissileGeneric(unittest.TestCase):
         # print()
         # print(truth[-1] - simobj.Y[-1])
 
+
+        # TEMP #####################################
+        # NOTE: this is very specific testing case
+
+        # for i in simobj.Y[-1]:
+        #     print("%.18f," % i)
+
+        tru = [
+            150.000000000000028422,
+            0.000000000000000000,
+            10000.048684187155231484,
+            1500.000000000000000000,
+            0.000000000000000000,
+            0.961120785433739355,
+            0.000000000000000000,
+            -0.000282937163954947,
+            0.000000000000000000,
+            0.999999999782131499,
+            0.000000000000000000,
+            0.000020874318832341,
+            0.000000000000000000,
+            133.000000000000000000,
+            1.419999999999999929,
+            1.308999999999999941,
+            58.270000000000003126,
+            58.270000000000003126,
+            9.775868442887434284,
+            1500.000251441063483071,
+            5.007818706472199288,
+            -0.000536139293023611,
+            0.000000000000000000]
+
+        # for t, y in zip(tru, simobj.Y[-1]):
+        #     self.assertAlmostEqual(t, y, places=16)
+        ############################################
+
         for state, tru in zip(simobj.Y[-1], truth[-1]):
             self.assertAlmostEqual(state, tru, places=self.TOLERANCE_PLACES)
 
@@ -55,6 +91,7 @@ class test_MissileGeneric(unittest.TestCase):
         self.t_span = [0, 0.1]
         self.atmosphere = Atmosphere()
         self.aerotable = AeroTable("./aeromodel/aeromodel_psb.mat")
+        # self.aerotable = AeroTable("../../../aeromodel/aeromodel_psb.mat")
 
 
     def create_simobj(self):
