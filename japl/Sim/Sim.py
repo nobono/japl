@@ -1,30 +1,21 @@
 from typing import Callable
 import numpy as np
-# import quaternion
-
 from japl import global_opts
 from japl.Aero.Atmosphere import Atmosphere
-# from japl.Math import Rotation
-# from japl.Math.Vec import vec_ang
 from japl.SimObject.SimObject import SimObject
 from japl.DeviceInput.DeviceInput import DeviceInput
 from japl.Plotter.Plotter import Plotter
 from japl.Plotter.PyQtGraphPlotter import PyQtGraphPlotter
-
 from japl.Sim.Integrate import runge_kutta_4
 from japl.Sim.Integrate import euler
-
-# from japl.Library.Vehicles.RigidBodyModel import RigidBodyModel
-
 from scipy.integrate import solve_ivp
-
 from functools import partial
-
-# from scipy import constants
-
 import time
-
-# ---------------------------------------------------
+# import quaternion
+# from scipy import constants
+# from japl.Library.Vehicles.RigidBodyModel import RigidBodyModel
+# from japl.Math import Rotation
+# from japl.Math.Vec import vec_ang
 
 
 
@@ -154,40 +145,6 @@ class Sim:
         return self
 
 
-    @DeprecationWarning
-    def _solve(self, simobj: SimObject) -> None:
-        """This method handles running the Sim class using an ODE Solver"""
-
-        # setup input array
-        U = np.zeros(len(simobj.model.input_vars), dtype=self._dtype)
-
-        sol = solve_ivp(
-                fun=self.step,
-                t_span=self.t_span,
-                t_eval=self.t_array,
-                y0=simobj.X0,
-                args=(U, self.dt, simobj,),
-                events=self.events,
-                rtol=self.rtol,
-                atol=self.atol,
-                max_step=self.max_step,
-                )
-        self.T = sol['t']
-        simobj.Y = sol['y'].T
-        simobj._set_T_array_ref(self.T)  # simobj.T reference to sim.T
-
-        # TODO handle visualization afterwards...
-
-        # xdata, ydata = simobj.get_plot_data()
-        # simobj._update_patch_data(xdata, ydata)
-
-        # self.plotter.autoscale(xdata, ydata)
-        # self.plotter.setup_time_slider(self.Nt, [simobj])
-
-        if self.animate:
-            self.plotter.show()
-
-
     def _solve_with_animation(self, simobj: SimObject) -> None:
         """This method handles the animation when running the Sim class."""
 
@@ -221,110 +178,15 @@ class Sim:
     def step(self, t: float, X: np.ndarray, U: np.ndarray, dt: float, simobj: SimObject):
         """This method is the main step function for the Sim class."""
 
-        # acc_ext = simobj.get_input_array(U, ["acc_x", "acc_y", "acc_z"])
-        # torque_ext = simobj.get_input_array(U, ["torque_x", "torque_y", "torque_z"])
-
-        mass = simobj.get_state_array(X, "mass")  # noqa
-
-        iota = np.radians(0.1)
-
+        ########################################################
         # device input
+        ########################################################
         if self.device_input_type:
             iota = -self.device_input_data["ly"] * 0.69  # noqa
         # force = np.array([1000*lx, 0, 1000*ly])
         # acc_ext = acc_ext + force / mass
-
-        ########################################################################
-        # Aeromodel
-        ########################################################################
-        # if simobj.aerotable:
-        #     # RigidBodyModel contains necessary states for Aeromodel update section
-        #     # assert isinstance(simobj.model, RigidBodyModel)
-
-        #     alt = simobj.get_state_array(X, ["pos_z"])
-        #     vel = simobj.get_state_array(X, ["vel_x", "vel_y", "vel_z"])
-        #     quat = simobj.get_state_array(X, ["q_0", "q_1", "q_2", "q_3"])
-
-        #     # calc gravity and set in state array
-        #     simobj.set_state_array(X, "gacc", -self.atmosphere.grav_accel(alt))
-
-        #     # calculate current mach
-        #     speed = float(np.linalg.norm(vel))
-        #     mach = (speed / self.atmosphere.speed_of_sound(alt))
-
-        #     # calc angle of attack: (pitch_angle - flight_path_angle)
-        #     vel_hat = vel / speed                                       # flight path vector
-
-        #     # projection vel_hat --> x-axis
-        #     zx_plane_norm = np.array([0, 1, 0], dtype=self._dtype)
-        #     vel_hat_zx = ((vel_hat @ zx_plane_norm) / np.linalg.norm(zx_plane_norm)) * zx_plane_norm
-        #     vel_hat_proj = vel_hat - vel_hat_zx
-
-        #     # get Trait-bryan angles (yaw, pitch, roll)
-        #     yaw_angle, pitch_angle, roll_angle = Rotation.quat_to_tait_bryan(np.asarray(quat))
-
-        #     # angle between proj vel_hat & xaxis
-        #     x_axis_inertial = np.array([1, 0, 0], dtype=self._dtype)
-        #     flight_path_angle = np.sign(vel_hat_proj[2]) * vec_ang(vel_hat_proj, x_axis_inertial)
-        #     alpha = pitch_angle - flight_path_angle                     # angle of attack
-        #     phi = roll_angle
-
-        #     ###################################################################
-        #     # pitching moment coeficient for iota increments
-        #     # My_coef = model.CLM(alpha,mach)+...
-        #     #           model.cmit(alpha*n,mach*n,model.increments.iota)+...
-        #     #          ((cg-model.MRC)/model.lref)*...
-        #     #          (model.CN(alpha,mach)+...
-        #     #           model.CNit(alpha*n,mach*n,model.increments.iota));
-
-        #     # % get dynamic pressure (N/m^2)
-        #     # qbar = (model.conv.lbf2n/model.conv.ft2m^2)*...
-        #     #         computeqbar(mach,model.conv.m2ft*alt);
-
-        #     # Fvec = (qbar*model.sref)*...
-        #     #        ([-model.CA_Basic(alpha,mach)+...
-        #     #          -model.CA0(mach,alt,boost);...
-        #     #          -model.CN(alpha,mach)]+...% basic stability
-        #     #         [-model.cadit(alpha, mach, iota);...
-        #     #          -model.CNit(alpha, mach, iota)]);% b-plane steering
-        #     #
-        #     # My   = (qbar*model.sref*model.lref)*...
-        #     #        (model.CLM(alpha, mach)+...       % basic stability
-        #     #         model.cmit(alpha, mach, iota));   % b-plane steering
-        #     ###################################################################
-
-        #     # lookup coefficients
-        #     try:
-        #         CLMB = -simobj.aerotable.get_CLMB_Total(alpha, phi, mach, iota)
-        #         CNB = simobj.aerotable.get_CNB_Total(alpha, phi, mach, iota)
-
-        #         My_coef = CLMB + (simobj.cg - simobj.aerotable.MRC[0]) * CNB
-
-        #         ########################################################
-        #         # calulate moments: (M_coef * q * Sref * Lref), where:
-        #         ########################################################
-        #         #       M_coef - moment coeficient
-        #         #       q      - dynamic pressure
-        #         #       Sref   - surface area reference (wing area)
-        #         #       Lref   - length reference (mean aerodynamic chord)
-        #         ########################################################
-        #         q = self.atmosphere.dynamic_pressure(vel, alt)
-        #         My = My_coef * q * simobj.aerotable.Sref * simobj.aerotable.Lref
-        #         zforce = CNB * q * simobj.aerotable.Sref
-
-        #         # update external moments
-        #         # (positive )
-        #         simobj.set_input_array(U, "torque_y", My / simobj.Iyy)
-        #         simobj.set_input_array(U, "acc_z", zforce / mass)
-
-        #     except Exception as e:
-        #         print(e)
-        #         self.flag_stop = True
-
-        ########################################################################
-
+        ########################################################
         Xdot = simobj.step(X, U, dt)
-
         return Xdot
 
 
@@ -437,14 +299,9 @@ class Sim:
             case _:
                 raise Exception(f"integration method {self.integrate_method} is not defined")
 
-
         # store results
         self.T[istep] = T_new
         simobj.Y[istep] = X_new
-
-        # print("STEP--------------------")
-        # print("DEB %.16f" % X[-1])
-        # print("DEB ", X[-1])
 
         # TODO do this better...
         if self.flag_stop:
