@@ -226,9 +226,6 @@ defs = (
 #   tuple above.
 # ------------------------------------------------
 
-# NOTE: speed needs to be directUpdate otherwise loss
-# of precision
-
 state = Matrix([
     pos,
     vel,
