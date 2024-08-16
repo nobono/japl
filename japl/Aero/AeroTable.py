@@ -62,7 +62,7 @@ class AeroTable:
             self.increments.niota = len(self.increments.iota)
             self.increments.niota_prime = len(self.increments.iota_prime)
         except Exception as e:
-            raise Exception(e)
+            Warning(e)
 
         self._CA_inv = data_dict.get("CA_inv", None).table          # (alpha, phi, mach)
         self._CA_Basic = data_dict.get("CA_Basic", None).table      # (alpha, phi, mach)
