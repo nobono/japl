@@ -59,6 +59,7 @@ def build_model(state: Matrix,
     # write_array(state, "./temp_state.py")
     # write_array(input, "./temp_input.py")
     # write_array(dynamics, "./temp_dynamics.py")
+
     return (state, input, dynamics)
 
 
