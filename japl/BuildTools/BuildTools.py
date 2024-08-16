@@ -136,6 +136,14 @@ def write_array(array, out_path: str):
             f.write('\n')
 
 
+def _get_direct_updates(array):
+    return [i for i in array if isinstance(i, DirectUpdateSymbol)]
+
+
+def _get_sub_expr(array):
+    return [i.sub_expr for i in array if isinstance(i, DirectUpdateSymbol)]
+
+
 def _apply_subs_to_expr(expr, subs: dict|list[dict]):
     if isinstance(subs, dict):
         return expr.subs(subs)
@@ -305,7 +313,8 @@ def _create_subs_from_array(array: tuple|list|Matrix) -> dict:
         #         ret[elem] = StateRegister._extract_variable(elem)
         # NOTE: unused?######################################
         if isinstance(var, DirectUpdateSymbol):
-            ret[var.state_expr] = var.sub_expr
+            # ret[var.state_expr] = var.sub_expr
+            ret[var.state_expr] = StateRegister._extract_variable(var.state_expr)
         elif isinstance(var, Function):
             ret[var] = StateRegister._extract_variable(var)
         elif isinstance(var, Symbol):

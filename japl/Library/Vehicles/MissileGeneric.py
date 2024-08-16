@@ -10,7 +10,11 @@ from japl.Aero.AeroTableSymbolic import AeroTableSymbolic
 from japl.BuildTools.DirectUpdate import DirectUpdate
 from japl.Math import RotationSymbolic
 from japl.Math import VecSymbolic
+from japl.Math.Vec import vec_ang
 
+
+# from mpmath import mp
+# mp.dps = 30
 
 
 class MissileGeneric(Model):
@@ -20,8 +24,13 @@ class MissileGeneric(Model):
 ################################################
 # Debug
 ################################################
-def print_sym(var, msg: str = "DEBUG "):
-    print(msg, var)
+# class deb_print(Matrix):
+#     def dot(self, *args, **kwargs):
+#         print(self.flat())
+#         return super().dot(*args, **kwargs)
+
+def print_sym(var, msg: str = "DEB "):
+    print(msg, "%.18f" % var)
     return var
 
 debug_module = {
@@ -129,7 +138,8 @@ gravity = Matrix([0, 0, gacc_new])
 ##################################################
 
 sos = atmosphere.speed_of_sound(pos[2]) #type:ignore
-mach_new = speed / sos #type:ignore
+speed_new = vel.norm()
+mach_new = speed_new / sos #type:ignore
 
 # calc angle of attack: (pitch_angle - flight_path_angle)
 vel_hat = vel / speed   # flight path vector
@@ -144,13 +154,15 @@ yaw_angle, pitch_angle, roll_angle = RotationSymbolic.quat_to_tait_bryan_sym(qua
 
 # angle between proj vel_hat & xaxis
 x_axis_inertial = Matrix([1, 0, 0])
-flight_path_angle = sign(vel_hat_proj[2]) * print_sym(VecSymbolic.vec_ang_sym(vel_hat_proj, x_axis_inertial)) #type:ignore
+ang = VecSymbolic.vec_ang_sym(vel_hat_proj, x_axis_inertial)
+
+flight_path_angle = sign(vel_hat_proj[2]) * ang #type:ignore
 alpha_new = pitch_angle - flight_path_angle # angle of attack
 phi_new = roll_angle
 
-iota = sp.Float(0)
-CLMB = -aerotable.get_CLMB_Total(alpha_new, phi_new, mach, iota) #type:ignore
-CNB = aerotable.get_CNB_Total(alpha_new, phi_new, mach, iota) #type:ignore
+iota = rad(0.1)
+CLMB = -aerotable.get_CLMB_Total(alpha, phi, mach, iota) #type:ignore
+CNB = aerotable.get_CNB_Total(alpha, phi, mach, iota) #type:ignore
 My_coef = CLMB + (cg - aerotable.get_MRC()) * CNB #type:ignore
 
 q = atmosphere.dynamic_pressure(vel, pos_z) #type:ignore
@@ -163,17 +175,6 @@ force_aero = Matrix([0, 0, force_z_aero])
 
 torque_y_aero = My / Iyy
 torque_aero = Matrix([0, torque_y_aero, 0])
-
-# temp
-force_aero = Matrix([0, 0, 1])
-torque_aero = Matrix([0, 1, 0])
-
-# TODO: diff is with CNB. CNB args diff is alpha_new
-# when looking at alpha_new here:
-#       CNB = aerotable.get_CNB_Total(print_sym(alpha_new), phi_new, mach, iota)
-# this function is being called in a couple different places, 2 of which have
-# differing values.
-extra = vel_hat_proj[2]
 
 ##################################################
 # Update Equations
@@ -241,18 +242,15 @@ state = Matrix([
     Iyy,
     Izz,
     DirectUpdate(gacc, gacc), #type:ignore
-    DirectUpdate(speed, vel.norm()),
+    DirectUpdate(speed, speed_new),
     DirectUpdate(mach, mach_new), #type:ignore
     DirectUpdate(alpha, alpha_new),
     DirectUpdate(phi, phi_new),
-    DirectUpdate("extra", extra),
     ])
 
 input = Matrix([
     DirectUpdate(force, force_aero),
     DirectUpdate(torque, torque_aero),
-    # force,
-    # torque,
     ])
 
 ##################################################

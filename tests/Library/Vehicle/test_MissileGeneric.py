@@ -1,3 +1,6 @@
+t_span = [0, 0.1]
+
+
 import unittest
 import numpy as np
 import quaternion
@@ -24,7 +27,7 @@ class test_MissileGeneric(unittest.TestCase):
                 t_span=self.t_span,
                 dt=self.dt,
                 simobjs=[simobj],
-                integrate_method="euler",
+                integrate_method="rk4",
                 animate=0,
                 quiet=1,
                 )
@@ -32,20 +35,31 @@ class test_MissileGeneric(unittest.TestCase):
 
         truth = self.run_dynamics()
 
+        # print()
+        # for i in range(0, 4):
+        #     print("1: ", simobj.Y[i, -1])
+        # print()
+        # for i in range(0, 4):
+        #     print("2: ", truth[i, -1])
+        # print()
         print(truth[-1] - simobj.Y[-1])
+
         for state, tru in zip(simobj.Y[-1], truth[-1]):
             self.assertAlmostEqual(state, tru, places=self.TOLERANCE_PLACES)
 
 
     def setUp(self):
         self.TOLERANCE_PLACES = 16
+        self._dtype=float
         self.dt = 0.01
-        self.t_span = [0, 0.08]
+        self.t_span = t_span
+        self.atmosphere = Atmosphere()
+        self.aerotable = AeroTable("/home/david/work_projects/control/aeromodel/aeromodel_psb.mat")
 
 
     def create_simobj(self):
         model = MissileGeneric.model
-        simobj = SimObject(model=model, size=2, color='tab:blue')
+        simobj = SimObject(model=model, size=2, color='tab:blue', dtype=self._dtype)
         simobj.Ixx = 1.309 # (kg * m^2)
         simobj.Iyy = 58.27 # (kg * m^2)
         simobj.Izz = 58.27 # (kg * m^2)
@@ -62,10 +76,9 @@ class test_MissileGeneric(unittest.TestCase):
         Izz0 = 58.27
         gacc0 = -9.81
         speed0 = np.linalg.norm(v0)
-        mach0 = speed0 / 343.0
+        mach0 = speed0 / self.atmosphere.speed_of_sound(x0[2])
         alpha0 = 0
         phi0 = 0
-        extra0 = 0
 
         simobj.init_state([x0,
                            v0,
@@ -79,11 +92,8 @@ class test_MissileGeneric(unittest.TestCase):
                            mach0,
                            alpha0,
                            phi0,
-                           extra0,
-                           ])
+                           ], dtype=self._dtype)
 
-        self.atmosphere = Atmosphere()
-        self.aerotable = AeroTable("/home/david/work_projects/control/aeromodel/aeromodel_psb.mat")
         return simobj
 
 
@@ -109,9 +119,9 @@ class test_MissileGeneric(unittest.TestCase):
         acc = force / mass
         angacc = np.array([torque[0]/Ixx,
                            torque[1]/Iyy,
-                           torque[2]/Izz])
+                           torque[2]/Izz], dtype=self._dtype)
 
-        gravity = np.array([0, 0, -self.atmosphere.grav_accel(pos[2])])
+        gravity = np.array([0, 0, -self.atmosphere.grav_accel(pos[2])], dtype=self._dtype)
 
         wx, wy, wz = angvel
         Sw = np.array([
@@ -119,7 +129,7 @@ class test_MissileGeneric(unittest.TestCase):
             [-wx,  0,  -wz,  wy], #type:ignore
             [-wy,  wz,   0, -wx], #type:ignore
             [-wz, -wy,  wx,   0], #type:ignore
-            ])
+            ], dtype=self._dtype)
 
         pos_dot = vel
         vel_dot = acc + gravity
@@ -151,8 +161,7 @@ class test_MissileGeneric(unittest.TestCase):
             mach_dot,
             alpha_dot,
             phi_dot,
-            0,
-            ])
+            ], dtype=self._dtype)
 
         return Xdot
 
@@ -186,36 +195,32 @@ class test_MissileGeneric(unittest.TestCase):
         phi_new,
         force_aero,
         torque_aero,
-        extra,
-        ) = self.aerotable_update(pos, vel,
-                                  quat, cg, Iyy,
-                                  speed_new, mach)
+        ) = self.aerotable_update(X)
 
         force_new = force_aero
         torque_new = torque_aero
 
-        state_updates = {
-                "gacc": -9.81,#-self.atmosphere.grav_accel(alt),
-                "speed": speed_new,
-                "mach": mach_new,
-                "alpha": alpha_new,
-                "phi": phi_new,
-                "extra": extra,
-                }
-        input_updates = {
-                "force_x": force_new[0],
-                "force_y": force_new[1],
-                "force_z": force_new[2],
-                "torque_x": torque_new[0],
-                "torque_y": torque_new[1],
-                "torque_z": torque_new[2],
-                }
-        state_update_map = {simobj.model.get_state_id(k): v for k, v in state_updates.items()}
-        input_update_map = {simobj.model.get_input_id(k): v for k, v in input_updates.items()}
-        return (state_update_map, input_update_map)
+        X[19] = speed_new
+        X[20] = mach_new
+        X[21] = alpha_new
+        X[22] = phi_new
+
+        U[:3] = force_new
+        U[3:6] = torque_new
+
+        return (X, U)
 
 
-    def aerotable_update(self, pos, vel, quat, cg, Iyy, speed, mach):
+    def aerotable_update(self, X):
+        pos = X[:3]
+        vel = X[3:6]
+        quat = X[9:13]
+        cg = X[14]
+        Iyy = X[16]
+        speed = X[19]
+        mach = X[20]
+        alpha = X[21]
+        phi = X[22]
 
         alt = pos[2]
 
@@ -223,23 +228,24 @@ class test_MissileGeneric(unittest.TestCase):
         vel_hat = vel / speed
 
         # projection vel_hat --> x-axis
-        zx_plane_norm = np.array([0, 1, 0], dtype=float)
+        zx_plane_norm = np.array([0, 1, 0], dtype=self._dtype)
         vel_hat_zx = ((vel_hat @ zx_plane_norm) / np.linalg.norm(zx_plane_norm)) * zx_plane_norm
         vel_hat_proj = vel_hat - vel_hat_zx
 
         # get Trait-bryan angles (yaw, pitch, roll)
-        yaw_angle, pitch_angle, roll_angle = Rotation.quat_to_tait_bryan(np.asarray(quat))
+        yaw_angle, pitch_angle, roll_angle = Rotation.quat_to_tait_bryan(np.asarray(quat), dtype=self._dtype)
 
         # angle between proj vel_hat & xaxis
-        x_axis_inertial = np.array([1, 0, 0], dtype=float)
+        x_axis_inertial = np.array([1, 0, 0], dtype=self._dtype)
         ang = Vec.vec_ang(vel_hat_proj, x_axis_inertial)
+
         flight_path_angle = np.sign(vel_hat_proj[2]) * ang
         alpha_new = pitch_angle - flight_path_angle                     # angle of attack
         phi_new = roll_angle
 
-        iota = 0.0
-        CLMB = -self.aerotable.get_CLMB_Total(alpha_new, phi_new, mach, iota) #type:ignore
-        CNB = self.aerotable.get_CNB_Total(alpha_new, phi_new, mach, iota) #type:ignore
+        iota = np.radians(0.1)
+        CLMB = -self.aerotable.get_CLMB_Total(alpha, phi, mach, iota) #type:ignore
+        CNB = self.aerotable.get_CNB_Total(alpha, phi, mach, iota) #type:ignore
         My_coef = CLMB + (cg - self.aerotable.get_MRC()) * CNB #type:ignore
 
         q = self.atmosphere.dynamic_pressure(vel, alt) #type:ignore
@@ -248,64 +254,44 @@ class test_MissileGeneric(unittest.TestCase):
         My = My_coef * q * Sref * Lref
 
         force_z = CNB * q * Sref #type:ignore
-        force_aero = np.array([0, 0, force_z])
+        force_aero = np.array([0, 0, force_z], dtype=self._dtype)
 
         torque_y_new = My / Iyy
-        torque_aero = np.array([0, torque_y_new, 0])
+        torque_aero = np.array([0, torque_y_new, 0], dtype=self._dtype)
 
-        # temp
-        force_aero = np.array([0, 0, 1])
-        torque_aero = np.array([0, 1, 0])
-
-        extra = alpha_new
-
-        print(ang)
-        # print(vel_hat_proj[2])
-        # print(x_axis_inertial)
-
-        return (alpha_new, phi_new, force_aero, torque_aero,
-                extra,
-                )
+        return (alpha_new, phi_new, force_aero, torque_aero)
 
 
     def run_dynamics(self):
         Nt = int(self.t_span[1] / self.dt)
         t_array = np.linspace(self.t_span[0], self.t_span[1], Nt + 1)
         simobj = self.create_simobj()
-        simobj.Y = np.zeros((Nt + 1, len(simobj.X0)))
+        simobj.Y = np.zeros((Nt + 1, len(simobj.X0)), dtype=self._dtype)
         simobj.Y[0] = simobj.X0
+        U = np.zeros(len(simobj.model.input_vars))
 
         for istep in range(1, Nt + 1):
             tstep = t_array[istep]
             X = simobj.Y[istep - 1]
-            U = np.zeros(len(simobj.model.input_vars))
             args = (U, self.dt, simobj)
 
-            # direct updates
-            (state_update_map,
-             input_update_map) = self.direct_updates(X, *args)
-            for input_id, val in input_update_map.items():
-                U[input_id] = val
-            for state_id, val in state_update_map.items():
-                X[state_id] = val
+            # direct update for input
+            X, U = self.direct_updates(X, U, self.dt, simobj)
 
-            # print("TRU %.18f" % X[-1])
-            # print("TRU ", X[-1])
-
-            # X_new, T_new = runge_kutta_4(
-            #         f=self.dynamics,
-            #         t=tstep,
-            #         X=X,
-            #         h=self.dt,
-            #         args=args
-            #         )
-            X_new, T_new = euler(
+            X_new, T_new = runge_kutta_4(
                     f=self.dynamics,
                     t=tstep,
                     X=X,
-                    dt=self.dt,
+                    h=self.dt,
                     args=args
                     )
+            # X_new, T_new = euler(
+            #         f=self.dynamics,
+            #         t=tstep,
+            #         X=X,
+            #         dt=self.dt,
+            #         args=args
+            #         )
 
             simobj.Y[istep] = X_new
         truth = simobj.Y

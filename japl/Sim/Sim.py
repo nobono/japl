@@ -380,16 +380,30 @@ class Sim:
         # setup input array
         U = np.zeros(len(simobj.model.input_vars), dtype=self._dtype)
 
-        # apply any direct state updates (user defined)
+        ####################################################################
+        # apply direct state updates
+        ####################################################################
+        # NOTE: avoid overwriting states by using X_temp to
+        # process all direct updates before storing values
+        # back into X_new.
+        ####################################################################
+        # apply direct updates to input
+        U_temp = {}
         for input_id, func in simobj.model.direct_input_update_map.items():
-            U[input_id] = func(tstep, X, U, dt)
+            U_temp[input_id] = func(tstep, X, U, dt)
+        for input_id, val in U_temp.items():
+            U[input_id] = val
+
+        # apply direct updates to state
+        X_temp = {}
         for state_id, func in simobj.model.direct_state_update_map.items():
-            X[state_id] = func(tstep, X, U, dt)
+            X_temp[state_id] = func(tstep, X, U, dt)
+        for state_id, val in X_temp.items():
+            X[state_id] = val
 
-        # print("STEP--------------------")
-        # print("DEB %.18f" % X[-1])
-        # print("DEB ", X[-1])
-
+        ####################################################################
+        # Integration Methods
+        ####################################################################
         match method:
             case "euler":
                 X_new, T_new = euler(
@@ -399,8 +413,6 @@ class Sim:
                         dt=dt,
                         args=(U, dt, simobj,),
                         )
-                self.T[istep] = T_new
-                simobj.Y[istep] = X_new
             case "rk4":
                 X_new, T_new = runge_kutta_4(
                         f=dynamics_func,
@@ -409,8 +421,6 @@ class Sim:
                         h=dt,
                         args=(U, dt, simobj,),
                         )
-                self.T[istep] = T_new
-                simobj.Y[istep] = X_new
             case "odeint":
                 sol = solve_ivp(
                         fun=dynamics_func,
@@ -423,10 +433,19 @@ class Sim:
                         atol=atol,
                         max_step=max_step
                         )
-                self.T[istep] = sol['t'][0]
-                simobj.Y[istep] = sol['y'].T[0]
+                X_new = sol['y'].T[0]
+                T_new = sol['t'][0]
             case _:
                 raise Exception(f"integration method {self.integrate_method} is not defined")
+
+
+        # store results
+        self.T[istep] = T_new
+        simobj.Y[istep] = X_new
+
+        # print("STEP--------------------")
+        # print("DEB %.16f" % X[-1])
+        # print("DEB ", X[-1])
 
         # TODO do this better...
         if self.flag_stop:
