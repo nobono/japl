@@ -22,7 +22,7 @@ class DeviceInput:
         assert device_type in self.devices
 
         self.queue = Queue()
-        self.device_data = [0, 0, 0, 0] # [x-left, y-left, x-right, y-right]
+        self.device_data = [0, 0, 0, 0]  # [x-left, y-left, x-right, y-right]
         self.running = False
 
         if device_type:
