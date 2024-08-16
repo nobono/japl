@@ -58,7 +58,7 @@ def build_model(state: Matrix,
     all_subs = {}
     all_subs.update(def_subs)
     all_subs.update(state_subs)
-    # all_subs.update(input_subs)
+    all_subs.update(input_subs)
     all_subs = _apply_subs_to_dict(all_subs)
 
     # breakpoint()
