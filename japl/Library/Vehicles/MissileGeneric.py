@@ -39,7 +39,7 @@ print_sym = Function("print_sym") #type:ignore
 ################################################
 
 atmosphere = AtmosphereSymbolic()
-aero_file = "/home/david/work_projects/control/aeromodel/aeromodel_psb.mat"
+aero_file = "./aeromodel/aeromodel_psb.mat"
 # aero_file = "../../../aeromodel/aeromodel_psb.mat"
 aerotable = AeroTableSymbolic(aero_file)
 
