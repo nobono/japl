@@ -11,11 +11,9 @@ def vec_norm(vec) -> np.ndarray:
     return (vec / _norm)
 
 
-def vec_ang(vec1: np.ndarray, vec2: np.ndarray) -> float:
+def vec_ang(vec1: np.ndarray, vec2: np.ndarray, dtype: type = float) -> float:
     """This method finds the angle between two vectors and returns
     the angle in units of radians."""
-    vec1_norm = np.linalg.norm(vec1)
-    vec2_norm = np.linalg.norm(vec2)
-    return np.arccos(
-            np.dot(vec1, vec2) / (vec1_norm * vec2_norm)
-            )
+    dot_product = np.dot(vec1, vec2)
+    cross_product_norm = np.linalg.norm(np.cross(vec1, vec2))
+    return np.arctan2(cross_product_norm, dot_product, dtype=dtype)

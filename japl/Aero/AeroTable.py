@@ -105,6 +105,12 @@ class AeroTable:
         self.MRC = data_dict.get("MRC", None)
         ############################################################
 
+        # MRC may be a float or array
+        # TODO: maybe do this better
+        if hasattr(self.MRC, "__len__"):
+            self.MRC = np.asarray(self.MRC, dtype=float)
+        else:
+            self.MRC = float(self.MRC)
 
 
     def _get_CA_Basic(self, alpha: float, phi: float, mach: float, method: str = "linear") -> float:
@@ -244,6 +250,18 @@ class AeroTable:
     def get_CYB_Total(self, alpha: float, phi: float, mach: float, iota: float, method: str = "linear") -> float:
         return self._get_CYB_Basic(alpha, phi, mach, method=method)\
                 + self._get_CYB_IT(alpha, phi, mach, iota, method=method)
+
+
+    def get_MRC(self) -> float:
+        return self.MRC[0]
+
+
+    def get_Sref(self) -> float:
+        return self.Sref
+
+
+    def get_Lref(self) -> float:
+        return self.Lref
 
 
     def __repr__(self) -> str:
