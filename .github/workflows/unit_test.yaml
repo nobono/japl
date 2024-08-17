@@ -29,16 +29,6 @@ jobs:
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-    - name: Install xvfb
-      run: |
-        sudo apt update
-        sudo apt install -y xvfb
-
-    - name: Start xvfb
-      run: |
-        Xvfb :99 -screen 0 1920x1080x24 &
-        export DISPLAY=:99
-
     - name: Test with unittest
       run: |
         python -m pytest
