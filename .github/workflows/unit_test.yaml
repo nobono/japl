@@ -29,10 +29,11 @@ jobs:
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-    - name: Install Xvfb
+    - name: Install GUI-test dependencies
       run: |
         sudo apt update
         sudo apt install xvfb
+        sudo apt install libxcb-cursor0
 
     - name: Test with unittest
       run: |
