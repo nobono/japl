@@ -1,6 +1,6 @@
 import unittest
 from japl import PyQtGraphPlotter
-from japl import SimObject
+# from japl import SimObject
 import pyqtgraph as pg
 
 
