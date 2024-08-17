@@ -32,7 +32,7 @@ jobs:
     - name: Install Xvfb
       run: |
         sudo apt update
-        sudo apt install xfvb
+        sudo apt install xvfb
 
     - name: Test with unittest
       run: |
