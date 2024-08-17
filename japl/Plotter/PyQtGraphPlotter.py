@@ -147,12 +147,18 @@ class PyQtGraphPlotter:
     # --------------------------------------------------------------------------------------
 
     def setup(self) -> None:
-        ## Always start by initializing Qt (only once per application)
-        if self.quiet:
-            self.app = QtCore.QCoreApplication([])  # no GUI
+        # Always start by initializing Qt (only once per application)
+        # if QApplication instance already running, use running instance.
+        if (app := QtCore.QCoreApplication.instance()):
+            self.app = app
             return
         else:
-            self.app = QtWidgets.QApplication([])   # GUI
+            if self.quiet:
+                self.app = QtCore.QCoreApplication([])  # no GUI
+                return
+            else:
+                self.app = QtWidgets.QApplication([])   # GUI
+                return
 
 
     def add_window(self, figsize: Optional[list[float]|tuple[float]] = None) -> GraphicsLayoutWidget:
