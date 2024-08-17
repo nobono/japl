@@ -41,4 +41,4 @@ jobs:
 
     - name: Test Plotter GUI
       run: |
-        xvfb-run python -m tests.Plotter.guitest_PyQtGraphPlotter
+        QT_DEBUG_PLUGINS=1 xvfb-run python -m tests.Plotter.guitest_PyQtGraphPlotter
