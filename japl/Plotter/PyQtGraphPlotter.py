@@ -20,14 +20,16 @@ from matplotlib import colors as mplcolors
 
 class PyQtGraphPlotter:
 
-    def __init__(self, Nt: int, **kwargs) -> None:
+    def __init__(self, **kwargs) -> None:
+        self.app: Optional[QtCore.QCoreApplication] = None
 
-        self.Nt = Nt
         self.simobjs = []
+        self.istep = 0
+        self.Nt = kwargs.get("Nt", 1)
         self.dt = kwargs.get("dt", None)
 
         # plotting
-        self.figsize = kwargs.get("figsize", (6, 4))
+        self.figsize: tuple = kwargs.get("figsize", (6, 4))
         self.aspect: float|str = kwargs.get("aspect", "equal")
         self.blit: bool = kwargs.get("blit", False)
         self.cache_frame_data: bool = kwargs.get("cache_frame_data", False)
@@ -41,12 +43,27 @@ class PyQtGraphPlotter:
         self.quiet = kwargs.get("quiet", False)
         self.instrument_view &= not self.quiet
 
-        # color cycle list
-        self.color_cycle = self.__color_cycle()
+        # colors
+        self.COLORS = dict(mplcolors.TABLEAU_COLORS, **mplcolors.CSS4_COLORS)  # available colors
+        self.color_cycle = self.__color_cycle()  # color cycle list
+
+        # configure pyqtgraph options
+        pg.setConfigOptions(antialias=self.antialias)
+
+        self.wins: list[GraphicsLayoutWidget] = []  # contains view layouts for each simobj
+        self.shortcuts = []
+
+        self.setup()
 
 
     def show(self) -> None:
-        self.app.exec_()  # or app.exec_() for PyQt5 / PySide2
+        # first show on windows
+        for win in self.wins:
+            win.show()
+        if self.app:
+            self.app.exec_()  # or app.exec_() for PyQt5 / PySide2
+        else:
+            raise Exception("Trying to show() but PyQtGraphPlotter has not been setup.")
 
 
     def __color_cycle(self) -> Generator[str, None, None]:
@@ -105,7 +122,7 @@ class PyQtGraphPlotter:
                    rgba: tuple = (255, 255, 255, 255),
                    width: float = 2) -> None:
 
-        vector_item: GraphItem = pg.GraphItem()
+        vector_item: GraphItem = GraphItem()
         vector_verts = np.array([p0, p1])
         vector_conn = np.array([[0, 1]])
         vector_lines = np.array(
@@ -130,8 +147,6 @@ class PyQtGraphPlotter:
     # --------------------------------------------------------------------------------------
 
     def setup(self) -> None:
-        self.istep = 0
-
         ## Always start by initializing Qt (only once per application)
         if self.quiet:
             self.app = QtCore.QCoreApplication([])  # no GUI
@@ -139,11 +154,84 @@ class PyQtGraphPlotter:
         else:
             self.app = QtWidgets.QApplication([])   # GUI
 
-        # enable anti-aliasing
-        pg.setConfigOptions(antialias=self.antialias)
 
-        self.wins: list[GraphicsLayoutWidget] = []     # contains view layouts for each simobj
-        self.shortcuts = []
+    def add_window(self, figsize: Optional[list[float]|tuple[float]] = None) -> GraphicsLayoutWidget:
+        """This method adds a window popup to the Application
+        instance. A keyboard shortcut 'q' is also added to close
+        said window."""
+        if not figsize:
+            figsize = self.figsize
+
+        # configure window
+        win = GraphicsLayoutWidget()
+        win.resize(*(np.array([*figsize]) * 100))
+
+        # shortcut keys callbacks for each simobj view
+        shortcut = QtWidgets.QShortcut(QKeySequence("Q"), win)
+        shortcut.activated.connect(self.close_windows)
+
+        # add to lists
+        self.wins.append(win)
+        self.shortcuts.append(shortcut)
+        return win
+
+
+    def __get_color_code(self, color: str) -> str:
+        if color in self.COLORS:
+            color_code = self.COLORS[color]
+            return str(color_code)
+        else:
+            raise Exception(f"color {color} not available.")
+
+
+    def add_plot(self,
+                 win: GraphicsLayoutWidget|int,
+                 title: str,
+                 row: int,
+                 col: int,
+                 color_code: str,
+                 size: int = 1,
+                 aspect: str = "",
+                 show_grid: bool = True) -> PlotDataItem:
+        """This method adds a plot to a window."""
+
+        if isinstance(win, int):
+            win = self.wins[win]
+
+        plot_item = win.addPlot(row=row, col=col, colspan=2, title=title, name=title)
+        if show_grid:
+            plot_item.showGrid(True, True, 0.5)    # enable grid
+        plot_item.setAspectLocked(aspect == "equal")
+        pen = {"color": color_code, "width": size}
+        graphic_item = PlotDataItem(x=[],
+                                    y=[],
+                                    pen=pen,
+                                    useCache=self.draw_cache_mode,
+                                    antialias=self.antialias,
+                                    autoDownsample=True,
+                                    downsampleMethod="peak",
+                                    clipToView=True,
+                                    skipFiniteCheck=True)
+        plot_item.addItem(graphic_item)   # init PlotCurve
+        return graphic_item
+
+
+    def _add_plot_from_config_dict(self,
+                                   win: GraphicsLayoutWidget|int,
+                                   config: dict,
+                                   size: int = 1) -> None:
+        """This method will add a plot given a SimObject or by passing
+        a SimObject's plot config dictionary."""
+        for i, (title, axes) in enumerate(config.items()):
+            aspect = axes.get("aspect", self.aspect)  # try get aspect from config
+            color = axes.get("color")
+            size = axes.get("size", size)  # try get size from config
+            if color:
+                color_code = self.__get_color_code(color)
+            else:
+                color_code = next(self.color_cycle)
+            self.add_plot(win=win, title=title, row=i, col=0, color_code=color_code,
+                          size=size, aspect=aspect)
 
 
     def add_simobject(self, simobj: SimObject) -> None:
@@ -152,21 +240,11 @@ class PyQtGraphPlotter:
             return
 
         self.simobjs += [simobj]
-
-        # setup window for each simobj
-        _win = GraphicsLayoutWidget()
-        _win.resize(*(np.array([*self.figsize]) * 100))
-        _win.show()
-        self.wins += [_win]
-
-        # shortcut keys callbacks for each simobj view
-        _shortcut = QtWidgets.QShortcut(QKeySequence("Q"), _win)
-        _shortcut.activated.connect(self.close_windows)  # type:ignore
-        self.shortcuts += [_shortcut]
+        win = self.add_window()
 
         # setup user-defined plots for each simobj
         for i, (title, axes) in enumerate(simobj.plot.get_config().items()):
-            _plot_item = _win.addPlot(row=i, col=0, colspan=2, title=title, name=title)   # add PlotItem to View
+            _plot_item = win.addPlot(row=i, col=0, colspan=2, title=title, name=title)   # add PlotItem to View
             _plot_item.showGrid(True, True, 0.5)    # enable grid
             _aspect = axes.get("aspect", self.aspect)   # look for aspect in plot config; default to class init
             _plot_item.setAspectLocked(_aspect == "equal")
@@ -187,12 +265,12 @@ class PyQtGraphPlotter:
             _view = ViewBox(name="instrument_view")
             _view.setAspectLocked(True)
             _view.setRange(xRange=[-1, 1], yRange=[-1, 1])
-            _win.addItem(_view, row=(i + 1), col=0, colspan=1)  # type:ignore
+            win.addItem(_view, row=(i + 1), col=0, colspan=1)  # type:ignore
 
             # ViewBox for text
             _text_view = ViewBox()
             _text_view.setRange(xRange=[-1, 1], yRange=[-1, 1])
-            _win.addItem(_text_view, row=(i + 1), col=1, colspan=1)  # type:ignore
+            win.addItem(_text_view, row=(i + 1), col=1, colspan=1)  # type:ignore
 
             self.attitude_graph_item: GraphItem = pg.GraphItem()
             _view.addItem(self.attitude_graph_item)  # type:ignore
@@ -310,11 +388,14 @@ class PyQtGraphPlotter:
 
 
     def exit(self) -> None:
-        if self.quiet:
+        if self.quiet and self.app:
             self.app.exit()
-        else:
+        if hasattr(self, "timer"):
             # stop timer and close all open windows
             self.timer.stop()
+        else:
+            if self.app:
+                self.app.exit()
 
 
     def __draw_instrument_view(self, _simobj: SimObject) -> None:
