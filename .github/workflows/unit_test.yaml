@@ -28,8 +28,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        python -m pip install -e .
-
 
     - name: Install Xvfb
       run: |
@@ -42,4 +40,4 @@ jobs:
 
     - name: Test Plotter GUI
       run: |
-        xvfb-run python tests/Plotter/guitest_*
+        xvfb-run python -m tests.Plotter.guitest_PyQtGraphPlotter
