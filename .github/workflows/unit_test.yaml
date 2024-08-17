@@ -41,4 +41,4 @@ jobs:
 
     - name: Test with unittest
       run: |
-        python -m pytest --headless
+        python -m pytest
