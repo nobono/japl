@@ -17,4 +17,3 @@ numpy-quaternion==2023.0.3
 plotext==5.2.8
 inputs==0.5
 pytest==8.3.2
-pytest-xvfb==3.0.0

@@ -36,4 +36,8 @@ jobs:
 
     - name: Test with unittest
       run: |
-        pytest --xvfb-backend=xvfb
+        pytest
+
+    - name: Test Plotter GUI
+      run: |
+        xvfb-run python tests/Plotter/test_*
