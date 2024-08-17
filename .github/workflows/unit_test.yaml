@@ -40,4 +40,4 @@ jobs:
 
     - name: Test Plotter GUI
       run: |
-        xvfb-run python tests/Plotter/test_*
+        xvfb-run python tests/Plotter/guitest_*
