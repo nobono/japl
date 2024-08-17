@@ -44,18 +44,24 @@ class _PlotInterface:
     """This is a class for interfacing SimObject data with the plotter."""
 
     def __init__(self, size: float, state_select: dict, color: Optional[str] = None) -> None:
-        self.size = size
 
-        if not color:
-            self.color = next(self.color_cycle)
-        else:
-            self.color = color
-        self.color_code = self.get_mpl_color_code(self.color)
+        # available colors
+        self.COLORS = dict(mplcolors.TABLEAU_COLORS, **mplcolors.CSS4_COLORS)
+
+        self.size = size
 
         # color cycle list
         self.color_cycle = self.__color_cycle()
         self.__plot_config = state_select
         self.plotting_backend = japl.get_plotlib()
+
+        if not color:
+            self.color_code = next(self.color_cycle)
+            self.color = list(self.COLORS.keys())[
+                    list(self.COLORS.values()).index(self.color_code)]
+        else:
+            self.color = color
+            self.color_code = self.get_mpl_color_code(self.color)
 
         # graphic objects
         self.traces: list[Line2D] = []
@@ -72,7 +78,7 @@ class _PlotInterface:
 
 
     def get_mpl_color_code(self, color_str: str = "") -> str:
-        color_code = mplcolors.TABLEAU_COLORS[color_str]
+        color_code = self.COLORS[color_str]
         return str(color_code)
 
 
@@ -81,7 +87,7 @@ class _PlotInterface:
         plots which do not specify a color."""
 
         while True:
-            for _, v in mplcolors.TABLEAU_COLORS.items():
+            for _, v in self.COLORS.items():
                 yield str(v)
 
 
@@ -130,6 +136,8 @@ class SimObject:
                 size=self.size,
                 color=self.color
                 )
+        if not self.color:
+            self.color = self.plot.color
 
 
     def set_draw(self, size: float = 1, color: str = "black") -> None:
