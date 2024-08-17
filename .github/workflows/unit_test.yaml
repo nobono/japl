@@ -29,7 +29,8 @@ jobs:
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         sudo apt-get update
-        sudo apt-get install -y xvfb \
+        sudo apt-get install -y \
+          xvfb \
           libxcb-cursor0 \
           libxkbcommon-x11-0 \
           libxrender1 \
@@ -54,4 +55,5 @@ jobs:
 
     - name: Test Plotter GUI
       run: |
-        QT_DEBUG_PLUGINS=1 xvfb-run python -m tests.Plotter.guitest_PyQtGraphPlotter
+        # QT_DEBUG_PLUGINS=1  # QT verbose output
+        xvfb-run python -m tests.Plotter.guitest_PyQtGraphPlotter
