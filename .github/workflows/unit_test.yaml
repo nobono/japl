@@ -29,6 +29,11 @@ jobs:
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
+    - name: Install Xvfb
+      run: |
+        sudo apt update
+        sudo apt install xfvb
+
     - name: Test with unittest
       run: |
-        pytest
+        pytest --xvfb-backend=xvfb
