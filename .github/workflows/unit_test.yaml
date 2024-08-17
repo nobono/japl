@@ -34,4 +34,4 @@ jobs:
 
     - name: Test with unittest
       run: |
-        xvfb-rum -a python -m pytest
+        xvfb-run -a python -m pytest
