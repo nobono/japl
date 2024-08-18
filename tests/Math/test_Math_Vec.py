@@ -39,7 +39,7 @@ class TestMathRotation(unittest.TestCase):
 
 
     def get_rand_vec(self):
-        return np.random.random(3).astype(np.float128)
+        return np.random.random(3)
 
 
     def run_vec_ang(self):
