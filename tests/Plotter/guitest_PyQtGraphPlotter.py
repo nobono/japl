@@ -44,4 +44,4 @@ if __name__ == "__main__":
         case()
         print(f"PASS: {test_case_names[i]}")
         num = i
-    print('=' * 30, f" {num} Passed ", '=' * 38)
+    print('=' * 30, f" {num + 1} Passed ", '=' * 38)
