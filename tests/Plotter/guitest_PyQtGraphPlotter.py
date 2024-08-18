@@ -39,6 +39,9 @@ if __name__ == "__main__":
     test_case_names = [i for i in dir(test) if "test_" in i]
     test_cases = [getattr(test, i) for i in test_case_names]
     print("Testing PyQtGraphPlotter:")
+    num = 0
     for i, case in enumerate(test_cases):
         case()
         print(f"PASS: {test_case_names[i]}")
+        num = i
+    print('='*30, f" {num} Passed ", '='*38)
