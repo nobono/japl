@@ -12,7 +12,7 @@ class TestPyQtGraphPlotter():
         assert plotter.app
 
 
-    def test_instantiate_add_window(self):
+    def test_add_window(self):
         plotter = PyQtGraphPlotter()
         win = plotter.add_window()
         assert (len(plotter.wins) == 1)
@@ -20,7 +20,7 @@ class TestPyQtGraphPlotter():
         assert isinstance(win, pg.GraphicsLayoutWidget)
 
 
-    def test_instantiate_add_plot(self):
+    def test_add_plot(self):
         plotter = PyQtGraphPlotter()
         win = plotter.add_window()
         color_code = next(plotter.color_cycle)
