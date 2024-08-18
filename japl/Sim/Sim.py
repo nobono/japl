@@ -251,16 +251,18 @@ class Sim:
         ##################################################################
 
         # apply direct updates to input
-        U_temp = simobj.model.direct_input_update_func(tstep, X, U, dt).flatten()
-        for i in range(len(U_temp)):
-            if not np.isnan(U_temp[i]):
-                U[i] = U_temp[i]
+        if simobj.model.direct_input_update_func:
+            U_temp = simobj.model.direct_input_update_func(tstep, X, U, dt).flatten()
+            for i in range(len(U_temp)):
+                if not np.isnan(U_temp[i]):
+                    U[i] = U_temp[i]
 
         # apply direct updates to state
-        X_temp = simobj.model.direct_state_update_func(tstep, X, U, dt).flatten()
-        for i in range(len(X_temp)):
-            if not np.isnan(X_temp[i]):
-                X[i] = X_temp[i]
+        if simobj.model.direct_state_update_func:
+            X_temp = simobj.model.direct_state_update_func(tstep, X, U, dt).flatten()
+            for i in range(len(X_temp)):
+                if not np.isnan(X_temp[i]):
+                    X[i] = X_temp[i]
 
         ##################################################################
         # Integration Methods
