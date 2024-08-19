@@ -144,8 +144,10 @@ class PyQtGraphPlotter:
         elif isinstance(plot_obj, SimObject):
             pass
         elif plot_obj.__class__ in [list, tuple, np.ndarray]:
+            # NOTE:
             # assume x-value as time
             # or specify rate?
+
             pass
         elif plot_obj is None:
             pass
@@ -310,10 +312,10 @@ class PyQtGraphPlotter:
 
     def add_plot_to_window(self,
                            win: GraphicsLayoutWidget|int,
-                           title: str,
-                           row: int,
-                           col: int,
-                           color: str,
+                           title: str = "",
+                           row: int = 0,
+                           col: int = 0,
+                           color: str = "",
                            size: float = 1,
                            aspect: str = "",
                            show_grid: bool = True) -> PlotDataItem:
@@ -332,9 +334,7 @@ class PyQtGraphPlotter:
 
         pen = {"color": color_code, "width": size}
         plot_item = win.addPlot(row=row, col=col, colspan=2, title=title, name=title)
-        plot_item.setAspectLocked(aspect == "equal")
-        if show_grid:
-            plot_item.showGrid(True, True, 0.5)    # enable grid
+        self.__apply_style_settings_to_plot(plot_item)
         graphic_item = PlotDataItem(x=[],
                                     y=[],
                                     pen=pen,
@@ -618,49 +618,89 @@ class PyQtGraphPlotter:
     #     pass
 
 
-    # def plot(self,
-    #          x: np.ndarray|list,
-    #          y: np.ndarray|list,
-    #          color: str = "",
-    #          linestyle: str = "",
-    #          linewidth: float = 3,
-    #          marker: Optional[str] = None,
-    #          **kwargs):
+    def plot(self,
+             x: np.ndarray|list,
+             y: np.ndarray|list,
+             color: str = "",
+             size: float = 3,
+             marker: Optional[str] = None,
+             marker_size: int = 1,
+             window_id: int = 0,
+             title: str = "",
+             **kwargs):
 
-    #     # convert mpl color to rgb
-    #     if color:
-    #         color_code = mplcolors.TABLEAU_COLORS[color]
-    #     else:
-    #         color_code = next(self.color_cycle)
+        # convert mpl color to rgb
+        if color:
+            color_code = self.__get_color_code(color)
+        else:
+            color_code = next(self.color_cycle)
 
-    #     # convert mpl color to rgb
-    #     rgb_color = mplcolors.to_rgb(color_code)
-    #     rgb_color = (rgb_color[0]*255, rgb_color[1]*255, rgb_color[2]*255)
+        # data = {'x': x, 'y': y}
+        pen = {"color": color_code, "width": size}
+        symbol_pen = {"color": color_code, "width": marker_size}
 
-    #     line = pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen(rgb_color, width=linewidth), symbol=marker)
-    #     self.widget.addItem(line)
+        # old
+        ###########################################################################
+        # line = pg.PlotCurveItem(x=x, y=y, pen=pen, symbol=marker)
+        # graphic_item = self.add_plot_to_window(win=win, title=title, row=0, col=0,
+        #                                        color=color, size=size)
+        # graphic_item.setData(data, symbol=marker, symbolPen=symbol_pen, **kwargs)
+        ###########################################################################
+
+        # check if at least 1 window avaiable
+        # then get GraphicsItem at [0, 0] (default)
+        if len(self.wins) < 1:
+            win = self.create_window()
+            plot_item = win.addPlot(row=0, col=0, title=title, name=title)
+        else:
+            win = self.wins[window_id]
+            plot_item = win.getItem(row=0, col=0)
+
+        scatter = pg.PlotCurveItem(x=x, y=y, pen=pen, symbol=marker, symbolPen=symbol_pen)
+        plot_item.addItem(scatter)
+        self.__apply_style_settings_to_plot(plot_item)
 
 
-    # def scatter(self,
-    #             x: np.ndarray|list,
-    #             y: np.ndarray|list,
-    #             color: str = "",
-    #             linewidth: float = 1,
-    #             marker: str = "o",
-    #             **kwargs):
+    def scatter(self,
+                x: np.ndarray|list,
+                y: np.ndarray|list,
+                color: str = "",
+                size: int = 1,
+                marker: str = "o",
+                window_id: int = 0,
+                title: str = "",
+                **kwargs):
 
-    #     # convert mpl color to rgb
-    #     if color:
-    #         color_code = mplcolors.TABLEAU_COLORS[color]
-    #     else:
-    #         color_code = next(self.color_cycle)
+        # convert mpl color to rgb
+        if color:
+            color_code = self.__get_color_code(color)
+        else:
+            color_code = next(self.color_cycle)
 
-    #     # convert mpl color to rgb
-    #     rgb_color = mplcolors.to_rgb(color_code)
-    #     rgb_color = (rgb_color[0]*255, rgb_color[1]*255, rgb_color[2]*255)
+        pen = {"color": color_code, "width": size}
+        symbol_pen = {"color": color_code, "width": size}
 
-    #     scatter = pg.ScatterPlotItem(x=x, y=y, pen=pg.mkPen(rgb_color, width=linewidth), symbol=marker)
-    #     self.widget.addItem(scatter)
+        # if someone sets empty marker
+        if not marker:
+            marker = 'o'
+
+        # check if at least 1 window avaiable
+        # then get GraphicsItem at [0, 0] (default)
+        if len(self.wins) < 1:
+            win = self.create_window()
+            plot_item = win.addPlot(row=0, col=0, title=title, name=title)
+        else:
+            win = self.wins[window_id]
+            plot_item = win.getItem(row=0, col=0)
+
+        scatter = pg.ScatterPlotItem(x=x, y=y, pen=pen, symbol=marker, symbolPen=symbol_pen)
+        plot_item.addItem(scatter)
+        self.__apply_style_settings_to_plot(plot_item)
+
+
+    def __apply_style_settings_to_plot(self, plot_item):
+        plot_item.showGrid(True, True, 0.5)
+        plot_item.setAspectLocked(self.aspect == "equal")
 
 
     # def autoscale(self, xdata: np.ndarray|list, ydata: np.ndarray|list) -> None:
