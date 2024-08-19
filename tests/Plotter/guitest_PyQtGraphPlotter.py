@@ -2,7 +2,6 @@ from japl.Plotter.PyQtGraphPlotter import PyQtGraphPlotter
 from japl import SimObject
 from japl import Sim
 import pyqtgraph as pg
-from pyqtgraph.Qt.QtCore import QTimer
 import time
 
 
