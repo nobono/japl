@@ -42,6 +42,17 @@ class TestPyQtGraphPlotter():
         assert isinstance(plot_item, pg.PlotDataItem)
 
 
+    def test_plot(self):
+        # adding multiple plot, plot on the
+        # same plotItem.
+        plotter = PyQtGraphPlotter()
+        x = [0, 1, 2, 3]
+        y = [0, 1, 2, 3]
+        plotter.plot(x, y, color="blue")
+        plotter.scatter(x, y, color="red")
+        assert len(plotter.wins[0].ci.items) == 1
+
+
     def test_FuncAnimation(self):
         def func(frame):
             return frame

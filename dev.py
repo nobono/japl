@@ -33,16 +33,17 @@ simobj.plot.set_config({
 
 sim = Sim([0, 10], 0.1, [simobj])
 plotter = PyQtGraphPlotter(frame_rate=25, figsize=[8, 4], show_grid=0)
-plotter.animate(sim)
+# plotter.animate(sim)
 
-# x = [0, 1, 2, 3]
-# y = [0, 1, 2, 3]
-# plotter.plot(x, y, color="blue")
-# plotter.scatter(x, y, color="red")
+x = [0, 1, 2, 3]
+y = [0, 1, 2, 3]
+plotter.plot(x, y, color="blue")
+plotter.scatter(x, y, color="red")
+print(plotter.wins[0].items)
 
 
 
-plotter.show()
+# plotter.show()
 # pg.GraphicsWidget
 
 # print(simobj.Y)

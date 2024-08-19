@@ -215,6 +215,11 @@ class PyQtGraphPlotter:
             if self.istep >= N:
                 self.exit()
 
+
+    def __apply_style_settings_to_plot(self, plot_item):
+        plot_item.showGrid(True, True, 0.5)
+        plot_item.setAspectLocked(self.aspect == "equal")
+
     # --------------------------------------------------------------------------------------
     # ViewBoxes
     # --------------------------------------------------------------------------------------
@@ -698,9 +703,14 @@ class PyQtGraphPlotter:
         self.__apply_style_settings_to_plot(plot_item)
 
 
-    def __apply_style_settings_to_plot(self, plot_item):
-        plot_item.showGrid(True, True, 0.5)
-        plot_item.setAspectLocked(self.aspect == "equal")
+    # def __handle_plot_creation(self):
+    #     """
+    #     - adding plot items should be applied to a
+    #         single window unless otherswise specified.
+    #     - adding of plot items should be applied to
+    #         row=0, col=0 unless otherwise specified.
+    #     """
+    #     pass
 
 
     # def autoscale(self, xdata: np.ndarray|list, ydata: np.ndarray|list) -> None:
