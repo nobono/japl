@@ -1,47 +1,78 @@
 from japl.Plotter.PyQtGraphPlotter import PyQtGraphPlotter
 from japl import SimObject
+from japl import Sim
 import pyqtgraph as pg
+from pyqtgraph.Qt.QtCore import QTimer
+import time
 
 
 
 class TestPyQtGraphPlotter():
 
 
-    def test_instantiate_setup(self):
+    # def __init__(self) -> None:
+    #     self.plotter = PyQtGraphPlotter()
+
+
+    def test_setup(self):
         plotter = PyQtGraphPlotter()
         assert plotter.app
 
 
-    def test_add_window(self):
+    def test_create_window(self):
         plotter = PyQtGraphPlotter()
-        win = plotter.add_window()
-        assert (len(plotter.wins) == 1)
-        assert (len(plotter.shortcuts) == 1)
+        win = plotter.create_window()
+        win = plotter.create_window()
+        assert (len(plotter.wins) == 2)
+        assert (len(plotter.shortcuts) == 2)
         assert isinstance(win, pg.GraphicsLayoutWidget)
 
 
-    def test_add_plot(self):
+    def test_add_plot_to_window(self):
         plotter = PyQtGraphPlotter()
-        win = plotter.add_window()
-        color_code = next(plotter.color_cycle)
-        plot_item = plotter.add_plot(win,
-                                     title="test",
-                                     row=0,
-                                     col=0,
-                                     color_code=color_code,
-                                     size=1,
-                                     aspect="equal")
+        win = plotter.create_window()
+        color = "blue"
+        plot_item = plotter.add_plot_to_window(win,
+                                               title="test",
+                                               row=0,
+                                               col=0,
+                                               color=color,
+                                               size=1,
+                                               aspect="equal")
         assert isinstance(plot_item, pg.PlotDataItem)
+
+
+    def test_FuncAnimation(self):
+        def func(frame):
+            return frame
+        plotter = PyQtGraphPlotter()
+        assert not plotter.timer
+        plotter.FuncAnimation(func=func, frames=10, interval=100)
+        assert plotter.timer
+
+
+    def test_animate_sim(self):
+        sim = Sim([0, 1], 0.1, [])
+        plotter = PyQtGraphPlotter()
+        plotter.animate(sim)
+        assert (plotter.Nt == sim.Nt)
+        assert (plotter.dt == sim.dt)
+        assert (plotter.simobjs == sim.simobjs)
 
 
 if __name__ == "__main__":
     test = TestPyQtGraphPlotter()
     test_case_names = [i for i in dir(test) if "test_" in i]
     test_cases = [getattr(test, i) for i in test_case_names]
-    print("Testing PyQtGraphPlotter:")
+    print("Testing PyQtGraphPlotter:\n")
     num = 0
+    start = time.time()
     for i, case in enumerate(test_cases):
         case()
         print(f"PASS: {test_case_names[i]}")
         num = i
-    print('=' * 30, f" {num + 1} Passed ", '=' * 38)
+    exec_time = time.time() - start
+    print()
+    print('=' * 30, end="")
+    print(f" {num + 1} Passed in {round(exec_time, 2)}s ", end="")
+    print('=' * 30)

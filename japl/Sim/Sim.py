@@ -1,21 +1,12 @@
 from typing import Callable
 import numpy as np
-from japl import global_opts
 from japl.Aero.Atmosphere import Atmosphere
 from japl.SimObject.SimObject import SimObject
 from japl.DeviceInput.DeviceInput import DeviceInput
-from japl.Plotter.Plotter import Plotter
-from japl.Plotter.PyQtGraphPlotter import PyQtGraphPlotter
 from japl.Sim.Integrate import runge_kutta_4
 from japl.Sim.Integrate import euler
 from scipy.integrate import solve_ivp
-from functools import partial
 import time
-# import quaternion
-# from scipy import constants
-# from japl.Library.Vehicles.RigidBodyModel import RigidBodyModel
-# from japl.Math import Rotation
-# from japl.Math.Vec import vec_ang
 
 
 
@@ -34,7 +25,6 @@ class Sim:
         self.dt = dt
         self.simobjs = simobjs
         self.events = kwargs.get("events", [])
-        self.animate: bool = kwargs.get("animate", False)  # choice of iterating solver over each dt step
         self.integrate_method = kwargs.get("integrate_method", "odeint")
         assert self.integrate_method in ["odeint", "euler", "rk4"]
 
@@ -49,11 +39,6 @@ class Sim:
         self.atol: float = kwargs.get("atol", 1e-6)
         self.max_step: float = kwargs.get("max_step", 0.2)
 
-        # plotting
-        self.frame_rate: float = kwargs.get("frame_rate", 10)
-        self.moving_bounds: bool = kwargs.get("moving_bounds", False)
-        self.__instantiate_plot(**kwargs)
-
         # device inputs
         self.device_input_type = kwargs.get("device_input_type", "")
         self.device_input = DeviceInput(device_type=self.device_input_type)
@@ -62,8 +47,9 @@ class Sim:
         # atmosphere model
         self.atmosphere = Atmosphere()
 
-        # sim flags
-        self.flag_stop = False
+        # init simobj data arrays
+        for simobj in self.simobjs:
+            self.__init_simobj(simobj)
 
         # debug stuff
         # TODO make this its own class so we can use
@@ -80,7 +66,7 @@ class Sim:
         self.debug_profiler = {"t": 0.0, "t_total": 0.0, "count": 0, "t_ave": 0.0, "run": _debug_profiler_func}
 
 
-    def __init_run(self, simobj: SimObject):
+    def __init_simobj(self, simobj: SimObject):
         # pre-allocate output arrays
         self.T = np.zeros((self.Nt + 1, ))
         simobj.Y = np.zeros((self.Nt + 1, len(simobj.X0)))
@@ -88,31 +74,9 @@ class Sim:
         simobj._set_T_array_ref(self.T)  # simobj.T reference to sim.T
 
 
-    def __instantiate_plot(self, **kwargs) -> None:
-        """This method instantiates the plotter class into the Sim class (if defined).
-        Otherwise, a default Plotter class is instantiated."""
+    def run(self) -> None:
 
-        self.plotter = kwargs.get("plotter", None)
-
-        if self.plotter is None:
-            if global_opts.get_plotlib() == "matplotlib":
-                self.plotter = Plotter(Nt=self.Nt, dt=self.dt, **kwargs)
-            elif global_opts.get_plotlib() == "pyqtgraph":
-                self.plotter = PyQtGraphPlotter(Nt=self.Nt, dt=self.dt, **kwargs)
-            else:
-                raise Exception("no Plotter class can be setup.")
-
-            # setup plotter
-            self.plotter.setup()
-
-            # add inital simobjs provided
-            for simobj in self.simobjs:
-                self.plotter.add_simobject(simobj)
-
-
-    def run(self) -> "Sim":
-
-        # TODO make this better
+        # TODO: handle multiple simobjs
         simobj = self.simobjs[0]
 
         # run pre-sim checks
@@ -123,56 +87,16 @@ class Sim:
             self.device_input.start()
 
         # solver
-        # TODO must combine all given SimObjects into single state
-        if self.animate:
-            # solver for one step at a time
-            self._solve_with_animation(simobj)
-        else:
-            # to solve all at once...
-            # self._solve(simobj)
-
-            self.__init_run(simobj)
-
-            for istep in range(1, self.Nt + 1):
-                self._step_solve(dynamics_func=self.step,
-                                 istep=istep,
-                                 dt=self.dt,
-                                 simobj=simobj,
-                                 method=self.integrate_method,
-                                 rtol=self.rtol,
-                                 atol=self.atol)
-
-        return self
-
-
-    def _solve_with_animation(self, simobj: SimObject) -> None:
-        """This method handles the animation when running the Sim class."""
-
-        self.__init_run(simobj)
-
-        # try to set animation frame intervals to real time
-        interval_ms = int(max(1, (1 / self.frame_rate) * 1000))
-        step_func = partial(self._step_solve,
-                            dynamics_func=self.step,
-                            istep=0,
-                            dt=self.dt,
-                            simobj=simobj,
-                            method=self.integrate_method,
-                            rtol=self.rtol,
-                            atol=self.atol)
-        anim_func = partial(self.plotter._animate_func,
-                            simobj=simobj,
-                            step_func=step_func,
-                            frame_rate=interval_ms,
-                            moving_bounds=self.moving_bounds)
-
-        anim = self.plotter.FuncAnimation(  # noqa
-                func=anim_func,
-                frames=self.Nt,
-                interval=interval_ms,
-                )
-
-        self.plotter.show()
+        # TODO should we combine all given SimObjects into single state?
+        #       this would be efficient for n-body problem...
+        for istep in range(1, self.Nt + 1):
+            self._step_solve(dynamics_func=self.step,
+                             istep=istep,
+                             dt=self.dt,
+                             simobj=simobj,
+                             method=self.integrate_method,
+                             rtol=self.rtol,
+                             atol=self.atol)
 
 
     def step(self, t: float, X: np.ndarray, U: np.ndarray, dt: float, simobj: SimObject):
@@ -304,7 +228,3 @@ class Sim:
         # store results
         self.T[istep] = T_new
         simobj.Y[istep] = X_new
-
-        # TODO do this better...
-        if self.flag_stop:
-            self.plotter.exit()
