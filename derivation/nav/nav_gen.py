@@ -12,6 +12,10 @@ from sympy import default_sort_key, topological_sort
 
 
 
+################################################################
+# Helper Methods
+################################################################
+
 def get_mat_upper(mat):
     ret = []
     n = mat.shape[0]
@@ -35,6 +39,47 @@ def mat_print(mat):
         print(']')
     print()
 
+
+def update_subs(subs, arr):
+    for i, (k, v) in enumerate(subs.items()):
+        subs[k] = arr[i]
+
+
+def sort_recursive_subs(replace):
+    """
+    For recursive substitutions, the order of variable subs
+    must be sorted.
+
+    Arguments:
+        - replace: the first return of sympy.cse (list[tuple])
+
+    Returns:
+        - replace_subs: dict of substitutions
+    """
+    edges = [(i, j) for i, j in permutations(replace, 2) if i[1].has(j[0])]
+    replace_subs = topological_sort([replace, edges], default_sort_key)
+    return replace_subs
+
+
+def cse_subs(cse, state_subs, input_subs, cov_subs):
+    replace, expr = cse
+    expr = expr[0]
+
+    replace_subs = sort_recursive_subs(replace)
+
+    for (var, sub) in tqdm(replace_subs):
+        expr = expr.subs(var, sub)
+
+    print("here)")
+    expr = expr.subs(state_subs).subs(input_subs).subs(cov_subs).\
+            subs(var_subs).subs(dt, dt_)
+
+    # fin_expr = expr[0].subs(rep_subs)
+    # print(fin_expr)
+    # quit()
+    return expr
+
+################################################################
 
 def quat_to_dcm(q):
     q0 = q[0]
@@ -242,11 +287,51 @@ K_gps_vel_x = P * H_gps_vel[0, :].T / innov_var_gps_vel_x[0, 0]
 K_gps_vel_y = P * H_gps_vel[1, :].T / innov_var_gps_vel_y[0, 0]
 K_gps_vel_z = P * H_gps_vel[2, :].T / innov_var_gps_vel_z[0, 0]
 
+# K = Matrix()
+# K = K.col_insert(0 , K_accel_x)
+# K = K.col_insert(1 , K_accel_y)
+# K = K.col_insert(2 , K_accel_z)
+# K = K.col_insert(3 , K_gps_pos_x)
+# K = K.col_insert(4 , K_gps_pos_y)
+# K = K.col_insert(5 , K_gps_pos_z)
+# K = K.col_insert(6 , K_gps_vel_x)
+# K = K.col_insert(7 , K_gps_vel_y)
+# K = K.col_insert(8 , K_gps_vel_z)
+
 ##################################################
 # Measurements
 ##################################################
 
-z = Matrix([gyro, accel, gps_pos, gps_vel])
+z_accel_x, z_accel_y, z_accel_z = symbols("z_accel_x, z_accel_y, z_accel_z", real=True)
+z_gps_pos_x, z_gps_pos_y, z_gps_pos_z = symbols("z_gps_pos_x, z_gps_pos_y, z_gps_pos_z", real=True)
+z_gps_vel_x, z_gps_vel_y, z_gps_vel_z = symbols("z_gps_vel_x, z_gps_vel_y, z_gps_vel_z", real=True)
+
+z_accel = Matrix([z_accel_x, z_accel_y, z_accel_z])
+z_gps_pos = Matrix([z_gps_pos_x, z_gps_pos_y, z_gps_pos_z])
+z_gps_vel = Matrix([z_gps_vel_x, z_gps_vel_y, z_gps_vel_z])
+
+##################################################
+# Updates
+##################################################
+
+K_accel = Matrix()
+K_accel = K_accel.col_insert(0, K_accel_x)
+K_accel = K_accel.col_insert(1, K_accel_y)
+K_accel = K_accel.col_insert(2, K_accel_z)
+
+K_gps_pos = Matrix()
+K_gps_pos = K_gps_pos.col_insert(0, K_gps_pos_x)
+K_gps_pos = K_gps_pos.col_insert(1, K_gps_pos_y)
+K_gps_pos = K_gps_pos.col_insert(2, K_gps_pos_z)
+
+K_gps_vel = Matrix()
+K_gps_vel = K_gps_vel.col_insert(0, K_gps_vel_x)
+K_gps_vel = K_gps_vel.col_insert(1, K_gps_vel_y)
+K_gps_vel = K_gps_vel.col_insert(2, K_gps_vel_z)
+
+X_accel_update = K_accel * (z_accel - H_accel * state)
+X_gps_pos_update = K_gps_pos * (z_accel - H_gps_pos * state)
+X_gps_vel_update = K_gps_vel * (z_accel - H_gps_vel * state)
 
 ##################################################
 # Write to File
@@ -284,10 +369,9 @@ z = Matrix([gyro, accel, gps_pos, gps_vel])
 ##################################################
 # Sim
 ##################################################
-P_init = np.eye(P.shape[0])
-P_new_simp = sp.cse(P_new)
 
 dt_ = 0.1
+
 state_subs = {
         q0: 1,
         q1: 0,
@@ -306,6 +390,7 @@ state_subs = {
         angvel_bias_y: 0,
         angvel_bias_z: 0,
         }
+
 input_subs = {
         gyro[0, 0]: 0.0,        # type:ignore
         gyro[1, 0]: 0.0,        # type:ignore
@@ -314,7 +399,9 @@ input_subs = {
         accel[1, 0]: 0.0,        # type:ignore
         accel[2, 0]: 0.0,        # type:ignore
         }
-cov_subs = {var: val for var, val in zip(P, P_init.flatten())}  # type:ignore
+
+# cov_subs = {var: val for var, val in zip(P, P_init.flatten())}  # type:ignore
+
 var_subs = {
         gyro_x_var: 0,
         gyro_y_var: 0,
@@ -324,79 +411,121 @@ var_subs = {
         accel_z_var: 0,
         }
 
+noise_subs = {
+        R_accel_x: 0,
+        R_accel_y: 0,
+        R_accel_z: 0,
+        R_gps_pos_x: 0,
+        R_gps_pos_y: 0,
+        R_gps_pos_z: 0,
+        R_gps_vel_x: 0,
+        R_gps_vel_y: 0,
+        R_gps_vel_z: 0,
+        }
 
-def sort_recursive_subs(replace):
-    """
-    For recursive substitutions, the order of variable subs
-    must be sorted.
-
-    Arguments:
-        - replace: the first return of sympy.cse (list[tuple])
-
-    Returns:
-        - replace_subs: dict of substitutions
-    """
-    edges = [(i, j) for i, j in permutations(replace, 2) if i[1].has(j[0])]
-    replace_subs = topological_sort([replace, edges], default_sort_key)
-    return replace_subs
-
-
-def cse_subs(cse, state_subs, input_subs, cov_subs):
-    replace, expr = cse
-    expr = expr[0]
-
-    replace_subs = sort_recursive_subs(replace)
-
-    for (var, sub) in tqdm(replace_subs):
-        expr = expr.subs(var, sub)
-
-    print("here)")
-    expr = expr.subs(state_subs).subs(input_subs).subs(cov_subs).\
-            subs(var_subs).subs(dt, dt_)
-
-    # fin_expr = expr[0].subs(rep_subs)
-    # print(fin_expr)
-    # quit()
-    return expr
-
-def update_subs(subs, arr):
-    for i, (k, v) in enumerate(subs.items()):
-        subs[k] = arr[i]
-
-def state_predict(state_subs, input_subs):
-    X = X_new.subs(state_subs).subs(input_subs).subs(dt, dt_)
-    update_subs(state_subs, X)
-    return X
+meas_subs = {
+        z_accel_x: 0,
+        z_accel_y: 0,
+        z_accel_z: 0,
+        z_gps_pos_x: 0,
+        z_gps_pos_y: 0,
+        z_gps_pos_z: 0,
+        z_gps_vel_x: 0,
+        z_gps_vel_y: 0,
+        z_gps_vel_z: 0,
+        }
 
 #################################################
-# create P_new func
+# Sympy lambdify funcs
 #################################################
-vars = [
+
+vars_X = [
         list(state_subs.keys()),
         list(input_subs.keys()),
-        list(cov_subs.keys()),
+        list(get_mat_upper(P)),
+        # list(cov_subs.keys()),
+        # list(var_subs.keys()),
+        dt,
+        ]
+
+vars_P = [
+        list(state_subs.keys()),
+        list(input_subs.keys()),
+        list(get_mat_upper(P)),
+        # list(cov_subs.keys()),
         list(var_subs.keys()),
         dt,
         ]
-P_new_func = sp.lambdify(vars, P_new, cse=True)
+
+vars_all = [
+        list(state_subs.keys()),
+        list(input_subs.keys()),
+        list(get_mat_upper(P)),
+        # list(cov_subs.keys()),
+        list(var_subs.keys()),
+        list(noise_subs.keys()),
+        dt,
+        ]
+
+X_new_func = sp.lambdify(vars_X, X_new, cse=True)
+
+# covariance
+P_new_func = sp.lambdify(vars_P, P_new, cse=True)
+
+# kalman gain
+# K_new_func = sp.lambdify(vars_K, K, cse=True)
+
+# update from accel
+X_accel_update_func = sp.lambdify(vars_all, X_accel_update, cse=True)
+
 #################################################
 
-def cov_predict(X, P, state_subs, input_subs):
-    # P = P_new.subs(state_subs).subs(input_subs).subs(dt, dt_)
-    U = np.array(list(input_subs.values()))
-    variance = np.array(list(var_subs.values()))
-    P_new = P_new_func(X, U, P.flatten(), variance, dt_)
+# def state_predict(state_subs, input_subs):
+    # X = X_new.subs(state_subs).subs(input_subs).subs(dt, dt_)
+    # update_subs(state_subs, X)
+
+def state_predict(X, U, P, *args):
+    X_new = X_new_func(X, U, P.flatten(), *args)
+    return X_new.flatten()
+
+def cov_predict(X, U, P, variance, *args):
+    P_new = P_new_func(X, U, P.flatten(), variance, *args)
     return P_new
 
 
+# def kalman_gain_update(X, U, P, variance, noise):
+#     K_new = K_new_func(X, U, P.flatten(), variance, noise, dt_)
+#     return K_new
+
+
+def accel_update(X, U, P, variance, noise, *args):
+    X_accel_update_new = X_accel_update_func(X, U, P, variance, noise, *args)
+    return X_accel_update_new
+
+
+def state_update(X, U, P, variance, noise):
+    pass
+
+
 # init
-# P = np.array(list(cov_subs.values()))
+X_init = np.array(list(state_subs.values()))
+P_init = np.eye(P.shape[0])
+X = X_init
 P = P_init
 
 for i in range(100):
 
-    X = state_predict(state_subs, input_subs)
-    P = cov_predict(X, get_mat_upper(P), state_subs, input_subs)
+    variance = np.array(list(var_subs.values()))
+    noise = np.array(list(noise_subs.values()))
+    U = np.array(list(input_subs.values()))
+
+    X = state_predict(X, U, get_mat_upper(P), dt_)
+    P = cov_predict(X, U, get_mat_upper(P), variance, dt_)
+
+    # K = kalman_gain_update(X, U, get_mat_upper(P), variance, noise)
+    X = accel_update(X, U, get_mat_upper(P), variance, noise, dt_)
+    print(X)
+    quit()
 
     q = X[:4]
     p = X[4:7]
@@ -404,5 +533,5 @@ for i in range(100):
     b_gyr = X[10:13]
     b_acc = X[13:16]
     # print(f"q:{q}", f"p:{p}", f"v:{v}", f"b_gyr:{b_gyr}", f"b_acc:{b_acc}")
-    mat_print(P)
+    # mat_print(P)
 
