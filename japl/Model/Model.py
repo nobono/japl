@@ -43,8 +43,8 @@ class Model:
         self.vars: tuple = ()
         self.state_dim = 0
         self.input_dim = 0
-        self.direct_state_update_func: Callable
-        self.direct_input_update_func: Callable
+        self.direct_state_update_func: Optional[Callable] = None
+        self.direct_input_update_func: Optional[Callable] = None
         self.A = np.array([])
         self.B = np.array([])
         self.C = np.array([])

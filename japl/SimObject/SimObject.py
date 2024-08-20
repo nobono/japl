@@ -91,6 +91,7 @@ class _PlotInterface:
                 yield str(v)
 
 
+    @DeprecationWarning
     def _get_qt_pen(self, subplot_id: int) -> QPen:
         pen_color = self.qt_traces[subplot_id].opts['pen'].color().getRgb()[:3]
         pen_width = self.qt_traces[subplot_id].opts['pen'].width()

@@ -1,15 +1,22 @@
 from functools import partial
 import numpy as np
 from typing import Callable, Optional
-from typing import Generator
+from typing import Generator, Union
 import quaternion
+from japl.Sim.Sim import Sim
 from japl.SimObject.SimObject import SimObject
-# from japl.Math.Rotation import quat_to_tait_bryan
 import pyqtgraph as pg
-from pyqtgraph import GraphItem, GraphicsLayoutWidget, PlotDataItem, TextItem, ViewBox
-from pyqtgraph import QtWidgets
-from pyqtgraph.Qt import QtCore
+from pyqtgraph import GraphItem
+from pyqtgraph import GraphicsLayoutWidget
+from pyqtgraph import PlotDataItem
+from pyqtgraph import TextItem
+from pyqtgraph import ViewBox
 from pyqtgraph.Qt.QtGui import QKeySequence, QTransform
+from pyqtgraph.Qt.QtWidgets import QApplication
+from pyqtgraph.Qt.QtWidgets import QShortcut
+from pyqtgraph.Qt.QtCore import QCoreApplication
+from pyqtgraph.Qt.QtCore import QTimer
+# from japl.Math.Rotation import quat_to_tait_bryan
 # from pyqtgraph.Qt.QtWidgets import QGridLayout, QWidget, QWidgetItem
 # from pyqtgraph import PlotItem, QtGui, mkColor, mkPen, PlotCurveItem
 # from pyqtgraph import PlotWidget
@@ -18,13 +25,16 @@ from matplotlib import colors as mplcolors
 
 
 
+PlotObj = Union[Sim, SimObject, tuple, list, None]
+
+
+
 class PyQtGraphPlotter:
 
     def __init__(self, **kwargs) -> None:
-        self.app: Optional[QtCore.QCoreApplication] = None
-
-        self.simobjs = []
+        # essentials
         self.istep = 0
+        self.simobjs = []
         self.Nt = kwargs.get("Nt", 1)
         self.dt = kwargs.get("dt", None)
 
@@ -38,6 +48,7 @@ class PyQtGraphPlotter:
         self.instrument_view: bool = kwargs.get("instrument_view", False)
         self.draw_cache_mode: bool = kwargs.get("draw_cache_mode", False)
         self.frame_rate: float = kwargs.get("frame_rate", 10)
+        self.moving_bounds: bool = kwargs.get("moving_bounds", False)
 
         # debug
         self.quiet = kwargs.get("quiet", False)
@@ -52,8 +63,96 @@ class PyQtGraphPlotter:
 
         self.wins: list[GraphicsLayoutWidget] = []  # contains view layouts for each simobj
         self.shortcuts = []
+        self.timer: Optional[QTimer] = None
+        self.app = self.setup()
 
-        self.setup()
+
+    def setup(self) -> QCoreApplication:
+        """This method starts the Qt Application."""
+        # Always start by initializing Qt (only once per application)
+        # if QApplication instance already running, use running instance.
+        if (app := QCoreApplication.instance()):
+            return app
+        else:
+            if self.quiet:
+                return QCoreApplication([])  # no GUI
+            else:
+                return QApplication([])   # GUI
+
+
+    def close_windows(self) -> None:
+        for win in self.wins:
+            win.close()
+
+
+    def exit(self) -> None:
+        if self.app:
+            if self.quiet:
+                self.app.exit()  # immediately exit
+            if self.timer and self.timer.isActive():
+                self.timer.stop()  # stop timer but keep windows open
+            else:
+                self.app.exit()
+
+
+    def animate(self, plot_obj: PlotObj):
+        """This method runs animation plots."""
+        self.__setup_from_plot_obj(plot_obj)
+
+        # TODO: handle multiple simobjs
+        if len(self.simobjs) < 1:
+            return
+
+        simobj = self.simobjs[0]
+
+        # get some values from Sim
+        if isinstance(plot_obj, Sim):
+            # setup simobj plots
+            self.add_simobject(simobj)
+
+            step_func = plot_obj._step_solve
+            dynamics_func = plot_obj.step
+            method = plot_obj.integrate_method
+            rtol = plot_obj.rtol
+            atol = plot_obj.atol
+            dt = self.dt
+            interval_ms = int(max(1, (1 / self.frame_rate) * 1000))
+
+            # create function for each time step
+            step_func = partial(step_func,
+                                dynamics_func=dynamics_func,
+                                istep=0,
+                                dt=dt,
+                                simobj=simobj,
+                                method=method,
+                                rtol=rtol,
+                                atol=atol)
+
+            # create function for animation of each time step
+            anim_func = partial(self._animate_func,
+                                simobj=simobj,
+                                step_func=step_func,
+                                frame_rate=interval_ms,
+                                moving_bounds=self.moving_bounds)
+
+            anim = self.FuncAnimation(  # noqa
+                    func=anim_func,
+                    frames=self.Nt,
+                    interval=interval_ms,
+                    )
+
+        elif isinstance(plot_obj, SimObject):
+            pass
+        elif plot_obj.__class__ in [list, tuple, np.ndarray]:
+            # NOTE:
+            # assume x-value as time
+            # or specify rate?
+
+            pass
+        elif plot_obj is None:
+            pass
+        else:
+            raise Exception("cannot input this object type to Plotter.")
 
 
     def show(self) -> None:
@@ -65,14 +164,61 @@ class PyQtGraphPlotter:
         else:
             raise Exception("Trying to show() but PyQtGraphPlotter has not been setup.")
 
+    # --------------------------------------------------------------------------------------
+    # Helper Methods
+    # --------------------------------------------------------------------------------------
 
     def __color_cycle(self) -> Generator[str, None, None]:
         """This method is a Generator which handles the color cycle of line / scatter
         plots which do not specify a color."""
-
         while True:
-            for _, v in mplcolors.TABLEAU_COLORS.items():
+            for _, v in self.COLORS.items():
                 yield str(v)
+
+
+    def __get_color_code(self, color: str) -> str:
+        if color in self.COLORS:
+            color_code = self.COLORS[color]
+            return str(color_code)
+        else:
+            raise Exception(f"color \"{color}\" not available.")
+
+
+    def __setup_from_plot_obj(self, plot_obj: PlotObj) -> None:
+        """This method initializes Plotter class from a variety of
+        plottable objects (PlotObj)."""
+        if isinstance(plot_obj, Sim):
+            # get some values from Sim
+            self.Nt = plot_obj.Nt
+            self.dt = plot_obj.dt
+            self.simobjs = plot_obj.simobjs
+        elif isinstance(plot_obj, SimObject):
+            pass
+        elif isinstance(plot_obj, tuple) or isinstance(plot_obj, list):
+            pass
+        elif plot_obj is None:
+            pass
+        else:
+            raise Exception("cannot input this object type to Plotter.")
+
+
+    def __check_animate_stop(self, N: Callable|Generator|int) -> None:
+        """This method is for animated plots and exits if the number
+        of steps has reached the number of desired steps."""
+        if isinstance(N, Callable):
+            if not N():
+                self.exit()
+        elif isinstance(N, Generator):
+            if self.istep >= len(list(N)):
+                self.exit()
+        elif isinstance(N, int):
+            if self.istep >= N:
+                self.exit()
+
+
+    def __apply_style_settings_to_plot(self, plot_item):
+        plot_item.showGrid(True, True, 0.5)
+        plot_item.setAspectLocked(self.aspect == "equal")
 
     # --------------------------------------------------------------------------------------
     # ViewBoxes
@@ -145,23 +291,10 @@ class PyQtGraphPlotter:
         view.addItem(vector_item)  # type:ignore
 
     # --------------------------------------------------------------------------------------
+    # Plotter Build Methods
+    # --------------------------------------------------------------------------------------
 
-    def setup(self) -> None:
-        # Always start by initializing Qt (only once per application)
-        # if QApplication instance already running, use running instance.
-        if (app := QtCore.QCoreApplication.instance()):
-            self.app = app
-            return
-        else:
-            if self.quiet:
-                self.app = QtCore.QCoreApplication([])  # no GUI
-                return
-            else:
-                self.app = QtWidgets.QApplication([])   # GUI
-                return
-
-
-    def add_window(self, figsize: Optional[list[float]|tuple[float]] = None) -> GraphicsLayoutWidget:
+    def create_window(self, figsize: Optional[list[float]|tuple[float]] = None) -> GraphicsLayoutWidget:
         """This method adds a window popup to the Application
         instance. A keyboard shortcut 'q' is also added to close
         said window."""
@@ -173,7 +306,7 @@ class PyQtGraphPlotter:
         win.resize(*(np.array([*figsize]) * 100))
 
         # shortcut keys callbacks for each simobj view
-        shortcut = QtWidgets.QShortcut(QKeySequence("Q"), win)
+        shortcut = QShortcut(QKeySequence("Q"), win)
         shortcut.activated.connect(self.close_windows)
 
         # add to lists
@@ -182,33 +315,31 @@ class PyQtGraphPlotter:
         return win
 
 
-    def __get_color_code(self, color: str) -> str:
-        if color in self.COLORS:
-            color_code = self.COLORS[color]
-            return str(color_code)
-        else:
-            raise Exception(f"color {color} not available.")
-
-
-    def add_plot(self,
-                 win: GraphicsLayoutWidget|int,
-                 title: str,
-                 row: int,
-                 col: int,
-                 color_code: str,
-                 size: int = 1,
-                 aspect: str = "",
-                 show_grid: bool = True) -> PlotDataItem:
-        """This method adds a plot to a window."""
-
+    def add_plot_to_window(self,
+                           win: GraphicsLayoutWidget|int,
+                           title: str = "",
+                           row: int = 0,
+                           col: int = 0,
+                           color: str = "",
+                           size: float = 1,
+                           aspect: str = "",
+                           show_grid: bool = True) -> PlotDataItem:
+        """This method adds a plot to a window. This method adds a plot
+        to a specified window; then adds a PlotDataItem to the newly created
+        PlotItem."""
+        # if "win" is window-id, get from list
         if isinstance(win, int):
             win = self.wins[win]
 
-        plot_item = win.addPlot(row=row, col=col, colspan=2, title=title, name=title)
-        if show_grid:
-            plot_item.showGrid(True, True, 0.5)    # enable grid
-        plot_item.setAspectLocked(aspect == "equal")
+        # resolve color str to hex color code
+        if color:
+            color_code = self.__get_color_code(color)
+        else:
+            color_code = next(self.color_cycle)
+
         pen = {"color": color_code, "width": size}
+        plot_item = win.addPlot(row=row, col=col, colspan=2, title=title, name=title)
+        self.__apply_style_settings_to_plot(plot_item)
         graphic_item = PlotDataItem(x=[],
                                     y=[],
                                     pen=pen,
@@ -222,63 +353,40 @@ class PyQtGraphPlotter:
         return graphic_item
 
 
-    def _add_plot_from_config_dict(self,
-                                   win: GraphicsLayoutWidget|int,
-                                   config: dict,
-                                   size: int = 1) -> None:
-        """This method will add a plot given a SimObject or by passing
-        a SimObject's plot config dictionary."""
-        for i, (title, axes) in enumerate(config.items()):
-            aspect = axes.get("aspect", self.aspect)  # try get aspect from config
-            color = axes.get("color")
-            size = axes.get("size", size)  # try get size from config
-            if color:
-                color_code = self.__get_color_code(color)
-            else:
-                color_code = next(self.color_cycle)
-            self.add_plot(win=win, title=title, row=i, col=0, color_code=color_code,
-                          size=size, aspect=aspect)
-
-
     def add_simobject(self, simobj: SimObject) -> None:
-
         if self.quiet:
             return
 
         self.simobjs += [simobj]
-        win = self.add_window()
+        win = self.create_window()
+        num_plots = 0
 
-        # setup user-defined plots for each simobj
+        # add plot-style to each window using SimObject._PlotInterface
+        # config dict.
         for i, (title, axes) in enumerate(simobj.plot.get_config().items()):
-            _plot_item = win.addPlot(row=i, col=0, colspan=2, title=title, name=title)   # add PlotItem to View
-            _plot_item.showGrid(True, True, 0.5)    # enable grid
-            _aspect = axes.get("aspect", self.aspect)   # look for aspect in plot config; default to class init
-            _plot_item.setAspectLocked(_aspect == "equal")
-            _pen = {"color": simobj.plot.color_code, "width": simobj.size}
-            _graphic_item = PlotDataItem(x=[], y=[], pen=_pen,
-                                         useCache=self.draw_cache_mode,
-                                         antialias=self.antialias,
-                                         autoDownsample=True,
-                                         downsampleMethod="peak",
-                                         clipToView=True,
-                                         skipFiniteCheck=True,
-                                         )
-            _plot_item.addItem(_graphic_item)   # init PlotCurve
-            simobj.plot.qt_traces += [_graphic_item]   # add GraphicsItem reference to SimObject
+            aspect = axes.get("aspect", self.aspect)
+            color = axes.get("color")
+            size = axes.get("size", 1)
+            graphic_item = self.add_plot_to_window(win=win, title=title, row=i, col=0, color=color,
+                                                   size=size, aspect=aspect)
+            # add GraphicsItem reference to SimObject
+            # NOTE: is this out-dated?
+            simobj.plot.qt_traces += [graphic_item]
+            num_plots += 1
 
         # setup vehicle viewer widget
         if self.instrument_view:
             _view = ViewBox(name="instrument_view")
             _view.setAspectLocked(True)
             _view.setRange(xRange=[-1, 1], yRange=[-1, 1])
-            win.addItem(_view, row=(i + 1), col=0, colspan=1)  # type:ignore
+            win.addItem(_view, row=(num_plots + 1), col=0, colspan=1)  # type:ignore
 
             # ViewBox for text
             _text_view = ViewBox()
             _text_view.setRange(xRange=[-1, 1], yRange=[-1, 1])
-            win.addItem(_text_view, row=(i + 1), col=1, colspan=1)  # type:ignore
+            win.addItem(_text_view, row=(num_plots + 1), col=1, colspan=1)  # type:ignore
 
-            self.attitude_graph_item: GraphItem = pg.GraphItem()
+            self.attitude_graph_item: GraphItem = GraphItem()
             _view.addItem(self.attitude_graph_item)  # type:ignore
 
             # missile drawing
@@ -331,6 +439,9 @@ class PyQtGraphPlotter:
                     pxMode=False
                     )
 
+    # --------------------------------------------------------------------------------------
+    # Animation
+    # --------------------------------------------------------------------------------------
 
     def FuncAnimation(self,
                       func: Callable,
@@ -338,15 +449,14 @@ class PyQtGraphPlotter:
                       interval: int,
                       ) -> None:
         # plotter.widget
-        self.timer = QtCore.QTimer()
+        self.timer = QTimer()
         self.timer.timeout.connect(partial(func, frame=0))
+        self.timer.timeout.connect(partial(self.__check_animate_stop, frames))
         self.timer.start(interval)
 
 
     def _animate_func(self, frame, simobj: SimObject, step_func: Callable,
                       frame_rate: float, moving_bounds: bool = False):
-        # TODO this may belong in Sim class...
-
         # # TEMP #############################################
         # # %-error time profile of pyqtgraph painting process
         # if self.instrument_view and (self.istep % 10) == 0:
@@ -356,7 +466,7 @@ class PyQtGraphPlotter:
         # self._tstart = time.time()
 
         # run ODE solver step
-        nsteps = int(frame_rate / (self.dt * 1000))
+        nsteps = max(1, int(frame_rate / (self.dt * 1000)))
         for _ in range(nsteps):
             self.istep += 1
             if self.istep <= self.Nt:
@@ -373,38 +483,17 @@ class PyQtGraphPlotter:
 
         for subplot_id in range(len(simobj.plot.get_config())):
             # get data from SimObject based on state_select user configuration
+            # NOTE: can pass QPen to _update_patch_data
             xdata, ydata = simobj.get_plot_data(subplot_id, self.istep)
-            # pen = simobj.plot._get_qt_pen(subplot_id=subplot_id)
-            pen = {"color": simobj.plot.color_code, "width": simobj.plot.size}
-            simobj._update_patch_data(xdata, ydata, pen=pen, subplot_id=subplot_id)
+            simobj._update_patch_data(xdata, ydata, subplot_id=subplot_id)
 
         # drawing the instrument view of vehicle
         # TODO generalize: each simobj has its own body to draw.
         if self.instrument_view:
-            self.__draw_instrument_view(simobj)
-
-        # TODO run post-animation func when finished
-        if self.istep >= self.Nt:
-            self.exit()
+            self._draw_instrument_view(simobj)
 
 
-    def close_windows(self) -> None:
-        for win in self.wins:
-            win.close()
-
-
-    def exit(self) -> None:
-        if self.quiet and self.app:
-            self.app.exit()
-        if hasattr(self, "timer"):
-            # stop timer and close all open windows
-            self.timer.stop()
-        else:
-            if self.app:
-                self.app.exit()
-
-
-    def __draw_instrument_view(self, _simobj: SimObject) -> None:
+    def _draw_instrument_view(self, _simobj: SimObject) -> None:
         """This method updates the instrument ViewBox.
 
         -------------------------------------------------------------------
@@ -443,8 +532,8 @@ class PyQtGraphPlotter:
         self.attitude_graph_item.setTransform(transform)
 
 
-    def _time_slider_update(self, val: float, _simobjs: list[SimObject]) -> None:
-        pass
+    # def _time_slider_update(self, val: float, _simobjs: list[SimObject]) -> None:
+    #     pass
 
 
     # def set_lim(self, lim: list|tuple, padding=0.02) -> None:
@@ -534,49 +623,94 @@ class PyQtGraphPlotter:
     #     pass
 
 
-    # def plot(self,
-    #          x: np.ndarray|list,
-    #          y: np.ndarray|list,
-    #          color: str = "",
-    #          linestyle: str = "",
-    #          linewidth: float = 3,
-    #          marker: Optional[str] = None,
-    #          **kwargs):
+    def plot(self,
+             x: np.ndarray|list,
+             y: np.ndarray|list,
+             color: str = "",
+             size: float = 3,
+             marker: Optional[str] = None,
+             marker_size: int = 1,
+             window_id: int = 0,
+             title: str = "",
+             **kwargs):
 
-    #     # convert mpl color to rgb
-    #     if color:
-    #         color_code = mplcolors.TABLEAU_COLORS[color]
-    #     else:
-    #         color_code = next(self.color_cycle)
+        # convert mpl color to rgb
+        if color:
+            color_code = self.__get_color_code(color)
+        else:
+            color_code = next(self.color_cycle)
 
-    #     # convert mpl color to rgb
-    #     rgb_color = mplcolors.to_rgb(color_code)
-    #     rgb_color = (rgb_color[0]*255, rgb_color[1]*255, rgb_color[2]*255)
+        # data = {'x': x, 'y': y}
+        pen = {"color": color_code, "width": size}
+        symbol_pen = {"color": color_code, "width": marker_size}
 
-    #     line = pg.PlotCurveItem(x=x, y=y, pen=pg.mkPen(rgb_color, width=linewidth), symbol=marker)
-    #     self.widget.addItem(line)
+        # old
+        ###########################################################################
+        # line = pg.PlotCurveItem(x=x, y=y, pen=pen, symbol=marker)
+        # graphic_item = self.add_plot_to_window(win=win, title=title, row=0, col=0,
+        #                                        color=color, size=size)
+        # graphic_item.setData(data, symbol=marker, symbolPen=symbol_pen, **kwargs)
+        ###########################################################################
+
+        # check if at least 1 window avaiable
+        # then get GraphicsItem at [0, 0] (default)
+        if len(self.wins) < 1:
+            win = self.create_window()
+            plot_item = win.addPlot(row=0, col=0, title=title, name=title)
+        else:
+            win = self.wins[window_id]
+            plot_item = win.getItem(row=0, col=0)
+
+        scatter = pg.PlotCurveItem(x=x, y=y, pen=pen, symbol=marker, symbolPen=symbol_pen)
+        plot_item.addItem(scatter)
+        self.__apply_style_settings_to_plot(plot_item)
 
 
-    # def scatter(self,
-    #             x: np.ndarray|list,
-    #             y: np.ndarray|list,
-    #             color: str = "",
-    #             linewidth: float = 1,
-    #             marker: str = "o",
-    #             **kwargs):
+    def scatter(self,
+                x: np.ndarray|list,
+                y: np.ndarray|list,
+                color: str = "",
+                size: int = 1,
+                marker: str = "o",
+                window_id: int = 0,
+                title: str = "",
+                **kwargs):
 
-    #     # convert mpl color to rgb
-    #     if color:
-    #         color_code = mplcolors.TABLEAU_COLORS[color]
-    #     else:
-    #         color_code = next(self.color_cycle)
+        # convert mpl color to rgb
+        if color:
+            color_code = self.__get_color_code(color)
+        else:
+            color_code = next(self.color_cycle)
 
-    #     # convert mpl color to rgb
-    #     rgb_color = mplcolors.to_rgb(color_code)
-    #     rgb_color = (rgb_color[0]*255, rgb_color[1]*255, rgb_color[2]*255)
+        pen = {"color": color_code, "width": size}
+        symbol_pen = {"color": color_code, "width": size}
 
-    #     scatter = pg.ScatterPlotItem(x=x, y=y, pen=pg.mkPen(rgb_color, width=linewidth), symbol=marker)
-    #     self.widget.addItem(scatter)
+        # if someone sets empty marker
+        if not marker:
+            marker = 'o'
+
+        # check if at least 1 window avaiable
+        # then get GraphicsItem at [0, 0] (default)
+        if len(self.wins) < 1:
+            win = self.create_window()
+            plot_item = win.addPlot(row=0, col=0, title=title, name=title)
+        else:
+            win = self.wins[window_id]
+            plot_item = win.getItem(row=0, col=0)
+
+        scatter = pg.ScatterPlotItem(x=x, y=y, pen=pen, symbol=marker, symbolPen=symbol_pen)
+        plot_item.addItem(scatter)
+        self.__apply_style_settings_to_plot(plot_item)
+
+
+    # def __handle_plot_creation(self):
+    #     """
+    #     - adding plot items should be applied to a
+    #         single window unless otherswise specified.
+    #     - adding of plot items should be applied to
+    #         row=0, col=0 unless otherwise specified.
+    #     """
+    #     pass
 
 
     # def autoscale(self, xdata: np.ndarray|list, ydata: np.ndarray|list) -> None:
