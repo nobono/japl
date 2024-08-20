@@ -40,6 +40,16 @@ def mat_print(mat):
     print()
 
 
+def array_print(mat):
+    print('[', end="")
+    for item in mat:
+        if item == 0:
+          print("%s, " % (' ' * 8), end="")
+        else:
+            print("%.6f, " % item, end="")
+    print(']')
+
+
 def update_subs(subs, arr):
     for i, (k, v) in enumerate(subs.items()):
         subs[k] = arr[i]
@@ -61,7 +71,7 @@ def sort_recursive_subs(replace):
     return replace_subs
 
 
-def cse_subs(cse, state_subs, input_subs, cov_subs):
+def cse_subs(cse, state_subs, input_subs, cov_subs, var_subs):
     replace, expr = cse
     expr = expr[0]
 
@@ -167,10 +177,15 @@ state = Matrix([quat, pos, vel, acc_bias, angvel_bias])
 ##################################################
 # Measurements
 ##################################################
-gyro = Matrix(MatrixSymbol('gyro', 3, 1))
-accel = Matrix(MatrixSymbol('accel', 3, 1))
-gps_pos = Matrix(MatrixSymbol('gps_pos', 3, 1))
-gps_vel = Matrix(MatrixSymbol('gps_vel', 3, 1))
+gyro_x, gyro_y, gyro_z = symbols("gyro_x, gyro_y, gyro_z", real=True)
+accel_x, accel_y, accel_z = symbols("accel_x, accel_y, accel_z", real=True)
+gps_pos_x, gps_pos_y, gps_pos_z = symbols("gps_pos_x, gps_pos_y, gps_pos_z", real=True)
+gps_vel_x, gps_vel_y, gps_vel_z = symbols("gps_vel_x, gps_vel_y, gps_vel_z", real=True)
+
+gyro = Matrix([gyro_x, gyro_y, gyro_z])
+accel = Matrix([accel_x, accel_y, accel_z])
+gps_pos = Matrix([gps_pos_x, gps_pos_y, gps_pos_z])
+gps_vel = Matrix([gps_vel_x, gps_vel_y, gps_vel_z])
 
 angvel_true = gyro - angvel_bias
 acc_true = accel - acc_bias
@@ -400,8 +415,6 @@ input_subs = {
         accel[2, 0]: 0.0,        # type:ignore
         }
 
-# cov_subs = {var: val for var, val in zip(P, P_init.flatten())}  # type:ignore
-
 var_subs = {
         gyro_x_var: 0,
         gyro_y_var: 0,
@@ -443,8 +456,6 @@ vars_X = [
         list(state_subs.keys()),
         list(input_subs.keys()),
         list(get_mat_upper(P)),
-        # list(cov_subs.keys()),
-        # list(var_subs.keys()),
         dt,
         ]
 
@@ -452,7 +463,6 @@ vars_P = [
         list(state_subs.keys()),
         list(input_subs.keys()),
         list(get_mat_upper(P)),
-        # list(cov_subs.keys()),
         list(var_subs.keys()),
         dt,
         ]
@@ -461,7 +471,6 @@ vars_all = [
         list(state_subs.keys()),
         list(input_subs.keys()),
         list(get_mat_upper(P)),
-        # list(cov_subs.keys()),
         list(var_subs.keys()),
         list(noise_subs.keys()),
         dt,
@@ -513,19 +522,22 @@ P_init = np.eye(P.shape[0])
 X = X_init
 P = P_init
 
-for i in range(100):
-
+def ekf_step():
     variance = np.array(list(var_subs.values()))
     noise = np.array(list(noise_subs.values()))
-    U = np.array(list(input_subs.values()))
+
+    U_gyro = np.array([0.1, 0, 0], dtype=float)
+    U_accel = np.array([0, 0, 0], dtype=float)
+    U = np.concatenate([U_gyro, U_accel])
+    # U = np.array(list(input_subs.values()))
 
     X = state_predict(X, U, get_mat_upper(P), dt_)
     P = cov_predict(X, U, get_mat_upper(P), variance, dt_)
 
     # K = kalman_gain_update(X, U, get_mat_upper(P), variance, noise)
-    X = accel_update(X, U, get_mat_upper(P), variance, noise, dt_)
-    print(X)
-    quit()
+    # X = accel_update(X, U, get_mat_upper(P), variance, noise, dt_)
+    array_print(X)
+    # quit()
 
     q = X[:4]
     p = X[4:7]
@@ -535,3 +547,12 @@ for i in range(100):
     # print(f"q:{q}", f"p:{p}", f"v:{v}", f"b_gyr:{b_gyr}", f"b_acc:{b_acc}")
     # mat_print(P)
 
+
+from japl import Sim
+from japl import Model
+from japl import SimObject
+model = Model.from_function(dt, state, input, ekf_step)
+simobj = SimObject(model)
+sim = Sim([0, 1], 0.1, [simobj])
+sim.run()
+# quit()
