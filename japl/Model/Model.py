@@ -34,7 +34,7 @@ class Model:
         self._dtype = np.float64
         self.state_register = StateRegister()
         self.input_register = StateRegister()
-        self.dynamics_func: Callable = lambda *_: None
+        self.dynamics_func: Optional[Callable] = None
         self.dynamics_expr = Expr(None)
         self.modules: dict = {}
         self.state_vars = Matrix([])
@@ -84,14 +84,15 @@ class Model:
                       dt_var: Symbol,
                       state_vars: list|tuple|Matrix,
                       input_vars: list|tuple|Matrix,
-                      func: Callable):
+                      dynamics_func: Optional[Callable] = None,
+                      update_func: Optional[Callable] = None):
         """This method initializes a Model from a callable function.
         The provided function must have the following signature:
 
-            func(X, U, dt)
+            func(t, X, U, dt)
 
-        where, 'X' is the current state, 'U', is the current inputs and
-        'dt' is the time step.
+        where, 't' is the sim-time 'X' is the current state, 'U', is
+        the current inputs and 'dt' is the time step.
 
         -------------------------------------------------------------------
         -- Arguments
@@ -117,8 +118,12 @@ class Model:
         model.vars = (model.state_vars, model.input_vars, dt_var)
         model.state_dim = len(model.state_vars)
         model.input_dim = len(model.input_vars)
-        model.dynamics_func = func
-        assert isinstance(func, Callable)
+        if dynamics_func:
+            model.dynamics_func = dynamics_func
+        if update_func:
+            model.direct_state_update_func = update_func
+        if (not dynamics_func) and (not update_func):
+            raise Exception("Both dynamics_func and update_func cannot be undefined.")
         return model
 
 
@@ -279,7 +284,14 @@ class Model:
     def __call__(self, *args) -> np.ndarray:
         """This method calls an update step to the model after the
         Model object has been initialized."""
-        return self.dynamics_func(*args).flatten()
+        # NOTE: in certain situations dynamics_func may be undefined.
+        # namely, when Model is built from_function() and dynamics_func
+        # is left unspecified. Typically this results from a Model being
+        # updated exclusively by direct / external updates.
+        if self.dynamics_func:
+            return self.dynamics_func(*args).flatten()
+        else:
+            return np.empty([])
 
 
     def step(self, X: np.ndarray, U: np.ndarray, dt: float) -> np.ndarray:

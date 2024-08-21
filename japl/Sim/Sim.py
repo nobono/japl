@@ -184,47 +184,54 @@ class Sim:
         # apply direct updates to state
         if simobj.model.direct_state_update_func:
             X_temp = simobj.model.direct_state_update_func(tstep, X, U, dt).flatten()
+            if X_temp is None:
+                raise Exception("Model direct_state_update_func returns None."
+                                f"(in SimObject \"{simobj.name})\"")
             for i in range(len(X_temp)):
                 if not np.isnan(X_temp[i]):
                     X[i] = X_temp[i]
 
-        ##################################################################
-        # Integration Methods
-        ##################################################################
-        match method:
-            case "euler":
-                X_new, T_new = euler(
-                        f=dynamics_func,
-                        t=tstep,
-                        X=X,
-                        dt=dt,
-                        args=(U, dt, simobj,),
-                        )
-            case "rk4":
-                X_new, T_new = runge_kutta_4(
-                        f=dynamics_func,
-                        t=tstep,
-                        X=X,
-                        h=dt,
-                        args=(U, dt, simobj,),
-                        )
-            case "odeint":
-                sol = solve_ivp(
-                        fun=dynamics_func,
-                        t_span=(tstep_prev, tstep),
-                        t_eval=[tstep],
-                        y0=X,
-                        args=(U, dt, simobj,),
-                        events=self.events,
-                        rtol=rtol,
-                        atol=atol,
-                        max_step=max_step
-                        )
-                X_new = sol['y'].T[0]
-                T_new = sol['t'][0]
-            case _:
-                raise Exception(f"integration method {self.integrate_method} is not defined")
+        if not simobj.model.dynamics_func:
+            self.T[istep] = tstep + dt
+            simobj.Y[istep] = X
+        else:
+            ##################################################################
+            # Integration Methods
+            ##################################################################
+            match method:
+                case "euler":
+                    X_new, T_new = euler(
+                            f=dynamics_func,
+                            t=tstep,
+                            X=X,
+                            dt=dt,
+                            args=(U, dt, simobj,),
+                            )
+                case "rk4":
+                    X_new, T_new = runge_kutta_4(
+                            f=dynamics_func,
+                            t=tstep,
+                            X=X,
+                            h=dt,
+                            args=(U, dt, simobj,),
+                            )
+                case "odeint":
+                    sol = solve_ivp(
+                            fun=dynamics_func,
+                            t_span=(tstep_prev, tstep),
+                            t_eval=[tstep],
+                            y0=X,
+                            args=(U, dt, simobj,),
+                            events=self.events,
+                            rtol=rtol,
+                            atol=atol,
+                            max_step=max_step
+                            )
+                    X_new = sol['y'].T[0]
+                    T_new = sol['t'][0]
+                case _:
+                    raise Exception(f"integration method {self.integrate_method} is not defined")
 
-        # store results
-        self.T[istep] = T_new
-        simobj.Y[istep] = X_new
+            # store results
+            self.T[istep] = T_new
+            simobj.Y[istep] = X_new
