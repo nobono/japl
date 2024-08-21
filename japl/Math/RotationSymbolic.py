@@ -39,6 +39,12 @@ def quat_conj_sym(q: Matrix|MatrixSymbol) -> Matrix:
     return Matrix([q[0], -q[1], -q[2], -q[3]])  # type:ignore
 
 
+def quat_norm_sym(q: Matrix|MatrixSymbol) -> Matrix:
+    if isinstance(q, MatrixSymbol):
+        q = q.as_mutable()
+    return (q / q.norm())
+
+
 def quat_mult_sym(q: Matrix|MatrixSymbol, p: Matrix|MatrixSymbol) -> Matrix:
     if isinstance(q, MatrixSymbol):
         q = q.as_mutable()

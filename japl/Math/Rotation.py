@@ -29,6 +29,11 @@ def quat_conj(q: np.ndarray, dtype: type = float) -> np.ndarray:
     return ret
 
 
+def quat_norm(q: np.ndarray) -> np.ndarray:
+    assert len(q) == 4
+    return (q / np.linalg.norm(q))
+
+
 def quat_mult(q: np.ndarray, p: np.ndarray, dtype: type = float) -> np.ndarray:
     return np.array([p[0] * q[0] - p[1] * q[1] - p[2] * q[2] - p[3] * q[3],
                      p[0] * q[1] + p[1] * q[0] + p[2] * q[3] - p[3] * q[2],
