@@ -10,6 +10,7 @@ from japl import Sim
 from japl import Model
 from japl import SimObject
 from japl import PyQtGraphPlotter
+from japl import JAPL_HOME_DIR
 
 ##################################################
 # Setup
@@ -20,17 +21,18 @@ rand = np.random.uniform
 NSTATE = 16
 
 # load
-with open("X_new_func.pickle", "rb") as f:
+path = f"{JAPL_HOME_DIR}/derivation/nav/"
+with open(path + "X_new_func.pickle", "rb") as f:
     X_new_func = pickle.load(f)
-with open("P_new_func.pickle", "rb") as f:
+with open(path + "P_new_func.pickle", "rb") as f:
     P_new_func = pickle.load(f)
-with open("X_accel_update_func.pickle", "rb") as f:
+with open(path + "X_accel_update_func.pickle", "rb") as f:
     X_accel_update_func = pickle.load(f)
-with open("P_accel_update_func.pickle", "rb") as f:
+with open(path + "P_accel_update_func.pickle", "rb") as f:
     P_accel_update_func = pickle.load(f)
-with open("X_gps_update_func.pickle", "rb") as f:
+with open(path + "X_gps_update_func.pickle", "rb") as f:
     X_gps_update_func = pickle.load(f)
-with open("P_gps_update_func.pickle", "rb") as f:
+with open(path + "P_gps_update_func.pickle", "rb") as f:
     P_gps_update_func = pickle.load(f)
 
 ##################################################
@@ -93,7 +95,7 @@ def ekf_step(t, X, U, dt):
     P = cov_predict(X, U, get_mat_upper(P), variance, dt)
 
     X, P = accel_meas_update(X, U, get_mat_upper(P), variance, noise, meas, dt_)
-    # X, P = gps_meas_update(X, U, get_mat_upper(P), variance, noise, meas, dt_)
+    X, P = gps_meas_update(X, U, get_mat_upper(P), variance, noise, meas, dt_)
 
     q = X[:4]
     p = X[4:7]
