@@ -186,11 +186,6 @@ dt = Symbol('dt', real=True)
 # States
 ##################################################
 
-# acc_n, acc_e, acc_d = symbols("acc_n, acc_e, acc_d", real=True)
-# angvel_n, angvel_e, angvel_d = symbols("angvel_n, angvel_e, angvel_d", real=True)
-# acc = Matrix([acc_n, acc_e, acc_d])
-# angvel = Matrix([angvel_n, angvel_e, angvel_d])
-
 q0, q1, q2, q3 = symbols("q0, q1, q2, q3", real=True)
 pos_n, pos_e, pos_d = symbols("pos_n, pos_e, pos_d", real=True)
 vel_n, vel_e, vel_d = symbols("vel_n, vel_e, vel_d", real=True)
@@ -242,6 +237,9 @@ pos_new = pos + vel * dt
 vel_new = vel + (dcm_to_earth * (acc_true - gravity_bf)) * dt
 gyro_bias_new = angvel_bias
 accel_bias_new = acc_bias
+
+# NOTE: since no magnetometer yet, zero-out gyro_z bias
+gyro_bias_new[2] = sp.Float(0)
 
 ##################################################
 # Process Noise
@@ -545,7 +543,8 @@ if __name__ == "__main__":
     out = [("X_new_func", X_new_func),
            ("P_new_func", P_new_func),
            ("X_accel_update_func", X_accel_update_func),
-           ("P_accel_update_func", P_accel_update_func)]
+           ("P_accel_update_func", P_accel_update_func),
+           ]
 
     for (name, func) in out:
         print(f"saving {name}...")

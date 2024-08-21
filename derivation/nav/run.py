@@ -86,13 +86,13 @@ def ekf_step(t, X, U, dt):
     q = X[:4]
     p = X[4:7]
     v = X[7:10]
-    b_gyr = X[10:13]
-    b_acc = X[13:16]
+    b_acc = X[10:13]
+    b_gyr = X[13:16]
     print(f"q:{q}",
           f"p:{p}",
           f"v:{v}",
-          f"b_gyr:{b_gyr}",
-          f"b_acc:{b_acc}")
+          f"b_acc:{b_acc}",
+          f"b_gyr:{b_gyr}")
     # print(P)
     # array_print(X)
     return X
@@ -112,7 +112,7 @@ simobj.plot.set_config({
     })
 
 print("Starting Sim...")
-sim = Sim([0, 1], 0.1, [simobj]).run()
+sim = Sim([0, 10], 0.1, [simobj]).run()
 # plotter.animate(sim)
 # plotter.show()
 # quit()
