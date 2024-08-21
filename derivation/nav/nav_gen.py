@@ -522,7 +522,8 @@ P_init = np.eye(P.shape[0])
 X = X_init
 P = P_init
 
-def ekf_step():
+def ekf_step(t, X, U, dt):
+    global P
     variance = np.array(list(var_subs.values()))
     noise = np.array(list(noise_subs.values()))
 
@@ -531,12 +532,14 @@ def ekf_step():
     U = np.concatenate([U_gyro, U_accel])
     # U = np.array(list(input_subs.values()))
 
-    X = state_predict(X, U, get_mat_upper(P), dt_)
-    P = cov_predict(X, U, get_mat_upper(P), variance, dt_)
+    # print(P)
+    X = state_predict(X, U, get_mat_upper(P), dt)
+    P = cov_predict(X, U, get_mat_upper(P), variance, dt)
 
     # K = kalman_gain_update(X, U, get_mat_upper(P), variance, noise)
     # X = accel_update(X, U, get_mat_upper(P), variance, noise, dt_)
     array_print(X)
+    # print(t)
     # quit()
 
     q = X[:4]
@@ -546,13 +549,25 @@ def ekf_step():
     b_acc = X[13:16]
     # print(f"q:{q}", f"p:{p}", f"v:{v}", f"b_gyr:{b_gyr}", f"b_acc:{b_acc}")
     # mat_print(P)
+    return X
 
 
 from japl import Sim
 from japl import Model
 from japl import SimObject
-model = Model.from_function(dt, state, input, ekf_step)
+from japl import PyQtGraphPlotter
+
+plotter = PyQtGraphPlotter()
+
+model = Model.from_function(dt, state, input, update_func=ekf_step)
 simobj = SimObject(model)
+simobj.init_state(X)
+# simobj.plot.set_config({
+#     "Pos": {
+#         "xaxis":
+#         }
+#     })
+
 sim = Sim([0, 1], 0.1, [simobj])
-sim.run()
+plotter.animate(sim)
 # quit()
