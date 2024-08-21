@@ -2,7 +2,6 @@ import unittest
 import numpy as np
 import quaternion
 from japl.Math.Rotation import quat_conj
-from japl.Math.Rotation import quat_norm
 from japl.Math.Rotation import quat_mult
 from japl.Math.Rotation import quat_to_dcm
 from japl.Math.Rotation import quat_to_tait_bryan
