@@ -9,6 +9,7 @@ from sympy import default_sort_key, topological_sort
 # from code_gen import PyCodeGenerator
 from code_gen import OctaveCodeGenerator
 # from code_gen import CCodeGenerator
+from japl import JAPL_HOME_DIR
 
 
 ################################################################
@@ -403,7 +404,9 @@ args = symbols("P,"                         # covariance matrix
 return_args = ["nextP"]
 
 print('Writing state propagation to file ...')
-cov_code_generator = OctaveCodeGenerator("./generated/state_predict.m")
+cov_code_generator = OctaveCodeGenerator(JAPL_HOME_DIR
+                                         + "derivation/nav/generated/"
+                                         + "state_predict.m")
 cov_code_generator.print_string("Equations for state matrix prediction")
 cov_code_generator.write_function_definition(name="state_predict",
                                              args=args,
@@ -417,7 +420,9 @@ cov_code_generator.close()
 
 
 print('Writing covariance propagation to file ...')
-cov_code_generator = OctaveCodeGenerator("./generated/cov_predict.m")
+cov_code_generator = OctaveCodeGenerator(JAPL_HOME_DIR
+                                         + "derivation/nav/generated/"
+                                         + "cov_predict.m")
 cov_code_generator.print_string("Equations for covariance matrix prediction, without process noise!")
 cov_code_generator.write_function_definition(name="cov_predict",
                                              args=args,
@@ -590,5 +595,5 @@ if __name__ == "__main__":
 
     for (name, func) in out:
         print(f"saving {name}...")
-        with open(f"./{name}.pickle", "wb") as f:
+        with open(f"{JAPL_HOME_DIR}/derivation/nav/{name}.pickle", "wb") as f:
             pickle.dump(func, f)
