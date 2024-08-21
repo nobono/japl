@@ -1,23 +1,33 @@
-from tqdm import tqdm
-from pprint import pprint
+import dill as pickle
+import timeit
 import numpy as np
 import sympy as sp
+from tqdm import tqdm
 from itertools import permutations
-from sympy import Matrix, Symbol, symbols, cse, MatrixSymbol
+from sympy import simplify
+from sympy import Matrix, Symbol, symbols, cse
 from sympy import default_sort_key, topological_sort
 # from code_gen import OctaveCodeGenerator
 # from code_gen import CCodeGenerator
-from code_gen import PyCodeGenerator
-from japl import Sim
-from japl import Model
-from japl import SimObject
-from japl import PyQtGraphPlotter
-from japl.Math.RotationSymbolic import quat_norm_sym
+# from code_gen import PyCodeGenerator
 
 
 ################################################################
 # Helper Methods
 ################################################################
+
+
+def profile(func):
+    def wrapped(*args, **kwargs):
+        start_time = timeit.default_timer()
+        res = func(*args, **kwargs)
+        end_time = timeit.default_timer()
+        print("-" * 50)
+        print(f"{func.__name__} executed in {end_time - start_time} seconds")
+        print("-" * 50)
+        return res
+    return wrapped
+
 
 def get_mat_upper(mat):
     ret = []
@@ -31,7 +41,18 @@ def get_mat_upper(mat):
     return np.array(ret)
 
 
+def zero_mat_lower(mat):
+    ret = mat.copy()
+    for index in range(mat.shape[0]):
+        for j in range(mat.shape[0]):
+            if index > j:
+                ret[index, j] = 0
+    return ret
+
+
 def mat_print(mat):
+    if isinstance(mat, Matrix):
+        mat = np.array(mat)
     for row in mat:
         print('[', end="")
         for item in row:
@@ -39,6 +60,24 @@ def mat_print(mat):
                 print("%s, " % (' ' * 8), end="")
             else:
                 print("%.6f, " % item, end="")
+        print(']')
+    print()
+
+
+def mat_print_sparse(mat):
+    for i in range(mat.shape[0]):
+        print('[', end="")
+        for j in range(mat.shape[1]):
+            item = mat[i, j]
+            try:
+                item = float(item)
+                if item == 0:
+                    print("%s, " % " ", end="")
+                else:
+                    print("%d, " % 1, end="")
+            except:  # noqa
+                if isinstance(item, sp.Expr):
+                    print("%d, " % 1, end="")
         print(']')
     print()
 
@@ -249,46 +288,57 @@ R_gps_vel_x, R_gps_vel_y, R_gps_vel_z = symbols('R_gps_vel_x R_gps_vel_y R_gps_v
 ##################################################
 # Observations
 ##################################################
+print("Building Observations...")
 
 # Body Frame Accelerometer Observation
 obs_accel = (dcm_to_earth * gravity_bf) + acc_bias
-H_accel = obs_accel.jacobian(state)
+H_accel_x = obs_accel[0, :].jacobian(state)
+H_accel_y = obs_accel[1, :].jacobian(state)
+H_accel_z = obs_accel[2, :].jacobian(state)
+H_accel = Matrix([H_accel_x, H_accel_y, H_accel_z])
 
 # Gps-position Observation (NED frame)
 obs_gps_pos = pos
-H_gps_pos = obs_gps_pos.jacobian(state)
+H_gps_pos_x = obs_gps_pos[0, :].jacobian(state)  # type:ignore
+H_gps_pos_y = obs_gps_pos[1, :].jacobian(state)  # type:ignore
+H_gps_pos_z = obs_gps_pos[2, :].jacobian(state)  # type:ignore
+H_gps_pos = Matrix([H_gps_pos_x, H_gps_pos_y, H_gps_pos_z])
 
 # Gps-velocity Observation (NED frame)
 obs_gps_vel = vel
-H_gps_vel = obs_gps_vel.jacobian(state)
+H_gps_vel_x = obs_gps_vel[0, :].jacobian(state)  # type:ignore
+H_gps_vel_y = obs_gps_vel[1, :].jacobian(state)  # type:ignore
+H_gps_vel_z = obs_gps_vel[2, :].jacobian(state)  # type:ignore
+H_gps_vel = Matrix([H_gps_vel_x, H_gps_vel_y, H_gps_vel_z])
 
 ##################################################
 # Kalman Gains
 ##################################################
+print("Building Kalman Gains...")
 
 # Accelerometer
-innov_var_accel_x = H_accel[0, :] * P * H_accel[0, :].T + Matrix([R_accel_x])
-innov_var_accel_y = H_accel[1, :] * P * H_accel[1, :].T + Matrix([R_accel_y])
-innov_var_accel_z = H_accel[2, :] * P * H_accel[2, :].T + Matrix([R_accel_z])
-K_accel_x = P * H_accel[0, :].T / innov_var_accel_x[0, 0]
-K_accel_y = P * H_accel[1, :].T / innov_var_accel_y[0, 0]
-K_accel_z = P * H_accel[2, :].T / innov_var_accel_z[0, 0]
+innov_var_accel_x = H_accel_x * P * H_accel_x.T + Matrix([R_accel_x])
+innov_var_accel_y = H_accel_y * P * H_accel_y.T + Matrix([R_accel_y])
+innov_var_accel_z = H_accel_z * P * H_accel_z.T + Matrix([R_accel_z])
+K_accel_x = P * H_accel_x.T / innov_var_accel_x[0, 0]
+K_accel_y = P * H_accel_y.T / innov_var_accel_y[0, 0]
+K_accel_z = P * H_accel_z.T / innov_var_accel_z[0, 0]
 
 # Gps-position
-innov_var_gps_pos_x = H_gps_pos[0, :] * P * H_gps_pos[0, :].T + Matrix([R_gps_pos_x])
-innov_var_gps_pos_y = H_gps_pos[1, :] * P * H_gps_pos[1, :].T + Matrix([R_gps_pos_y])
-innov_var_gps_pos_z = H_gps_pos[2, :] * P * H_gps_pos[2, :].T + Matrix([R_gps_pos_z])
-K_gps_pos_x = P * H_gps_pos[0, :].T / innov_var_gps_pos_x[0, 0]
-K_gps_pos_y = P * H_gps_pos[1, :].T / innov_var_gps_pos_y[0, 0]
-K_gps_pos_z = P * H_gps_pos[2, :].T / innov_var_gps_pos_z[0, 0]
+innov_var_gps_pos_x = H_gps_pos_x * P * H_gps_pos_x.T + Matrix([R_gps_pos_x])
+innov_var_gps_pos_y = H_gps_pos_y * P * H_gps_pos_y.T + Matrix([R_gps_pos_y])
+innov_var_gps_pos_z = H_gps_pos_z * P * H_gps_pos_z.T + Matrix([R_gps_pos_z])
+K_gps_pos_x = P * H_gps_pos_x.T / innov_var_gps_pos_x[0, 0]
+K_gps_pos_y = P * H_gps_pos_y.T / innov_var_gps_pos_y[0, 0]
+K_gps_pos_z = P * H_gps_pos_z.T / innov_var_gps_pos_z[0, 0]
 
 # Gps-velocity
-innov_var_gps_vel_x = H_gps_vel[0, :] * P * H_gps_vel[0, :].T + Matrix([R_gps_vel_x])
-innov_var_gps_vel_y = H_gps_vel[1, :] * P * H_gps_vel[1, :].T + Matrix([R_gps_vel_y])
-innov_var_gps_vel_z = H_gps_vel[2, :] * P * H_gps_vel[2, :].T + Matrix([R_gps_vel_z])
-K_gps_vel_x = P * H_gps_vel[0, :].T / innov_var_gps_vel_x[0, 0]
-K_gps_vel_y = P * H_gps_vel[1, :].T / innov_var_gps_vel_y[0, 0]
-K_gps_vel_z = P * H_gps_vel[2, :].T / innov_var_gps_vel_z[0, 0]
+innov_var_gps_vel_x = H_gps_vel_x * P * H_gps_vel_x.T + Matrix([R_gps_vel_x])
+innov_var_gps_vel_y = H_gps_vel_y * P * H_gps_vel_y.T + Matrix([R_gps_vel_y])
+innov_var_gps_vel_z = H_gps_vel_z * P * H_gps_vel_z.T + Matrix([R_gps_vel_z])
+K_gps_vel_x = P * H_gps_vel_x.T / innov_var_gps_vel_x[0, 0]
+K_gps_vel_y = P * H_gps_vel_y.T / innov_var_gps_vel_y[0, 0]
+K_gps_vel_z = P * H_gps_vel_z.T / innov_var_gps_vel_z[0, 0]
 
 ##################################################
 # Measurements
@@ -305,7 +355,9 @@ z_gps_vel = Matrix([z_gps_vel_x, z_gps_vel_y, z_gps_vel_z])
 ##################################################
 # Updates
 ##################################################
+print("Building Updates...")
 
+# kalman gain
 K_accel = Matrix()
 K_accel = K_accel.col_insert(0, K_accel_x)
 K_accel = K_accel.col_insert(1, K_accel_y)
@@ -321,9 +373,15 @@ K_gps_vel = K_gps_vel.col_insert(0, K_gps_vel_x)
 K_gps_vel = K_gps_vel.col_insert(1, K_gps_vel_y)
 K_gps_vel = K_gps_vel.col_insert(2, K_gps_vel_z)
 
-X_accel_update = K_accel * (z_accel - H_accel * state)
+# state
+X_accel_update = state + K_accel * (z_accel - H_accel * state)
 X_gps_pos_update = K_gps_pos * (z_accel - H_gps_pos * state)
 X_gps_vel_update = K_gps_vel * (z_accel - H_gps_vel * state)
+
+# covariance
+P_upper = zero_mat_lower(P)
+P_accel_update = P - (K_accel * H_accel * P)
+
 
 ##################################################
 # Write to File
@@ -389,34 +447,36 @@ input_subs = {
         gyro[2, 0]: 0.0,        # type:ignore
         accel[0, 0]: 0.0,        # type:ignore
         accel[1, 0]: 0.0,        # type:ignore
-        accel[2, 0]: 0.0,        # type:ignore
+        accel[2, 0]: -1.0,        # type:ignore
         }
 
+# process noise
 var_subs = {
-        gyro_x_var: 0,
-        gyro_y_var: 0,
-        gyro_z_var: 0,
-        accel_x_var: 0,
-        accel_y_var: 0,
-        accel_z_var: 0,
+        gyro_x_var: 1,
+        gyro_y_var: 1,
+        gyro_z_var: 1,
+        accel_x_var: 1,
+        accel_y_var: 1,
+        accel_z_var: 1,
         }
 
+# meas noise
 noise_subs = {
-        R_accel_x: 0,
-        R_accel_y: 0,
-        R_accel_z: 0,
-        R_gps_pos_x: 0,
-        R_gps_pos_y: 0,
-        R_gps_pos_z: 0,
-        R_gps_vel_x: 0,
-        R_gps_vel_y: 0,
-        R_gps_vel_z: 0,
+        R_accel_x: 0.1,
+        R_accel_y: 0.1,
+        R_accel_z: 0.1,
+        R_gps_pos_x: 0.1,
+        R_gps_pos_y: 0.1,
+        R_gps_pos_z: 0.1,
+        R_gps_vel_x: 0.1,
+        R_gps_vel_y: 0.1,
+        R_gps_vel_z: 0.1,
         }
 
 meas_subs = {
         z_accel_x: 0,
         z_accel_y: 0,
-        z_accel_z: 0,
+        z_accel_z: -1,
         z_gps_pos_x: 0,
         z_gps_pos_y: 0,
         z_gps_pos_z: 0,
@@ -453,88 +513,42 @@ vars_all = [
         dt,
         ]
 
-# state predict
-X_new_func = sp.lambdify(vars_X, X_new, cse=True)
+vars_update = [
+        list(state_subs.keys()),
+        list(input_subs.keys()),
+        list(get_mat_upper(P)),
+        list(var_subs.keys()),
+        list(noise_subs.keys()),
+        list(meas_subs.keys()),
+        dt,
+        ]
 
-# covariance predict
-P_new_func = sp.lambdify(vars_P, P_new, cse=True)
+if __name__ == "__main__":
+    print("Lambdify-ing Symbolic Expressions...")
 
-# update from accel
-X_accel_update_func = sp.lambdify(vars_all, X_accel_update, cse=True)
+    # state predict
+    X_new_func = profile(sp.lambdify)(vars_X, X_new, cse=True)
 
-#################################################
+    # covariance predict
+    P_new_func = profile(sp.lambdify)(vars_P, P_new, cse=True)
 
+    # update from accel
+    X_accel_update_func = profile(sp.lambdify)(vars_update, X_accel_update, cse=True)
+    P_accel_update_func = profile(sp.lambdify)(vars_update, P_accel_update, cse=True)
 
-def state_predict(X, U, P, *args):
-    X_new = X_new_func(X, U, P.flatten(), *args)
-    return X_new.flatten()
+    # update from gps-position
+    X_gps_pos_update_func = sp.lambdify(vars_update, X_gps_pos_update, cse=True)
 
+    # update from Gps-velocity
+    X_gps_vel_update_func = sp.lambdify(vars_update, X_gps_vel_update, cse=True)
 
-def cov_predict(X, U, P, variance, *args):
-    P_new = P_new_func(X, U, P.flatten(), variance, *args)
-    return P_new
+    out = [("X_new_func", X_new_func),
+           ("P_new_func", P_new_func),
+           ("X_accel_update_func", X_accel_update_func),
+           ("P_accel_update_func", P_accel_update_func)]
 
-
-def accel_update(X, U, P, variance, noise, *args):
-    X_accel_update_new = X_accel_update_func(X, U, P, variance, noise, *args)
-    return X_accel_update_new
-
-
-def state_update(X, U, P, variance, noise):
-    pass
-
-
-# init
-X_init = np.array(list(state_subs.values()))
-P_init = np.eye(P.shape[0])
-X = X_init
-P = P_init
-
-
-def ekf_step(t, X, U, dt):
-    global P
-    variance = np.array(list(var_subs.values()))
-    noise = np.array(list(noise_subs.values()))
-
-    U_gyro = np.array([1.2, 0, 0], dtype=float)
-    U_accel = np.array([0, 0, 0], dtype=float)
-    U = np.concatenate([U_gyro, U_accel])
-
-    # print(P)
-    X = state_predict(X, U, get_mat_upper(P), dt)
-    q = X[:4].copy()
-    X[:4] = q / np.linalg.norm(q)
-    P = cov_predict(X, U, get_mat_upper(P), variance, dt)
-
-    # K = kalman_gain_update(X, U, get_mat_upper(P), variance, noise)
-    # X = accel_update(X, U, get_mat_upper(P), variance, noise, dt_)
-    # array_print(X)
-    # print(t)
-    # quit()
-
-    q = X[:4]
-    p = X[4:7]
-    v = X[7:10]
-    b_gyr = X[10:13]
-    b_acc = X[13:16]
-    # print(f"q:{q}", f"p:{p}", f"v:{v}", f"b_gyr:{b_gyr}", f"b_acc:{b_acc}")
-    # mat_print(P)
-    return X
-
-
-plotter = PyQtGraphPlotter(frame_rate=30, figsize=[10, 6])
-
-model = Model.from_function(dt, state, input, update_func=ekf_step)
-simobj = SimObject(model)
-simobj.init_state(X)
-simobj.plot.set_config({
-    "Pos": {
-        "xaxis": 'time',
-        "yaxis": 'q0'
-        }
-    })
-
-sim = Sim([0, 20], 0.1, [simobj])
-plotter.animate(sim)
-plotter.show()
-# quit()
+    for (name, func) in out:
+        print(f"saving {name}...")
+        with open(f"./{name}.pickle", "wb") as f:
+            pickle.dump(func, f)
+    #################################################
