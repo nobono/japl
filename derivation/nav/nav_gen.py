@@ -1,8 +1,128 @@
-from sympy import Matrix, Symbol, symbols, sqrt, cse, MatrixSymbol
+import dill as pickle
+import timeit
 import numpy as np
-from code_gen import *
-from pprint import pprint
+import sympy as sp
+from tqdm import tqdm
+from itertools import permutations
+from sympy import Matrix, Symbol, symbols, cse
+from sympy import default_sort_key, topological_sort
+# from code_gen import PyCodeGenerator
+from code_gen import OctaveCodeGenerator
+# from code_gen import CCodeGenerator
 
+
+################################################################
+# Helper Methods
+################################################################
+
+
+def profile(func):
+    def wrapped(*args, **kwargs):
+        start_time = timeit.default_timer()
+        res = func(*args, **kwargs)
+        end_time = timeit.default_timer()
+        print("-" * 50)
+        print(f"{func.__name__} executed in {end_time - start_time} seconds")
+        print("-" * 50)
+        return res
+    return wrapped
+
+
+def get_mat_upper(mat):
+    ret = []
+    n = mat.shape[0]
+    for i in range(n):
+        for j in range(n):
+            if i > j:
+                pass
+            else:
+                ret += [mat[j, i]]
+    return np.array(ret)
+
+
+def zero_mat_lower(mat):
+    ret = mat.copy()
+    for index in range(mat.shape[0]):
+        for j in range(mat.shape[0]):
+            if index > j:
+                ret[index, j] = 0
+    return ret
+
+
+def mat_print(mat):
+    if isinstance(mat, Matrix):
+        mat = np.array(mat)
+    for row in mat:
+        print('[', end="")
+        for item in row:
+            if item == 0:
+                print("%s, " % (' ' * 8), end="")
+            else:
+                print("%.6f, " % item, end="")
+        print(']')
+    print()
+
+
+def mat_print_sparse(mat):
+    for i in range(mat.shape[0]):
+        print('[', end="")
+        for j in range(mat.shape[1]):
+            item = mat[i, j]
+            try:
+                item = float(item)
+                if item == 0:
+                    print("%s, " % " ", end="")
+                else:
+                    print("%d, " % 1, end="")
+            except:  # noqa
+                if isinstance(item, sp.Expr):
+                    print("%d, " % 1, end="")
+        print(']')
+    print()
+
+
+def array_print(mat):
+    print('[', end="")
+    for item in mat:
+        if item == 0:
+            print("%s, " % (' ' * 8), end="")
+        else:
+            print("%.6f, " % item, end="")
+    print(']')
+
+
+def update_subs(subs, arr):
+    for i, (k, v) in enumerate(subs.items()):
+        subs[k] = arr[i]
+
+
+def sort_recursive_subs(replace):
+    """
+    For recursive substitutions, the order of variable subs
+    must be sorted.
+
+    Arguments:
+        - replace: the first return of sympy.cse (list[tuple])
+
+    Returns:
+        - replace_subs: dict of substitutions
+    """
+    edges = [(i, j) for i, j in permutations(replace, 2) if i[1].has(j[0])]
+    replace_subs = topological_sort([replace, edges], default_sort_key)
+    return replace_subs
+
+
+def cse_subs(cse, state_subs, input_subs, cov_subs, var_subs):
+    replace, expr = cse
+    expr = expr[0]
+    replace_subs = sort_recursive_subs(replace)
+    for (var, sub) in tqdm(replace_subs):
+        expr = expr.subs(var, sub)
+    expr = expr.subs(state_subs).subs(input_subs).subs(cov_subs).subs(var_subs).subs(dt, dt_)
+    return expr
+
+
+################################################################
 
 
 def quat_to_dcm(q):
@@ -10,13 +130,13 @@ def quat_to_dcm(q):
     q1 = q[1]
     q2 = q[2]
     q3 = q[3]
-    Rot = Matrix([[1 - 2*(q2**2 + q3**2), 2*(q1*q2 - q0*q3)    , 2*(q1*q3 + q0*q2)    ],
-                 [2*(q1*q2 + q0*q3)     , 1 - 2*(q1**2 + q3**2), 2*(q2*q3 - q0*q1)    ],
-                 [2*(q1*q3-q0*q2)       , 2*(q2*q3 + q0*q1)    , 1 - 2*(q1**2 + q2**2)]])
+    Rot = Matrix([[1 - 2*(q2**2 + q3**2), 2*(q1*q2 - q0*q3)    , 2*(q1*q3 + q0*q2)    ],    # noqa
+                 [2*(q1*q2 + q0*q3)     , 1 - 2*(q1**2 + q3**2), 2*(q2*q3 - q0*q1)    ],    # noqa
+                 [2*(q1*q3-q0*q2)       , 2*(q2*q3 + q0*q1)    , 1 - 2*(q1**2 + q2**2)]])   # noqa
     return Rot
 
 
-def quat_mult(p,q):
+def quat_mult(p, q):
     r = Matrix([p[0] * q[0] - p[1] * q[1] - p[2] * q[2] - p[3] * q[3],
                 p[0] * q[1] + p[1] * q[0] + p[2] * q[3] - p[3] * q[2],
                 p[0] * q[2] - p[1] * q[3] + p[2] * q[0] + p[3] * q[1],
@@ -35,132 +155,297 @@ def create_cov_matrix(i, j):
 
 def create_symmetric_cov_matrix(n):
     # define a symbolic covariance matrix
-    P = Matrix(n,n,create_cov_matrix)
+    P = Matrix(n, n, create_cov_matrix)
     for index in range(n):
         for j in range(n):
             if index > j:
-                P[index,j] = P[j,index]
+                P[index, j] = P[j, index]
     return P
 
 
-def generate_kalman_gain_equations(P, state, observation, variance, varname = "K"):
+def generate_kalman_gain_equations(P, state, observation, variance, varname: str = "K"):
     H = Matrix([observation]).jacobian(state)
-    innov_var = H * P * H.T +  Matrix([variance])
-    assert(innov_var.shape[0] == 1)
-    assert(innov_var.shape[1] == 1)
+    innov_var = H * P * H.T + Matrix([variance])
+    assert (innov_var.shape[0] == 1)
+    assert (innov_var.shape[1] == 1)
     K = (P * H.T) / innov_var[0, 0]
     K_simple = cse(K, symbols(f"{varname}0:1000"), optimizations="basic")
     return K_simple
 
 
-####################################################################################
-####################################################################################
-####################################################################################
+################################################################
+################################################################
+################################################################
 
 
-# dt = symbols("dt", real=True)
-# g = symbols("g", real=True)
+t = Symbol('t', real=True)
+dt = Symbol('dt', real=True)
+
+##################################################
+# States
+##################################################
+
+q0, q1, q2, q3 = symbols("q0, q1, q2, q3", real=True)
+pos_n, pos_e, pos_d = symbols("pos_n, pos_e, pos_d", real=True)
+vel_n, vel_e, vel_d = symbols("vel_n, vel_e, vel_d", real=True)
+acc_bias_x, acc_bias_y, acc_bias_z = symbols("acc_bias_x, acc_bias_y, acc_bias_z", real=True)
+angvel_bias_x, angvel_bias_y, angvel_bias_z = symbols("angvel_bias_x, angvel_bias_y, angvel_bias_z", real=True)
+
+quat = Matrix([q0, q1, q2, q3])
+pos = Matrix([pos_n, pos_e, pos_d])
+vel = Matrix([vel_n, vel_e, vel_d])
+acc_bias = Matrix([acc_bias_x, acc_bias_y, acc_bias_z])
+angvel_bias = Matrix([angvel_bias_x, angvel_bias_y, angvel_bias_z])
+
+state = Matrix([quat, pos, vel, acc_bias, angvel_bias])
+
+##################################################
+# Measurements
+##################################################
+gyro_x, gyro_y, gyro_z = symbols("gyro_x, gyro_y, gyro_z", real=True)
+accel_x, accel_y, accel_z = symbols("accel_x, accel_y, accel_z", real=True)
+gps_pos_x, gps_pos_y, gps_pos_z = symbols("gps_pos_x, gps_pos_y, gps_pos_z", real=True)
+gps_vel_x, gps_vel_y, gps_vel_z = symbols("gps_vel_x, gps_vel_y, gps_vel_z", real=True)
+
+gyro = Matrix([gyro_x, gyro_y, gyro_z])
+accel = Matrix([accel_x, accel_y, accel_z])
+gps_pos = Matrix([gps_pos_x, gps_pos_y, gps_pos_z])
+gps_vel = Matrix([gps_vel_x, gps_vel_y, gps_vel_z])
+
+angvel_true = gyro - angvel_bias
+acc_true = accel - acc_bias
+
+dcm_to_earth = quat_to_dcm(quat)
+dcm_to_body = dcm_to_earth.T
+gravity_ef = Matrix([0, 0, -1])  # gravity earth-frame
+gravity_bf = dcm_to_body * gravity_ef
+
+##################################################
+# State Update Equations
+##################################################
+wx, wy, wz = angvel_true
+Sw = Matrix([
+    [0, wx, wy, wz],    # type:ignore
+    [-wx, 0, -wz, wy],  # type:ignore
+    [-wy, wz, 0, -wx],  # type:ignore
+    [-wz, -wy, wx, 0],  # type:ignore
+    ])
+
+quat_new = quat + (-0.5 * Sw * quat) * dt
+pos_new = pos + vel * dt
+vel_new = vel + (dcm_to_earth * (acc_true - gravity_bf)) * dt
+gyro_bias_new = angvel_bias
+accel_bias_new = acc_bias
+
+# NOTE: since no magnetometer yet, zero-out gyro_z bias
+gyro_bias_new[2] = sp.Float(0)
+
+##################################################
+# Process Noise
+##################################################
+
+gyro_x_var, gyro_y_var, gyro_z_var = symbols('gyro_x_var gyro_y_var gyro_z_var')
+accel_x_var, accel_y_var, accel_z_var = symbols('accel_x_var accel_y_var accel_z_var')
+# gps_pos_x_var, gps_pos_y_var, gps_pos_z_var = symbols('gps_pos_x_var, gps_pos_y_var, gps_pos_z_var')
+
+Q = Matrix.diag([gyro_x_var, gyro_y_var, gyro_z_var,
+                 accel_x_var, accel_y_var, accel_z_var])
+
+##################################################
+# State Prediction
+##################################################
+
+state_new = Matrix([quat_new, pos_new, vel_new, accel_bias_new, gyro_bias_new])
+input = Matrix([gyro, accel])
+A = state_new.jacobian(state)
+G = state_new.jacobian(input)
+
+X_new = A * state + G * input
+
+##################################################
+# Covariance Prediction
+##################################################
+
+P = create_symmetric_cov_matrix(len(state))
+P_new = A * P * A.T + G * Q * G.T
+
+for index in range(P.shape[0]):
+    for j in range(P.shape[0]):
+        if index > j:
+            P_new[index, j] = 0
+
+##################################################
+# Observation Noise
+##################################################
+
+R_accel_x, R_accel_y, R_accel_z = symbols('R_accel_x R_accel_y R_accel_z')
+R_mag_world_x, R_mag_world_y, R_mag_world_z = symbols('R_mag_world_x R_mag_world_y R_mag_world_z')
+R_gps_pos_x, R_gps_pos_y, R_gps_pos_z = symbols('R_gps_pos_x R_gps_pos_y R_gps_pos_z')
+R_gps_vel_x, R_gps_vel_y, R_gps_vel_z = symbols('R_gps_vel_x R_gps_vel_y R_gps_vel_z')
+
+##################################################
+# Observations
+##################################################
+print("Building Observations...")
+
+# Body Frame Accelerometer Observation
+obs_accel = (dcm_to_earth * gravity_bf) + acc_bias
+H_accel_x = obs_accel[0, :].jacobian(state)
+H_accel_y = obs_accel[1, :].jacobian(state)
+H_accel_z = obs_accel[2, :].jacobian(state)
+H_accel = Matrix([H_accel_x, H_accel_y, H_accel_z])
+
+# Gps-position Observation (NED frame)
+obs_gps_pos = pos
+H_gps_pos_x = obs_gps_pos[0, :].jacobian(state)  # type:ignore
+H_gps_pos_y = obs_gps_pos[1, :].jacobian(state)  # type:ignore
+H_gps_pos_z = obs_gps_pos[2, :].jacobian(state)  # type:ignore
+# H_gps_pos = Matrix([H_gps_pos_x, H_gps_pos_y, H_gps_pos_z])
+
+# Gps-velocity Observation (NED frame)
+obs_gps_vel = vel
+H_gps_vel_x = obs_gps_vel[0, :].jacobian(state)  # type:ignore
+H_gps_vel_y = obs_gps_vel[1, :].jacobian(state)  # type:ignore
+H_gps_vel_z = obs_gps_vel[2, :].jacobian(state)  # type:ignore
+# H_gps_vel = Matrix([H_gps_vel_x, H_gps_vel_y, H_gps_vel_z])
+
+H_gps = Matrix([H_gps_pos_x, H_gps_pos_y, H_gps_pos_z,
+                H_gps_vel_x, H_gps_vel_y, H_gps_vel_z])
+
+##################################################
+# Kalman Gains
+##################################################
+print("Building Kalman Gains...")
+
+# Accelerometer
+innov_var_accel_x = H_accel_x * P * H_accel_x.T + Matrix([R_accel_x])
+innov_var_accel_y = H_accel_y * P * H_accel_y.T + Matrix([R_accel_y])
+innov_var_accel_z = H_accel_z * P * H_accel_z.T + Matrix([R_accel_z])
+K_accel_x = P * H_accel_x.T / innov_var_accel_x[0, 0]
+K_accel_y = P * H_accel_y.T / innov_var_accel_y[0, 0]
+K_accel_z = P * H_accel_z.T / innov_var_accel_z[0, 0]
+
+# Gps-position
+innov_var_gps_pos_x = H_gps_pos_x * P * H_gps_pos_x.T + Matrix([R_gps_pos_x])
+innov_var_gps_pos_y = H_gps_pos_y * P * H_gps_pos_y.T + Matrix([R_gps_pos_y])
+innov_var_gps_pos_z = H_gps_pos_z * P * H_gps_pos_z.T + Matrix([R_gps_pos_z])
+K_gps_pos_x = P * H_gps_pos_x.T / innov_var_gps_pos_x[0, 0]
+K_gps_pos_y = P * H_gps_pos_y.T / innov_var_gps_pos_y[0, 0]
+K_gps_pos_z = P * H_gps_pos_z.T / innov_var_gps_pos_z[0, 0]
+
+# Gps-velocity
+innov_var_gps_vel_x = H_gps_vel_x * P * H_gps_vel_x.T + Matrix([R_gps_vel_x])
+innov_var_gps_vel_y = H_gps_vel_y * P * H_gps_vel_y.T + Matrix([R_gps_vel_y])
+innov_var_gps_vel_z = H_gps_vel_z * P * H_gps_vel_z.T + Matrix([R_gps_vel_z])
+K_gps_vel_x = P * H_gps_vel_x.T / innov_var_gps_vel_x[0, 0]
+K_gps_vel_y = P * H_gps_vel_y.T / innov_var_gps_vel_y[0, 0]
+K_gps_vel_z = P * H_gps_vel_z.T / innov_var_gps_vel_z[0, 0]
+
+##################################################
+# Measurements
+##################################################
+
+z_accel_x, z_accel_y, z_accel_z = symbols("z_accel_x, z_accel_y, z_accel_z", real=True)
+z_gps_pos_x, z_gps_pos_y, z_gps_pos_z = symbols("z_gps_pos_x, z_gps_pos_y, z_gps_pos_z", real=True)
+z_gps_vel_x, z_gps_vel_y, z_gps_vel_z = symbols("z_gps_vel_x, z_gps_vel_y, z_gps_vel_z", real=True)
+
+z_accel = Matrix([z_accel_x, z_accel_y, z_accel_z])
+# z_gps_pos = Matrix([z_gps_pos_x, z_gps_pos_y, z_gps_pos_z])
+# z_gps_vel = Matrix([z_gps_vel_x, z_gps_vel_y, z_gps_vel_z])
+z_gps = Matrix([z_gps_pos_x, z_gps_pos_y, z_gps_pos_z,
+                z_gps_vel_x, z_gps_vel_y, z_gps_vel_z])
+##################################################
+# Updates
+##################################################
+print("Building Updates...")
+
+# kalman gain
+K_accel = Matrix()
+K_accel = K_accel.col_insert(0, K_accel_x)
+K_accel = K_accel.col_insert(1, K_accel_y)
+K_accel = K_accel.col_insert(2, K_accel_z)
+
+K_gps = Matrix()
+K_gps = K_gps.col_insert(0, K_gps_pos_x)
+K_gps = K_gps.col_insert(1, K_gps_pos_y)
+K_gps = K_gps.col_insert(2, K_gps_pos_z)
+K_gps = K_gps.col_insert(0, K_gps_vel_x)
+K_gps = K_gps.col_insert(1, K_gps_vel_y)
+K_gps = K_gps.col_insert(2, K_gps_vel_z)
+
+# accelerometer
+X_accel_update = state + K_accel * (z_accel - H_accel * state)
+P_accel_update = P - (K_accel * H_accel * P)
+
+# gps
+X_gps_update = state + K_gps * (z_gps - H_gps * state)
+P_gps_update = P - (K_gps * H_gps * P)
+
+##################################################
+# Write to File
+##################################################
+
+print('Simplifying covariance propagation ...')
+X_new_simple = cse(X_new, symbols("PX0:1000"), optimizations='basic')
+P_new_simple = cse(P_new, symbols("PS0:1000"), optimizations='basic')
+
+args = symbols("P,"                         # covariance matrix
+               "q0, q1, q2, q3,"            # quaternion
+               "vn, ve, vd,"                # velocity in NED local frame
+               "pn, pe, pd,"                # position in NED local frame
+               "dvx, dvy, dvz,"             # delta velocity (accelerometer measurements)
+               "dax, day, daz,"             # delta angle (gyroscope measurements)
+               "dax_b, day_b, daz_b,"       # delta angle bias
+               "dvx_b, dvy_b, dvz_b,"       # delta velocity bias
+               "daxVar, dayVar, dazVar,"    # gyro input noise
+               "dvxVar, dvyVar, dvzVar,"    # accel input noise
+               "dt")
+return_args = ["nextP"]
+
+print('Writing state propagation to file ...')
+cov_code_generator = OctaveCodeGenerator("./generated/state_predict.m")
+cov_code_generator.print_string("Equations for state matrix prediction")
+cov_code_generator.write_function_definition(name="state_predict",
+                                             args=args,
+                                             returns=["nextX"])
+cov_code_generator.write_subexpressions(X_new_simple[0])
+cov_code_generator.write_matrix(matrix=Matrix(X_new_simple[1]),
+                                variable_name="nextX",
+                                is_symmetric=True)
+# cov_code_generator.write_function_returns(returns=return_args)
+cov_code_generator.close()
 
 
-# r_hor_vel = symbols("R_hor_vel", real=True) # horizontal velocity noise variance
-# r_ver_vel = symbols("R_vert_vel", real=True) # vertical velocity noise variance
-# r_hor_pos = symbols("R_hor_pos", real=True) # horizontal position noise variance
+print('Writing covariance propagation to file ...')
+cov_code_generator = OctaveCodeGenerator("./generated/cov_predict.m")
+cov_code_generator.print_string("Equations for covariance matrix prediction, without process noise!")
+cov_code_generator.write_function_definition(name="cov_predict",
+                                             args=args,
+                                             returns=["nextP"])
+cov_code_generator.write_subexpressions(P_new_simple[0])
+cov_code_generator.write_matrix(matrix=Matrix(P_new_simple[1]),
+                                variable_name="nextP",
+                                is_symmetric=True)
+# cov_code_generator.write_function_returns(returns=return_args)
+cov_code_generator.close()
 
-# # inputs, integrated gyro measurements
-# # delta angle x y z
-# d_ang_x, d_ang_y, d_ang_z = symbols("dax day daz", real=True)  # delta angle x
-# d_ang = Matrix([d_ang_x, d_ang_y, d_ang_z])
 
-# # inputs, integrated accelerometer measurements
-# # delta velocity x y z
-# d_v_x, d_v_y, d_v_z = symbols("dvx dvy dvz", real=True)
-# d_v = Matrix([d_v_x, d_v_y,d_v_z])
+# print('Writing state update to file ...')
+# cov_code_generator = OctaveCodeGenerator("./generated/state_update.m")
+# cov_code_generator.print_string("Equations for state matrix update")
+# cov_code_generator.write_function_definition(name="state_update",
+#                                              args=args,
+#                                              returns=["nextX"])
+# cov_code_generator.write_subexpressions(X_accel_update_simple[0])
+# cov_code_generator.write_matrix(matrix=Matrix(X_accel_update_simple[1]),
+#                                 variable_name="nextX",
+#                                 is_symmetric=True)
+# # cov_code_generator.write_function_returns(returns=return_args)
+# cov_code_generator.close()
 
-# u = Matrix([d_ang, d_v])
 
-# # input noise
-
-# # gyroscope noise
-# d_ang_x_var, d_ang_y_var, d_ang_z_var = symbols("daxVar dayVar dazVar", real=True)
-
-# # accelerometer noise
-# d_v_x_var, d_v_y_var, d_v_z_var = symbols("dvxVar dvyVar dvzVar", real=True)
-
-# var_u = Matrix.diag(d_ang_x_var, d_ang_y_var, d_ang_z_var, d_v_x_var, d_v_y_var, d_v_z_var)
-
-# # define state vector
-
-# # attitude quaternion
-# q0, q1, q2, q3 = symbols("q0 q1 q2 q3", real=True)
-# q = Matrix([q0,q1,q2,q3])
-# R_to_earth = quat2Rot(q)
-# R_to_body = R_to_earth.T
-
-# # velocity in NED local frame (north, east, down)
-# vx, vy, vz = symbols("vn ve vd", real=True)
-# v = Matrix([vx,vy,vz])
-
-# # position in NED local frame (north, east, down)
-# px, py, pz = symbols("pn pe pd", real=True)
-# p = Matrix([px,py,pz])
-
-# # delta angle bias x y z
-# d_ang_bx, d_ang_by, d_ang_bz = symbols("dax_b day_b daz_b", real=True)
-# d_ang_b = Matrix([d_ang_bx, d_ang_by, d_ang_bz])
-# d_ang_true = d_ang - d_ang_b
-
-# # delta velocity bias x y z
-# d_vel_bx, d_vel_by, d_vel_bz = symbols("dvx_b dvy_b dvz_b", real=True)
-# d_vel_b = Matrix([d_vel_bx, d_vel_by, d_vel_bz])
-# d_vel_true = d_v - d_vel_b
-
-# # state vector at arbitrary time t
-# state = Matrix([q, v, p, d_ang_b, d_vel_b])
-
-# print('Defining state propagation ...')
-# # kinematic processes driven by IMU 'control inputs'
-# q_new = quat_mult(q, Matrix([1, 0.5 * d_ang_true[0],  0.5 * d_ang_true[1],  0.5 * d_ang_true[2]]))
-# v_new = v + R_to_earth * d_vel_true + Matrix([0,0,g]) * dt
-# p_new = p + v * dt
-
-# # static processes
-# d_ang_b_new = d_ang_b
-# d_vel_b_new = d_vel_b
-
-# # predicted state vector at time t + dt
-# state_new = Matrix([q_new, v_new, p_new, d_ang_b_new, d_vel_b_new])
-
-# print('Computing state propagation jacobian ...')
-# A = state_new.jacobian(state)
-# G = state_new.jacobian(u)
-
-# P = create_symmetric_cov_matrix(len(state))
-
-# print('Computing covariance propagation ...')
-# P_new = A * P * A.T + G * var_u * G.T
-
-# for index in range(len(state)):
-#     for j in range(len(state)):
-#         if index > j:
-#             P_new[index,j] = 0
-
-# print('Simplifying covariance propagation ...')
-# P_new_simple = cse(P_new, symbols("PS0:400"), optimizations='basic')
-
-# args = symbols("q0, q1, q2, q3,"            # quaternion
-#                "vn, ve, vd,"                # velocity in NED local frame
-#                "pn, pe, pd,"                # position in NED local frame
-#                "dvx, dvy, dvz,"             # delta velocity (accelerometer measurements)
-#                "dax, day, daz,"             # delta angle (gyroscope measurements)
-#                "dax_b, day_b, daz_b,"       # delta angle bias
-#                "dvx_b, dvy_b, dvz_b,"       # delta velocity bias
-#                "P,"                         # covariance matrix
-#                "daxVar, dayVar, dazVar,"    # gyro input noise
-#                "dvxVar, dvyVar, dvzVar,"    # accel input noise
-#                "dt")
-
-# print('Writing covariance propagation to file ...')
-# cov_code_generator = OctaveCodeGenerator("./derivation/nav/generated/cov_predict.m")
+# print('Writing covariance update to file ...')
+# cov_code_generator = OctaveCodeGenerator("./generated/cov_update.m")
 # cov_code_generator.print_string("Equations for covariance matrix prediction, without process noise!")
 # cov_code_generator.write_function_definition(name="cov_predict",
 #                                              args=args,
@@ -169,113 +454,141 @@ def generate_kalman_gain_equations(P, state, observation, variance, varname = "K
 # cov_code_generator.write_matrix(matrix=Matrix(P_new_simple[1]),
 #                                 variable_name="nextP",
 #                                 is_symmetric=True)
-
+# # cov_code_generator.write_function_returns(returns=return_args)
 # cov_code_generator.close()
 
-################################################################
-################################################################
-################################################################
-
-dt = Symbol('dt', real=True)
-
 ##################################################
-# States
-##################################################
-# quat = Matrix(MatrixSymbol('quat', 4, 1), real=True)
-# pos = Matrix(MatrixSymbol('pos', 3, 1), real=True)
-# vel = Matrix(MatrixSymbol('vel', 3, 1), real=True)
-# gyro_bias = Matrix(MatrixSymbol('gyro_bias', 3, 1), real=True)
-# accel_bias = Matrix(MatrixSymbol('accel_bias', 3, 1), real=True)
-quat = Matrix(symbols("q0, q1, q2, q3", real=True))
-pos = Matrix(symbols("pos_n, pos_e, pos_d", real=True))
-vel = Matrix(symbols("vel_n, vel_e, vel_d", real=True))
-gyro_bias = Matrix(symbols('gyro_bias_x, gyro_bias_y, gyro_bias_z'), real=True)
-accel_bias = Matrix(symbols('accel_bias_x, accel_bias_y, accel_bias_z'), real=True)
-
-state = Matrix([quat, pos, vel, gyro_bias, accel_bias])
-
-##################################################
-# Measurements
-##################################################
-gyro = Matrix(MatrixSymbol('gyro', 3, 1))
-accel = Matrix(MatrixSymbol('accel', 3, 1))
-mag = Matrix(MatrixSymbol('mag', 3, 1))
-
-gyro_true = gyro - gyro_bias
-accel_true = accel - accel_bias
-
-
-dcm_to_earth = quat_to_dcm(quat)
-dcm_to_body = dcm_to_earth.T
-gravity_ef = Matrix([0, 0, -1]) # gravity earth-frame
-gravity_bf = dcm_to_body * gravity_ef
-
-##################################################
-# State Update Equations
-##################################################
-wx, wy, wz = gyro_true
-Sw = Matrix([
-    [ 0,   wx,  wy,  wz], #type:ignore
-    [-wx,  0,  -wz,  wy], #type:ignore
-    [-wy,  wz,   0, -wx], #type:ignore
-    [-wz, -wy,  wx,   0], #type:ignore
-    ])
-
-quat_new = quat + (-0.5 * Sw * quat) * dt
-pos_new = pos + vel * dt
-vel_new = vel + (dcm_to_earth * (accel_true - gravity_bf)) * dt
-gyro_bias_new = gyro_bias
-accel_bias_new = accel_bias
-
-##################################################
-# Observation Noise
-##################################################
-gyro_x_var, gyro_y_var, gyro_z_var = symbols('gyro_x_var gyro_y_var gyro_z_var')
-accel_x_var, accel_y_var, accel_z_var = symbols('accel_x_var accel_y_var accel_z_var')
-acc_x_var, acc_y_var, acc_z_var = symbols('acc_x_var acc_y_var acc_z_var')
-Q = Matrix.diag([gyro_x_var, gyro_y_var, gyro_z_var, accel_x_var, accel_y_var, accel_z_var])
-
-# Observation Noise 
-R_accel_x, R_accel_y, R_accel_z = symbols('R_accel_x R_accel_y R_accel_z')
-R_mag_world_x, R_mag_world_y, R_mag_world_z = symbols('R_mag_world_x R_mag_world_y R_mag_world_z')
-R_vel_x, R_vel_y, R_vel_z = symbols('R_vel_x R_vel_y R_vel_z')
-R_mag_decl = symbols('R_mag_decl')
-
-##################################################
-# State Prediction Update
-##################################################
-state_new = Matrix([quat_new, pos_new, vel_new, gyro_bias_new, accel_bias_new])
-U = Matrix([gyro, accel])
-A = state_new.jacobian(state)
-G = state_new.jacobian(U)
-
-P = create_symmetric_cov_matrix(len(state))
-P_new = A * P * A.T + G * Q * G.T
-##################################################
-# Observations
-##################################################
-# Body Frame Accelerometer Observation   
-obs_accel = (dcm_to_earth * gravity_bf) - accel_bias
-H_accel_x = obs_accel[0].diff(state).T
-H_accel_y = obs_accel[1].diff(state).T
-H_accel_z = obs_accel[2].diff(state).T
-
-# Body Frame Velocity Observation
-obs_vel_bf = dcm_to_body * vel
-H_vel_x = obs_vel_bf[0].diff(state).T
-H_vel_y = obs_vel_bf[1].diff(state).T
-H_vel_z = obs_vel_bf[2].diff(state).T
-
-##################################################
-# Kalman Gains
+# Sim
 ##################################################
 
-# Innovation Variance
-innov_var_accel_x = H_accel_x * P * H_accel_x.T + Matrix([R_accel_x])
-innov_var_accel_y = H_accel_y * P * H_accel_y.T + Matrix([R_accel_y])
-innov_var_accel_z = H_accel_z * P * H_accel_z.T + Matrix([R_accel_z])
-K_accel_x = P * H_accel_x.T / innov_var_accel_x[0, 0]
-K_accel_y = P * H_accel_y.T / innov_var_accel_y[0, 0]
-K_accel_z = P * H_accel_z.T / innov_var_accel_z[0, 0]
+dt_ = 0.1
 
+state_subs = {
+        q0: 1,
+        q1: 0,
+        q2: 0,
+        q3: 0,
+        pos_n: 0,
+        pos_e: 0,
+        pos_d: 0,
+        vel_n: 0,
+        vel_e: 0,
+        vel_d: 0,
+        acc_bias_x: 0,
+        acc_bias_y: 0,
+        acc_bias_z: 0,
+        angvel_bias_x: 0,
+        angvel_bias_y: 0,
+        angvel_bias_z: 0,
+        }
 
+input_subs = {
+        gyro[0, 0]: 0.0,        # type:ignore
+        gyro[1, 0]: 0.0,        # type:ignore
+        gyro[2, 0]: 0.0,        # type:ignore
+        accel[0, 0]: 0.0,        # type:ignore
+        accel[1, 0]: 0.0,        # type:ignore
+        accel[2, 0]: 0.0,        # type:ignore
+        }
+
+# process noise
+var_subs = {
+        gyro_x_var: 1,
+        gyro_y_var: 1,
+        gyro_z_var: 1,
+        accel_x_var: 1,
+        accel_y_var: 1,
+        accel_z_var: 1,
+        }
+
+# meas noise
+noise_subs = {
+        R_accel_x: 1.01,
+        R_accel_y: 1.01,
+        R_accel_z: 1.01,
+        R_gps_pos_x: 0.1,
+        R_gps_pos_y: 0.1,
+        R_gps_pos_z: 0.1,
+        R_gps_vel_x: 0.1,
+        R_gps_vel_y: 0.1,
+        R_gps_vel_z: 0.1,
+        }
+
+meas_subs = {
+        z_accel_x: 0,
+        z_accel_y: 0,
+        z_accel_z: 0,
+        z_gps_pos_x: 0,
+        z_gps_pos_y: 0,
+        z_gps_pos_z: 0,
+        z_gps_vel_x: 0,
+        z_gps_vel_y: 0,
+        z_gps_vel_z: 0,
+        }
+
+#################################################
+# Sympy lambdify funcs
+#################################################
+
+vars_X = [
+        list(state_subs.keys()),
+        list(input_subs.keys()),
+        list(get_mat_upper(P)),
+        dt,
+        ]
+
+vars_P = [
+        list(state_subs.keys()),
+        list(input_subs.keys()),
+        list(get_mat_upper(P)),
+        list(var_subs.keys()),
+        dt,
+        ]
+
+vars_all = [
+        list(state_subs.keys()),
+        list(input_subs.keys()),
+        list(get_mat_upper(P)),
+        list(var_subs.keys()),
+        list(noise_subs.keys()),
+        dt,
+        ]
+
+vars_update = [
+        list(state_subs.keys()),
+        list(input_subs.keys()),
+        list(get_mat_upper(P)),
+        list(var_subs.keys()),
+        list(noise_subs.keys()),
+        list(meas_subs.keys()),
+        dt,
+        ]
+
+if __name__ == "__main__":
+    print("Lambdify-ing Symbolic Expressions...")
+
+    # state predict
+    X_new_func = profile(sp.lambdify)(vars_X, X_new, cse=True)
+
+    # covariance predict
+    P_new_func = profile(sp.lambdify)(vars_P, P_new, cse=True)
+
+    # update from accel
+    X_accel_update_func = profile(sp.lambdify)(vars_update, X_accel_update, cse=True)
+    P_accel_update_func = profile(sp.lambdify)(vars_update, P_accel_update, cse=True)
+
+    # update from gps-position
+    X_gps_update_func = profile(sp.lambdify)(vars_update, X_gps_update, cse=True)
+    P_gps_update_func = profile(sp.lambdify)(vars_update, P_gps_update, cse=True)
+
+    out = [("X_new_func", X_new_func),
+           ("P_new_func", P_new_func),
+           ("X_accel_update_func", X_accel_update_func),
+           ("P_accel_update_func", P_accel_update_func),
+           ("X_gps_update_func", X_gps_update_func),
+           ("P_gps_update_func", P_gps_update_func)]
+
+    for (name, func) in out:
+        print(f"saving {name}...")
+        with open(f"./{name}.pickle", "wb") as f:
+            pickle.dump(func, f)

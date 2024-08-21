@@ -1,42 +1,28 @@
-# ---------------------------------------------------
-
+import japl
+import numpy as np
 from collections.abc import Generator
 from typing import Optional
-
-# ---------------------------------------------------
-
-from matplotlib.axes import Axes
-import numpy as np
-
-# ---------------------------------------------------
-
-import astropy.units as u
-from astropy.units.quantity import Quantity
-
-from pyqtgraph import GraphicsView, PlotCurveItem, PlotDataItem, mkPen
-from pyqtgraph import CircleROI
-from pyqtgraph.Qt.QtGui import QPen
-from sympy import Symbol
-
-# ---------------------------------------------------
-
-import japl
 from japl.Aero.AeroTable import AeroTable
-from japl.Util.UnitCheck import assert_physical_type
 from japl.Model.Model import Model
-from japl.Model.Model import ModelType
 from japl.Util.Util import flatten_list
-
-# ---------------------------------------------------
-
-from matplotlib.patches import Circle
+from pyqtgraph import PlotDataItem, mkPen
+from pyqtgraph.Qt.QtGui import QPen
 from matplotlib.lines import Line2D
 from matplotlib import colors as mplcolors
+# from sympy import Symbol
+# from pyqtgraph import GraphicsView, PlotCurveItem,
+# from pyqtgraph import CircleROI
+# from matplotlib.axes import Axes
+# import astropy.units as u
+# from astropy.units.quantity import Quantity
+# from japl.Util.UnitCheck import assert_physical_type
+# from japl.Model.Model import ModelType
+# from matplotlib.patches import Circle
 
 
 
 # class ShapeCollection:
-#     
+#
 #     """This is a class which abstracts the line / shape plots of different
 #     plotting backends."""
 
@@ -46,10 +32,11 @@ from matplotlib import colors as mplcolors
 #         self.color = color
 #         self.radius = radius
 
-#     
+
 #     def setup(self):
 #         self.patch = Circle((0, 0), radius=size, color=color)
 #         self.trace = Line2D([0], [0], color=color)
+
 
 
 class _PlotInterface:
@@ -57,18 +44,24 @@ class _PlotInterface:
     """This is a class for interfacing SimObject data with the plotter."""
 
     def __init__(self, size: float, state_select: dict, color: Optional[str] = None) -> None:
-        self.size = size
 
-        if not color:
-            self.color = next(self.color_cycle)
-        else:
-            self.color = color
-        self.color_code = self.get_mpl_color_code(self.color)
+        # available colors
+        self.COLORS = dict(mplcolors.TABLEAU_COLORS, **mplcolors.CSS4_COLORS)
+
+        self.size = size
 
         # color cycle list
         self.color_cycle = self.__color_cycle()
         self.__plot_config = state_select
         self.plotting_backend = japl.get_plotlib()
+
+        if not color:
+            self.color_code = next(self.color_cycle)
+            self.color = list(self.COLORS.keys())[
+                    list(self.COLORS.values()).index(self.color_code)]
+        else:
+            self.color = color
+            self.color_code = self.get_mpl_color_code(self.color)
 
         # graphic objects
         self.traces: list[Line2D] = []
@@ -85,7 +78,7 @@ class _PlotInterface:
 
 
     def get_mpl_color_code(self, color_str: str = "") -> str:
-        color_code = mplcolors.TABLEAU_COLORS[color_str]
+        color_code = self.COLORS[color_str]
         return str(color_code)
 
 
@@ -94,10 +87,11 @@ class _PlotInterface:
         plots which do not specify a color."""
 
         while True:
-            for _, v in mplcolors.TABLEAU_COLORS.items():
+            for _, v in self.COLORS.items():
                 yield str(v)
 
 
+    @DeprecationWarning
     def _get_qt_pen(self, subplot_id: int) -> QPen:
         pen_color = self.qt_traces[subplot_id].opts['pen'].color().getRgb()[:3]
         pen_width = self.qt_traces[subplot_id].opts['pen'].width()
@@ -143,6 +137,8 @@ class SimObject:
                 size=self.size,
                 color=self.color
                 )
+        if not self.color:
+            self.color = self.plot.color
 
 
     def set_draw(self, size: float = 1, color: str = "black") -> None:
@@ -173,7 +169,7 @@ class SimObject:
 
 
     def set_state_array(self, state: np.ndarray, names: str|list[str],
-                  vals: float|list|np.ndarray) -> None:
+                        vals: float|list|np.ndarray) -> None:
         """This method sets values of the state array according to the
         provided state names and provided values."""
         ret = self.model.get_state_id(names)
@@ -200,7 +196,7 @@ class SimObject:
 
 
     def set_input_array(self, input: np.ndarray, names: str|list[str],
-                  vals: float|list|np.ndarray) -> None:
+                        vals: float|list|np.ndarray) -> None:
         """This method sets values of the input array according to the
         provided input names and provided values."""
         ret = self.model.get_input_id(names)
@@ -263,31 +259,12 @@ class SimObject:
         -- X_dot - state dynamics "Xdot = A*X + B*U"
         -------------------------------------------------------------------
         """
-        # TODO: accounting for model inputs here?
-        self.update(X)
+        # self.update(X)
         return self.model.step(X, U, dt)
 
 
     def update(self, X: np.ndarray):
         pass
-
-
-    @DeprecationWarning
-    def add_state(self, name: str, id: int, label: str = "") -> Symbol:
-        """This method registers a SimObject state name and plotting label with a
-        user-specified name. The purpose of this register is for ease of access to SimObject
-        states without having to use the satte index number.
-
-        -------------------------------------------------------------------
-        -- Arguments
-        -------------------------------------------------------------------
-        -- name - user-specified name of state
-        -- id - state index number
-        -- label - (optional) string other than "name" that will be displayed
-                    in plots / visualization
-        -------------------------------------------------------------------
-        """
-        return self.model.add_state(name=name, id=id, label=label)
 
 
     def init_state(self, state: np.ndarray|list, dtype: type = float) -> None:
@@ -312,12 +289,6 @@ class SimObject:
         self.X0 = _X0
 
 
-    @DeprecationWarning
-    def _output_data(self, y) -> None:
-        """stores solution data from solver into sim object"""
-        self.Y = y
-
-
     def get_plot_data(self, subplot_id: int, index: int) -> tuple[np.ndarray, np.ndarray]:
         """This method returns state data from the SimObject according
         to the user specified state_select."""
@@ -337,7 +308,7 @@ class SimObject:
         if index is None:
             index = len(self.Y) - 1
         else:
-            index += 1 # instead of grabbin "up-to" index, grab last index as well
+            index += 1  # instead of grabbin "up-to" index, grab last index as well
 
         if isinstance(state_slice, tuple) or isinstance(state_slice, list):
             return self.Y[:index, state_slice[0]:state_slice[1]]
@@ -353,10 +324,10 @@ class SimObject:
                         but no state index is registered under this name.")
         else:
             return np.array([])
-            
+
 
     def _set_T_array_ref(self, _T) -> None:
-        """This method is used to reference the internal __T time array to the 
+        """This method is used to reference the internal __T time array to the
         Sim class Time array 'T'. This method exists to avoid redundant time arrays in
         various SimObjects."""
 
@@ -365,5 +336,3 @@ class SimObject:
 
     def _update_patch_data(self, xdata: np.ndarray, ydata: np.ndarray, subplot_id: int, **kwargs) -> None:
         self.plot._update_patch_data(xdata, ydata, subplot_id=subplot_id, **kwargs)
-
-

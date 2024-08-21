@@ -34,7 +34,7 @@ class Plotter:
 
     def add_text(self, text: str, window_id: int = 0, color: tuple = (255, 255, 255),
                  spacing: float = 0.6) -> None:
-         pass
+        pass
 
 
     def setup(self) -> None:
@@ -201,7 +201,7 @@ class Plotter:
         Y_RANGE_LIM = int(X_RANGE_LIM / aspect_ratio)
 
         # weight the amount to move the border proportional to how close
-        # the object cetner is to the border limit. Also account for the 
+        # the object cetner is to the border limit. Also account for the
         # scale of the current plot window (xlen, ylen) in the amount to
         # change the current boundary.
 
@@ -232,7 +232,7 @@ class Plotter:
 
     def setup_time_slider(self, Nt: int, _simobjs: list[SimObject]) -> None:
 
-        axis_position = plt.axes([0.2, 0.01, 0.65, 0.03], facecolor='white') # type:ignore
+        axis_position = plt.axes([0.2, 0.01, 0.65, 0.03], facecolor='white')  # type:ignore
         self.time_slider = Slider(
             axis_position,
             label='Time (s)',
@@ -241,9 +241,8 @@ class Plotter:
             valinit=0
             )
         self.time_slider.on_changed(lambda t: self._time_slider_update(t, _simobjs=_simobjs))
-        self.time_slider.set_val(Nt) # initialize slider at end-time
+        self.time_slider.set_val(Nt)  # initialize slider at end-time
 
 
     def exit(self) -> None:
         pass
-

@@ -37,7 +37,7 @@ class TestExample(unittest.TestCase):
             T += [T_new]
             time += dt
 
-        truth = np.array([ 0.009999897516607761,
+        truth = np.array([0.009999897516607761,
                           0.171827974413516604])
         self.assertListEqual(X.tolist(), truth.tolist())
         self.assertAlmostEqual(T[-1], 1.0, places=self.TOLERANCE_PLACES)

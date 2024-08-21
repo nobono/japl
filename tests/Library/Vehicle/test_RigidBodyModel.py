@@ -1,11 +1,10 @@
 import unittest
 import numpy as np
 import quaternion
-from japl import Model
 from japl import SimObject
 from japl import Sim
-from japl import AeroTable
-from sympy import MatrixSymbol, Matrix, symbols
+# from japl import Model
+# from sympy import MatrixSymbol, Matrix, symbols
 from japl.Library.Vehicles import RigidBodyModel
 from japl.Sim.Integrate import runge_kutta_4
 
@@ -37,11 +36,11 @@ class test_RigidBodyModel(unittest.TestCase):
     def create_simobj(self):
         model = RigidBodyModel.model
         simobj = SimObject(model=model, size=2, color='tab:blue')
-        simobj.Ixx = 1.309 # (kg * m^2)
-        simobj.Iyy = 58.27 # (kg * m^2)
-        simobj.Izz = 58.27 # (kg * m^2)
-        simobj.mass = 133 # (kg)
-        simobj.cg = 1.42 # (m)
+        simobj.Ixx = 1.309  # (kg * m^2)
+        simobj.Iyy = 58.27  # (kg * m^2)
+        simobj.Izz = 58.27  # (kg * m^2)
+        simobj.mass = 133  # (kg)
+        simobj.cg = 1.42  # (m)
         x0 = [0, 0, 10000]
         v0 = [1500, 0, 0]
         w0 = [0, 0, 0]
@@ -67,7 +66,7 @@ class test_RigidBodyModel(unittest.TestCase):
 
 
     def dynamics(self, t, X, U, dt, simobj):
-        pos = X[:3]
+        # pos = X[:3]
         vel = X[3:6]
         angvel = X[6:9]
         quat = X[9:13]
@@ -81,18 +80,18 @@ class test_RigidBodyModel(unittest.TestCase):
         torque = U[3:6]
 
         acc = force / mass
-        angacc = np.array([torque[0]/Ixx,
-                           torque[1]/Iyy,
-                           torque[2]/Izz])
+        angacc = np.array([torque[0] / Ixx,
+                           torque[1] / Iyy,
+                           torque[2] / Izz])
 
         gravity = np.array([0, 0, gacc])
 
         wx, wy, wz = angvel
         Sw = np.array([
-            [ 0,   wx,  wy,  wz], #type:ignore
-            [-wx,  0,  -wz,  wy], #type:ignore
-            [-wy,  wz,   0, -wx], #type:ignore
-            [-wz, -wy,  wx,   0], #type:ignore
+            [0, wx, wy, wz],  # type:ignore
+            [-wx, 0, -wz, wy],  # type:ignore
+            [-wy, wz, 0, -wx],  # type:ignore
+            [-wz, -wy, wx, 0],  # type:ignore
             ])
 
         pos_dot = vel
@@ -121,17 +120,17 @@ class test_RigidBodyModel(unittest.TestCase):
 
 
     def direct_updates(self, X, U, dt, simobj: SimObject):
-        pos = X[:3]
-        vel = X[3:6]
-        angvel = X[6:9]
-        quat = X[9:13]
-        mass = X[13]
-        Ixx = X[14]
-        Iyy = X[15]
-        Izz = X[16]
-        gacc = X[17]
-        force = U[:3]
-        torque = U[3:6]
+        # pos = X[:3]
+        # vel = X[3:6]
+        # angvel = X[6:9]
+        # quat = X[9:13]
+        # mass = X[13]
+        # Ixx = X[14]
+        # Iyy = X[15]
+        # Izz = X[16]
+        # gacc = X[17]
+        # force = U[:3]
+        # torque = U[3:6]
         return (X, U)
 
 

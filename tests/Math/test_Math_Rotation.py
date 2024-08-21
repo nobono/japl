@@ -7,8 +7,9 @@ from japl.Math.Rotation import quat_to_dcm
 from japl.Math.Rotation import quat_to_tait_bryan
 from japl.Math.Rotation import tait_bryan_to_dcm
 from japl.Math.Rotation import dcm_to_tait_bryan
-from sympy import MatrixSymbol
+from sympy import Matrix, MatrixSymbol
 from japl.Math.RotationSymbolic import quat_conj_sym
+from japl.Math.RotationSymbolic import quat_norm_sym
 from japl.Math.RotationSymbolic import quat_mult_sym
 from japl.Math.RotationSymbolic import quat_to_dcm_sym
 from japl.Math.RotationSymbolic import quat_to_tait_bryan_sym
@@ -32,6 +33,23 @@ class TestMathRotation(unittest.TestCase):
         self.assertTrue((quat.components[1:] == -conj[1:]).all())
 
 
+    def test_quat_norm(self):
+        """compare numpy quaternion method
+        with symbolic method."""
+        # numpy
+        q = np.array([1, 2, 3, 4])
+        quat = quaternion.from_float_array(q)
+        quat_normalized = quat.normalized().components
+        # symbolic
+        quat_sym = Matrix(q)
+        quat_normalized_sym = quat_norm_sym(quat_sym)
+        subs = {quat_sym[0]: q[0],  # type:ignore
+                quat_sym[1]: q[1],  # type:ignore
+                quat_sym[2]: q[2],  # type:ignore
+                quat_sym[3]: q[3]}  # type:ignore
+        self.assertListEqual(quat_normalized.tolist(), quat_normalized_sym.subs(subs).n().flat())
+
+
     def test_quat_mult(self):
         quat1 = quaternion.from_euler_angles(np.radians(5), np.radians(0), np.radians(10))
         quat2 = quaternion.from_euler_angles(np.radians(5), np.radians(10), np.radians(20))
@@ -50,7 +68,10 @@ class TestMathRotation(unittest.TestCase):
 
     def test_quat_to_dcm(self):
         # quat = quaternion.from_euler_angles(*np.radians([10, 20, 30]))
-        quat = quaternion.from_float_array([0.925416578398323364, 0.030153689607045796, 0.171010071662834329, 0.336824088833465152])
+        quat = quaternion.from_float_array([0.925416578398323364,
+                                            0.030153689607045796,
+                                            0.171010071662834329,
+                                            0.336824088833465152])
         dcm = quat_to_dcm(quat)
         truth = np.array([[0.7146101771427564, -0.6130920223795969, 0.3368240888334651],
                           [0.633718360861996, 0.7712805763691759, 0.0593911746138847],
@@ -62,14 +83,17 @@ class TestMathRotation(unittest.TestCase):
         yaw_pitch_roll = np.radians([10, 20, 30])
         dcm = tait_bryan_to_dcm(yaw_pitch_roll)
         truth = np.array([[0.925416578398323364, 0.018028311236297251, 0.378522306369792449],
-                  [0.163175911166534821, 0.882564119259385604, -0.440969610529882372],
-                  [-0.342020143325668713, 0.469846310392954158, 0.813797681349373803]])
+                          [0.163175911166534821, 0.882564119259385604, -0.440969610529882372],
+                          [-0.342020143325668713, 0.469846310392954158, 0.813797681349373803]])
         self.assertListEqual(dcm.tolist(), truth.tolist())
 
 
     def test_dcm_to_tait_bryan(self):
         # quat = quaternion.from_euler_angles(*np.radians([10, 20, 30]))
-        quat = quaternion.from_float_array([0.925416578398323364, 0.030153689607045796, 0.171010071662834329, 0.336824088833465152])
+        quat = quaternion.from_float_array([0.925416578398323364,
+                                            0.030153689607045796,
+                                            0.171010071662834329,
+                                            0.336824088833465152])
         dcm = quaternion.as_rotation_matrix(quat)
         tb_angles = dcm_to_tait_bryan(dcm)
         truth = np.array([0.725475843410945509, 0.300709698155427141, 0.180015088428340159])
@@ -77,7 +101,10 @@ class TestMathRotation(unittest.TestCase):
 
 
     def test_quat_to_tait_bryan(self):
-        quat = quaternion.from_float_array([0.925416578398323364, 0.030153689607045796, 0.171010071662834329, 0.336824088833465152])
+        quat = quaternion.from_float_array([0.925416578398323364,
+                                            0.030153689607045796,
+                                            0.171010071662834329,
+                                            0.336824088833465152])
         tb_angles = quat_to_tait_bryan(quat)
         truth = np.array([0.725475843410945509, 0.300709698155427141, 0.180015088428340159])
         self.assertListEqual(tb_angles.tolist(), truth.tolist())
@@ -119,7 +146,6 @@ class TestMathRotation(unittest.TestCase):
         self.assertAlmostEqual(tb_angles_out[1], 90.0, places=self.TOLERANCE_PLACES)
         self.assertAlmostEqual(tb_angles_out[2], 0.0, places=self.TOLERANCE_PLACES)
 
-
     ###################################################################################
     # Symbolic
     ###################################################################################
@@ -128,9 +154,9 @@ class TestMathRotation(unittest.TestCase):
         quat = MatrixSymbol('q', 4, 1)
         conj = quat_conj_sym(quat)
         self.assertTrue(quat[0] == conj[0])
-        self.assertTrue(quat[1] == -conj[1]) #type:ignore
-        self.assertTrue(quat[2] == -conj[2]) #type:ignore
-        self.assertTrue(quat[3] == -conj[3]) #type:ignore
+        self.assertTrue(quat[1] == -conj[1])  # type:ignore
+        self.assertTrue(quat[2] == -conj[2])  # type:ignore
+        self.assertTrue(quat[3] == -conj[3])  # type:ignore
 
 
     def test_quat_mult_sym(self):
@@ -164,10 +190,10 @@ class TestMathRotation(unittest.TestCase):
     def test_quat_to_dcm_sym(self):
         quat = MatrixSymbol("q", 4, 1).as_mutable()
         dcm = quat_to_dcm_sym(quat)
-        subs = {quat[0]: 0.925416578398323364, #type:ignore
-                quat[1]: 0.030153689607045796, #type:ignore
-                quat[2]: 0.171010071662834329, #type:ignore
-                quat[3]: 0.336824088833465152} #type:ignore
+        subs = {quat[0]: 0.925416578398323364,  # type:ignore
+                quat[1]: 0.030153689607045796,  # type:ignore
+                quat[2]: 0.171010071662834329,  # type:ignore
+                quat[3]: 0.336824088833465152}  # type:ignore
         truth = np.array([[0.7146101771427564, -0.6130920223795969, 0.3368240888334651],
                           [0.633718360861996, 0.7712805763691759, 0.0593911746138847],
                           [-0.29619813272602374, 0.17101007166283433, 0.9396926207859084]])
@@ -178,12 +204,12 @@ class TestMathRotation(unittest.TestCase):
     def test_tait_bryan_to_dcm_sym(self):
         yaw_pitch_roll = MatrixSymbol("yaw_pitch_roll", 3, 1).as_mutable()
         dcm = tait_bryan_to_dcm_sym(yaw_pitch_roll)
-        subs = {yaw_pitch_roll[0]: np.radians(10), #type:ignore
-                yaw_pitch_roll[1]: np.radians(20), #type:ignore
-                yaw_pitch_roll[2]: np.radians(30)} #type:ignore
+        subs = {yaw_pitch_roll[0]: np.radians(10),  # type:ignore
+                yaw_pitch_roll[1]: np.radians(20),  # type:ignore
+                yaw_pitch_roll[2]: np.radians(30)}  # type:ignore
         truth = np.array([[0.925416578398323364, 0.018028311236297251, 0.378522306369792449],
-                  [0.163175911166534821, 0.882564119259385604, -0.440969610529882372],
-                  [-0.342020143325668713, 0.469846310392954158, 0.813797681349373803]])
+                          [0.163175911166534821, 0.882564119259385604, -0.440969610529882372],
+                          [-0.342020143325668713, 0.469846310392954158, 0.813797681349373803]])
         dcm_subbed = np.array(dcm.subs(subs)).squeeze()
         self.assertListEqual(dcm_subbed.tolist(), truth.tolist())
 
@@ -191,10 +217,10 @@ class TestMathRotation(unittest.TestCase):
     def test_dcm_to_tait_bryan_sym(self):
         quat = MatrixSymbol("q", 4, 1).as_mutable()
         dcm = quat_to_dcm_sym(quat)
-        subs = {quat[0]: 0.925416578398323364, #type:ignore
-                quat[1]: 0.030153689607045796, #type:ignore
-                quat[2]: 0.171010071662834329, #type:ignore
-                quat[3]: 0.336824088833465152} #type:ignore
+        subs = {quat[0]: 0.925416578398323364,  # type:ignore
+                quat[1]: 0.030153689607045796,  # type:ignore
+                quat[2]: 0.171010071662834329,  # type:ignore
+                quat[3]: 0.336824088833465152}  # type:ignore
         tb_angles = dcm_to_tait_bryan_sym(dcm)
         truth = np.array([0.725475843410945509,
                           0.300709698155427141,
@@ -205,10 +231,10 @@ class TestMathRotation(unittest.TestCase):
 
     def test_quat_to_tait_bryan_sym(self):
         quat = MatrixSymbol("q", 4, 1).as_mutable()
-        subs = {quat[0]: 0.925416578398323364, #type:ignore
-                quat[1]: 0.030153689607045796, #type:ignore
-                quat[2]: 0.171010071662834329, #type:ignore
-                quat[3]: 0.336824088833465152} #type:ignore
+        subs = {quat[0]: 0.925416578398323364,  # type:ignore
+                quat[1]: 0.030153689607045796,  # type:ignore
+                quat[2]: 0.171010071662834329,  # type:ignore
+                quat[3]: 0.336824088833465152}  # type:ignore
         tb_angles = quat_to_tait_bryan_sym(quat)
         truth = np.array([0.725475843410945509,
                           0.300709698155427141,

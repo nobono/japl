@@ -9,8 +9,14 @@ from sympy import lambdify
 
 
 
-Max_ = lambda a, b: Piecewise((b, a < b), (a, True))      # vectorized sympy.Max()
-Min_ = lambda a, b: Piecewise((a, a < b), (b, True))      # vectorized sympy.Min()
+def Max_(a, b):
+    """vectorized sympy.Max()"""
+    return Piecewise((b, a < b), (a, True))
+
+
+def Min_(a, b):
+    """vectorized sympy.Min()"""
+    return Piecewise((a, a < b), (b, True))
 
 
 class Desym:

@@ -1,5 +1,4 @@
 from typing import Optional
-import numpy as np
 
 from sympy import Matrix, symbols
 from sympy import Symbol, Function
@@ -53,34 +52,14 @@ class StateRegister(dict):
         if isinstance(var, Symbol):
             return var
         elif isinstance(var, Function):
-            return Symbol(var.name) #type:ignore
+            return Symbol(var.name)  # type:ignore
         else:
             raise Exception("unhandled case.")
 
 
-    @DeprecationWarning
-    def add_state(self, name: str, id: int, label: str = "") -> Symbol:
-        """This method registers a SimObject state name and plotting label with a
-        user-specified name. The purpose of this register is for ease of access to SimObject
-        states without having to use the state index number.
-
-        -------------------------------------------------------------------
-        -- Arguments
-        -------------------------------------------------------------------
-        -- name - user-specified name of state
-        -- id - state index number
-        -- label - (optional) string other than "name" that will be displayed
-                    in plots / visualization
-        -------------------------------------------------------------------
-        """
-        var = symbols(name)
-        self.update({name: {"id": id, "label": label, "var": var}})
-        return var
-
-
     def set(self, vars: tuple|list|Matrix, labels: Optional[list|tuple] = None):
         """register state and labels"""
-        for id, var in enumerate(vars): #type:ignore
+        for id, var in enumerate(vars):  # type:ignore
             var = self._extract_variable(var)
             var_name = str(var)
             if labels and id < len(labels):

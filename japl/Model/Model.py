@@ -1,25 +1,11 @@
-# ---------------------------------------------------
-
 from typing import Callable, Optional
-
-# ---------------------------------------------------
-
 import numpy as np
-
-# ---------------------------------------------------
-
-# from control.iosys import StateSpace
-
-# ---------------------------------------------------
-
 from enum import Enum
-
-# ---------------------------------------------------
-
-from scipy.sparse import csr_matrix
-from scipy.sparse._csr import csr_matrix as Tcsr_matrix
-from sympy import Matrix, MatrixSymbol, Mul, Pow, Symbol, Expr
-from sympy.matrices.expressions.matexpr import MatrixElement
+# from scipy.sparse import csr_matrix
+# from scipy.sparse._csr import csr_matrix as Tcsr_matrix
+# from sympy.matrices.expressions.matexpr import MatrixElement
+from sympy import Matrix, MatrixSymbol, Symbol, Expr, Function
+from sympy import nan as sp_nan
 from sympy import simplify
 
 from japl.Model.StateRegister import StateRegister
@@ -48,7 +34,7 @@ class Model:
         self._dtype = np.float64
         self.state_register = StateRegister()
         self.input_register = StateRegister()
-        self.dynamics_func: Callable = lambda *_: None
+        self.dynamics_func: Optional[Callable] = None
         self.dynamics_expr = Expr(None)
         self.modules: dict = {}
         self.state_vars = Matrix([])
@@ -57,8 +43,8 @@ class Model:
         self.vars: tuple = ()
         self.state_dim = 0
         self.input_dim = 0
-        self.direct_state_update_map: dict = {}
-        self.direct_input_update_map: dict = {}
+        self.direct_state_update_func: Optional[Callable] = None
+        self.direct_input_update_func: Optional[Callable] = None
         self.A = np.array([])
         self.B = np.array([])
         self.C = np.array([])
@@ -77,15 +63,17 @@ class Model:
         self._sym_references: list[dict] = []
 
 
-    # TODO these only used right now to access quaternion in
-    # Plotter. maybe we can dispense with these somehow...
     def __set_current_state(self, X: np.ndarray):
+        # TODO this only used right now to access quaternion in
+        # Plotter. maybe we can dispense with these somehow...
         """Setter for Model state reference array \"Model._iX_reference\".
         This method should only be called by Model.step()."""
         self._iX_reference = X
 
 
     def get_current_state(self) -> np.ndarray:
+        # TODO this only used right now to access quaternion in
+        # Plotter. maybe we can dispense with these somehow...
         """Getter for Model state reference array. Used to access the
         state array between time steps outside of the Sim class."""
         return self._iX_reference.copy()
@@ -96,14 +84,15 @@ class Model:
                       dt_var: Symbol,
                       state_vars: list|tuple|Matrix,
                       input_vars: list|tuple|Matrix,
-                      func: Callable):
+                      dynamics_func: Optional[Callable] = None,
+                      update_func: Optional[Callable] = None):
         """This method initializes a Model from a callable function.
         The provided function must have the following signature:
 
-            func(X, U, dt)
+            func(t, X, U, dt)
 
-        where, 'X' is the current state, 'U', is the current inputs and
-        'dt' is the time step.
+        where, 't' is the sim-time 'X' is the current state, 'U', is
+        the current inputs and 'dt' is the time step.
 
         -------------------------------------------------------------------
         -- Arguments
@@ -129,8 +118,12 @@ class Model:
         model.vars = (model.state_vars, model.input_vars, dt_var)
         model.state_dim = len(model.state_vars)
         model.input_dim = len(model.input_vars)
-        model.dynamics_func = func
-        assert isinstance(func, Callable)
+        if dynamics_func:
+            model.dynamics_func = dynamics_func
+        if update_func:
+            model.direct_state_update_func = update_func
+        if (not dynamics_func) and (not update_func):
+            raise Exception("Both dynamics_func and update_func cannot be undefined.")
         return model
 
 
@@ -177,7 +170,7 @@ class Model:
         model.dynamics_expr = A * model.state_vars + B * model.input_vars
         if isinstance(model.dynamics_expr, Expr) or isinstance(model.dynamics_expr, Matrix):
             model.dynamics_expr = simplify(model.dynamics_expr)
-        model.dynamics_func = Desym(model.vars, model.dynamics_expr) #type:ignore
+        model.dynamics_func = Desym(model.vars, model.dynamics_expr)  # type:ignore
         model.state_dim = A.shape[0]
         model.input_dim = B.shape[1]
         model.A = np.array(A)
@@ -232,28 +225,28 @@ class Model:
         -------------------------------------------------------------------
         """
         # first build model using provided definitions
-        state_vars,\
-        input_vars,\
-        dynamics_expr = BuildTools.build_model(Matrix(state_vars),
-                                               Matrix(input_vars),
-                                               Matrix(dynamics_expr),
-                                               definitions)
+        (state_vars,
+         input_vars,
+         dynamics_expr) = BuildTools.build_model(Matrix(state_vars),
+                                                 Matrix(input_vars),
+                                                 Matrix(dynamics_expr),
+                                                 definitions)
         model = cls()
         model._type = ModelType.Symbolic
         model.modules = model.__set_modules(modules)
-        model.set_state(state_vars) # NOTE: will convert any Function to Symbol
-        model.set_input(input_vars) # NOTE: will convert any Function to Symbol
+        model.set_state(state_vars)  # NOTE: will convert any Function to Symbol
+        model.set_input(input_vars)  # NOTE: will convert any Function to Symbol
         model.state_vars = model.state_register.get_vars()
         model.input_vars = model.input_register.get_vars()
         model.dt_var = dt_var
         model.vars = (model.state_vars, model.input_vars, dt_var)
         model.dynamics_expr = dynamics_expr
-        model.direct_state_update_map = model.__process_direct_state_updates(model.state_vars)
-        model.direct_input_update_map = model.__process_direct_state_updates(model.input_vars)
+        model.direct_state_update_func = model.__process_direct_state_updates(model.state_vars)
+        model.direct_input_update_func = model.__process_direct_state_updates(model.input_vars)
         model.state_dim = len(model.state_vars)
         model.input_dim = len(model.input_vars)
         # create lambdified function from symbolic expression
-        match dynamics_expr.__class__(): #type:ignore
+        match dynamics_expr.__class__():  # type:ignore
             case Expr():
                 model.dynamics_func = Desym(model.vars, dynamics_expr, modules=model.modules)
             case Matrix():
@@ -291,7 +284,14 @@ class Model:
     def __call__(self, *args) -> np.ndarray:
         """This method calls an update step to the model after the
         Model object has been initialized."""
-        return self.dynamics_func(*args).flatten()
+        # NOTE: in certain situations dynamics_func may be undefined.
+        # namely, when Model is built from_function() and dynamics_func
+        # is left unspecified. Typically this results from a Model being
+        # updated exclusively by direct / external updates.
+        if self.dynamics_func:
+            return self.dynamics_func(*args).flatten()
+        else:
+            return np.empty([])
 
 
     def step(self, X: np.ndarray, U: np.ndarray, dt: float) -> np.ndarray:
@@ -426,30 +426,32 @@ class Model:
         return self.state_register.get_sym(name)
 
 
-    def __process_direct_state_updates(self, state_vars: Matrix) -> dict:
-        """This method takes the state array / state_vars as input which
-        finds any DirectUpdate elements which map direct state updates of
-        the model instead of integrating the state dynamics.
-
-         - The input dict should be of format: {Symbol: [Expr|Callable]}
-         - and will be converted to format:    {state_id: Callable}.
+    def __process_direct_state_updates(self, state_vars: Matrix):
+        """This method creates an update function from a symbolic state
+        Matrix. Any DirectUpdate elements will be updated using its
+        substitution expression, "sub_expr", while Symbol & Function
+        elements result in NaN.
 
         -------------------------------------------------------------------
         -- Arguments
         -------------------------------------------------------------------
-        -- state_vars - [Matrix|list] 
+        -- state_vars - [Matrix|list]
         -------------------------------------------------------------------
         -- Returns
         -------------------------------------------------------------------
-        -- (dict) - mapping state_var index to callable function
+        -- (Callable) - lambdified sympy expression
         -------------------------------------------------------------------
         """
-        direct_state_update_map = {}
-        for i, var in enumerate(state_vars): #type:ignore
+        state_updates = []
+        for var in state_vars:  # type:ignore
             if isinstance(var, DirectUpdateSymbol):
-                assert var.sub_expr is not None
-                t = Symbol('t') # 't' variable needed to adhear to func argument format
-                func = Desym((t, *self.vars), var.sub_expr, modules=self.modules)
-                direct_state_update_map.update({i: func})
-        return direct_state_update_map
-
+                state_updates.append(var.sub_expr)
+            elif isinstance(var, Symbol):
+                state_updates.append(sp_nan)
+            elif isinstance(var, Function):
+                state_updates.append(sp_nan)
+            else:
+                raise Exception("unhandled case.")
+        t = Symbol('t')  # 't' variable needed to adhear to func argument format
+        update_func = Desym((t, *self.vars), Matrix(state_updates), modules=self.modules)
+        return update_func
