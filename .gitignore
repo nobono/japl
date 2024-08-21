@@ -161,5 +161,7 @@ cython_debug/
 
 # ignore lib packages
 /cached_interpolate
+/derivation/nav/generated
 
 *.png
+*.pickle

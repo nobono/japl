@@ -7,8 +7,9 @@ from japl.Math.Rotation import quat_to_dcm
 from japl.Math.Rotation import quat_to_tait_bryan
 from japl.Math.Rotation import tait_bryan_to_dcm
 from japl.Math.Rotation import dcm_to_tait_bryan
-from sympy import MatrixSymbol
+from sympy import Matrix, MatrixSymbol
 from japl.Math.RotationSymbolic import quat_conj_sym
+from japl.Math.RotationSymbolic import quat_norm_sym
 from japl.Math.RotationSymbolic import quat_mult_sym
 from japl.Math.RotationSymbolic import quat_to_dcm_sym
 from japl.Math.RotationSymbolic import quat_to_tait_bryan_sym
@@ -30,6 +31,23 @@ class TestMathRotation(unittest.TestCase):
         conj = quat_conj(quat.components)
         self.assertTrue(quat.w == conj[0])
         self.assertTrue((quat.components[1:] == -conj[1:]).all())
+
+
+    def test_quat_norm(self):
+        """compare numpy quaternion method
+        with symbolic method."""
+        # numpy
+        q = np.array([1, 2, 3, 4])
+        quat = quaternion.from_float_array(q)
+        quat_normalized = quat.normalized().components
+        # symbolic
+        quat_sym = Matrix(q)
+        quat_normalized_sym = quat_norm_sym(quat_sym)
+        subs = {quat_sym[0]: q[0],  # type:ignore
+                quat_sym[1]: q[1],  # type:ignore
+                quat_sym[2]: q[2],  # type:ignore
+                quat_sym[3]: q[3]}  # type:ignore
+        self.assertListEqual(quat_normalized.tolist(), quat_normalized_sym.subs(subs).n().flat())
 
 
     def test_quat_mult(self):

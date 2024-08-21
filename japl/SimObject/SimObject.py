@@ -259,7 +259,7 @@ class SimObject:
         -- X_dot - state dynamics "Xdot = A*X + B*U"
         -------------------------------------------------------------------
         """
-        self.update(X)
+        # self.update(X)
         return self.model.step(X, U, dt)
 
 
