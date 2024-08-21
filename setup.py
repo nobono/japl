@@ -20,7 +20,7 @@ if not os.path.exists(numpy_include_dir):
 
 # OdeInt ext module
 ode_int_ext = Extension(name="odeint",
-                        sources=["./japl/Sim/OdeInt.cpp"],
+                        sources=[os.path.join("japl", "Sim", "OdeInt.cpp")],
                         include_dirs=[numpy_include_dir],
                         extra_compile_args=["-std=c++14"],
                         # extra_link_args=["-shared"],
