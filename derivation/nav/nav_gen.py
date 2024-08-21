@@ -1,15 +1,18 @@
 from tqdm import tqdm
+from pprint import pprint
 import numpy as np
-from sympy import Matrix, Symbol, symbols, cse, MatrixSymbol
 import sympy as sp
+from itertools import permutations
+from sympy import Matrix, Symbol, symbols, cse, MatrixSymbol
+from sympy import default_sort_key, topological_sort
 # from code_gen import OctaveCodeGenerator
 # from code_gen import CCodeGenerator
 from code_gen import PyCodeGenerator
-# import numpy as np
-from pprint import pprint
-from itertools import permutations
-from sympy import default_sort_key, topological_sort
-
+from japl import Sim
+from japl import Model
+from japl import SimObject
+from japl import PyQtGraphPlotter
+from japl.Math.RotationSymbolic import quat_norm_sym
 
 
 ################################################################
@@ -33,7 +36,7 @@ def mat_print(mat):
         print('[', end="")
         for item in row:
             if item == 0:
-              print("%s, " % (' ' * 8), end="")
+                print("%s, " % (' ' * 8), end="")
             else:
                 print("%.6f, " % item, end="")
         print(']')
@@ -44,7 +47,7 @@ def array_print(mat):
     print('[', end="")
     for item in mat:
         if item == 0:
-          print("%s, " % (' ' * 8), end="")
+            print("%s, " % (' ' * 8), end="")
         else:
             print("%.6f, " % item, end="")
     print(']')
@@ -74,22 +77,15 @@ def sort_recursive_subs(replace):
 def cse_subs(cse, state_subs, input_subs, cov_subs, var_subs):
     replace, expr = cse
     expr = expr[0]
-
     replace_subs = sort_recursive_subs(replace)
-
     for (var, sub) in tqdm(replace_subs):
         expr = expr.subs(var, sub)
-
-    print("here)")
-    expr = expr.subs(state_subs).subs(input_subs).subs(cov_subs).\
-            subs(var_subs).subs(dt, dt_)
-
-    # fin_expr = expr[0].subs(rep_subs)
-    # print(fin_expr)
-    # quit()
+    expr = expr.subs(state_subs).subs(input_subs).subs(cov_subs).subs(var_subs).subs(dt, dt_)
     return expr
 
+
 ################################################################
+
 
 def quat_to_dcm(q):
     q0 = q[0]
@@ -144,16 +140,12 @@ def generate_kalman_gain_equations(P, state, observation, variance, varname: str
 ################################################################
 
 
+t = Symbol('t', real=True)
 dt = Symbol('dt', real=True)
 
 ##################################################
 # States
 ##################################################
-# quat = Matrix(MatrixSymbol('quat', 4, 1), real=True)
-# pos = Matrix(MatrixSymbol('pos', 3, 1), real=True)
-# vel = Matrix(MatrixSymbol('vel', 3, 1), real=True)
-# gyro_bias = Matrix(MatrixSymbol('gyro_bias', 3, 1), real=True)
-# accel_bias = Matrix(MatrixSymbol('accel_bias', 3, 1), real=True)
 
 # acc_n, acc_e, acc_d = symbols("acc_n, acc_e, acc_d", real=True)
 # angvel_n, angvel_e, angvel_d = symbols("angvel_n, angvel_e, angvel_d", real=True)
@@ -218,13 +210,9 @@ accel_bias_new = acc_bias
 
 gyro_x_var, gyro_y_var, gyro_z_var = symbols('gyro_x_var gyro_y_var gyro_z_var')
 accel_x_var, accel_y_var, accel_z_var = symbols('accel_x_var accel_y_var accel_z_var')
-gps_pos_x_var, gps_pos_y_var, gps_pos_z_var = symbols('acc_pos_x_var acc_pos_y_var acc_pos_z_var')
-gps_vel_x_var, gps_vel_y_var, gps_vel_z_var = symbols('acc_vel_x_var acc_vel_y_var acc_vel_z_var')
 
 Q = Matrix.diag([gyro_x_var, gyro_y_var, gyro_z_var,
                  accel_x_var, accel_y_var, accel_z_var])
-                 # gps_pos_x_var, gps_pos_y_var, gps_pos_z_var,
-                 # gps_vel_x_var, gps_vel_y_var, gps_vel_z_var])
 
 ##################################################
 # State Prediction
@@ -247,7 +235,7 @@ P_new = A * P * A.T + G * Q * G.T
 for index in range(P.shape[0]):
     for j in range(P.shape[0]):
         if index > j:
-            P_new[index,j] = 0
+            P_new[index, j] = 0
 
 ##################################################
 # Observation Noise
@@ -301,17 +289,6 @@ innov_var_gps_vel_z = H_gps_vel[2, :] * P * H_gps_vel[2, :].T + Matrix([R_gps_ve
 K_gps_vel_x = P * H_gps_vel[0, :].T / innov_var_gps_vel_x[0, 0]
 K_gps_vel_y = P * H_gps_vel[1, :].T / innov_var_gps_vel_y[0, 0]
 K_gps_vel_z = P * H_gps_vel[2, :].T / innov_var_gps_vel_z[0, 0]
-
-# K = Matrix()
-# K = K.col_insert(0 , K_accel_x)
-# K = K.col_insert(1 , K_accel_y)
-# K = K.col_insert(2 , K_accel_z)
-# K = K.col_insert(3 , K_gps_pos_x)
-# K = K.col_insert(4 , K_gps_pos_y)
-# K = K.col_insert(5 , K_gps_pos_z)
-# K = K.col_insert(6 , K_gps_vel_x)
-# K = K.col_insert(7 , K_gps_vel_y)
-# K = K.col_insert(8 , K_gps_vel_z)
 
 ##################################################
 # Measurements
@@ -476,35 +453,26 @@ vars_all = [
         dt,
         ]
 
+# state predict
 X_new_func = sp.lambdify(vars_X, X_new, cse=True)
 
-# covariance
+# covariance predict
 P_new_func = sp.lambdify(vars_P, P_new, cse=True)
-
-# kalman gain
-# K_new_func = sp.lambdify(vars_K, K, cse=True)
 
 # update from accel
 X_accel_update_func = sp.lambdify(vars_all, X_accel_update, cse=True)
 
 #################################################
 
-# def state_predict(state_subs, input_subs):
-    # X = X_new.subs(state_subs).subs(input_subs).subs(dt, dt_)
-    # update_subs(state_subs, X)
 
 def state_predict(X, U, P, *args):
     X_new = X_new_func(X, U, P.flatten(), *args)
     return X_new.flatten()
 
+
 def cov_predict(X, U, P, variance, *args):
     P_new = P_new_func(X, U, P.flatten(), variance, *args)
     return P_new
-
-
-# def kalman_gain_update(X, U, P, variance, noise):
-#     K_new = K_new_func(X, U, P.flatten(), variance, noise, dt_)
-#     return K_new
 
 
 def accel_update(X, U, P, variance, noise, *args):
@@ -522,23 +490,25 @@ P_init = np.eye(P.shape[0])
 X = X_init
 P = P_init
 
+
 def ekf_step(t, X, U, dt):
     global P
     variance = np.array(list(var_subs.values()))
     noise = np.array(list(noise_subs.values()))
 
-    U_gyro = np.array([0.1, 0, 0], dtype=float)
+    U_gyro = np.array([1.2, 0, 0], dtype=float)
     U_accel = np.array([0, 0, 0], dtype=float)
     U = np.concatenate([U_gyro, U_accel])
-    # U = np.array(list(input_subs.values()))
 
     # print(P)
     X = state_predict(X, U, get_mat_upper(P), dt)
+    q = X[:4].copy()
+    X[:4] = q / np.linalg.norm(q)
     P = cov_predict(X, U, get_mat_upper(P), variance, dt)
 
     # K = kalman_gain_update(X, U, get_mat_upper(P), variance, noise)
     # X = accel_update(X, U, get_mat_upper(P), variance, noise, dt_)
-    array_print(X)
+    # array_print(X)
     # print(t)
     # quit()
 
@@ -552,22 +522,19 @@ def ekf_step(t, X, U, dt):
     return X
 
 
-from japl import Sim
-from japl import Model
-from japl import SimObject
-from japl import PyQtGraphPlotter
-
-plotter = PyQtGraphPlotter()
+plotter = PyQtGraphPlotter(frame_rate=30, figsize=[10, 6])
 
 model = Model.from_function(dt, state, input, update_func=ekf_step)
 simobj = SimObject(model)
 simobj.init_state(X)
-# simobj.plot.set_config({
-#     "Pos": {
-#         "xaxis":
-#         }
-#     })
+simobj.plot.set_config({
+    "Pos": {
+        "xaxis": 'time',
+        "yaxis": 'q0'
+        }
+    })
 
-sim = Sim([0, 1], 0.1, [simobj])
+sim = Sim([0, 20], 0.1, [simobj])
 plotter.animate(sim)
+plotter.show()
 # quit()
