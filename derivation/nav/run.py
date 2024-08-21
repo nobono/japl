@@ -2,12 +2,6 @@ import dill as pickle
 import numpy as np
 from nav_gen import dt, state, input
 from nav_gen import dt_
-# from nav_gen import X_new_func
-# from nav_gen import P_new_func
-# from nav_gen import X_accel_update_func
-# from nav_gen import P_accel_update_func
-# from nav_gen import X_gps_pos_update_func
-# from nav_gen import X_gps_vel_update_func
 from nav_gen import vars_X, vars_P, vars_all, vars_update
 from nav_gen import state_subs, input_subs, var_subs, noise_subs, meas_subs
 from nav_gen import get_mat_upper
@@ -22,6 +16,7 @@ from japl import PyQtGraphPlotter
 ##################################################
 
 np.set_printoptions(precision=5, formatter={'float_kind': lambda x: f"{x:5.4f}"})
+rand = np.random.uniform
 NSTATE = 16
 
 # load
@@ -33,6 +28,10 @@ with open("X_accel_update_func.pickle", "rb") as f:
     X_accel_update_func = pickle.load(f)
 with open("P_accel_update_func.pickle", "rb") as f:
     P_accel_update_func = pickle.load(f)
+with open("X_gps_update_func.pickle", "rb") as f:
+    X_gps_update_func = pickle.load(f)
+with open("P_gps_update_func.pickle", "rb") as f:
+    P_gps_update_func = pickle.load(f)
 
 ##################################################
 # EKF Methods
@@ -49,10 +48,16 @@ def cov_predict(X, U, P, variance, *args):
     return P_new
 
 
-def accel_meas_state_update(X, U, P, variance, noise, meas, *args):
+def accel_meas_update(X, U, P, variance, noise, meas, *args):
     X_accel_update_new = X_accel_update_func(X, U, P.flatten(), variance, noise, meas, *args)
     P_accel_update_new = P_accel_update_func(X, U, P.flatten(), variance, noise, meas, *args)
     return X_accel_update_new.flatten(), P_accel_update_new
+
+
+def gps_meas_update(X, U, P, variance, noise, meas, *args):
+    X_gps_update_new = X_gps_update_func(X, U, P.flatten(), variance, noise, meas, *args)
+    P_gps_update_new = P_gps_update_func(X, U, P.flatten(), variance, noise, meas, *args)
+    return X_gps_update_new.flatten(), P_gps_update_new
 
 
 ##################################################
@@ -71,9 +76,15 @@ def ekf_step(t, X, U, dt):
     variance = np.array(list(var_subs.values()))
     noise = np.array(list(noise_subs.values()))
     meas = np.array(list(meas_subs.values()))
+    # meas = np.array([rand(-.02, .02),
+    #                  rand(-.02, .02),
+    #                  rand(-.02, .02),
+    #                  0, 0, 0,
+    #                  0, 0, 0])
 
     U_gyro = np.array([0, 0, 0], dtype=float)
-    U_accel = np.array([0, 0, 0], dtype=float)
+    # U_accel = np.array([0, 0, 0], dtype=float)
+    U_accel = rand(-.01, .01, size=3)
     U = np.concatenate([U_gyro, U_accel])
 
     X = state_predict(X, U, get_mat_upper(P), dt)
@@ -81,7 +92,8 @@ def ekf_step(t, X, U, dt):
     X[:4] = q / np.linalg.norm(q)
     P = cov_predict(X, U, get_mat_upper(P), variance, dt)
 
-    X, P = accel_meas_state_update(X, U, get_mat_upper(P), variance, noise, meas, dt_)
+    X, P = accel_meas_update(X, U, get_mat_upper(P), variance, noise, meas, dt_)
+    # X, P = gps_meas_update(X, U, get_mat_upper(P), variance, noise, meas, dt_)
 
     q = X[:4]
     p = X[4:7]
@@ -98,21 +110,26 @@ def ekf_step(t, X, U, dt):
     return X
 
 
-plotter = PyQtGraphPlotter(frame_rate=30, figsize=[10, 6])
+plotter = PyQtGraphPlotter(frame_rate=30, figsize=[10, 6], aspect="auto")
 
 print("Building Model...")
 model = Model.from_function(dt, state, input, update_func=ekf_step)
 simobj = SimObject(model)
 simobj.init_state(X)
 simobj.plot.set_config({
-    "Pos": {
-        "xaxis": 'time',
-        "yaxis": 'q0'
-        }
+    "pos-x": {
+        "xaxis": 'pos_n',
+        "yaxis": 'pos_e'
+        },
+    # "pos-y": {
+    #     "xaxis": 'time',
+    #     "yaxis": 'pos_e'
+    #     }
     })
 
 print("Starting Sim...")
-sim = Sim([0, 10], 0.1, [simobj]).run()
-# plotter.animate(sim)
-# plotter.show()
+sim = Sim([0, 10], 0.02, [simobj])
+# sim.run()
+plotter.animate(sim)
+plotter.show()
 # quit()

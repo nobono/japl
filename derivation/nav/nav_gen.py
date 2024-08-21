@@ -4,12 +4,11 @@ import numpy as np
 import sympy as sp
 from tqdm import tqdm
 from itertools import permutations
-from sympy import simplify
 from sympy import Matrix, Symbol, symbols, cse
 from sympy import default_sort_key, topological_sort
-# from code_gen import OctaveCodeGenerator
-# from code_gen import CCodeGenerator
 # from code_gen import PyCodeGenerator
+from code_gen import OctaveCodeGenerator
+# from code_gen import CCodeGenerator
 
 
 ################################################################
@@ -247,6 +246,7 @@ gyro_bias_new[2] = sp.Float(0)
 
 gyro_x_var, gyro_y_var, gyro_z_var = symbols('gyro_x_var gyro_y_var gyro_z_var')
 accel_x_var, accel_y_var, accel_z_var = symbols('accel_x_var accel_y_var accel_z_var')
+# gps_pos_x_var, gps_pos_y_var, gps_pos_z_var = symbols('gps_pos_x_var, gps_pos_y_var, gps_pos_z_var')
 
 Q = Matrix.diag([gyro_x_var, gyro_y_var, gyro_z_var,
                  accel_x_var, accel_y_var, accel_z_var])
@@ -300,14 +300,17 @@ obs_gps_pos = pos
 H_gps_pos_x = obs_gps_pos[0, :].jacobian(state)  # type:ignore
 H_gps_pos_y = obs_gps_pos[1, :].jacobian(state)  # type:ignore
 H_gps_pos_z = obs_gps_pos[2, :].jacobian(state)  # type:ignore
-H_gps_pos = Matrix([H_gps_pos_x, H_gps_pos_y, H_gps_pos_z])
+# H_gps_pos = Matrix([H_gps_pos_x, H_gps_pos_y, H_gps_pos_z])
 
 # Gps-velocity Observation (NED frame)
 obs_gps_vel = vel
 H_gps_vel_x = obs_gps_vel[0, :].jacobian(state)  # type:ignore
 H_gps_vel_y = obs_gps_vel[1, :].jacobian(state)  # type:ignore
 H_gps_vel_z = obs_gps_vel[2, :].jacobian(state)  # type:ignore
-H_gps_vel = Matrix([H_gps_vel_x, H_gps_vel_y, H_gps_vel_z])
+# H_gps_vel = Matrix([H_gps_vel_x, H_gps_vel_y, H_gps_vel_z])
+
+H_gps = Matrix([H_gps_pos_x, H_gps_pos_y, H_gps_pos_z,
+                H_gps_vel_x, H_gps_vel_y, H_gps_vel_z])
 
 ##################################################
 # Kalman Gains
@@ -347,9 +350,10 @@ z_gps_pos_x, z_gps_pos_y, z_gps_pos_z = symbols("z_gps_pos_x, z_gps_pos_y, z_gps
 z_gps_vel_x, z_gps_vel_y, z_gps_vel_z = symbols("z_gps_vel_x, z_gps_vel_y, z_gps_vel_z", real=True)
 
 z_accel = Matrix([z_accel_x, z_accel_y, z_accel_z])
-z_gps_pos = Matrix([z_gps_pos_x, z_gps_pos_y, z_gps_pos_z])
-z_gps_vel = Matrix([z_gps_vel_x, z_gps_vel_y, z_gps_vel_z])
-
+# z_gps_pos = Matrix([z_gps_pos_x, z_gps_pos_y, z_gps_pos_z])
+# z_gps_vel = Matrix([z_gps_vel_x, z_gps_vel_y, z_gps_vel_z])
+z_gps = Matrix([z_gps_pos_x, z_gps_pos_y, z_gps_pos_z,
+                z_gps_vel_x, z_gps_vel_y, z_gps_vel_z])
 ##################################################
 # Updates
 ##################################################
@@ -361,57 +365,96 @@ K_accel = K_accel.col_insert(0, K_accel_x)
 K_accel = K_accel.col_insert(1, K_accel_y)
 K_accel = K_accel.col_insert(2, K_accel_z)
 
-K_gps_pos = Matrix()
-K_gps_pos = K_gps_pos.col_insert(0, K_gps_pos_x)
-K_gps_pos = K_gps_pos.col_insert(1, K_gps_pos_y)
-K_gps_pos = K_gps_pos.col_insert(2, K_gps_pos_z)
+K_gps = Matrix()
+K_gps = K_gps.col_insert(0, K_gps_pos_x)
+K_gps = K_gps.col_insert(1, K_gps_pos_y)
+K_gps = K_gps.col_insert(2, K_gps_pos_z)
+K_gps = K_gps.col_insert(0, K_gps_vel_x)
+K_gps = K_gps.col_insert(1, K_gps_vel_y)
+K_gps = K_gps.col_insert(2, K_gps_vel_z)
 
-K_gps_vel = Matrix()
-K_gps_vel = K_gps_vel.col_insert(0, K_gps_vel_x)
-K_gps_vel = K_gps_vel.col_insert(1, K_gps_vel_y)
-K_gps_vel = K_gps_vel.col_insert(2, K_gps_vel_z)
-
-# state
+# accelerometer
 X_accel_update = state + K_accel * (z_accel - H_accel * state)
-X_gps_pos_update = K_gps_pos * (z_accel - H_gps_pos * state)
-X_gps_vel_update = K_gps_vel * (z_accel - H_gps_vel * state)
-
-# covariance
-P_upper = zero_mat_lower(P)
 P_accel_update = P - (K_accel * H_accel * P)
 
+# gps
+X_gps_update = state + K_gps * (z_gps - H_gps * state)
+P_gps_update = P - (K_gps * H_gps * P)
 
 ##################################################
 # Write to File
 ##################################################
 
-# print('Simplifying covariance propagation ...')
-# P_new_simple = cse(P_new, symbols("PS0:1000"), optimizations='basic')
+print('Simplifying covariance propagation ...')
+X_new_simple = cse(X_new, symbols("PX0:1000"), optimizations='basic')
+P_new_simple = cse(P_new, symbols("PS0:1000"), optimizations='basic')
 
-# args = symbols("P,"                         # covariance matrix
-#                "q0, q1, q2, q3,"            # quaternion
-#                "vn, ve, vd,"                # velocity in NED local frame
-#                "pn, pe, pd,"                # position in NED local frame
-#                "dvx, dvy, dvz,"             # delta velocity (accelerometer measurements)
-#                "dax, day, daz,"             # delta angle (gyroscope measurements)
-#                "dax_b, day_b, daz_b,"       # delta angle bias
-#                "dvx_b, dvy_b, dvz_b,"       # delta velocity bias
-#                "daxVar, dayVar, dazVar,"    # gyro input noise
-#                "dvxVar, dvyVar, dvzVar,"    # accel input noise
-#                "dt")
-# return_args = ["nextP"]
+args = symbols("P,"                         # covariance matrix
+               "q0, q1, q2, q3,"            # quaternion
+               "vn, ve, vd,"                # velocity in NED local frame
+               "pn, pe, pd,"                # position in NED local frame
+               "dvx, dvy, dvz,"             # delta velocity (accelerometer measurements)
+               "dax, day, daz,"             # delta angle (gyroscope measurements)
+               "dax_b, day_b, daz_b,"       # delta angle bias
+               "dvx_b, dvy_b, dvz_b,"       # delta velocity bias
+               "daxVar, dayVar, dazVar,"    # gyro input noise
+               "dvxVar, dvyVar, dvzVar,"    # accel input noise
+               "dt")
+return_args = ["nextP"]
 
-# print('Writing covariance propagation to file ...')
-# cov_code_generator = PyCodeGenerator("./derivation/nav/generated/cov_predict.py")
+print('Writing state propagation to file ...')
+cov_code_generator = OctaveCodeGenerator("./generated/state_predict.m")
+cov_code_generator.print_string("Equations for state matrix prediction")
+cov_code_generator.write_function_definition(name="state_predict",
+                                             args=args,
+                                             returns=["nextX"])
+cov_code_generator.write_subexpressions(X_new_simple[0])
+cov_code_generator.write_matrix(matrix=Matrix(X_new_simple[1]),
+                                variable_name="nextX",
+                                is_symmetric=True)
+# cov_code_generator.write_function_returns(returns=return_args)
+cov_code_generator.close()
+
+
+print('Writing covariance propagation to file ...')
+cov_code_generator = OctaveCodeGenerator("./generated/cov_predict.m")
+cov_code_generator.print_string("Equations for covariance matrix prediction, without process noise!")
+cov_code_generator.write_function_definition(name="cov_predict",
+                                             args=args,
+                                             returns=["nextP"])
+cov_code_generator.write_subexpressions(P_new_simple[0])
+cov_code_generator.write_matrix(matrix=Matrix(P_new_simple[1]),
+                                variable_name="nextP",
+                                is_symmetric=True)
+# cov_code_generator.write_function_returns(returns=return_args)
+cov_code_generator.close()
+
+
+# print('Writing state update to file ...')
+# cov_code_generator = OctaveCodeGenerator("./generated/state_update.m")
+# cov_code_generator.print_string("Equations for state matrix update")
+# cov_code_generator.write_function_definition(name="state_update",
+#                                              args=args,
+#                                              returns=["nextX"])
+# cov_code_generator.write_subexpressions(X_accel_update_simple[0])
+# cov_code_generator.write_matrix(matrix=Matrix(X_accel_update_simple[1]),
+#                                 variable_name="nextX",
+#                                 is_symmetric=True)
+# # cov_code_generator.write_function_returns(returns=return_args)
+# cov_code_generator.close()
+
+
+# print('Writing covariance update to file ...')
+# cov_code_generator = OctaveCodeGenerator("./generated/cov_update.m")
 # cov_code_generator.print_string("Equations for covariance matrix prediction, without process noise!")
 # cov_code_generator.write_function_definition(name="cov_predict",
-#                                              args=args)
+#                                              args=args,
+#                                              returns=["nextP"])
 # cov_code_generator.write_subexpressions(P_new_simple[0])
 # cov_code_generator.write_matrix(matrix=Matrix(P_new_simple[1]),
 #                                 variable_name="nextP",
 #                                 is_symmetric=True)
-# cov_code_generator.write_function_returns(returns=return_args)
-
+# # cov_code_generator.write_function_returns(returns=return_args)
 # cov_code_generator.close()
 
 ##################################################
@@ -445,7 +488,7 @@ input_subs = {
         gyro[2, 0]: 0.0,        # type:ignore
         accel[0, 0]: 0.0,        # type:ignore
         accel[1, 0]: 0.0,        # type:ignore
-        accel[2, 0]: -1.0,        # type:ignore
+        accel[2, 0]: 0.0,        # type:ignore
         }
 
 # process noise
@@ -460,9 +503,9 @@ var_subs = {
 
 # meas noise
 noise_subs = {
-        R_accel_x: 0.1,
-        R_accel_y: 0.1,
-        R_accel_z: 0.1,
+        R_accel_x: 1.01,
+        R_accel_y: 1.01,
+        R_accel_z: 1.01,
         R_gps_pos_x: 0.1,
         R_gps_pos_y: 0.1,
         R_gps_pos_z: 0.1,
@@ -474,7 +517,7 @@ noise_subs = {
 meas_subs = {
         z_accel_x: 0,
         z_accel_y: 0,
-        z_accel_z: -1,
+        z_accel_z: 0,
         z_gps_pos_x: 0,
         z_gps_pos_y: 0,
         z_gps_pos_z: 0,
@@ -535,19 +578,17 @@ if __name__ == "__main__":
     P_accel_update_func = profile(sp.lambdify)(vars_update, P_accel_update, cse=True)
 
     # update from gps-position
-    X_gps_pos_update_func = sp.lambdify(vars_update, X_gps_pos_update, cse=True)
-
-    # update from Gps-velocity
-    X_gps_vel_update_func = sp.lambdify(vars_update, X_gps_vel_update, cse=True)
+    X_gps_update_func = profile(sp.lambdify)(vars_update, X_gps_update, cse=True)
+    P_gps_update_func = profile(sp.lambdify)(vars_update, P_gps_update, cse=True)
 
     out = [("X_new_func", X_new_func),
            ("P_new_func", P_new_func),
            ("X_accel_update_func", X_accel_update_func),
            ("P_accel_update_func", P_accel_update_func),
-           ]
+           ("X_gps_update_func", X_gps_update_func),
+           ("P_gps_update_func", P_gps_update_func)]
 
     for (name, func) in out:
         print(f"saving {name}...")
         with open(f"./{name}.pickle", "wb") as f:
             pickle.dump(func, f)
-    #################################################
