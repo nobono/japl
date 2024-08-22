@@ -323,7 +323,8 @@ class PyQtGraphPlotter:
                            color: str = "",
                            size: float = 1,
                            aspect: str = "",
-                           show_grid: bool = True) -> PlotDataItem:
+                           show_grid: bool = True,
+                           plot_item_type: type = PlotDataItem) -> PlotDataItem:
         """This method adds a plot to a window. This method adds a plot
         to a specified window; then adds a PlotDataItem to the newly created
         PlotItem."""
@@ -340,15 +341,15 @@ class PyQtGraphPlotter:
         pen = {"color": color_code, "width": size}
         plot_item = win.addPlot(row=row, col=col, colspan=2, title=title, name=title)
         self.__apply_style_settings_to_plot(plot_item)
-        graphic_item = PlotDataItem(x=[],
-                                    y=[],
-                                    pen=pen,
-                                    useCache=self.draw_cache_mode,
-                                    antialias=self.antialias,
-                                    autoDownsample=True,
-                                    downsampleMethod="peak",
-                                    clipToView=True,
-                                    skipFiniteCheck=True)
+        graphic_item = plot_item_type(x=[],
+                                      y=[],
+                                      pen=pen,
+                                      useCache=self.draw_cache_mode,
+                                      antialias=self.antialias,
+                                      autoDownsample=True,
+                                      downsampleMethod="peak",
+                                      clipToView=True,
+                                      skipFiniteCheck=True)
         plot_item.addItem(graphic_item)   # init PlotCurve
         return graphic_item
 
@@ -364,14 +365,39 @@ class PyQtGraphPlotter:
         # add plot-style to each window using SimObject._PlotInterface
         # config dict.
         for i, (title, axes) in enumerate(simobj.plot.get_config().items()):
+            # get values from plot config
             aspect = axes.get("aspect", self.aspect)
             color = axes.get("color")
             size = axes.get("size", 1)
-            graphic_item = self.add_plot_to_window(win=win, title=title, row=i, col=0, color=color,
-                                                   size=size, aspect=aspect)
-            # add GraphicsItem reference to SimObject
-            # NOTE: is this out-dated?
+            marker = axes.get("marker", None)
+
+            # resolve color str to hex color code
+            # or get random color
+            if color:
+                color_code = self.__get_color_code(color)
+            else:
+                color_code = next(self.color_cycle)
+
+            # setup line plot for simobj
+            graphic_item = self.add_plot_to_window(win=win, title=title, row=i, col=0,
+                                                   color=color, size=size, aspect=aspect,
+                                                   plot_item_type=pg.PlotDataItem)
             simobj.plot.qt_traces += [graphic_item]
+
+            # setup marker for simobj
+            if marker:
+                marker_pen = {"color": color_code, "width": size}
+                marker_item = pg.ScatterPlotItem(x=[], y=[], pen=marker_pen,
+                                                 useCache=self.draw_cache_mode,
+                                                 antialias=self.antialias,
+                                                 autoDownsample=True,
+                                                 downsampleMethod="peak",
+                                                 clipToView=True,
+                                                 skipFiniteCheck=True)
+                # refer to current plot in current window
+                plot_item = win.getItem(row=i, col=0)
+                plot_item.addItem(marker_item)
+                simobj.plot.qt_markers += [marker_item]
             num_plots += 1
 
         # setup vehicle viewer widget
