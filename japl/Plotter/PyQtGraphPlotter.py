@@ -389,7 +389,8 @@ class PyQtGraphPlotter:
                                                  autoDownsample=True,
                                                  downsampleMethod="peak",
                                                  clipToView=True,
-                                                 skipFiniteCheck=True)
+                                                 skipFiniteCheck=True,
+                                                 symbol=marker)
                 # refer to current plot in current window
                 plot_item = win.getItem(row=i, col=0)
                 plot_item.addItem(marker_item)
