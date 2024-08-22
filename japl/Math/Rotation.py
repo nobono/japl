@@ -43,34 +43,23 @@ def quat_mult(q: np.ndarray, p: np.ndarray, dtype: type = float) -> np.ndarray:
 
 def quat_to_dcm(q: np.ndarray|quaternion, dtype: type = float) -> np.ndarray:
     """This method returns a DCM rotation matrix given a quaternion array"""
-
     if isinstance(q, quaternion):
         q = q.components.copy()  # type:ignore
     else:
         q = q.copy()
 
-    q0_2 = q[0] * q[0]
-    q1_2 = q[1] * q[1]
-    q2_2 = q[2] * q[2]
-    q3_2 = q[3] * q[3]
-    q1q2 = q[1] * q[2]
-    q0q3 = q[0] * q[3]
-    q1q3 = q[1] * q[3]
-    q0q1 = q[0] * q[1]
-    q2q3 = q[2] * q[3]
-    q0q2 = q[0] * q[2]
-
-    dcm = np.zeros(shape=(3, 3), dtype=dtype)
-    dcm[0][0] = q0_2 + q1_2 - q2_2 - q3_2
-    dcm[0][1] = 2.0 * (q1q2 - q0q3)
-    dcm[0][2] = 2.0 * (q1q3 + q0q2)
-    dcm[1][0] = 2.0 * (q1q2 + q0q3)
-    dcm[1][1] = q0_2 - q1_2 + q2_2 - q3_2
-    dcm[1][2] = 2.0 * (q2q3 - q0q1)
-    dcm[2][0] = 2.0 * (q1q3 - q0q2)
-    dcm[2][1] = 2.0 * (q2q3 + q0q1)
-    dcm[2][2] = q0_2 - q1_2 - q2_2 + q3_2
-
+    q0 = q[0]
+    q1 = q[1]
+    q2 = q[2]
+    q3 = q[3]
+    # This form removes q1 from the 0,0, q2 from the 1,1 and q3 from the 2,2 entry and results
+    # in a covariance prediction that is better conditioned.
+    # It requires the quaternion to be unit length and is mathematically identical
+    # to the alternate form when q0**2 + q1**2 + q2**2 + q3**2 = 1
+    # See https://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/index.htm
+    dcm = np.array([[1 - 2*(q2**2 + q3**2), 2*(q1*q2 - q0*q3)    , 2*(q1*q3 + q0*q2)    ],   # type:ignore # noqa
+                    [2*(q1*q2 + q0*q3)     , 1 - 2*(q1**2 + q3**2), 2*(q2*q3 - q0*q1)    ],   # type:ignore # noqa
+                    [2*(q1*q3-q0*q2)       , 2*(q2*q3 + q0*q1)    , 1 - 2*(q1**2 + q2**2)]])  # type:ignore # noqa
     return dcm
 
 
