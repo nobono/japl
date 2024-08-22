@@ -60,31 +60,19 @@ def quat_to_dcm_sym(q: Matrix|MatrixSymbol) -> Matrix:
     if isinstance(q, MatrixSymbol):
         q = q.as_mutable()
     assert q.shape == (4, 1)
+
     q0 = q[0]
     q1 = q[1]
     q2 = q[2]
     q3 = q[3]
-
-    dcm = MatrixSymbol("dcm", 3, 3).as_mutable()
-    dcm[0, 0] = q0**2 + q1**2 - q2**2 - q3**2  # type:ignore
-    dcm[0, 1] = 2.0 * (q1 * q2 - q0 * q3)      # type:ignore
-    dcm[0, 2] = 2.0 * (q1 * q3 + q0 * q2)      # type:ignore
-    dcm[1, 0] = 2.0 * (q1 * q2 + q0 * q3)      # type:ignore
-    dcm[1, 1] = q0**2 - q1**2 + q2**2 - q3**2  # type:ignore
-    dcm[1, 2] = 2.0 * (q2 * q3 - q0 * q1)      # type:ignore
-    dcm[2, 0] = 2.0 * (q1 * q3 - q0 * q2)      # type:ignore
-    dcm[2, 1] = 2.0 * (q2 * q3 + q0 * q1)      # type:ignore
-    dcm[2, 2] = q0**2 - q1**2 - q2**2 + q3**2  # type:ignore
-
     # This form removes q1 from the 0,0, q2 from the 1,1 and q3 from the 2,2 entry and results
     # in a covariance prediction that is better conditioned.
     # It requires the quaternion to be unit length and is mathematically identical
     # to the alternate form when q0**2 + q1**2 + q2**2 + q3**2 = 1
     # See https://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/index.htm
-    # dcm = Matrix([[1 - 2*(q2**2 + q3**2), 2*(q1*q2 - q0*q3)    , 2*(q1*q3 + q0*q2)    ],   # type:ignore # noqa
-    #              [2*(q1*q2 + q0*q3)     , 1 - 2*(q1**2 + q3**2), 2*(q2*q3 - q0*q1)    ],   # type:ignore # noqa
-    #              [2*(q1*q3-q0*q2)       , 2*(q2*q3 + q0*q1)    , 1 - 2*(q1**2 + q2**2)]])  # type:ignore # noqa
-
+    dcm = Matrix([[1 - 2*(q2**2 + q3**2), 2*(q1*q2 - q0*q3)    , 2*(q1*q3 + q0*q2)    ],   # type:ignore # noqa
+                 [2*(q1*q2 + q0*q3)     , 1 - 2*(q1**2 + q3**2), 2*(q2*q3 - q0*q1)    ],   # type:ignore # noqa
+                 [2*(q1*q3-q0*q2)       , 2*(q2*q3 + q0*q1)    , 1 - 2*(q1**2 + q2**2)]])  # type:ignore # noqa
     return dcm
 
 

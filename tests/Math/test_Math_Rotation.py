@@ -76,7 +76,8 @@ class TestMathRotation(unittest.TestCase):
         truth = np.array([[0.7146101771427564, -0.6130920223795969, 0.3368240888334651],
                           [0.633718360861996, 0.7712805763691759, 0.0593911746138847],
                           [-0.29619813272602374, 0.17101007166283433, 0.9396926207859084]])
-        self.assertListEqual(dcm.tolist(), truth.tolist())
+        for i, j in zip(dcm.flatten(), truth.flatten()):
+            self.assertAlmostEqual(i, j, places=self.TOLERANCE_PLACES)
 
 
     def test_tait_bryan_to_dcm(self):
@@ -85,7 +86,7 @@ class TestMathRotation(unittest.TestCase):
         truth = np.array([[0.925416578398323364, 0.018028311236297251, 0.378522306369792449],
                           [0.163175911166534821, 0.882564119259385604, -0.440969610529882372],
                           [-0.342020143325668713, 0.469846310392954158, 0.813797681349373803]])
-        self.assertListEqual(dcm.tolist(), truth.tolist())
+        self.assertListEqual(dcm.flatten().tolist(), truth.flatten().tolist())
 
 
     def test_dcm_to_tait_bryan(self):
@@ -197,8 +198,9 @@ class TestMathRotation(unittest.TestCase):
         truth = np.array([[0.7146101771427564, -0.6130920223795969, 0.3368240888334651],
                           [0.633718360861996, 0.7712805763691759, 0.0593911746138847],
                           [-0.29619813272602374, 0.17101007166283433, 0.9396926207859084]])
-        dcm_subbed = np.array(dcm.subs(subs)).squeeze()
-        self.assertListEqual(dcm_subbed.tolist(), truth.tolist())
+        dcm_subbed = np.array(dcm.subs(subs)).squeeze().astype(float)
+        for i, j in zip(dcm_subbed.flatten(), truth.flatten()):
+            self.assertAlmostEqual(i, j, places=self.TOLERANCE_PLACES)
 
 
     def test_tait_bryan_to_dcm_sym(self):
@@ -210,8 +212,9 @@ class TestMathRotation(unittest.TestCase):
         truth = np.array([[0.925416578398323364, 0.018028311236297251, 0.378522306369792449],
                           [0.163175911166534821, 0.882564119259385604, -0.440969610529882372],
                           [-0.342020143325668713, 0.469846310392954158, 0.813797681349373803]])
-        dcm_subbed = np.array(dcm.subs(subs)).squeeze()
-        self.assertListEqual(dcm_subbed.tolist(), truth.tolist())
+        dcm_subbed = np.array(dcm.subs(subs)).squeeze().astype(float)
+        for i, j in zip(dcm_subbed.flatten(), truth.flatten()):
+            self.assertAlmostEqual(i, j, places=self.TOLERANCE_PLACES)
 
 
     def test_dcm_to_tait_bryan_sym(self):
@@ -225,8 +228,9 @@ class TestMathRotation(unittest.TestCase):
         truth = np.array([0.725475843410945509,
                           0.300709698155427141,
                           0.180015088428340159])
-        tb_angles_subbed = np.array(tb_angles.subs(subs)).squeeze()
-        self.assertListEqual(tb_angles_subbed.tolist(), truth.tolist())
+        tb_angles_subbed = np.array(tb_angles.subs(subs)).squeeze().astype(float)
+        for i, j in zip(tb_angles_subbed.flatten(), truth.flatten()):
+            self.assertAlmostEqual(i, j, places=self.TOLERANCE_PLACES)
 
 
     def test_quat_to_tait_bryan_sym(self):
@@ -239,8 +243,9 @@ class TestMathRotation(unittest.TestCase):
         truth = np.array([0.725475843410945509,
                           0.300709698155427141,
                           0.180015088428340159])
-        tb_angles_subbed = np.array(tb_angles.subs(subs)).squeeze()
-        self.assertListEqual(tb_angles_subbed.tolist(), truth.tolist())
+        tb_angles_subbed = np.array(tb_angles.subs(subs)).squeeze().astype(float)
+        for i, j in zip(tb_angles_subbed.flatten(), truth.flatten()):
+            self.assertAlmostEqual(i, j, places=self.TOLERANCE_PLACES)
 
 
 if __name__ == '__main__':
