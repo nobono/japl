@@ -292,21 +292,23 @@ R_gps_vel_x, R_gps_vel_y, R_gps_vel_z = symbols('R_gps_vel_x R_gps_vel_y R_gps_v
 print("Building Observations...")
 
 # Body Frame Accelerometer Observation
-obs_accel = (dcm_to_earth * gravity_bf) + acc_bias
+# obs_accel = (dcm_to_earth * gravity_bf) - acc_bias
+obs_accel = (dcm_to_body * gravity_ef) + acc_bias
+# obs_accel = gravity_bf + acc_bias
 H_accel_x = obs_accel[0, :].jacobian(state)
 H_accel_y = obs_accel[1, :].jacobian(state)
 H_accel_z = obs_accel[2, :].jacobian(state)
 H_accel = Matrix([H_accel_x, H_accel_y, H_accel_z])
 
 # Gps-position Observation (NED frame)
-obs_gps_pos = pos
+obs_gps_pos = pos_new
 H_gps_pos_x = obs_gps_pos[0, :].jacobian(state)  # type:ignore
 H_gps_pos_y = obs_gps_pos[1, :].jacobian(state)  # type:ignore
 H_gps_pos_z = obs_gps_pos[2, :].jacobian(state)  # type:ignore
 # H_gps_pos = Matrix([H_gps_pos_x, H_gps_pos_y, H_gps_pos_z])
 
 # Gps-velocity Observation (NED frame)
-obs_gps_vel = vel
+obs_gps_vel = vel_new
 H_gps_vel_x = obs_gps_vel[0, :].jacobian(state)  # type:ignore
 H_gps_vel_y = obs_gps_vel[1, :].jacobian(state)  # type:ignore
 H_gps_vel_z = obs_gps_vel[2, :].jacobian(state)  # type:ignore
@@ -416,25 +418,25 @@ input_subs = {
 
 # process noise
 var_subs = {
-        gyro_x_var: 1,
-        gyro_y_var: 1,
-        gyro_z_var: 1,
-        accel_x_var: 1,
-        accel_y_var: 1,
-        accel_z_var: 1,
+        gyro_x_var: .001,
+        gyro_y_var: .001,
+        gyro_z_var: .001,
+        accel_x_var: .001,
+        accel_y_var: .001,
+        accel_z_var: .001,
         }
 
 # meas noise
 noise_subs = {
-        R_accel_x: 1.01,
-        R_accel_y: 1.01,
-        R_accel_z: 1.01,
-        R_gps_pos_x: 0.1,
-        R_gps_pos_y: 0.1,
-        R_gps_pos_z: 0.1,
-        R_gps_vel_x: 0.1,
-        R_gps_vel_y: 0.1,
-        R_gps_vel_z: 0.1,
+        R_accel_x: 0.1,
+        R_accel_y: 0.1,
+        R_accel_z: 0.1,
+        R_gps_pos_x: 0.01,
+        R_gps_pos_y: 0.01,
+        R_gps_pos_z: 0.01,
+        R_gps_vel_x: 0.01,
+        R_gps_vel_y: 0.01,
+        R_gps_vel_z: 0.01,
         }
 
 meas_subs = {
@@ -448,6 +450,12 @@ meas_subs = {
         z_gps_vel_y: 0,
         z_gps_vel_z: 0,
         }
+# TODO:
+# TODO:
+# TODO:
+# TODO: input_subs accel and meas_subs z_accel both
+#       existing is a problem because they are the same
+#       thing. need to fix this.
 
 #################################################
 # Sympy lambdify funcs
