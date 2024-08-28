@@ -200,6 +200,21 @@ class AeroTable:
         # Initialize as DataTables
         ############################################################
         # establish default labels
+        #
+        # - default tables axes are the expected axes for each type
+        #   type of table.
+        #
+        # - four types of tables axes:
+        #       Basic: (alpha, phi, mach)
+        #       CA: (phi, mach, alt)
+        #       IT: fin-increments over (phi, mach, alt)
+        #       Total: combined tables "Basic + IT + CA" over (phi, mach, alt)
+        #
+        # - this helps to initialize DataTables dynamically from various input
+        #   sources; where some axes (i.e.) "alt" may or may not be present.
+        #
+        ############################################################
+
         (Basic_labels,
          CA_labels,
          IT_labels,
@@ -348,7 +363,10 @@ class AeroTable:
         #   - compute CA_Boost_Total wrt. alpha
         #   - compute CNB_Total wrt. alpha
         ############################################################
-        delta_alpha = 0.1
+        if units.lower() == "si":
+            delta_alpha = np.radians(0.1)
+        else:
+            delta_alpha = 0.1
         self.CA_Boost_Total_alpha = self.create_diff_table(table=self.CA_Boost_Total,
                                                            diff_arg="alpha",
                                                            delta_arg=delta_alpha)
