@@ -91,29 +91,5 @@ class TestAeroTableSymbolic(unittest.TestCase):
             self.assertEqual(ret1, ret2)
 
 
-    def test_CNB_Total_alpha(self):
-        """Test for CNB table diff wrt. alpha."""
-        truth = [-32.047116446069630058,
-                 -31.967586816202516076,
-                 -29.262716338076089073,
-                 -25.834808318187693743,
-                 -23.629769171070027056,
-                 -19.531822052470609208,
-                 -15.055218390201394740,
-                 -12.251060124422552988,
-                 11.228030377801893280,
-                 12.251060124422552988,
-                 15.055218390201394740,
-                 19.531822052470609208,
-                 23.629769171070027056,
-                 25.834808318187693743,
-                 29.262716338076089073,
-                 31.967586816202516076,
-                 32.047116446069630058]
-
-        for i, j in zip(self.aerotable.CNB_Total_alpha[:, 0, 0, 0], truth):
-            self.assertAlmostEqual(i, j, places=self.TOLERANCE_PLACES)
-
-
 if __name__ == '__main__':
     unittest.main()

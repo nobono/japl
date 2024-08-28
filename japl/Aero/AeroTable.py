@@ -89,13 +89,13 @@ def from_CMS_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|dict,
     mach = mach.astype(np.float64)
     alt = alt.astype(np.float64)
 
-    # table shape labels
-    Basic_labels = {"alpha": alpha, "mach": mach}                 # Basic table shape
-    CA_labels = {"mach": mach, "alt": alt}                        # CA-coeff table shape
-    IT_labels = {"alpha": alpha, "mach": mach}                    # fin-increment table shape
-    CA_Total_labels = {"alpha": alpha, "mach": mach, "alt": alt}  # CA-coeff total table shape
-    table_axis_labels = (Basic_labels, CA_labels, IT_labels, CA_Total_labels)
-    return (data, table_axis_labels)
+    # table shape axes
+    Basic_axes = {"alpha": alpha, "mach": mach}                 # Basic table shape
+    CA_axes = {"mach": mach, "alt": alt}                        # CA-coeff table shape
+    IT_axes = {"alpha": alpha, "mach": mach}                    # fin-increment table shape
+    CA_Total_axes = {"alpha": alpha, "mach": mach, "alt": alt}  # CA-coeff total table shape
+    table_axis_axes = (Basic_axes, CA_axes, IT_axes, CA_Total_axes)
+    return (data, table_axis_axes)
 
 
 def from_default_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|dict, tuple]:
@@ -121,13 +121,13 @@ def from_default_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|d
     alt = alt.astype(np.float64)
     iota = iota.astype(np.float64)
 
-    Basic_labels = {"alpha": alpha, "phi": phi, "mach": mach}                               # Basic table shape
-    CA_labels = {"phi": phi, "mach": mach, "alt": alt}                                      # CA-coeff table shape
-    IT_labels = {"alpha": alpha, "phi": phi, "mach": mach, "iota": iota}                    # fin-increment table shape
-    CA_Total_labels = {"alpha": alpha, "phi": phi, "mach": mach, "alt": alt, "iota": iota}  # CA-coeff total table shape
+    Basic_axes = {"alpha": alpha, "phi": phi, "mach": mach}                               # Basic table shape
+    CA_axes = {"phi": phi, "mach": mach, "alt": alt}                                      # CA-coeff table shape
+    IT_axes = {"alpha": alpha, "phi": phi, "mach": mach, "iota": iota}                    # fin-increment table shape
+    CA_Total_axes = {"alpha": alpha, "phi": phi, "mach": mach, "alt": alt, "iota": iota}  # CA-coeff total table shape
 
-    table_axis_labels = (Basic_labels, CA_labels, IT_labels, CA_Total_labels)
-    return (data, table_axis_labels)
+    table_axis_axes = (Basic_axes, CA_axes, IT_axes, CA_Total_axes)
+    return (data, table_axis_axes)
 
 
 class AeroTable:
@@ -156,9 +156,9 @@ class AeroTable:
         # formatting.
         match from_template.lower():
             case "cms":
-                data_dict, table_axis_labels = from_CMS_table(data_dict, units=units)
+                data_dict, table_axis_axes = from_CMS_table(data_dict, units=units)
             case _:
-                data_dict, table_axis_labels = from_default_table(data_dict, units=units)
+                data_dict, table_axis_axes = from_default_table(data_dict, units=units)
 
         ############################################################
         # Load tables from data
@@ -199,7 +199,7 @@ class AeroTable:
         ############################################################
         # Initialize as DataTables
         ############################################################
-        # establish default labels
+        # establish default axes
         #
         # - default tables axes are the expected axes for each type
         #   type of table.
@@ -215,48 +215,39 @@ class AeroTable:
         #
         ############################################################
 
-        (Basic_labels,
-         CA_labels,
-         IT_labels,
-         CA_Total_labels) = table_axis_labels
+        (Basic_axes,
+         CA_axes,
+         IT_axes,
+         CA_Total_axes) = table_axis_axes
 
-        # check if alpha increments are reflected across zero
-        # or need to be mirrored
-        flag_reflect_alpha = False
-        if Basic_labels["alpha"][0] == 0:
-            flag_reflect_alpha = True
-            # Basic_labels["alpha"] = self.create_mirrored_array(Basic_labels["alpha"])
-            # IT_labels["alpha"] = self.create_mirrored_array(IT_labels["alpha"])
-            # CA_Total_labels["alpha"] = self.create_mirrored_array(CA_Total_labels["alpha"])
+        self.CA_inv = DataTable(_CA_inv, Basic_axes)
+        self.CA_Basic = DataTable(_CA_Basic, Basic_axes)
+        self.CA_0_Boost = DataTable(_CA_0_Boost, CA_axes)
+        self.CA_0_Coast = DataTable(_CA_0_Coast, CA_axes)
+        self.CA_IT = DataTable(_CA_IT, IT_axes)
+        self.CYB_Basic = DataTable(_CYB_Basic, Basic_axes)
+        self.CYB_IT = DataTable(_CYB_IT, IT_axes)
+        self.CNB_Basic = DataTable(_CNB_Basic, Basic_axes)
+        self.CNB_IT = DataTable(_CNB_IT, IT_axes)
+        self.CLLB_Basic = DataTable(_CLLB_Basic, Basic_axes)
+        self.CLLB_IT = DataTable(_CLLB_IT, IT_axes)
+        self.CLMB_Basic = DataTable(_CLMB_Basic, Basic_axes)
+        self.CLMB_IT = DataTable(_CLMB_IT, IT_axes)
+        self.CLNB_Basic = DataTable(_CLNB_Basic, Basic_axes)
+        self.CLNB_IT = DataTable(_CLNB_IT, IT_axes)
+        self.Fin2_CN = DataTable(_Fin2_CN, IT_axes)
+        self.Fin2_CBM = DataTable(_Fin2_CBM, IT_axes)
+        self.Fin2_CHM = DataTable(_Fin2_CHM, IT_axes)
+        self.Fin4_CN = DataTable(_Fin4_CN, IT_axes)
+        self.Fin4_CBM = DataTable(_Fin4_CBM, IT_axes)
+        self.Fin4_CHM = DataTable(_Fin4_CHM, IT_axes)
 
-        self.CA_inv = DataTable(_CA_inv, Basic_labels)
-        self.CA_Basic = DataTable(_CA_Basic, Basic_labels)
-        self.CA_0_Boost = DataTable(_CA_0_Boost, CA_labels)
-        self.CA_0_Coast = DataTable(_CA_0_Coast, CA_labels)
-        self.CA_IT = DataTable(_CA_IT, IT_labels)
-        self.CYB_Basic = DataTable(_CYB_Basic, Basic_labels)
-        self.CYB_IT = DataTable(_CYB_IT, IT_labels)
-        self.CNB_Basic = DataTable(_CNB_Basic, Basic_labels)
-        self.CNB_IT = DataTable(_CNB_IT, IT_labels)
-        self.CLLB_Basic = DataTable(_CLLB_Basic, Basic_labels)
-        self.CLLB_IT = DataTable(_CLLB_IT, IT_labels)
-        self.CLMB_Basic = DataTable(_CLMB_Basic, Basic_labels)
-        self.CLMB_IT = DataTable(_CLMB_IT, IT_labels)
-        self.CLNB_Basic = DataTable(_CLNB_Basic, Basic_labels)
-        self.CLNB_IT = DataTable(_CLNB_IT, IT_labels)
-        self.Fin2_CN = DataTable(_Fin2_CN, IT_labels)
-        self.Fin2_CBM = DataTable(_Fin2_CBM, IT_labels)
-        self.Fin2_CHM = DataTable(_Fin2_CHM, IT_labels)
-        self.Fin4_CN = DataTable(_Fin4_CN, IT_labels)
-        self.Fin4_CBM = DataTable(_Fin4_CBM, IT_labels)
-        self.Fin4_CHM = DataTable(_Fin4_CHM, IT_labels)
-
-        self.CA_Boost_Total = DataTable(_CA_Boost_Total, CA_Total_labels)
-        self.CA_Coast_Total = DataTable(_CA_Coast_Total, CA_Total_labels)
-        self.CNB_Total = DataTable(_CNB_Total, IT_labels)
-        self.CLMB_Total = DataTable(_CLMB_Total, IT_labels)
-        self.CLNB_Total = DataTable(_CLNB_Total, IT_labels)
-        self.CYB_Total = DataTable(_CYB_Total, IT_labels)
+        self.CA_Boost_Total = DataTable(_CA_Boost_Total, CA_Total_axes)
+        self.CA_Coast_Total = DataTable(_CA_Coast_Total, CA_Total_axes)
+        self.CNB_Total = DataTable(_CNB_Total, IT_axes)
+        self.CLMB_Total = DataTable(_CLMB_Total, IT_axes)
+        self.CLNB_Total = DataTable(_CLNB_Total, IT_axes)
+        self.CYB_Total = DataTable(_CYB_Total, IT_axes)
 
         ############################################################
         # Convert to SI units
@@ -283,33 +274,33 @@ class AeroTable:
                     self.CA_Basic[:, :, :, np.newaxis, np.newaxis]
                     + self.CA_0_Boost[np.newaxis, :, :, :, np.newaxis]
                     + self.CA_IT[:, :, :, np.newaxis, :],
-                    axes=CA_Total_labels)
+                    axes=CA_Total_axes)
         if self.CA_Coast_Total.isnone():
             self.CA_Coast_Total = DataTable(
                     self.CA_Basic[:, :, :, np.newaxis, np.newaxis]
                     + self.CA_0_Coast[np.newaxis, :, :, :, np.newaxis]
                     + self.CA_IT[:, :, :, np.newaxis, :],
-                    axes=CA_Total_labels)
+                    axes=CA_Total_axes)
         if self.CNB_Total.isnone():
             if not (self.CNB_Basic.isnone() and self.CNB_IT.isnone()):
                 self.CNB_Total = DataTable(self.CNB_Basic[:, :, :, np.newaxis]
                                            + self.CNB_IT,
-                                           axes=IT_labels)
+                                           axes=IT_axes)
         if self.CLMB_Total.isnone():
             if not (self.CLMB_Basic.isnone() and self.CLMB_IT.isnone()):
                 self.CLMB_Total = DataTable(self.CLMB_Basic[:, :, :, np.newaxis]
                                             + self.CLMB_IT,
-                                            axes=IT_labels)
+                                            axes=IT_axes)
         if self.CLNB_Total.isnone():
             if not (self.CLNB_Basic.isnone() and self.CLNB_IT.isnone()):
                 self.CLNB_Total = DataTable(self.CLNB_Basic[:, :, :, np.newaxis]
                                             + self.CLNB_IT,
-                                            axes=IT_labels)
+                                            axes=IT_axes)
         if self.CYB_Total.isnone():
             if not (self.CYB_Basic.isnone() and self.CYB_IT.isnone()):
                 self.CYB_Total = DataTable(self.CYB_Basic[:, :, :, np.newaxis]
                                            + self.CYB_IT,
-                                           axes=IT_labels)
+                                           axes=IT_axes)
 
         ############################################################
         # For Momementless Dynamics, the following tables are
@@ -374,7 +365,9 @@ class AeroTable:
         #   if alpha is not reflected across 0, so mirror the tables
         #   across alpha increments
         ############################################################
-        if flag_reflect_alpha:
+        # check if alpha increments are reflected across zero
+        # or need to be mirrored
+        if Basic_axes["alpha"][0] == 0:
             alpha_axis = 0
             for table_name in table_names:
                 _table = getattr(self, table_name)
