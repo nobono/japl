@@ -83,7 +83,7 @@ def from_CMS_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|dict,
 
     if units.lower() == "si":
         alpha = alpha * __deg2rad
-        alt = alt * __ft2m
+        alt = alt  # * __ft2m  # NOTE: CMS may already have alt in meters
 
     alpha = alpha.astype(np.float64)
     mach = mach.astype(np.float64)
