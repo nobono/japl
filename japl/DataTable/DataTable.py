@@ -10,7 +10,7 @@ class DataTable(np.ndarray):
     def __new__(cls, input_array, axes: dict):
         input_array = cls.check_input_data(input_array)
         obj = np.asarray(input_array).view(cls)
-        obj.axes = axes
+        obj.axes = axes.copy()
         return obj
 
 
@@ -66,12 +66,18 @@ class DataTable(np.ndarray):
         return input_array
 
 
-    def mirror_axis(self, axis: int) -> "DataTable":
+    def mirror_axis(self, axis_id: int) -> "DataTable":
         """This method mirrors a table axis and appends it to the top
         of the table. This is mainly to deal with increment arrays not reflected
         accross zero point."""
+        # reflect table axis across its zero-axis
         slice_tuple = np.array([slice(None) for _ in range(len(self.shape))], dtype=object)
-        slice_tuple.put(axis, slice(None, -1))  # type:ignore
+        slice_tuple.put(axis_id, slice(None, -1))  # type:ignore
+        # reflect the axes info
+        axis_name = list(self.axes.keys())[axis_id]  # type:ignore
+        axis_array = self.axes[axis_name]
+        mirrored_array = np.concatenate([-axis_array[::-1][:-1], axis_array])
+        self.axes[axis_name] = mirrored_array
         return DataTable(np.concatenate([-self[::-1][*slice_tuple], self]), axes=self.axes)
 
 

@@ -224,10 +224,10 @@ class AeroTable:
         # or need to be mirrored
         flag_reflect_alpha = False
         if Basic_labels["alpha"][0] == 0:
-            Basic_labels["alpha"] = self.create_mirrored_array(Basic_labels["alpha"])
-            IT_labels["alpha"] = self.create_mirrored_array(IT_labels["alpha"])
-            CA_Total_labels["alpha"] = self.create_mirrored_array(CA_Total_labels["alpha"])
             flag_reflect_alpha = True
+            # Basic_labels["alpha"] = self.create_mirrored_array(Basic_labels["alpha"])
+            # IT_labels["alpha"] = self.create_mirrored_array(IT_labels["alpha"])
+            # CA_Total_labels["alpha"] = self.create_mirrored_array(CA_Total_labels["alpha"])
 
         self.CA_inv = DataTable(_CA_inv, Basic_labels)
         self.CA_Basic = DataTable(_CA_Basic, Basic_labels)
@@ -273,52 +273,6 @@ class AeroTable:
             self.MRC = np.asarray(self.MRC, dtype=float)
         else:
             self.MRC = float(self.MRC)
-
-        ############################################################
-        # Excpected DataTable names
-        ############################################################
-        CA_0_table_names = ["CA_0_Boost",
-                            "CA_0_Coast"]
-        Basic_table_names = ["CA_inv",
-                             "CA_Basic",
-                             "CYB_Basic",
-                             "CNB_Basic",
-                             "CLLB_Basic",
-                             "CLMB_Basic",
-                             "CLNB_Basic"]
-        Iter_table_names = ["CA_IT",
-                            "CYB_IT",
-                            "CNB_IT",
-                            "CLLB_IT",
-                            "CLMB_IT",
-                            "CLNB_IT",
-                            "Fin2_CN",
-                            "Fin2_CBM",
-                            "Fin2_CHM",
-                            "Fin4_CN",
-                            "Fin4_CBM",
-                            "Fin4_CHM"]
-        Total_table_names = ["CA_Boost_Total",
-                             "CA_Coast_Total",
-                             "CNB_Total",
-                             "CLMB_Total",
-                             "CLNB_Total",
-                             "CYB_Total"]
-        table_names = CA_0_table_names + Basic_table_names + Iter_table_names + Total_table_names
-
-        ############################################################
-        # Table Reflections
-        #   if alpha is not reflected across 0, so mirror the tables
-        #   across alpha increments
-        ############################################################
-        if flag_reflect_alpha:
-            alpha_axis = 0
-            for table_name in table_names:
-                _table = getattr(self, table_name)
-                if not _table.isnone():
-                    if "alpha" in _table.axes:
-                        mirrored_table = _table.mirror_axis(alpha_axis)
-                        setattr(self, table_name, mirrored_table)
 
         ############################################################
         # Build Total DataTables from sub-tables
@@ -379,6 +333,61 @@ class AeroTable:
                                                       diff_arg="alpha",
                                                       delta_arg=delta_alpha)
 
+        ############################################################
+        # Excpected DataTable names
+        ############################################################
+        CA_0_table_names = ["CA_0_Boost",
+                            "CA_0_Coast"]
+        Basic_table_names = ["CA_inv",
+                             "CA_Basic",
+                             "CYB_Basic",
+                             "CNB_Basic",
+                             "CLLB_Basic",
+                             "CLMB_Basic",
+                             "CLNB_Basic"]
+        Iter_table_names = ["CA_IT",
+                            "CYB_IT",
+                            "CNB_IT",
+                            "CLLB_IT",
+                            "CLMB_IT",
+                            "CLNB_IT",
+                            "Fin2_CN",
+                            "Fin2_CBM",
+                            "Fin2_CHM",
+                            "Fin4_CN",
+                            "Fin4_CBM",
+                            "Fin4_CHM"]
+        Total_table_names = ["CA_Boost_Total",
+                             "CA_Coast_Total",
+                             "CNB_Total",
+                             "CLMB_Total",
+                             "CLNB_Total",
+                             "CYB_Total"]
+        Diff_table_names = ["CA_Boost_Total_alpha",
+                            "CA_Coast_Total_alpha",
+                            "CNB_Total_alpha"]
+        table_names = (CA_0_table_names + Basic_table_names + Iter_table_names
+                       + Total_table_names + Diff_table_names)
+
+        ############################################################
+        # Table Reflections
+        #   if alpha is not reflected across 0, so mirror the tables
+        #   across alpha increments
+        ############################################################
+        if flag_reflect_alpha:
+            alpha_axis = 0
+            for table_name in table_names:
+                _table = getattr(self, table_name)
+                if not _table.isnone():
+                    if "alpha" in _table.axes:
+                        mirrored_table = _table.mirror_axis(alpha_axis)
+                        setattr(self, table_name, mirrored_table)
+
+
+    ############################################################
+    # Methods
+    ############################################################
+
 
     @staticmethod
     def create_mirrored_array(array: np.ndarray) -> np.ndarray:
@@ -406,7 +415,8 @@ class AeroTable:
 
         val_plus = table(**args_plus)
         val_minus = table(**args_minus)
-        return (val_plus - val_minus) / (args_plus[diff_arg] - args_minus[diff_arg])  # type:ignore
+        diff_table = (val_plus - val_minus) / (args_plus[diff_arg] - args_minus[diff_arg])  # type:ignore
+        return DataTable(diff_table, axes=table.axes)
 
 
     # def _get_CA_Basic(self, alpha: float, phi: float, mach: float, method: str = "linear") -> float:
@@ -541,6 +551,33 @@ class AeroTable:
                       mach: Optional[ArgType] = None,
                       iota: Optional[ArgType] = None) -> float|np.ndarray:
         return self.CYB_Total(alpha=alpha, phi=phi, mach=mach, iota=iota)
+
+
+    def get_CA_Boost_Total_alpha(self,
+                                 alpha: Optional[ArgType] = None,
+                                 phi: Optional[ArgType] = None,
+                                 mach: Optional[ArgType] = None,
+                                 alt: Optional[ArgType] = None,
+                                 iota: Optional[ArgType] = None) -> float|np.ndarray:
+        return self.CA_Boost_Total_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+
+
+    def get_CA_Coast_Total_alpha(self,
+                                 alpha: Optional[ArgType] = None,
+                                 phi: Optional[ArgType] = None,
+                                 mach: Optional[ArgType] = None,
+                                 alt: Optional[ArgType] = None,
+                                 iota: Optional[ArgType] = None) -> float|np.ndarray:
+        return self.CA_Coast_Total_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+
+
+    def get_CNB_Total_alpha(self,
+                            alpha: Optional[ArgType] = None,
+                            phi: Optional[ArgType] = None,
+                            mach: Optional[ArgType] = None,
+                            alt: Optional[ArgType] = None,
+                            iota: Optional[ArgType] = None) -> float|np.ndarray:
+        return self.CNB_Total_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
 
 
     def _get_table_args(self, table: DataTable, **kwargs) -> tuple:
