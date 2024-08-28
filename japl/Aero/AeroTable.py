@@ -81,6 +81,10 @@ def from_CMS_table(data: MatFile|dict) -> tuple[MatFile|dict, tuple]:
     mach = data.get("Mach", None)
     alt = data.get("Alt", None) * __ft2m
 
+    alpha = alpha.astype(np.float64)
+    mach = mach.astype(np.float64)
+    alt = alt.astype(np.float64)
+
     # table shape labels
     Basic_labels = {"alpha": alpha, "mach": mach}            # Basic table shape
     CA_labels = {"mach": mach, "alt": alt}                 # CA-coeff table shape
@@ -100,6 +104,12 @@ def from_default_table(data: MatFile|dict) -> tuple[MatFile|dict, tuple]:
     alt = data.get("Alt", None) * __ft2m
     iota = data.get("Iota", None) * __deg2rad
     # iota_prime = data.get("Iota_Prime", None)
+
+    alpha = alpha.astype(np.float64)
+    phi = phi.astype(np.float64)
+    mach = mach.astype(np.float64)
+    alt = alt.astype(np.float64)
+    iota = iota.astype(np.float64)
 
     Basic_labels = {"alpha": alpha, "phi": phi, "mach": mach}                    # Basic table shape
     CA_labels = {"phi": phi, "mach": mach, "alt": alt}                         # CA-coeff table shape
