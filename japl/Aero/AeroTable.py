@@ -1,13 +1,11 @@
-from typing import Callable, Union, Optional
+from typing import Optional
 import numpy as np
-from scipy.interpolate import interpn
 import pickle
 from astropy import units as u
 from japl.Util.Matlab import MatFile
 from japl.Util.Util import flatten_list
 from japl.DataTable.DataTable import DataTable
-
-ArgType = Union[float, list, np.ndarray]
+from japl.DataTable.DataTable import ArgType
 
 
 
@@ -56,6 +54,9 @@ def swap_to_correct_axes(array: np.ndarray, labels: list[str]) -> np.ndarray:
 
 # TODO: do this better?
 def from_CMS_table(data: MatFile|dict) -> tuple[MatFile|dict, tuple]:
+    __ft2m = (1.0 * u.imperial.foot).to_value(u.m)  # type:ignore
+    __deg2rad = (np.pi / 180.0)
+
     convert_key_map = [
                        ("Alpha", "alpha"),
                        ("Mach", "mach"),
@@ -75,21 +76,37 @@ def from_CMS_table(data: MatFile|dict) -> tuple[MatFile|dict, tuple]:
             table = swap_to_correct_axes(table, axis_labels)
         setattr(data, key_out, table)
         delattr(data, key_in)
+
+    alpha = data.get("Alpha", None) * __deg2rad
+    mach = data.get("Mach", None)
+    alt = data.get("Alt", None) * __ft2m
+
     # table shape labels
-    Basic_shape = ("alpha", "mach")            # Basic table shape
-    CA_shape = ("mach", "alt")                 # CA-coeff table shape
-    IT_shape = ("alpha", "mach")               # fin-increment table shape
-    CA_Total_shape = ("alpha", "mach", "alt")  # CA-coeff total table shape
-    table_axis_labels = (Basic_shape, CA_shape, IT_shape, CA_Total_shape)
+    Basic_labels = {"alpha": alpha, "mach": mach}            # Basic table shape
+    CA_labels = {"mach": mach, "alt": alt}                 # CA-coeff table shape
+    IT_labels = {"alpha": alpha, "mach": mach}               # fin-increment table shape
+    CA_Total_labels = {"alpha": alpha, "mach": mach, "alt": alt}  # CA-coeff total table shape
+    table_axis_labels = (Basic_labels, CA_labels, IT_labels, CA_Total_labels)
     return (data, table_axis_labels)
 
 
 def from_default_table(data: MatFile|dict) -> tuple[MatFile|dict, tuple]:
-    Basic_shape = ("alpha", "phi", "mach")                    # Basic table shape
-    CA_shape = ("phi", "mach", "alt")                         # CA-coeff table shape
-    IT_shape = ("alpha", "phi", "mach", "iota")               # fin-increment table shape
-    CA_Total_shape = ("alpha", "phi", "mach", "alt", "iota")  # CA-coeff total table shape
-    table_axis_labels = (Basic_shape, CA_shape, IT_shape, CA_Total_shape)
+    __ft2m = (1.0 * u.imperial.foot).to_value(u.m)  # type:ignore
+    __deg2rad = (np.pi / 180.0)
+
+    alpha = data.get("Alpha", None) * __deg2rad
+    phi = data.get("Phi", None) * __deg2rad
+    mach = data.get("Mach", None)
+    alt = data.get("Alt", None) * __ft2m
+    iota = data.get("Iota", None) * __deg2rad
+    # iota_prime = data.get("Iota_Prime", None)
+
+    Basic_labels = {"alpha": alpha, "phi": phi, "mach": mach}                    # Basic table shape
+    CA_labels = {"phi": phi, "mach": mach, "alt": alt}                         # CA-coeff table shape
+    IT_labels = {"alpha": alpha, "phi": phi, "mach": mach, "iota": iota}               # fin-increment table shape
+    CA_Total_labels = {"alpha": alpha, "phi": phi, "mach": mach, "alt": alt, "iota": iota}  # CA-coeff total table shape
+
+    table_axis_labels = (Basic_labels, CA_labels, IT_labels, CA_Total_labels)
     return (data, table_axis_labels)
 
 
@@ -122,31 +139,6 @@ class AeroTable:
                 data_dict, table_axis_labels = from_CMS_table(data_dict)
             case _:
                 data_dict, table_axis_labels = from_default_table(data_dict)
-
-        Increment_default = np.zeros(1)
-        self.increments = Increments()
-        self.increments.alpha = data_dict.get("Alpha", Increment_default.copy())
-        self.increments.phi = data_dict.get("Phi", Increment_default.copy())
-        self.increments.mach = data_dict.get("Mach", Increment_default.copy())
-        self.increments.alt = data_dict.get("Alt", Increment_default.copy())
-        self.increments.iota = data_dict.get("Iota", Increment_default.copy())
-        self.increments.iota_prime = data_dict.get("Iota_Prime", Increment_default.copy())
-        try:
-            self.increments.nalpha = len(self.increments.alpha)
-            self.increments.nphi = len(self.increments.phi)
-            self.increments.nmach = len(self.increments.mach)
-            self.increments.nalt = len(self.increments.alt)
-            self.increments.niota = len(self.increments.iota)
-            self.increments.niota_prime = len(self.increments.iota_prime)
-        except Exception as e:
-            Warning(e)
-
-        # ensure dtype float
-        self.increments.alpha = self.increments.alpha.astype(np.float64)
-        self.increments.phi = self.increments.phi.astype(np.float64)
-        self.increments.mach = self.increments.mach.astype(np.float64)
-        self.increments.alt = self.increments.alt.astype(np.float64)
-        self.increments.iota = self.increments.iota.astype(np.float64)
 
         ############################################################
         # Load tables from data
@@ -187,51 +179,55 @@ class AeroTable:
         ############################################################
         # Initialize as DataTables
         ############################################################
-        # establish default shapes
-        (Basic_shape,
-         CA_shape,
-         IT_shape,
-         CA_Total_shape) = table_axis_labels
+        # establish default labels
+        (Basic_labels,
+         CA_labels,
+         IT_labels,
+         CA_Total_labels) = table_axis_labels
 
-        self._CA_inv = DataTable(_CA_inv, Basic_shape)
-        self._CA_Basic = DataTable(_CA_Basic, Basic_shape)
-        self._CA_0_Boost = DataTable(_CA_0_Boost, CA_shape)
-        self._CA_0_Coast = DataTable(_CA_0_Coast, CA_shape)
-        self._CA_IT = DataTable(_CA_IT, IT_shape)
-        self._CYB_Basic = DataTable(_CYB_Basic, Basic_shape)
-        self._CYB_IT = DataTable(_CYB_IT, IT_shape)
-        self._CNB_Basic = DataTable(_CNB_Basic, Basic_shape)
-        self._CNB_IT = DataTable(_CNB_IT, IT_shape)
-        self._CLLB_Basic = DataTable(_CLLB_Basic, Basic_shape)
-        self._CLLB_IT = DataTable(_CLLB_IT, IT_shape)
-        self._CLMB_Basic = DataTable(_CLMB_Basic, Basic_shape)
-        self._CLMB_IT = DataTable(_CLMB_IT, IT_shape)
-        self._CLNB_Basic = DataTable(_CLNB_Basic, Basic_shape)
-        self._CLNB_IT = DataTable(_CLNB_IT, IT_shape)
-        self._Fin2_CN = DataTable(_Fin2_CN, IT_shape)
-        self._Fin2_CBM = DataTable(_Fin2_CBM, IT_shape)
-        self._Fin2_CHM = DataTable(_Fin2_CHM, IT_shape)
-        self._Fin4_CN = DataTable(_Fin4_CN, IT_shape)
-        self._Fin4_CBM = DataTable(_Fin4_CBM, IT_shape)
-        self._Fin4_CHM = DataTable(_Fin4_CHM, IT_shape)
+        # check if alpha increments are reflected across zero
+        # or need to be mirrored
+        flag_reflect_alpha = False
+        if Basic_labels["alpha"][0] == 0:
+            Basic_labels["alpha"] = self.create_mirrored_array(Basic_labels["alpha"])
+            IT_labels["alpha"] = self.create_mirrored_array(IT_labels["alpha"])
+            CA_Total_labels["alpha"] = self.create_mirrored_array(CA_Total_labels["alpha"])
+            flag_reflect_alpha = True
 
-        self._CA_Boost_Total = DataTable(_CA_Boost_Total, CA_Total_shape)
-        self._CA_Coast_Total = DataTable(_CA_Coast_Total, CA_Total_shape)
-        self._CNB_Total = DataTable(_CNB_Total, IT_shape)
-        self._CLMB_Total = DataTable(_CLMB_Total, IT_shape)
-        self._CLNB_Total = DataTable(_CLNB_Total, IT_shape)
-        self._CYB_Total = DataTable(_CYB_Total, IT_shape)
+        self.CA_inv = DataTable(_CA_inv, Basic_labels)
+        self.CA_Basic = DataTable(_CA_Basic, Basic_labels)
+        self.CA_0_Boost = DataTable(_CA_0_Boost, CA_labels)
+        self.CA_0_Coast = DataTable(_CA_0_Coast, CA_labels)
+        self.CA_IT = DataTable(_CA_IT, IT_labels)
+        self.CYB_Basic = DataTable(_CYB_Basic, Basic_labels)
+        self.CYB_IT = DataTable(_CYB_IT, IT_labels)
+        self.CNB_Basic = DataTable(_CNB_Basic, Basic_labels)
+        self.CNB_IT = DataTable(_CNB_IT, IT_labels)
+        self.CLLB_Basic = DataTable(_CLLB_Basic, Basic_labels)
+        self.CLLB_IT = DataTable(_CLLB_IT, IT_labels)
+        self.CLMB_Basic = DataTable(_CLMB_Basic, Basic_labels)
+        self.CLMB_IT = DataTable(_CLMB_IT, IT_labels)
+        self.CLNB_Basic = DataTable(_CLNB_Basic, Basic_labels)
+        self.CLNB_IT = DataTable(_CLNB_IT, IT_labels)
+        self.Fin2_CN = DataTable(_Fin2_CN, IT_labels)
+        self.Fin2_CBM = DataTable(_Fin2_CBM, IT_labels)
+        self.Fin2_CHM = DataTable(_Fin2_CHM, IT_labels)
+        self.Fin4_CN = DataTable(_Fin4_CN, IT_labels)
+        self.Fin4_CBM = DataTable(_Fin4_CBM, IT_labels)
+        self.Fin4_CHM = DataTable(_Fin4_CHM, IT_labels)
+
+        self.CA_Boost_Total = DataTable(_CA_Boost_Total, CA_Total_labels)
+        self.CA_Coast_Total = DataTable(_CA_Coast_Total, CA_Total_labels)
+        self.CNB_Total = DataTable(_CNB_Total, IT_labels)
+        self.CLMB_Total = DataTable(_CLMB_Total, IT_labels)
+        self.CLNB_Total = DataTable(_CLNB_Total, IT_labels)
+        self.CYB_Total = DataTable(_CYB_Total, IT_labels)
 
         ############################################################
         # Convert to SI units
         # TODO make input and ouput of units better...
         # NOTE: currently aero data available is in imperial units
         ############################################################
-        self.increments.alpha = self.increments.alpha * self.__deg2rad
-        self.increments.phi = self.increments.phi * self.__deg2rad
-        self.increments.alt = self.increments.alt * self.__ft2m
-        self.increments.iota = self.increments.iota * self.__deg2rad
-        self.increments.iota_prime = self.increments.iota_prime * self.__deg2rad
         self.Sref = Sref * self.__inch_sq_2_m_sq
         self.Lref = Lref * self.__inch2m
         self.MRC = MRC * self.__inch2m
@@ -246,33 +242,33 @@ class AeroTable:
         ############################################################
         # Excpected DataTable names
         ############################################################
-        CA_0_table_names = ["_CA_0_Boost",
-                            "_CA_0_Coast"]
-        Basic_table_names = ["_CA_inv",
-                             "_CA_Basic",
-                             "_CYB_Basic",
-                             "_CNB_Basic",
-                             "_CLLB_Basic",
-                             "_CLMB_Basic",
-                             "_CLNB_Basic"]
-        Iter_table_names = ["_CA_IT",
-                            "_CYB_IT",
-                            "_CNB_IT",
-                            "_CLLB_IT",
-                            "_CLMB_IT",
-                            "_CLNB_IT",
-                            "_Fin2_CN",
-                            "_Fin2_CBM",
-                            "_Fin2_CHM",
-                            "_Fin4_CN",
-                            "_Fin4_CBM",
-                            "_Fin4_CHM"]
-        Total_table_names = ["_CA_Boost_Total",
-                             "_CA_Coast_Total",
-                             "_CNB_Total",
-                             "_CLMB_Total",
-                             "_CLNB_Total",
-                             "_CYB_Total"]
+        CA_0_table_names = ["CA_0_Boost",
+                            "CA_0_Coast"]
+        Basic_table_names = ["CA_inv",
+                             "CA_Basic",
+                             "CYB_Basic",
+                             "CNB_Basic",
+                             "CLLB_Basic",
+                             "CLMB_Basic",
+                             "CLNB_Basic"]
+        Iter_table_names = ["CA_IT",
+                            "CYB_IT",
+                            "CNB_IT",
+                            "CLLB_IT",
+                            "CLMB_IT",
+                            "CLNB_IT",
+                            "Fin2_CN",
+                            "Fin2_CBM",
+                            "Fin2_CHM",
+                            "Fin4_CN",
+                            "Fin4_CBM",
+                            "Fin4_CHM"]
+        Total_table_names = ["CA_Boost_Total",
+                             "CA_Coast_Total",
+                             "CNB_Total",
+                             "CLMB_Total",
+                             "CLNB_Total",
+                             "CYB_Total"]
         table_names = CA_0_table_names + Basic_table_names + Iter_table_names + Total_table_names
 
         ############################################################
@@ -280,14 +276,12 @@ class AeroTable:
         #   if alpha is not reflected across 0, so mirror the tables
         #   across alpha increments
         ############################################################
-        if self.increments.alpha[0] == 0:
+        if flag_reflect_alpha:
             alpha_axis = 0
-            self.increments.alpha = self.create_mirrored_array(self.increments.alpha)
-            self.increments.nalpha = len(self.increments.alpha)
             for table_name in table_names:
                 _table = getattr(self, table_name)
                 if not _table.isnone():
-                    if "alpha" in _table.axis_labels:
+                    if "alpha" in _table.axes:
                         mirrored_table = _table.mirror_axis(alpha_axis)
                         setattr(self, table_name, mirrored_table)
 
@@ -295,38 +289,38 @@ class AeroTable:
         # Build Total DataTables from sub-tables
         #   (Basic + Increment) tables
         ############################################################
-        if self._CA_Boost_Total.isnone():
-            self._CA_Boost_Total = DataTable(
-                    self._CA_Basic[:, :, :, np.newaxis, np.newaxis]
-                    + self._CA_0_Boost[np.newaxis, :, :, :, np.newaxis]
-                    + self._CA_IT[:, :, :, np.newaxis, :],
-                    axis_labels=["alpha", "phi", "mach", "alt", "iota"])
-        if self._CA_Coast_Total.isnone():
-            self._CA_Coast_Total = DataTable(
-                    self._CA_Basic[:, :, :, np.newaxis, np.newaxis]
-                    + self._CA_0_Coast[np.newaxis, :, :, :, np.newaxis]
-                    + self._CA_IT[:, :, :, np.newaxis, :],
-                    axis_labels=["alpha", "phi", "mach", "alt", "iota"])
-        if self._CNB_Total.isnone():
-            if not (self._CNB_Basic.isnone() and self._CNB_IT.isnone()):
-                self._CNB_Total = DataTable(self._CNB_Basic[:, :, :, np.newaxis]
-                                            + self._CNB_IT,
-                                            axis_labels=["alpha", "phi", "mach", "iota"])
-        if self._CLMB_Total.isnone():
-            if not (self._CLMB_Basic.isnone() and self._CLMB_IT.isnone()):
-                self._CLMB_Total = DataTable(self._CLMB_Basic[:, :, :, np.newaxis]
-                                             + self._CLMB_IT,
-                                             axis_labels=["alpha", "phi", "mach", "iota"])
-        if self._CLNB_Total.isnone():
-            if not (self._CLNB_Basic.isnone() and self._CLNB_IT.isnone()):
-                self._CLNB_Total = DataTable(self._CLNB_Basic[:, :, :, np.newaxis]
-                                             + self._CLNB_IT,
-                                             axis_labels=["alpha", "phi", "mach", "iota"])
-        if self._CYB_Total.isnone():
-            if not (self._CYB_Basic.isnone() and self._CYB_IT.isnone()):
-                self._CYB_Total = DataTable(self._CYB_Basic[:, :, :, np.newaxis]
-                                            + self._CYB_IT,
-                                            axis_labels=["alpha", "phi", "mach", "iota"])
+        if self.CA_Boost_Total.isnone():
+            self.CA_Boost_Total = DataTable(
+                    self.CA_Basic[:, :, :, np.newaxis, np.newaxis]
+                    + self.CA_0_Boost[np.newaxis, :, :, :, np.newaxis]
+                    + self.CA_IT[:, :, :, np.newaxis, :],
+                    axes=CA_Total_labels)
+        if self.CA_Coast_Total.isnone():
+            self.CA_Coast_Total = DataTable(
+                    self.CA_Basic[:, :, :, np.newaxis, np.newaxis]
+                    + self.CA_0_Coast[np.newaxis, :, :, :, np.newaxis]
+                    + self.CA_IT[:, :, :, np.newaxis, :],
+                    axes=CA_Total_labels)
+        if self.CNB_Total.isnone():
+            if not (self.CNB_Basic.isnone() and self.CNB_IT.isnone()):
+                self.CNB_Total = DataTable(self.CNB_Basic[:, :, :, np.newaxis]
+                                           + self.CNB_IT,
+                                           axes=IT_labels)
+        if self.CLMB_Total.isnone():
+            if not (self.CLMB_Basic.isnone() and self.CLMB_IT.isnone()):
+                self.CLMB_Total = DataTable(self.CLMB_Basic[:, :, :, np.newaxis]
+                                            + self.CLMB_IT,
+                                            axes=IT_labels)
+        if self.CLNB_Total.isnone():
+            if not (self.CLNB_Basic.isnone() and self.CLNB_IT.isnone()):
+                self.CLNB_Total = DataTable(self.CLNB_Basic[:, :, :, np.newaxis]
+                                            + self.CLNB_IT,
+                                            axes=IT_labels)
+        if self.CYB_Total.isnone():
+            if not (self.CYB_Basic.isnone() and self.CYB_IT.isnone()):
+                self.CYB_Total = DataTable(self.CYB_Basic[:, :, :, np.newaxis]
+                                           + self.CYB_IT,
+                                           axes=IT_labels)
 
         ############################################################
         # For Momementless Dynamics, the following tables are
@@ -335,18 +329,15 @@ class AeroTable:
         #   - compute CNB_Total wrt. alpha
         ############################################################
         delta_alpha = 0.1
-        self._CA_Boost_Total_alpha = self.create_diff_table(table=self._CA_Boost_Total,
-                                                            coef_func=self.get_CA_Boost_Total,
+        self._CA_Boost_Total_alpha = self.create_diff_table(table=self.CA_Boost_Total,
                                                             diff_arg="alpha",
                                                             delta_arg=delta_alpha)
 
-        self._CA_Coast_Total_alpha = self.create_diff_table(table=self._CA_Coast_Total,
-                                                            coef_func=self.get_CA_Coast_Total,
+        self._CA_Coast_Total_alpha = self.create_diff_table(table=self.CA_Coast_Total,
                                                             diff_arg="alpha",
                                                             delta_arg=delta_alpha)
 
-        self._CNB_Total_alpha = self.create_diff_table(table=self._CNB_Total,
-                                                       coef_func=self.get_CNB_Total,
+        self._CNB_Total_alpha = self.create_diff_table(table=self.CNB_Total,
                                                        diff_arg="alpha",
                                                        delta_arg=delta_alpha)
 
@@ -356,18 +347,18 @@ class AeroTable:
         return np.concatenate([-array[::-1][:-1], array])
 
 
-    def create_diff_table(self, table: DataTable, coef_func: Callable,
+    def create_diff_table(self, table: DataTable,
                           diff_arg: str, delta_arg: float) -> DataTable:
         """This method differentiates a table wrt. an increment variable
         name \"diff_arg\"."""
         # get min and max values to keep diff within table range
-        max_alpha = max(self.increments.get(diff_arg))
-        min_alpha = min(self.increments.get(diff_arg))
+        max_alpha = max(table.axes.get(diff_arg))  # type:ignore
+        min_alpha = min(table.axes.get(diff_arg))  # type:ignore
 
         # handle table args
-        val_args = self._get_table_args(table, **dict(self.increments))
+        val_args = self._get_table_args(table, **table.axes)
         arg_grid = np.meshgrid(*val_args, indexing="ij")
-        args = {str(k): v for k, v in zip(table.axis_labels, arg_grid)}
+        args = {str(k): v for k, v in zip(table.axes, arg_grid)}
 
         # create diff_arg plus & minus values for linear interpolation
         args_plus = args.copy()
@@ -375,92 +366,92 @@ class AeroTable:
         args_plus[diff_arg] = np.clip(args[diff_arg] + delta_arg, min_alpha, max_alpha)
         args_minus[diff_arg] = np.clip(args[diff_arg] - delta_arg, min_alpha, max_alpha)
 
-        val_plus = coef_func(**args_plus)
-        val_minus = coef_func(**args_minus)
-        return (val_plus - val_minus) / (args_plus[diff_arg] - args_minus[diff_arg])
+        val_plus = table(**args_plus)
+        val_minus = table(**args_minus)
+        return (val_plus - val_minus) / (args_plus[diff_arg] - args_minus[diff_arg])  # type:ignore
 
 
-    def _get_CA_Basic(self, alpha: float, phi: float, mach: float, method: str = "linear") -> float:
-        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach),
-                       self._CA_Basic,
-                       [abs(alpha), phi, mach],
-                       method=method)[0]
+    # def _get_CA_Basic(self, alpha: float, phi: float, mach: float, method: str = "linear") -> float:
+    #     return interpn((self.increments.alpha, self.increments.phi, self.increments.mach),
+    #                    self.CA_Basic,
+    #                    [abs(alpha), phi, mach],
+    #                    method=method)[0]
 
-    def _get_CA_0_Boost(self, phi: float, mach: float, alt: float, method: str = "linear") -> float:
-        return interpn((self.increments.phi, self.increments.mach, self.increments.alt),
-                       self._CA_0_Boost,
-                       [phi, mach, alt],
-                       method=method)[0]
-
-
-    def _get_CA_0_Coast(self, phi: float, mach: float, alt: float, method: str = "linear") -> float:
-        return interpn((self.increments.phi, self.increments.mach, self.increments.alt),
-                       self._CA_0_Coast,
-                       [phi, mach, alt],
-                       method=method)[0]
+    # def _get_CA_0_Boost(self, phi: float, mach: float, alt: float, method: str = "linear") -> float:
+    #     return interpn((self.increments.phi, self.increments.mach, self.increments.alt),
+    #                    self.CA_0_Boost,
+    #                    [phi, mach, alt],
+    #                    method=method)[0]
 
 
-    def _get_CA_IT(self, alpha: float, phi: float, mach: float, iota: float, method: str = "linear") -> float:
-        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota),
-                       self._CA_IT,
-                       [abs(alpha), phi, mach, iota],
-                       method=method)[0]
+    # def _get_CA_0_Coast(self, phi: float, mach: float, alt: float, method: str = "linear") -> float:
+    #     return interpn((self.increments.phi, self.increments.mach, self.increments.alt),
+    #                    self.CA_0_Coast,
+    #                    [phi, mach, alt],
+    #                    method=method)[0]
 
 
-    def _get_CNB_Basic(self, alpha: float, phi: float, mach: float, method: str = "linear") -> float:
-        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach),
-                       self._CNB_Basic,
-                       [alpha, phi, mach],
-                       method=method)[0]
+    # def _get_CA_IT(self, alpha: float, phi: float, mach: float, iota: float, method: str = "linear") -> float:
+    #     return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota),
+    #                    self.CA_IT,
+    #                    [abs(alpha), phi, mach, iota],
+    #                    method=method)[0]
 
 
-    def _get_CNB_IT(self, alpha: float, phi: float, mach: float, iota: float, method: str = "linear") -> float:
-        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota),
-                       self._CNB_IT,
-                       [alpha, phi, mach, iota],
-                       method=method)[0]
+    # def _get_CNB_Basic(self, alpha: float, phi: float, mach: float, method: str = "linear") -> float:
+    #     return interpn((self.increments.alpha, self.increments.phi, self.increments.mach),
+    #                    self.CNB_Basic,
+    #                    [alpha, phi, mach],
+    #                    method=method)[0]
 
 
-    def _get_CYB_Basic(self, alpha: float, phi: float, mach: float, method: str = "linear") -> float:
-        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach),
-                       self._CYB_Basic,
-                       [abs(alpha), phi, mach],
-                       method=method)[0]
+    # def _get_CNB_IT(self, alpha: float, phi: float, mach: float, iota: float, method: str = "linear") -> float:
+    #     return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota),
+    #                    self.CNB_IT,
+    #                    [alpha, phi, mach, iota],
+    #                    method=method)[0]
 
 
-    def _get_CYB_IT(self, alpha: float, phi: float, mach: float, iota: float, method: str = "linear") -> float:
-        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota),
-                       self._CYB_IT,
-                       [abs(alpha), phi, mach, iota],
-                       method=method)[0]
+    # def _get_CYB_Basic(self, alpha: float, phi: float, mach: float, method: str = "linear") -> float:
+    #     return interpn((self.increments.alpha, self.increments.phi, self.increments.mach),
+    #                    self.CYB_Basic,
+    #                    [abs(alpha), phi, mach],
+    #                    method=method)[0]
 
 
-    def _get_CLMB_Basic(self, alpha: float, phi: float, mach: float, method: str = "linear") -> float:
-        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach),
-                       self._CLMB_Basic,
-                       [alpha, phi, mach],
-                       method=method)[0]
+    # def _get_CYB_IT(self, alpha: float, phi: float, mach: float, iota: float, method: str = "linear") -> float:
+    #     return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota),
+    #                    self.CYB_IT,
+    #                    [abs(alpha), phi, mach, iota],
+    #                    method=method)[0]
 
 
-    def _get_CLMB_IT(self, alpha: float, phi: float, mach: float, iota: float, method: str = "linear") -> float:
-        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota),
-                       self._CLMB_IT,
-                       [alpha, phi, mach, iota],
-                       method=method)[0]
+    # def _get_CLMB_Basic(self, alpha: float, phi: float, mach: float, method: str = "linear") -> float:
+    #     return interpn((self.increments.alpha, self.increments.phi, self.increments.mach),
+    #                    self.CLMB_Basic,
+    #                    [alpha, phi, mach],
+    #                    method=method)[0]
 
 
-    def _get_CLNB_Basic(self, alpha: float, phi: float, mach: float, method: str = "linear") -> float:
-        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach),
-                       self._CLNB_Basic,
-                       [abs(alpha), phi, mach],
-                       method=method)[0]
+    # def _get_CLMB_IT(self, alpha: float, phi: float, mach: float, iota: float, method: str = "linear") -> float:
+    #     return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota),
+    #                    self.CLMB_IT,
+    #                    [alpha, phi, mach, iota],
+    #                    method=method)[0]
 
 
-    def _get_CLNB_IT(self, alpha: float, phi: float, mach: float, iota: float, method: str = "linear") -> float:
-        return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota),
-                       self._CLNB_IT,
-                       [abs(alpha), phi, mach, iota],
-                       method=method)[0]
+    # def _get_CLNB_Basic(self, alpha: float, phi: float, mach: float, method: str = "linear") -> float:
+    #     return interpn((self.increments.alpha, self.increments.phi, self.increments.mach),
+    #                    self.CLNB_Basic,
+    #                    [abs(alpha), phi, mach],
+    #                    method=method)[0]
+
+
+    # def _get_CLNB_IT(self, alpha: float, phi: float, mach: float, iota: float, method: str = "linear") -> float:
+    #     return interpn((self.increments.alpha, self.increments.phi, self.increments.mach, self.increments.iota),
+    #                    self.CLNB_IT,
+    #                    [abs(alpha), phi, mach, iota],
+    #                    method=method)[0]
 
 
     def get_CA_Boost_Total(self,
@@ -469,13 +460,8 @@ class AeroTable:
                            mach: Optional[ArgType] = None,
                            alt: Optional[ArgType] = None,
                            iota: Optional[ArgType] = None) -> float|np.ndarray:
-        args = self._get_table_args(table=self._CA_Boost_Total, alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
-        axes = self._get_table_args(table=self._CA_Boost_Total, **dict(self.increments))
-        ret = interpn(axes, self._CA_Boost_Total, args, method="linear")
-        if len(ret) == 1:
-            return ret[0]
-        else:
-            return ret
+        return self.CA_Boost_Total(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+
 
 
     def get_CA_Coast_Total(self,
@@ -484,13 +470,7 @@ class AeroTable:
                            mach: Optional[ArgType] = None,
                            alt: Optional[ArgType] = None,
                            iota: Optional[ArgType] = None) -> float|np.ndarray:
-        args = self._get_table_args(table=self._CA_Coast_Total, alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
-        axes = self._get_table_args(table=self._CA_Coast_Total, **dict(self.increments))
-        ret = interpn(axes, self._CA_Coast_Total, args, method="linear")
-        if len(ret) == 1:
-            return ret[0]
-        else:
-            return ret
+        return self.CA_Coast_Total(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
 
 
     def get_CNB_Total(self,
@@ -498,13 +478,7 @@ class AeroTable:
                       phi: Optional[ArgType] = None,
                       mach: Optional[ArgType] = None,
                       iota: Optional[ArgType] = None) -> float|np.ndarray:
-        args = self._get_table_args(table=self._CNB_Total, alpha=alpha, phi=phi, mach=mach, iota=iota)
-        axes = self._get_table_args(table=self._CNB_Total, **dict(self.increments))
-        ret = interpn(axes, self._CNB_Total, args, method="linear")
-        if len(ret) == 1:
-            return ret[0]
-        else:
-            return ret
+        return self.CNB_Total(alpha=alpha, phi=phi, mach=mach, iota=iota)
 
 
     def get_CLMB_Total(self,
@@ -512,13 +486,7 @@ class AeroTable:
                        phi: Optional[ArgType] = None,
                        mach: Optional[ArgType] = None,
                        iota: Optional[ArgType] = None) -> float|np.ndarray:
-        args = self._get_table_args(table=self._CLMB_Total, alpha=alpha, phi=phi, mach=mach, iota=iota)
-        axes = self._get_table_args(table=self._CLMB_Total, **dict(self.increments))
-        ret = interpn(axes, self._CLMB_Total, args, method="linear")
-        if len(ret) == 1:
-            return ret[0]
-        else:
-            return ret
+        return self.CLMB_Total(alpha=alpha, phi=phi, mach=mach, iota=iota)
 
 
     def get_CLNB_Total(self,
@@ -526,13 +494,7 @@ class AeroTable:
                        phi: Optional[ArgType] = None,
                        mach: Optional[ArgType] = None,
                        iota: Optional[ArgType] = None) -> float|np.ndarray:
-        args = self._get_table_args(table=self._CLNB_Total, alpha=alpha, phi=phi, mach=mach, iota=iota)
-        axes = self._get_table_args(table=self._CLNB_Total, **dict(self.increments))
-        ret = interpn(axes, self._CLNB_Total, args, method="linear")
-        if len(ret) == 1:
-            return ret[0]
-        else:
-            return ret
+        return self.CLNB_Total(alpha=alpha, phi=phi, mach=mach, iota=iota)
 
 
     def get_CYB_Total(self,
@@ -540,13 +502,7 @@ class AeroTable:
                       phi: Optional[ArgType] = None,
                       mach: Optional[ArgType] = None,
                       iota: Optional[ArgType] = None) -> float|np.ndarray:
-        args = self._get_table_args(table=self._CYB_Total, alpha=alpha, phi=phi, mach=mach, iota=iota)
-        axes = self._get_table_args(table=self._CYB_Total, **dict(self.increments))
-        ret = interpn(axes, self._CYB_Total, args, method="linear")
-        if len(ret) == 1:
-            return ret[0]
-        else:
-            return ret
+        return self.CYB_Total(alpha=alpha, phi=phi, mach=mach, iota=iota)
 
 
     def _get_table_args(self, table: DataTable, **kwargs) -> tuple:
@@ -554,7 +510,7 @@ class AeroTable:
         according to the arguments passed and the axis_labels of the table
         being accessed."""
         args = ()
-        for label in table.axis_labels:
+        for label in table.axes:
             arg_val = kwargs.get(label, None)
             if arg_val is not None:
                 args += (arg_val,)
