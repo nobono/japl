@@ -110,7 +110,7 @@ class TestAeroTableSymbolic(unittest.TestCase):
                  29.170648082277914170,
                  31.605149013225233290,
                  32.026862575742043759]
-        for i, j in zip(self.aerotable._CNB_Total_alpha[:, 0, 0, 0], truth):
+        for i, j in zip(self.aerotable.CNB_Total_alpha[:, 0, 0, 0], truth):
             self.assertAlmostEqual(i, j, places=self.TOLERANCE_PLACES)
 
 

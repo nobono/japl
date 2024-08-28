@@ -53,7 +53,7 @@ def swap_to_correct_axes(array: np.ndarray, labels: list[str]) -> np.ndarray:
 
 
 # TODO: do this better?
-def from_CMS_table(data: MatFile|dict) -> tuple[MatFile|dict, tuple]:
+def from_CMS_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|dict, tuple]:
     __ft2m = (1.0 * u.imperial.foot).to_value(u.m)  # type:ignore
     __deg2rad = (np.pi / 180.0)
 
@@ -77,9 +77,13 @@ def from_CMS_table(data: MatFile|dict) -> tuple[MatFile|dict, tuple]:
         setattr(data, key_out, table)
         delattr(data, key_in)
 
-    alpha = data.get("Alpha", None) * __deg2rad
+    alpha = data.get("Alpha", None)
     mach = data.get("Mach", None)
-    alt = data.get("Alt", None) * __ft2m
+    alt = data.get("Alt", None)
+
+    if units.lower() == "si":
+        alpha = alpha * __deg2rad
+        alt = alt * __ft2m
 
     alpha = alpha.astype(np.float64)
     mach = mach.astype(np.float64)
@@ -94,16 +98,22 @@ def from_CMS_table(data: MatFile|dict) -> tuple[MatFile|dict, tuple]:
     return (data, table_axis_labels)
 
 
-def from_default_table(data: MatFile|dict) -> tuple[MatFile|dict, tuple]:
+def from_default_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|dict, tuple]:
     __ft2m = (1.0 * u.imperial.foot).to_value(u.m)  # type:ignore
     __deg2rad = (np.pi / 180.0)
 
-    alpha = data.get("Alpha", None) * __deg2rad
-    phi = data.get("Phi", None) * __deg2rad
+    alpha = data.get("Alpha", None)
+    phi = data.get("Phi", None)
     mach = data.get("Mach", None)
-    alt = data.get("Alt", None) * __ft2m
-    iota = data.get("Iota", None) * __deg2rad
+    alt = data.get("Alt", None)
+    iota = data.get("Iota", None)
     # iota_prime = data.get("Iota_Prime", None)
+
+    if units.lower() == "si":
+        alpha = alpha * __deg2rad
+        phi = phi * __deg2rad
+        alt = alt * __ft2m
+        iota = iota * __deg2rad
 
     alpha = alpha.astype(np.float64)
     phi = phi.astype(np.float64)
@@ -131,7 +141,7 @@ class AeroTable:
     __lbminch2Nm = (1.0 * u.imperial.lbm * u.imperial.inch**2).to_value(u.kg * u.m**2)  # type:ignore
     __inch_sq_2_m_sq = (1.0 * u.imperial.inch**2).to_value(u.m**2)  # type:ignore
 
-    def __init__(self, data: str|dict|MatFile, from_template: str = "") -> None:
+    def __init__(self, data: str|dict|MatFile, from_template: str = "", units: str = "si") -> None:
         # load table from dict or MatFile
         data_dict = {}
         if isinstance(data, str):
@@ -146,9 +156,9 @@ class AeroTable:
         # formatting.
         match from_template.lower():
             case "cms":
-                data_dict, table_axis_labels = from_CMS_table(data_dict)
+                data_dict, table_axis_labels = from_CMS_table(data_dict, units=units)
             case _:
-                data_dict, table_axis_labels = from_default_table(data_dict)
+                data_dict, table_axis_labels = from_default_table(data_dict, units=units)
 
         ############################################################
         # Load tables from data
@@ -339,17 +349,17 @@ class AeroTable:
         #   - compute CNB_Total wrt. alpha
         ############################################################
         delta_alpha = 0.1
-        self._CA_Boost_Total_alpha = self.create_diff_table(table=self.CA_Boost_Total,
-                                                            diff_arg="alpha",
-                                                            delta_arg=delta_alpha)
+        self.CA_Boost_Total_alpha = self.create_diff_table(table=self.CA_Boost_Total,
+                                                           diff_arg="alpha",
+                                                           delta_arg=delta_alpha)
 
-        self._CA_Coast_Total_alpha = self.create_diff_table(table=self.CA_Coast_Total,
-                                                            diff_arg="alpha",
-                                                            delta_arg=delta_alpha)
+        self.CA_Coast_Total_alpha = self.create_diff_table(table=self.CA_Coast_Total,
+                                                           diff_arg="alpha",
+                                                           delta_arg=delta_alpha)
 
-        self._CNB_Total_alpha = self.create_diff_table(table=self.CNB_Total,
-                                                       diff_arg="alpha",
-                                                       delta_arg=delta_alpha)
+        self.CNB_Total_alpha = self.create_diff_table(table=self.CNB_Total,
+                                                      diff_arg="alpha",
+                                                      delta_arg=delta_alpha)
 
 
     @staticmethod
