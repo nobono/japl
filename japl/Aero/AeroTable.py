@@ -90,9 +90,9 @@ def from_CMS_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|dict,
     alt = alt.astype(np.float64)
 
     # table shape labels
-    Basic_labels = {"alpha": alpha, "mach": mach}            # Basic table shape
-    CA_labels = {"mach": mach, "alt": alt}                 # CA-coeff table shape
-    IT_labels = {"alpha": alpha, "mach": mach}               # fin-increment table shape
+    Basic_labels = {"alpha": alpha, "mach": mach}                 # Basic table shape
+    CA_labels = {"mach": mach, "alt": alt}                        # CA-coeff table shape
+    IT_labels = {"alpha": alpha, "mach": mach}                    # fin-increment table shape
     CA_Total_labels = {"alpha": alpha, "mach": mach, "alt": alt}  # CA-coeff total table shape
     table_axis_labels = (Basic_labels, CA_labels, IT_labels, CA_Total_labels)
     return (data, table_axis_labels)
@@ -121,9 +121,9 @@ def from_default_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|d
     alt = alt.astype(np.float64)
     iota = iota.astype(np.float64)
 
-    Basic_labels = {"alpha": alpha, "phi": phi, "mach": mach}                    # Basic table shape
-    CA_labels = {"phi": phi, "mach": mach, "alt": alt}                         # CA-coeff table shape
-    IT_labels = {"alpha": alpha, "phi": phi, "mach": mach, "iota": iota}               # fin-increment table shape
+    Basic_labels = {"alpha": alpha, "phi": phi, "mach": mach}                               # Basic table shape
+    CA_labels = {"phi": phi, "mach": mach, "alt": alt}                                      # CA-coeff table shape
+    IT_labels = {"alpha": alpha, "phi": phi, "mach": mach, "iota": iota}                    # fin-increment table shape
     CA_Total_labels = {"alpha": alpha, "phi": phi, "mach": mach, "alt": alt, "iota": iota}  # CA-coeff total table shape
 
     table_axis_labels = (Basic_labels, CA_labels, IT_labels, CA_Total_labels)
