@@ -16,7 +16,7 @@ class TestAeroTable(unittest.TestCase):
         self.alts = np.linspace(0, 30_000, 100)
 
 
-    def test_CNB_Total_alpha(self):
+    def test_CNB_alpha(self):
         """Test for CNB table diff wrt. alpha."""
         truth = [-32.047116446069630058,
                  -31.967586816202516076,
@@ -36,7 +36,7 @@ class TestAeroTable(unittest.TestCase):
                  31.967586816202516076,
                  32.047116446069630058]
 
-        for i, j in zip(self.aerotable.CNB_Total_alpha[:, 0, 0, 0], truth):
+        for i, j in zip(self.aerotable.CNB_alpha[:, 0, 0, 0], truth):
             self.assertAlmostEqual(i, j, places=self.TOLERANCE_PLACES)
 
 
@@ -53,15 +53,15 @@ class TestAeroTable(unittest.TestCase):
         mach = 0.020890665777000
         alt = 0.097541062161326
 
-        self.assertTrue((aerotable.CA_Coast_Total_alpha == 0).all())
-        self.assertTrue((aerotable.CA_Boost_Total_alpha == 0).all())
-        self.assertAlmostEqual(aerotable.CA_Boost_Total(alpha=alpha, mach=mach, alt=alt),
+        self.assertTrue((aerotable.CA_Coast_alpha == 0).all())
+        self.assertTrue((aerotable.CA_Boost_alpha == 0).all())
+        self.assertAlmostEqual(aerotable.CA_Boost(alpha=alpha, mach=mach, alt=alt),
                                CA,
                                places=self.TOLERANCE_PLACES)
-        self.assertAlmostEqual(aerotable.CNB_Total(alpha=alpha, mach=mach, alt=alt),
+        self.assertAlmostEqual(aerotable.CNB(alpha=alpha, mach=mach, alt=alt),
                                CN,
                                places=self.TOLERANCE_PLACES)
-        self.assertAlmostEqual(aerotable.CNB_Total_alpha(alpha=alpha, mach=mach, alt=alt),
+        self.assertAlmostEqual(aerotable.CNB_alpha(alpha=alpha, mach=mach, alt=alt),
                                CN_alpha,
                                places=self.TOLERANCE_PLACES)
 

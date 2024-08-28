@@ -386,8 +386,8 @@ gravity = Matrix([0, 0, gacc])
 # phi_new = roll_angle
 
 # iota = rad(0.1)
-# CLMB = -aerotable.get_CLMB_Total(alpha, phi, mach, iota)  # type:ignore
-# CNB = aerotable.get_CNB_Total(alpha, phi, mach, iota)  # type:ignore
+# CLMB = -aerotable.get_CLMB(alpha, phi, mach, iota)  # type:ignore
+# CNB = aerotable.get_CNB(alpha, phi, mach, iota)  # type:ignore
 # My_coef = CLMB + (cg - aerotable.get_MRC()) * CNB  # type:ignore
 
 # q = atmosphere.dynamic_pressure(vel, pos_z)  # type:ignore

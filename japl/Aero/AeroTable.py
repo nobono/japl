@@ -54,16 +54,16 @@ def swap_to_correct_axes(array: np.ndarray, labels: list[str]) -> np.ndarray:
 
 # TODO: do this better?
 def from_CMS_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|dict, tuple]:
-    __ft2m = (1.0 * u.imperial.foot).to_value(u.m)  # type:ignore
+    # __ft2m = (1.0 * u.imperial.foot).to_value(u.m)  # type:ignore
     __deg2rad = (np.pi / 180.0)
 
     convert_key_map = [
                        ("Alpha", "alpha"),
                        ("Mach", "mach"),
                        ("Alt", "alt"),
-                       ("CA_Boost_Total", "CA_Powered"),
-                       ("CA_Coast_Total", "CA_Unpowered"),
-                       ("CNB_Total", "CN"),
+                       ("CA_Boost", "CA_Powered"),
+                       ("CA_Coast", "CA_Unpowered"),
+                       ("CNB", "CN"),
                        ]
     # store to correct attribute name
     # CNB_labels = data.get("CN_GridLabels")
@@ -185,12 +185,12 @@ class AeroTable:
         _Fin4_CBM = data_dict.get("Fin4_CBM", None)      # (alpha, phi, mach, iota)
         _Fin4_CHM = data_dict.get("Fin4_CHM", None)      # (alpha, phi, mach, iota)
 
-        _CA_Boost_Total = data_dict.get("CA_Boost_Total", None)  # (alpha, phi, mach, alt, iota)
-        _CA_Coast_Total = data_dict.get("CA_Coast_Total", None)  # (alpha, phi, mach, alt, iota)
-        _CNB_Total = data_dict.get("CNB_Total", None)            # (alpha, phi, mach, iota)
-        _CLMB_Total = data_dict.get("CLMB_Total", None)          # (alpha, phi, mach, iota)
-        _CLNB_Total = data_dict.get("CLNB_Total", None)          # (alpha, phi, mach, iota)
-        _CYB_Total = data_dict.get("CYB_Total", None)            # (alpha, phi, mach, iota)
+        _CA_Boost = data_dict.get("CA_Boost", None)  # (alpha, phi, mach, alt, iota)
+        _CA_Coast = data_dict.get("CA_Coast", None)  # (alpha, phi, mach, alt, iota)
+        _CNB = data_dict.get("CNB", None)            # (alpha, phi, mach, iota)
+        _CLMB = data_dict.get("CLMB", None)          # (alpha, phi, mach, iota)
+        _CLNB = data_dict.get("CLNB", None)          # (alpha, phi, mach, iota)
+        _CYB = data_dict.get("CYB", None)            # (alpha, phi, mach, iota)
 
         Sref = data_dict.get("Sref", 0)
         Lref = data_dict.get("Lref", 0)
@@ -242,12 +242,12 @@ class AeroTable:
         self.Fin4_CBM = DataTable(_Fin4_CBM, IT_axes)
         self.Fin4_CHM = DataTable(_Fin4_CHM, IT_axes)
 
-        self.CA_Boost_Total = DataTable(_CA_Boost_Total, CA_Total_axes)
-        self.CA_Coast_Total = DataTable(_CA_Coast_Total, CA_Total_axes)
-        self.CNB_Total = DataTable(_CNB_Total, IT_axes)
-        self.CLMB_Total = DataTable(_CLMB_Total, IT_axes)
-        self.CLNB_Total = DataTable(_CLNB_Total, IT_axes)
-        self.CYB_Total = DataTable(_CYB_Total, IT_axes)
+        self.CA_Boost = DataTable(_CA_Boost, CA_Total_axes)
+        self.CA_Coast = DataTable(_CA_Coast, CA_Total_axes)
+        self.CNB = DataTable(_CNB, IT_axes)
+        self.CLMB = DataTable(_CLMB, IT_axes)
+        self.CLNB = DataTable(_CLNB, IT_axes)
+        self.CYB = DataTable(_CYB, IT_axes)
 
         ############################################################
         # Convert to SI units
@@ -269,60 +269,60 @@ class AeroTable:
         # Build Total DataTables from sub-tables
         #   (Basic + Increment) tables
         ############################################################
-        if self.CA_Boost_Total.isnone():
-            self.CA_Boost_Total = DataTable(
+        if self.CA_Boost.isnone():
+            self.CA_Boost = DataTable(
                     self.CA_Basic[:, :, :, np.newaxis, np.newaxis]
                     + self.CA_0_Boost[np.newaxis, :, :, :, np.newaxis]
                     + self.CA_IT[:, :, :, np.newaxis, :],
                     axes=CA_Total_axes)
-        if self.CA_Coast_Total.isnone():
-            self.CA_Coast_Total = DataTable(
+        if self.CA_Coast.isnone():
+            self.CA_Coast = DataTable(
                     self.CA_Basic[:, :, :, np.newaxis, np.newaxis]
                     + self.CA_0_Coast[np.newaxis, :, :, :, np.newaxis]
                     + self.CA_IT[:, :, :, np.newaxis, :],
                     axes=CA_Total_axes)
-        if self.CNB_Total.isnone():
+        if self.CNB.isnone():
             if not (self.CNB_Basic.isnone() and self.CNB_IT.isnone()):
-                self.CNB_Total = DataTable(self.CNB_Basic[:, :, :, np.newaxis]
-                                           + self.CNB_IT,
-                                           axes=IT_axes)
-        if self.CLMB_Total.isnone():
+                self.CNB = DataTable(self.CNB_Basic[:, :, :, np.newaxis]
+                                     + self.CNB_IT,
+                                     axes=IT_axes)
+        if self.CLMB.isnone():
             if not (self.CLMB_Basic.isnone() and self.CLMB_IT.isnone()):
-                self.CLMB_Total = DataTable(self.CLMB_Basic[:, :, :, np.newaxis]
-                                            + self.CLMB_IT,
-                                            axes=IT_axes)
-        if self.CLNB_Total.isnone():
+                self.CLMB = DataTable(self.CLMB_Basic[:, :, :, np.newaxis]
+                                      + self.CLMB_IT,
+                                      axes=IT_axes)
+        if self.CLNB.isnone():
             if not (self.CLNB_Basic.isnone() and self.CLNB_IT.isnone()):
-                self.CLNB_Total = DataTable(self.CLNB_Basic[:, :, :, np.newaxis]
-                                            + self.CLNB_IT,
-                                            axes=IT_axes)
-        if self.CYB_Total.isnone():
+                self.CLNB = DataTable(self.CLNB_Basic[:, :, :, np.newaxis]
+                                      + self.CLNB_IT,
+                                      axes=IT_axes)
+        if self.CYB.isnone():
             if not (self.CYB_Basic.isnone() and self.CYB_IT.isnone()):
-                self.CYB_Total = DataTable(self.CYB_Basic[:, :, :, np.newaxis]
-                                           + self.CYB_IT,
-                                           axes=IT_axes)
+                self.CYB = DataTable(self.CYB_Basic[:, :, :, np.newaxis]
+                                     + self.CYB_IT,
+                                     axes=IT_axes)
 
         ############################################################
         # For Momementless Dynamics, the following tables are
-        #   - compute CA_Boost_Total wrt. alpha
-        #   - compute CA_Boost_Total wrt. alpha
-        #   - compute CNB_Total wrt. alpha
+        #   - compute CA_Boost wrt. alpha
+        #   - compute CA_Boost wrt. alpha
+        #   - compute CNB wrt. alpha
         ############################################################
         if units.lower() == "si":
             delta_alpha = np.radians(0.1)
         else:
             delta_alpha = 0.1
-        self.CA_Boost_Total_alpha = self.create_diff_table(table=self.CA_Boost_Total,
-                                                           diff_arg="alpha",
-                                                           delta_arg=delta_alpha)
+        self.CA_Boost_alpha = self.create_diff_table(table=self.CA_Boost,
+                                                     diff_arg="alpha",
+                                                     delta_arg=delta_alpha)
 
-        self.CA_Coast_Total_alpha = self.create_diff_table(table=self.CA_Coast_Total,
-                                                           diff_arg="alpha",
-                                                           delta_arg=delta_alpha)
+        self.CA_Coast_alpha = self.create_diff_table(table=self.CA_Coast,
+                                                     diff_arg="alpha",
+                                                     delta_arg=delta_alpha)
 
-        self.CNB_Total_alpha = self.create_diff_table(table=self.CNB_Total,
-                                                      diff_arg="alpha",
-                                                      delta_arg=delta_alpha)
+        self.CNB_alpha = self.create_diff_table(table=self.CNB,
+                                                diff_arg="alpha",
+                                                delta_arg=delta_alpha)
 
         ############################################################
         # Excpected DataTable names
@@ -348,15 +348,15 @@ class AeroTable:
                             "Fin4_CN",
                             "Fin4_CBM",
                             "Fin4_CHM"]
-        Total_table_names = ["CA_Boost_Total",
-                             "CA_Coast_Total",
-                             "CNB_Total",
-                             "CLMB_Total",
-                             "CLNB_Total",
-                             "CYB_Total"]
-        Diff_table_names = ["CA_Boost_Total_alpha",
-                            "CA_Coast_Total_alpha",
-                            "CNB_Total_alpha"]
+        Total_table_names = ["CA_Boost",
+                             "CA_Coast",
+                             "CNB",
+                             "CLMB",
+                             "CLNB",
+                             "CYB"]
+        Diff_table_names = ["CA_Boost_alpha",
+                            "CA_Coast_alpha",
+                            "CNB_alpha"]
         table_names = (CA_0_table_names + Basic_table_names + Iter_table_names
                        + Total_table_names + Diff_table_names)
 
@@ -495,82 +495,82 @@ class AeroTable:
     #                    method=method)[0]
 
 
-    def get_CA_Boost_Total(self,
+    def get_CA_Boost(self,
+                     alpha: Optional[ArgType] = None,
+                     phi: Optional[ArgType] = None,
+                     mach: Optional[ArgType] = None,
+                     alt: Optional[ArgType] = None,
+                     iota: Optional[ArgType] = None) -> float|np.ndarray:
+        return self.CA_Boost(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+
+
+
+    def get_CA_Coast(self,
+                     alpha: Optional[ArgType] = None,
+                     phi: Optional[ArgType] = None,
+                     mach: Optional[ArgType] = None,
+                     alt: Optional[ArgType] = None,
+                     iota: Optional[ArgType] = None) -> float|np.ndarray:
+        return self.CA_Coast(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+
+
+    def get_CNB(self,
+                alpha: Optional[ArgType] = None,
+                phi: Optional[ArgType] = None,
+                mach: Optional[ArgType] = None,
+                iota: Optional[ArgType] = None) -> float|np.ndarray:
+        return self.CNB(alpha=alpha, phi=phi, mach=mach, iota=iota)
+
+
+    def get_CLMB(self,
+                 alpha: Optional[ArgType] = None,
+                 phi: Optional[ArgType] = None,
+                 mach: Optional[ArgType] = None,
+                 iota: Optional[ArgType] = None) -> float|np.ndarray:
+        return self.CLMB(alpha=alpha, phi=phi, mach=mach, iota=iota)
+
+
+    def get_CLNB(self,
+                 alpha: Optional[ArgType] = None,
+                 phi: Optional[ArgType] = None,
+                 mach: Optional[ArgType] = None,
+                 iota: Optional[ArgType] = None) -> float|np.ndarray:
+        return self.CLNB(alpha=alpha, phi=phi, mach=mach, iota=iota)
+
+
+    def get_CYB(self,
+                alpha: Optional[ArgType] = None,
+                phi: Optional[ArgType] = None,
+                mach: Optional[ArgType] = None,
+                iota: Optional[ArgType] = None) -> float|np.ndarray:
+        return self.CYB(alpha=alpha, phi=phi, mach=mach, iota=iota)
+
+
+    def get_CA_Boost_alpha(self,
                            alpha: Optional[ArgType] = None,
                            phi: Optional[ArgType] = None,
                            mach: Optional[ArgType] = None,
                            alt: Optional[ArgType] = None,
                            iota: Optional[ArgType] = None) -> float|np.ndarray:
-        return self.CA_Boost_Total(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+        return self.CA_Boost_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
 
 
-
-    def get_CA_Coast_Total(self,
+    def get_CA_Coast_alpha(self,
                            alpha: Optional[ArgType] = None,
                            phi: Optional[ArgType] = None,
                            mach: Optional[ArgType] = None,
                            alt: Optional[ArgType] = None,
                            iota: Optional[ArgType] = None) -> float|np.ndarray:
-        return self.CA_Coast_Total(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+        return self.CA_Coast_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
 
 
-    def get_CNB_Total(self,
+    def get_CNB_alpha(self,
                       alpha: Optional[ArgType] = None,
                       phi: Optional[ArgType] = None,
                       mach: Optional[ArgType] = None,
+                      alt: Optional[ArgType] = None,
                       iota: Optional[ArgType] = None) -> float|np.ndarray:
-        return self.CNB_Total(alpha=alpha, phi=phi, mach=mach, iota=iota)
-
-
-    def get_CLMB_Total(self,
-                       alpha: Optional[ArgType] = None,
-                       phi: Optional[ArgType] = None,
-                       mach: Optional[ArgType] = None,
-                       iota: Optional[ArgType] = None) -> float|np.ndarray:
-        return self.CLMB_Total(alpha=alpha, phi=phi, mach=mach, iota=iota)
-
-
-    def get_CLNB_Total(self,
-                       alpha: Optional[ArgType] = None,
-                       phi: Optional[ArgType] = None,
-                       mach: Optional[ArgType] = None,
-                       iota: Optional[ArgType] = None) -> float|np.ndarray:
-        return self.CLNB_Total(alpha=alpha, phi=phi, mach=mach, iota=iota)
-
-
-    def get_CYB_Total(self,
-                      alpha: Optional[ArgType] = None,
-                      phi: Optional[ArgType] = None,
-                      mach: Optional[ArgType] = None,
-                      iota: Optional[ArgType] = None) -> float|np.ndarray:
-        return self.CYB_Total(alpha=alpha, phi=phi, mach=mach, iota=iota)
-
-
-    def get_CA_Boost_Total_alpha(self,
-                                 alpha: Optional[ArgType] = None,
-                                 phi: Optional[ArgType] = None,
-                                 mach: Optional[ArgType] = None,
-                                 alt: Optional[ArgType] = None,
-                                 iota: Optional[ArgType] = None) -> float|np.ndarray:
-        return self.CA_Boost_Total_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
-
-
-    def get_CA_Coast_Total_alpha(self,
-                                 alpha: Optional[ArgType] = None,
-                                 phi: Optional[ArgType] = None,
-                                 mach: Optional[ArgType] = None,
-                                 alt: Optional[ArgType] = None,
-                                 iota: Optional[ArgType] = None) -> float|np.ndarray:
-        return self.CA_Coast_Total_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
-
-
-    def get_CNB_Total_alpha(self,
-                            alpha: Optional[ArgType] = None,
-                            phi: Optional[ArgType] = None,
-                            mach: Optional[ArgType] = None,
-                            alt: Optional[ArgType] = None,
-                            iota: Optional[ArgType] = None) -> float|np.ndarray:
-        return self.CNB_Total_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+        return self.CNB_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
 
 
     def _get_table_args(self, table: DataTable, **kwargs) -> tuple:

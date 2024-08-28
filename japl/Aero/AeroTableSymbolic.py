@@ -13,22 +13,28 @@ class AeroTableSymbolic:
     def __init__(self, data: str|dict|MatFile) -> None:
         self.aerotable = AeroTable(data)
         self.modules = {
-                "aerotable_get_CA_Boost_Total": self.aerotable.get_CA_Boost_Total,
-                "aerotable_get_CA_Coast_Total": self.aerotable.get_CA_Coast_Total,
-                "aerotable_get_CNB_Total": self.aerotable.get_CNB_Total,
-                "aerotable_get_CLMB_Total": self.aerotable.get_CLMB_Total,
-                "aerotable_get_CLNB_Total": self.aerotable.get_CLNB_Total,
-                "aerotable_get_CYB_Total": self.aerotable.get_CYB_Total,
+                "aerotable_get_CA_Boost": self.aerotable.get_CA_Boost,
+                "aerotable_get_CA_Coast": self.aerotable.get_CA_Coast,
+                "aerotable_get_CNB": self.aerotable.get_CNB,
+                "aerotable_get_CLMB": self.aerotable.get_CLMB,
+                "aerotable_get_CLNB": self.aerotable.get_CLNB,
+                "aerotable_get_CYB": self.aerotable.get_CYB,
                 "aerotable_get_MRC": self.aerotable.get_MRC,
                 "aerotable_get_Sref": self.aerotable.get_Sref,
                 "aerotable_get_Lref": self.aerotable.get_Lref,
+                "aerotable_get_CA_Boost_alpha": self.aerotable.get_CA_Boost_alpha,
+                "aerotable_get_CA_Coast_alpha": self.aerotable.get_CA_Coast_alpha,
+                "aerotable_get_CNB_alpha": self.aerotable.get_CNB_alpha,
                 }
-        self.get_CA_Boost_Total = Function("aerotable_get_CA_Boost_Total")
-        self.get_CA_Coast_Total = Function("aerotable_get_CA_Coast_Total")
-        self.get_CNB_Total = Function("aerotable_get_CNB_Total")
-        self.get_CLMB_Total = Function("aerotable_get_CLMB_Total")
-        self.get_CLNB_Total = Function("aerotable_get_CLNB_Total")
-        self.get_CYB_Total = Function("aerotable_get_CYB_Total")
+        self.get_CA_Boost = Function("aerotable_get_CA_Boost")
+        self.get_CA_Coast = Function("aerotable_get_CA_Coast")
+        self.get_CNB = Function("aerotable_get_CNB")
+        self.get_CLMB = Function("aerotable_get_CLMB")
+        self.get_CLNB = Function("aerotable_get_CLNB")
+        self.get_CYB = Function("aerotable_get_CYB")
         self.get_MRC = Function("aerotable_get_MRC")
         self.get_Sref = Function("aerotable_get_Sref")
         self.get_Lref = Function("aerotable_get_Lref")
+        self.get_CA_Boost_alpha = Function("aerotable_get_CA_Boost_alpha")
+        self.get_CA_Coast_alpha = Function("aerotable_get_CA_Coast_alpha")
+        self.get_CNB_alpha = Function("aerotable_get_CNB_alpha")
