@@ -1,6 +1,207 @@
 import numpy as np
+from japl.Library.Earth.Earth import Earth
 from quaternion.numpy_quaternion import quaternion
 
+
+
+def eci_to_ecef(eci_xyz: np.ndarray|list, t: float = 0) -> np.ndarray:
+    """This method converts from ECI coordinates to ECEF.
+
+    ---------------------------------------------------
+    Arguments:
+        - eci_xyz: [x, y, z] ECI-coordinate
+        - t: optional time to account for earth
+             angular velocity (default = 0)
+
+    Returns:
+        - ecef_xyz: [x, y, z] ECEF-coordinates
+    ---------------------------------------------------
+    """
+    omega_e = 7.2921159e-5  # WGS-84
+    dcm_eci_to_ecef = np.array([
+        [np.cos(omega_e * t), np.sin(omega_e * t), 0],
+        [-np.sin(omega_e * t), np.cos(omega_e * t), 0],  # type:ignore
+        [0, 0, 1]])
+    return dcm_eci_to_ecef @ eci_xyz
+
+
+def ecef_to_eci(ecef_xyz: np.ndarray|list, t: float = 0) -> np.ndarray:
+    """This method converts from ECI coordinates to ECEF.
+
+    ---------------------------------------------------
+    Arguments:
+        - ecef_xyz: [x, y, z] ECEF-coordinate
+        - t: optional time to account for earth
+             angular velocity (default = 0)
+
+    Returns:
+        - eci_xyz: [x, y, z] ECI-coordinates
+    ---------------------------------------------------
+    """
+    omega_e = 7.2921159e-5  # WGS-84
+    dcm_eci_to_ecef = np.array([
+        [np.cos(omega_e * t), np.sin(omega_e * t), 0],
+        [-np.sin(omega_e * t), np.cos(omega_e * t), 0],  # type:ignore
+        [0, 0, 1]])
+    return dcm_eci_to_ecef.T @ ecef_xyz
+
+
+
+def ecef_to_lla(ecef_xyz: np.ndarray|list) -> np.ndarray:
+    """
+    convert from ECEF to geodetic
+    Olson, D. K. (1996). Converting Earth-Centered,
+    Earth-Fixed Coordinates to Geodetic Coordinates.
+    IEEE Transactions on Aerospace and Electronic Systems,
+    32(1), 473–476. https://doi.org/10.1109/7.481290
+
+    U.S. Government work, U.S. copyright does not apply.
+
+    sa https://ieeexplore.ieee.org/document/481290
+
+    ---------------------------------------------------
+    Arguments:
+        - ecef_xyz: [ecef-x, ecef-y, ecef-z] coordinates
+
+    Returns:
+        - lat: lattitude (radians)
+        - lon: longitude (radians)
+        - ht: height (meters)
+    ---------------------------------------------------
+    """
+    fabs = np.abs
+    sqrt = np.sqrt
+    acos = np.arccos
+    asin = np.arcsin
+    atan2 = np.arctan2
+
+    x, y, z = ecef_xyz
+
+    a = 6378137.0  # wgs-84
+    e2 = 6.6943799901377997e-3  # e**2
+    a1 = 4.2697672707157535e+4  # a * e2
+    a2 = 1.8230912546075455e+9  # a1 * a1
+    a3 = 1.4291722289812413e+2  # a1 * e2 / 2
+    a4 = 4.5577281365188637e+9  # 2.5 * a2
+    a5 = 4.2840589930055659e+4  # a1 + a3
+    a6 = 9.9330562000986220e-1  # 1 - e2
+
+    lat = 0
+    lon = 0
+    ht = 0
+
+    zp = fabs(z)
+    w2 = x * x + y * y
+    w = sqrt(w2)
+    z2 = z * z
+    r2 = w2 + z2
+    r = sqrt(r2)
+    if (r < 100000.0):
+        lat = 0.0
+        lon = 0.0
+        ht = -1.e7
+        return np.array([lat, lon, ht])
+
+    lon = atan2(y, x)
+    s2 = z2 / r2
+    c2 = w2 / r2
+    u = a2 / r
+    v = a3 - a4 / r
+
+    if (c2 > 0.3):
+        s = (zp / r) * (1.0 + c2 * (a1 + u + s2 * v) / r)
+        lat = asin(s)
+        ss = s * s
+        c = sqrt(1.0 - ss)
+    else:
+        c = (w / r) * (1.0 - s2 * (a5 - u - c2 * v) / r)
+        lat = acos(c)
+        ss = 1.0 - c * c
+        s = sqrt(ss)
+
+    g = 1.0 - e2 * ss
+    rg = a / sqrt(g)
+    rf = a6 * rg
+    u = w - rg * c
+    v = zp - rf * s
+    f = c * u + s * v
+    m = c * v - s * u
+    p = m / (rf / g + f)
+    lat = lat + p
+    ht = f + m * p / 2.0
+    if (z < 0.0):
+        lat = -lat
+
+    return np.array([lat, lon, ht])
+
+
+def eci_to_enu(eci_xyz, eci0_xyz, t):
+    """
+    This method converts from ECI coordinates to ENU.
+
+    ---------------------------------------------------
+    Arguments:
+        - eci_xyz: [x, y, z] ECI-coordinate
+        - ecif0_xyz: [x0, y0, z0] ECI-coordinate this is the
+                                  coordinates for the reference
+                                  frame origin
+
+    Returns:
+        - enu: [east, north, up] ENU-coordinates
+    ---------------------------------------------------
+    """
+    ecef = eci_to_ecef(eci_xyz, t=t)
+    ecef0 = eci_to_ecef(eci0_xyz, t=t)
+    enu = ecef_to_enu(ecef, ecef0)
+    return enu
+
+
+# Convert reference location from LLA to ECEF
+def lla_to_ecef(lla):
+    """
+    This method converts from LLA coordinates to ECEF.
+
+    ---------------------------------------------------
+    Arguments:
+        - lla: [lat, lon, alt] LLA-coordinate
+
+    Returns:
+        - ecef_xyz: [x, y, z] ECEF-coordinates
+    ---------------------------------------------------
+    """
+    lat, lon, h = lla
+    e2 = Earth.eccentricity**2
+    a = Earth.semimajor_axis
+    N = a / np.sqrt(1 - e2 * np.sin(lat)**2)
+    x = (N + h) * np.cos(lat) * np.cos(lon)
+    y = (N + h) * np.cos(lat) * np.sin(lon)
+    z = ((1 - e2) * N + h) * np.sin(lat)
+    return np.array([x, y, z])
+
+
+def ecef_to_enu(ecef_xyz: np.ndarray|list, ecef0: np.ndarray|list) -> np.ndarray:
+    """
+    This method converts from ECEF coordinates to ENU.
+
+    ---------------------------------------------------
+    Arguments:
+        - ecef_xyz: [x, y, z] ECEF-coordinate
+        - lla0: [lat, lon, alt] reference point. This
+                determines the origin of the local ENU
+                frame.
+
+    Returns:
+        - enu_xyz: [x, y, z] ENU-coordinates
+    ---------------------------------------------------
+    """
+    ecef0 = np.asarray(ecef0)
+    cos = np.cos
+    sin = np.sin
+    lat, lon, alt = ecef_to_lla(ecef0)
+    dcm_ecef_to_enu = np.array([[-sin(lon), cos(lon), 0],
+                                [-sin(lat) * cos(lon), -sin(lat) * sin(lon), cos(lat)],
+                                [cos(lat) * cos(lon), cos(lat) * sin(lon), sin(lat)]])
+    return dcm_ecef_to_enu @ (ecef_xyz - ecef0)
 
 
 def Sq(q: np.ndarray, dtype: type = float) -> np.ndarray:

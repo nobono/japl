@@ -7,6 +7,11 @@ from japl.Math.Rotation import quat_to_dcm
 from japl.Math.Rotation import quat_to_tait_bryan
 from japl.Math.Rotation import tait_bryan_to_dcm
 from japl.Math.Rotation import dcm_to_tait_bryan
+from japl.Math.Rotation import eci_to_ecef
+from japl.Math.Rotation import ecef_to_eci
+from japl.Math.Rotation import ecef_to_lla
+from japl.Math.Rotation import ecef_to_enu
+from japl.Math.Rotation import lla_to_ecef
 from sympy import Matrix, MatrixSymbol
 from japl.Math.RotationSymbolic import quat_conj_sym
 from japl.Math.RotationSymbolic import quat_norm_sym
@@ -15,6 +20,8 @@ from japl.Math.RotationSymbolic import quat_to_dcm_sym
 from japl.Math.RotationSymbolic import quat_to_tait_bryan_sym
 from japl.Math.RotationSymbolic import tait_bryan_to_dcm_sym
 from japl.Math.RotationSymbolic import dcm_to_tait_bryan_sym
+
+np.set_printoptions(suppress=True, precision=18)
 
 
 
@@ -246,6 +253,93 @@ class TestMathRotation(unittest.TestCase):
         tb_angles_subbed = np.array(tb_angles.subs(subs)).squeeze().astype(float)
         for i, j in zip(tb_angles_subbed.flatten(), truth.flatten()):
             self.assertAlmostEqual(i, j, places=self.TOLERANCE_PLACES)
+
+
+    def test_eci_to_ecef(self):
+        t = 0
+        radius_equatorial = 6_378_137.0  # meters
+        eci = np.array([radius_equatorial, 0, 0])
+        ecef = eci_to_ecef(eci, t=t)
+        self.assertListEqual(eci.tolist(), ecef.tolist())
+
+
+    def test_eci_to_ecef_case2(self):
+        t = 1
+        radius_equatorial = 6_378_137.0  # meters
+        eci = np.array([radius_equatorial, 0, 0])
+        ecef = eci_to_ecef(eci, t=t)
+        truth_eci = [6378137., 0., 0.]
+        truth_ecef = [6378136.983042143, -465.1011418885875, 0.]
+        self.assertListEqual(eci.tolist(), truth_eci)
+        self.assertListEqual(ecef.tolist(), truth_ecef)
+
+
+    def test_ecef_to_eci(self):
+        t = 0
+        radius_equatorial = 6_378_137.0  # meters
+        ecef = np.array([radius_equatorial, 0, 0])  # ecef @ t=0
+        eci = ecef_to_eci(ecef, t=t)
+        self.assertListEqual(eci.tolist(), ecef.tolist())
+
+
+    def test_ecef_to_eci_case2(self):
+        t = 1
+        radius_equatorial = 6_378_137.0  # meters
+        ecef = np.array([radius_equatorial, 0, 0])  # ecef @ t=0
+        eci = ecef_to_eci(ecef, t=t)
+        truth_eci = [6378136.983042143, 465.1011418885875, 0.]
+        truth_ecef = [6378137., 0., 0.]
+        self.assertListEqual(eci.tolist(), truth_eci)
+        self.assertListEqual(ecef.tolist(), truth_ecef)
+
+
+    def test_ecef_to_lla(self):
+        radius_equatorial = 6_378_137.0  # meters
+        ecef = np.array([radius_equatorial, 0, 0])  # ecef @ t=0
+        lla = ecef_to_lla(ecef)
+        self.assertListEqual(lla.tolist(), [0, 0, 0])
+
+
+    def test_ecef_to_lla_case2(self):
+        radius_equatorial = 6_378_137.0  # meters
+        ecef = np.array([radius_equatorial, 2000, 100])  # ecef @ t=0
+        lla = ecef_to_lla(ecef)
+        truth = [0.000015784224246508,
+                 0.000313571178299987,
+                 0.31436039186129777]
+        for i, j in zip(lla, truth):
+            self.assertAlmostEqual(i, j, places=self.TOLERANCE_PLACES)
+
+
+    def test_ecef_to_enu(self):
+        radius_equatorial = 6_378_137.0  # meters
+        ecef0 = np.array([radius_equatorial, 0, 0])  # ecef @ t=0
+        ecef = np.array([radius_equatorial + 1, 0, 0])  # ecef @ t=0
+        enu = ecef_to_enu(ecef, ecef0)
+        east, north, up = enu
+        self.assertEqual(east, 0)
+        self.assertEqual(north, 0)
+        self.assertEqual(up, 1)
+
+
+    def test_lla_to_ecef(self):
+        radius_equatorial = 6_378_137.0  # meters
+        lla = np.array([0, 0, 0])
+        ecef = lla_to_ecef(lla)
+        truth_ecef = np.array([radius_equatorial, 0, 0])  # ecef @ t=0
+        self.assertListEqual(ecef.tolist(), truth_ecef.tolist())
+
+
+    def test_lla_to_ecef_case2(self):
+        radius_equatorial = 6_378_137.0  # meters
+        lla = np.array([0.000015784224246508,
+                        0.000313571178299987,
+                        0.31436039186129777])
+        ecef = lla_to_ecef(lla)
+        truth_ecef = np.array([radius_equatorial, 2000, 100])
+        # this method contiains higher inaccuracies
+        for i, j in zip(ecef, truth_ecef):
+            self.assertAlmostEqual(i, j, places=8)
 
 
 if __name__ == '__main__':
