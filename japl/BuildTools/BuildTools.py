@@ -120,7 +120,7 @@ def _create_symbol_subs(array):
             symbol = Symbol(elem.name)  # type: ignore
             subs.update({elem: symbol})
         else:
-            raise Exception("unhandled case.")
+            raise Exception(f"unhandled case. {elem}")
     return subs
 
 
