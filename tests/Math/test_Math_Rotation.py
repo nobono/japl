@@ -20,6 +20,7 @@ from japl.Math.RotationSymbolic import quat_to_dcm_sym
 from japl.Math.RotationSymbolic import quat_to_tait_bryan_sym
 from japl.Math.RotationSymbolic import tait_bryan_to_dcm_sym
 from japl.Math.RotationSymbolic import dcm_to_tait_bryan_sym
+from japl.Math.RotationSymbolic import ecef_to_lla_sym
 
 np.set_printoptions(suppress=True, precision=18)
 
@@ -340,6 +341,27 @@ class TestMathRotation(unittest.TestCase):
         # this method contiains higher inaccuracies
         for i, j in zip(ecef, truth_ecef):
             self.assertAlmostEqual(i, j, places=8)
+
+    #################################
+    # Symbolic
+    #################################
+
+    def test_ecef_to_lla_sym(self):
+        radius_equatorial = 6_378_137.0  # meters
+        ecef = Matrix([radius_equatorial, 0, 0])  # ecef @ t=0
+        lla = ecef_to_lla_sym(ecef)
+        self.assertListEqual(lla.flat(), [0, 0, 0])
+
+
+    def test_ecef_to_lla_sym_case2(self):
+        radius_equatorial = 6_378_137.0  # meters
+        ecef = Matrix([radius_equatorial, 2000, 100])  # ecef @ t=0
+        lla = ecef_to_lla_sym(ecef)
+        truth = [0.000015784224246508,
+                 0.000313571178299987,
+                 0.31436039186129777]
+        for i, j in zip(lla.flat(), truth):
+            self.assertAlmostEqual(float(i), float(j), places=self.TOLERANCE_PLACES)
 
 
 if __name__ == '__main__':

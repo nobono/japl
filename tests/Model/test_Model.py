@@ -74,7 +74,8 @@ class TestExample(unittest.TestCase):
         self.assertEqual(len(model.state_vars), model.state_dim)
         self.assertEqual(len(model.input_vars), model.input_dim)
         self.assertEqual(model.dynamics_expr, dynamics)
-        self.assertListEqual(model([0, 0, 0, 0, 0, 0], [1, 0, 0], 0.01).tolist(), np.array([0, 0, 0, 1, 0, 0]).tolist())
+        self.assertListEqual(model(0, [0, 0, 0, 0, 0, 0], [1, 0, 0], 0.01).tolist(),
+                             np.array([0, 0, 0, 1, 0, 0]).tolist())
 
 
 if __name__ == '__main__':
