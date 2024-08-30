@@ -430,7 +430,7 @@ class Model:
 
 
     def __process_direct_state_updates(self, direct_updates: Matrix):
-        """This method creates an update function from a symbolic state
+        """This method creates an update function from a symbolic
         Matrix. Any DirectUpdate elements will be updated using its
         substitution expression, "sub_expr", while Symbol & Function
         elements result in NaN.
@@ -438,23 +438,13 @@ class Model:
         -------------------------------------------------------------------
         -- Arguments
         -------------------------------------------------------------------
-        -- state_vars - [Matrix|list]
+        -- direct_updates - [Matrix|list]
         -------------------------------------------------------------------
         -- Returns
         -------------------------------------------------------------------
         -- (Callable) - lambdified sympy expression
         -------------------------------------------------------------------
         """
-        # state_updates = []
-        # for var in state_vars:  # type:ignore
-        #     if isinstance(var, DirectUpdateSymbol):
-        #         state_updates.append(var.sub_expr)
-        #     elif isinstance(var, Symbol):
-        #         state_updates.append(sp_nan)
-        #     elif isinstance(var, Function):
-        #         state_updates.append(sp_nan)
-        #     else:
-        #         raise Exception("unhandled case.")
         t = Symbol('t')  # 't' variable needed to adhear to func argument format
         update_func = Desym((t, *self.vars), Matrix(direct_updates), modules=self.modules)
         return update_func
