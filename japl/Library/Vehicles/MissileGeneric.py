@@ -1,3 +1,4 @@
+import os
 from sympy import Matrix, Symbol, symbols
 from sympy import sign, rad
 from japl import Model
@@ -9,6 +10,7 @@ from japl.BuildTools.DirectUpdate import DirectUpdate
 from japl.Math import RotationSymbolic
 from japl.Math import VecSymbolic
 
+DIR = os.path.dirname(__file__)
 
 
 class MissileGeneric(Model):
@@ -38,7 +40,7 @@ print_sym = Function("print_sym")  # type:ignore
 ################################################
 
 atmosphere = AtmosphereSymbolic()
-aero_file = "./aeromodel/aeromodel_psb.mat"
+aero_file = f"{DIR}/../../../aeromodel/aeromodel_psb.mat"
 # aero_file = "../../../aeromodel/aeromodel_psb.mat"
 aerotable = AeroTableSymbolic(aero_file)
 
