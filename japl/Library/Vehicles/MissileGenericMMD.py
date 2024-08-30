@@ -1,17 +1,43 @@
+import os
+import numpy as np
 from sympy import Matrix, Symbol, symbols
 from sympy import sign, rad, sqrt
 from sympy import sin, cos
 from sympy import atan, atan2, tan
 from sympy import sec
 from sympy import Float
+import sympy as sp
 from japl import Model
 from sympy import Function
+from japl import Sim, SimObject
 from japl.Aero.AtmosphereSymbolic import AtmosphereSymbolic
 from japl.BuildTools.DirectUpdate import DirectUpdate
+from japl.BuildTools.BuildTools import build_model
 from japl.Library.Earth.EarthModelSymbolic import EarthModelSymbolic
-# from japl.Aero.AeroTableSymbolic import AeroTableSymbolic
+from japl.Aero.AeroTableSymbolic import AeroTableSymbolic
+from japl.Math.Rotation import ecef_to_lla
+from japl.Math.Rotation import ecef_to_enu
+from japl.Math.Rotation import ecef_to_eci
+from japl.Math.Rotation import eci_to_ecef
+from japl.Math.Rotation import eci_to_enu
+from japl.Math.RotationSymbolic import ecef_to_lla_sym
+from japl.Library.Earth.Earth import Earth
+
+DIR = os.path.dirname(__file__)
+np.set_printoptions(suppress=True, precision=8)
+
 # from japl.Math import RotationSymbolic
 # from japl.Math import VecSymbolic
+# earth = EarthModelSymbolic()
+# lla0 = np.array([0, 0, 0])
+# ecef0 = [earth.radius_equatorial, 0, 0]
+# t = 1
+# eci = np.array([earth.radius_equatorial, 0, 0])
+# ecef = eci_to_ecef(eci, t=t)
+# enu = ecef_to_enu(ecef, ecef0)
+# print(enu)
+# print(eci_to_enu(eci, ecef0, t=t))
+# quit()
 
 
 
@@ -24,6 +50,8 @@ class MissileGenericMMD(Model):
 ################################################
 
 atmosphere = AtmosphereSymbolic()
+aerotable = AeroTableSymbolic(DIR + "/../../../aeromodel/cms_sr_stage1aero.mat",
+                              from_template="CMS")
 
 ##################################################
 # Momentless Missile Dynamics Model
@@ -32,8 +60,7 @@ atmosphere = AtmosphereSymbolic()
 t = symbols("t")
 dt = symbols("dt")
 
-earth = EarthModelSymbolic()
-omega_e = earth.omega
+omega_e = Earth.omega
 
 q_0 = Function("q_0", real=True)(t)  # type:ignore
 q_1 = Function("q_1", real=True)(t)  # type:ignore
@@ -85,8 +112,19 @@ g_b_m_z = Function("g_b_m_z", real=True)(t)  # type:ignore
 g_b_m = Matrix([g_b_m_x, g_b_m_y, g_b_m_z])
 
 # Angle-of-Attack & Sideslip-Angle
-alpha, alpha_dot, alpha_dot_dot = symbols("alpha, alpha_dot, alpha_dot_dot", real=True)
-beta, beta_dot, beta_dot_dot = symbols("beta, beta_dot, beta_dot_dot", real=True)
+alpha = Function("alpha", real=True)(t)  # type:ignore
+alpha_dot = Function("alpha_dot", real=True)(t)  # type:ignore
+alpha_dot_dot = Function("alpha_dot_dot", real=True)(t)  # type:ignore
+
+beta = Function("beta", real=True)(t)  # type:ignore
+beta_dot = Function("beta_dot", real=True)(t)  # type:ignore
+beta_dot_dot = Function("beta_dot_dot", real=True)(t)  # type:ignore
+
+ecef_to_lla_map = Function("ecef_to_lla_map")
+ecef_to_enu_map = Function("ecef_to_enu_map")
+ecef_to_eci_map = Function("ecef_to_eci_map")
+eci_to_ecef_map = Function("eci_to_ecef_map")
+eci_to_enu_map = Function("eci_to_enu_map")
 
 ##################################################
 # 2.1 ECI Position and Velocity Derivatives
@@ -249,6 +287,8 @@ v_b_e_hat = Matrix([u_hat, v_hat, w_hat])
 
 # (35) (36) (37)
 u_hat_dot = -(1 + tan(alpha)**2 + tan(beta)**2)**(-3 / 2) * ((alpha_dot * tan(alpha) * sec(alpha)**2) + (beta_dot * tan(beta) * sec(beta)**2)) # type:ignore # noqa
+v_hat_dot = u_hat_dot * tan(beta) + u_hat * beta_dot * sec(beta)**2  # type:ignore
+w_hat_dot = u_hat_dot * tan(alpha) + u_hat * alpha_dot * sec(alpha)**2  # type:ignore
 
 # (31)
 v_b_e_hat_dot = Matrix([u_hat_dot, v_hat_dot, w_hat_dot])
@@ -260,10 +300,10 @@ v = v_b_e[1]
 w = v_b_e[2]
 
 # (38)
-V_dot = a_b_e * v_b_e_hat
+V_dot = a_b_e.T * v_b_e_hat
 
 # (40)
-v_b_e_dot = V_dot * v_b_e_hat + V * v_b_e_hat_dot
+v_b_e_dot = V_dot[0] * v_b_e_hat + V * v_b_e_hat_dot
 u_dot = v_b_e_dot[0]
 v_dot = v_b_e_dot[1]
 w_dot = v_b_e_dot[2]
@@ -281,23 +321,23 @@ omega_skew_ib = Matrix([
 a_b_e = v_b_e_dot + (omega_skew_ib - C_ecef_to_body * omega_skew_ie * C_body_to_ecef) * v_b_e
 
 # (41) C_ij are the array elements of C^b_e
-C_11 = C_body_to_ecef[0, 0]
-C_12 = C_body_to_ecef[0, 1]
-C_13 = C_body_to_ecef[0, 2]
-C_21 = C_body_to_ecef[1, 0]
-C_22 = C_body_to_ecef[1, 1]
-C_23 = C_body_to_ecef[1, 2]
-C_31 = C_body_to_ecef[2, 0]
-C_32 = C_body_to_ecef[2, 1]
-C_33 = C_body_to_ecef[2, 2]
+C_11 = C_body_to_ecef.T[0, 0]
+C_12 = C_body_to_ecef.T[0, 1]
+C_13 = C_body_to_ecef.T[0, 2]
+C_21 = C_body_to_ecef.T[1, 0]
+C_22 = C_body_to_ecef.T[1, 1]
+C_23 = C_body_to_ecef.T[1, 2]
+C_31 = C_body_to_ecef.T[2, 0]
+C_32 = C_body_to_ecef.T[2, 1]
+C_33 = C_body_to_ecef.T[2, 2]
 
 # (44)
 C_1 = (C_11 * C_32 - C_12 * C_31) * u + (C_21 * C_32 - C_22 * C_31) * v
 C_2 = (C_11 * C_22 - C_12 * C_21) * u + (C_22 * C_31 - C_21 * C_32) * w
 
 # (42) (43)
-q = (w_dot - a_b_e[2] + p * v - omega_e * C_1) / u
-r = (a_b_e[1] - v_dot + p * w + omega_e * C_2) / u
+q_new = (w_dot - a_b_e[2] + p * v - omega_e * C_1) / u
+r_new = (a_b_e[1] - v_dot + p * w + omega_e * C_2) / u
 
 # (46) NOTE: this is for a BTT missile
 
@@ -317,12 +357,211 @@ C_N_c = (a_c * mass) / q_bar * Sref
 phi_Ac = atan2(-a_c_y, -a_c_z)
 
 # (50)
-a_c = sqrt(a_c_y**2 + a_c_z**2)
+a_c_new = sqrt(a_c_y**2 + a_c_z**2)
+
+###########################################
+r_enu_m = Matrix(symbols("r_e, r_n, r_u"))
+eci0 = Matrix([Earth.radius_equatorial, 0, 0])
+ecef0 = C_eci_to_ecef * eci0
+lla0 = ecef_to_lla_sym(ecef0)
+lat, lon, alt = lla0
+
+C_ecef_to_enu = Matrix([
+    [-sin(lon), cos(lon), 0],  # type:ignore
+    [-sin(lat) * cos(lon), -sin(lat) * sin(lon), cos(lat)],  # type:ignore
+    [cos(lat) * cos(lon), cos(lat) * sin(lon), sin(lat)]  # type:ignore
+    ])
+
+r_ecef_m = C_eci_to_ecef * r_i_m
+r_enu_m_new = C_ecef_to_enu * (r_ecef_m - ecef0)
+
+# r_enu_new = eci_to_enu_sym(r_i_m, eci0, t)
+# v_enu_new = eci_to_enu_sym(v_i_m, eci0, t)
+
+thrust = 50_000.0
+# mass = 300.0
+alt = r_enu_m[2]
+alpha_total = aerotable.inv_aerodynamics(
+        thrust,  # type:ignore
+        a_c_new,
+        q_bar,
+        mass,
+        alpha,
+        phi,
+        M,
+        alt,
+        0.0,
+        )
+# thrust: float,
+# acc_cmd: np.ndarray,
+# dynamics_pressure: float,
+# mass: float,
+# alpha: Optional[ArgType] = None,
+# phi: Optional[ArgType] = None,
+# mach: Optional[ArgType] = None,
+# alt: Optional[ArgType] = None,
+# iota: Optional[ArgType] = None) -> float:
+###########################################
 
 # (51)
+alpha_c_out = atan2(tan(alpha_total), cos(phi_Ac))
+beta_c_out = atan2(tan(alpha_total), sin(phi_Ac))
+
+##################################################
+# Differential Definitions
+##################################################
+alt = (C_eci_to_body * r_i_m)[2]
+# gacc = atmosphere.grav_accel(alt)  # type:ignore
+gacc = -9.81
+g_b_m_new = (r_i_m / r_i_m.norm()) * gacc
+
+# CA_Boost = aerotable.get_CA_Boost(alpha, phi, M, alt)  # type:ignore
+# CNB = aerotable.get_CNB(alpha, phi, M)  # type:ignore
+# q_bar_new = atmosphere.dynamic_pressure(v_b_m, alt)  # type:ignore
+# Sref = aerotable.get_Sref()
+# Lref = aerotable.get_Lref()
+# force_z_aero = CNB * q_bar_new * Sref  # type:ignore
+# force_y_aero = CA_Boost * q_bar_new * Sref  # type:ignore
+# force_aero = Matrix([0, force_y_aero, force_z_aero])
 
 
+##################################################
+# NOTE: how to incorporate quaternion normaliztion
+#       into the dynamics. for integration processes
+#       with less accuracy lambda must be increased
+#       (i.e.) lambda = ~100 for euler-method.
+#       compared to lambda = ~1e-3 for runge-kutta
+##################################################
+lam = 1e-3
+q_m_dot_2 = q_m_dot - lam * (q_m.norm()**2 - 1.0) * q_m  # type:ignore
+##################################################
+
+defs = (
+       (q_m.diff(t), q_m_dot_2),
+       (r_i_m.diff(t), v_i_m),
+       (v_i_m.diff(t), C_body_to_eci * a_b_m),
+       (g_b_m, g_b_m_new),
+       (q, q_new),
+       (r, r_new),
+       (alpha_state, alpha_state_dot),
+       (beta_state, beta_state_dot),
+       (alpha_c, sp.Float(0.0)),
+       (beta_c, sp.Float(0)),
+       (omega_n, sp.Float(50)),
+       (zeta, sp.Float(0.7)),
+       )
+
+##################################################
+# Define State & Input Arrays
+##################################################
+# ------------------------------------------------
+# NOTE: when adding to state array:
+# ------------------------------------------------
+# - Functions wrt. time will be diff'd and be
+#   considered as part of the dynamics integration.
+#
+# - Symbols are treated as constants and get their
+#   value from Simobj.init_state()
+#
+# - Any relationship can be defined in the definition
+#   tuple above.
+# ------------------------------------------------
+
+state = Matrix([
+    q_m,
+    r_i_m,
+    v_i_m,
+    alpha_state,
+    beta_state,
+    p,
+    q,
+    r,
+    mass,
+    DirectUpdate(r_enu_m, r_enu_m_new),
+    a_b_m,
+    ])
+
+input = Matrix([
+    # DirectUpdate(f_b_A, force_aero),
+    f_b_A,
+    f_b_T,
+    ])
+
+##################################################
+# Define dynamics
+##################################################
+
+# state.subs(b4subs)
+
+dynamics = state.diff(t)
+
+# for i, j in zip(q_m.diff(t), q_m_dot):
+#     dynamics[0].subs(i, j)
+#     dynamics[1].subs(i, j)
+#     dynamics[2].subs(i, j)
+#     dynamics[3].subs(i, j)
+
+# quit()
+
+##################################################
+# Build Model
+##################################################
+# (state_vars,
+#  input_vars,
+#  dynamics_expr) = build_model(Matrix(state),
+#                               Matrix(input),
+#                               Matrix(dynamics),
+#                               defs)
+
+modules = {"ecef_to_lla_map": ecef_to_lla,
+           "ecef_to_enu_map": ecef_to_enu,
+           "ecef_to_eci_map": ecef_to_eci,
+           "eci_to_ecef_map": eci_to_ecef,
+           "eci_to_enu_map": eci_to_enu}
+
+model = MissileGenericMMD.from_expression(dt,
+                                          state,
+                                          input,
+                                          dynamics,
+                                          modules=[atmosphere.modules,
+                                                   aerotable.modules,
+                                                   modules],
+                                          definitions=defs)
+
+
+simobj = SimObject(model)
+q0 = [1, 0, 0, 0]
+r0 = [Earth.radius_equatorial, 0, 0]
+v0 = [0, 0, 0]
+alpha_state_0 = [0, 0]
+beta_state_0 = [0, 0]
+pqr0 = [0, 0, 0]
+mass0 = 300
+r_enu0 = [0, 0, 0]
+
+# simobj.init_state([q0, r0, v0, alpha0, beta0, p0])
+simobj.init_state([q0, r0, v0, alpha_state_0, beta_state_0, pqr0, mass0,
+                   r_enu0])
+
+sim = Sim(t_span=[0, 5], dt=0.01, simobjs=[simobj],
+          integrate_method="rk4")
+sim.run()
+
+print("quat:", simobj.Y[-1, :4])
+print("quat norm:", np.linalg.norm(simobj.Y[-1, :4]))
+print("r_i:", simobj.Y[-1, 4:7])
+print("v_i:", simobj.Y[-1, 7:10])
+print("alpha_state:", simobj.Y[-1, 10:12])
+print("beta_state:", simobj.Y[-1, 12:14])
+print("pqr:", simobj.Y[-1, 14:17])
+print("mass:", simobj.Y[-1, 17])
+print("r_enu:", simobj.Y[-1, 18:21])
 quit()
+
+################
+################
+################
+################
 ##################################################
 # States
 ##################################################
