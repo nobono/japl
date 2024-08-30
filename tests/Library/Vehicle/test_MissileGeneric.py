@@ -1,3 +1,4 @@
+import os
 import unittest
 import numpy as np
 import quaternion
@@ -11,6 +12,8 @@ from japl.Sim.Integrate import runge_kutta_4
 from japl.Aero.Atmosphere import Atmosphere
 from japl.Math import Rotation
 from japl.Math import Vec
+
+DIR = os.path.dirname(__file__)
 
 
 
@@ -90,7 +93,7 @@ class test_MissileGeneric(unittest.TestCase):
         self.dt = 0.01
         self.t_span = [0, 0.1]
         self.atmosphere = Atmosphere()
-        self.aerotable = AeroTable("./aeromodel/aeromodel_psb.mat")
+        self.aerotable = AeroTable(f"{DIR}/../../../aeromodel/aeromodel_psb.mat")
         # self.aerotable = AeroTable("../../../aeromodel/aeromodel_psb.mat")
 
 

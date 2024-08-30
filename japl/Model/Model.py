@@ -227,10 +227,12 @@ class Model:
         # first build model using provided definitions
         (state_vars,
          input_vars,
-         dynamics_expr) = BuildTools.build_model(Matrix(state_vars),
-                                                 Matrix(input_vars),
-                                                 Matrix(dynamics_expr),
-                                                 definitions)
+         dynamics_expr,
+         state_direct_updates,
+         input_direct_updates) = BuildTools.build_model(Matrix(state_vars),
+                                                        Matrix(input_vars),
+                                                        Matrix(dynamics_expr),
+                                                        definitions)
         model = cls()
         model._type = ModelType.Symbolic
         model.modules = model.__set_modules(modules)
@@ -241,8 +243,8 @@ class Model:
         model.dt_var = dt_var
         model.vars = (model.state_vars, model.input_vars, dt_var)
         model.dynamics_expr = dynamics_expr
-        model.direct_state_update_func = model.__process_direct_state_updates(model.state_vars)
-        model.direct_input_update_func = model.__process_direct_state_updates(model.input_vars)
+        model.direct_state_update_func = model.__process_direct_state_updates(state_direct_updates)
+        model.direct_input_update_func = model.__process_direct_state_updates(input_direct_updates)
         model.state_dim = len(model.state_vars)
         model.input_dim = len(model.input_vars)
         # create lambdified function from symbolic expression
@@ -427,7 +429,7 @@ class Model:
         return self.state_register.get_sym(name)
 
 
-    def __process_direct_state_updates(self, state_vars: Matrix):
+    def __process_direct_state_updates(self, direct_updates: Matrix):
         """This method creates an update function from a symbolic state
         Matrix. Any DirectUpdate elements will be updated using its
         substitution expression, "sub_expr", while Symbol & Function
@@ -443,16 +445,16 @@ class Model:
         -- (Callable) - lambdified sympy expression
         -------------------------------------------------------------------
         """
-        state_updates = []
-        for var in state_vars:  # type:ignore
-            if isinstance(var, DirectUpdateSymbol):
-                state_updates.append(var.sub_expr)
-            elif isinstance(var, Symbol):
-                state_updates.append(sp_nan)
-            elif isinstance(var, Function):
-                state_updates.append(sp_nan)
-            else:
-                raise Exception("unhandled case.")
+        # state_updates = []
+        # for var in state_vars:  # type:ignore
+        #     if isinstance(var, DirectUpdateSymbol):
+        #         state_updates.append(var.sub_expr)
+        #     elif isinstance(var, Symbol):
+        #         state_updates.append(sp_nan)
+        #     elif isinstance(var, Function):
+        #         state_updates.append(sp_nan)
+        #     else:
+        #         raise Exception("unhandled case.")
         t = Symbol('t')  # 't' variable needed to adhear to func argument format
-        update_func = Desym((t, *self.vars), Matrix(state_updates), modules=self.modules)
+        update_func = Desym((t, *self.vars), Matrix(direct_updates), modules=self.modules)
         return update_func
