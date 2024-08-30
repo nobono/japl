@@ -243,7 +243,7 @@ class SimObject:
         return True
 
 
-    def step(self, X: np.ndarray, U: np.ndarray, dt: float) -> np.ndarray:
+    def step(self, t: float, X: np.ndarray, U: np.ndarray, dt: float) -> np.ndarray:
         """This method is the update-step of the SimObject dynamic model. It calls
         the SimObject Model's step() function.
 
@@ -260,7 +260,7 @@ class SimObject:
         -------------------------------------------------------------------
         """
         # self.update(X)
-        return self.model.step(X, U, dt)
+        return self.model.step(t, X, U, dt)
 
 
     def update(self, X: np.ndarray):

@@ -25,7 +25,7 @@ class Sim:
         self.dt = dt
         self.simobjs = simobjs
         self.events = kwargs.get("events", [])
-        self.integrate_method = kwargs.get("integrate_method", "odeint")
+        self.integrate_method = kwargs.get("integrate_method", "rk4")
         assert self.integrate_method in ["odeint", "euler", "rk4"]
 
         # setup time array
@@ -110,7 +110,7 @@ class Sim:
         # force = np.array([1000*lx, 0, 1000*ly])
         # acc_ext = acc_ext + force / mass
         ########################################################
-        Xdot = simobj.step(X, U, dt)
+        Xdot = simobj.step(t, X, U, dt)
         return Xdot
 
 

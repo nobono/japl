@@ -246,13 +246,14 @@ class Model:
         model.state_dim = len(model.state_vars)
         model.input_dim = len(model.input_vars)
         # create lambdified function from symbolic expression
+        dyn_vars = (Symbol("t"),) + model.vars
         match dynamics_expr.__class__():  # type:ignore
             case Expr():
-                model.dynamics_func = Desym(model.vars, dynamics_expr, modules=model.modules)
+                model.dynamics_func = Desym(dyn_vars, dynamics_expr, modules=model.modules)
             case Matrix():
-                model.dynamics_func = Desym(model.vars, dynamics_expr, modules=model.modules)
+                model.dynamics_func = Desym(dyn_vars, dynamics_expr, modules=model.modules)
             case MatrixSymbol():
-                model.dynamics_func = Desym(model.vars, dynamics_expr, modules=model.modules)
+                model.dynamics_func = Desym(dyn_vars, dynamics_expr, modules=model.modules)
             case _:
                 raise Exception("function provided is not Callable.")
         return model
@@ -294,7 +295,7 @@ class Model:
             return np.empty([])
 
 
-    def step(self, X: np.ndarray, U: np.ndarray, dt: float) -> np.ndarray:
+    def step(self, t: float, X: np.ndarray, U: np.ndarray, dt: float) -> np.ndarray:
         """This method is the step method of Model over a single time step.
 
         -------------------------------------------------------------------
@@ -313,7 +314,7 @@ class Model:
         # self.__update_A_matrix_exprs(self.A, X)
         # return self.A @ X + self.B @ U
         # return self.dynamics_func(X, U).flatten()
-        return self(X, U, dt)
+        return self(t, X, U, dt)
 
 
     def get_state_id(self, names: str|list[str]) -> int|list[int]:
