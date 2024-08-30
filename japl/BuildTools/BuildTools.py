@@ -4,6 +4,8 @@ from sympy import Derivative
 from japl.Model.StateRegister import StateRegister
 from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
 from pprint import pformat
+import threading
+from functools import partial
 
 
 
@@ -21,6 +23,11 @@ def build_model(state: Matrix,
     Notes:
         - state and input arrays must maintain their symbolic name.
     """
+
+    print("=" * 50)
+    print("building model...")
+    print("=" * 50)
+
     # state & input array checks
     _check_var_array_types(state, "state")
     _check_var_array_types(input, "input")
@@ -32,34 +39,173 @@ def build_model(state: Matrix,
     state_subs = _create_symbol_subs(state)
     input_subs = _create_symbol_subs(input)
 
+    print("applying state & input substitions to definitions...")
+    # apply state & input subs to defs
+    # NOTE: idea here is that Function in state
+    # become Symbols with states_subs. This then
+    # needs to be applied to the definitions provided.
+    for key in def_subs.keys():
+        # NOTE: also sub itself after subbing state & input
+        # (order here is important) to deal with recursive
+        # definitions
+        _defs = def_subs[key].subs(state_subs).subs(input_subs).subs(def_subs)
+        def_subs[key] = _defs
+
     # apply definitions sub to state & input
-    _apply_definitions_to_array(state, def_subs)
-    _apply_definitions_to_array(input, def_subs)
+    # TODO: do you need this or not?
+    # NOTE: This looks like its for putting a symbol/Matrix
+    # in the state array then a definition for said symbol/Matrix
+    # in defs_subs...
+    # _apply_definitions_to_array(state, def_subs)
+    # _apply_definitions_to_array(input, def_subs)
 
     all_subs = {}
     all_subs.update(def_subs)
     all_subs.update(state_subs)
     all_subs.update(input_subs)
-    all_subs = _apply_subs_to_dict(all_subs)
+    # all_subs = _apply_subs_to_dict(all_subs)
 
-    _apply_subs_to_direct_updates(state, state_subs)
-    _apply_subs_to_direct_updates(input, state_subs)
-    _apply_subs_to_direct_updates(state, input_subs)
-    _apply_subs_to_direct_updates(input, input_subs)
+    # _apply_subs_to_direct_updates(state, state_subs)
+    # _apply_subs_to_direct_updates(input, state_subs)
+    # _apply_subs_to_direct_updates(state, input_subs)
+    # _apply_subs_to_direct_updates(input, input_subs)
 
     ###################################
 
     # apply subs to dynamics
+    print("applying initial dynamics substitions...")
     dynamics = dynamics.subs(all_subs).doit()
 
+    # default symbols imposed by Sim
+    t = Symbol("t")
+    dt = Symbol("dt")
+
+    ############################################################
+    # convert any Functions left in state array to Symbols
+    ############################################################
+    print("applying state substitions...")
+    state_function_subs = []
+    state_function_set = state.atoms(Function)
+    state_direct_update_set = state.atoms(DirectUpdateSymbol)
+    # gather functions from direct updates' sub_expr
+    for du in state_direct_update_set:
+        state_function_set.update(du.sub_expr.atoms(Function))
+    # filter for user-defined functions wrt. time (i.e.) with args (t)
+    t_functions = [i for i in state_function_set if hasattr(i, "name") and (i.args == (t,))]
+    for func in t_functions:
+        state_function_subs += [(func, Symbol(func.name))]
+    # subs for DirectUpdateSymbols
+    for var in state:
+        if isinstance(var, DirectUpdateSymbol):
+            var.sub_expr = var.sub_expr.subs(state_function_subs)  # type:ignore
+    state = state.subs(state_function_subs)
+
+    ############################################################
+    # convert any Functions left in state input to Symbols
+    ############################################################
+    print("applying input substitions...")
+    input_function_subs = []
+    input_function_set = input.atoms(Function)
+    input_direct_update_set = input.atoms(DirectUpdateSymbol)
+    # gather functions from direct updates' sub_expr
+    for du in input_direct_update_set:
+        input_function_set.update(du.sub_expr.atoms(Function))
+    # filter for user-defined functions wrt. time (i.e.) with args (t)
+    t_functions = [i for i in input_function_set if hasattr(i, "name") and (i.args == (t,))]
+    for func in t_functions:
+        input_function_subs += [(func, Symbol(func.name))]
+    # subs for DirectUpdateSymbols
+    for var in input:
+        if isinstance(var, DirectUpdateSymbol):
+            var.sub_expr = var.sub_expr.subs(input_function_subs)  # type:ignore
+    input = input.subs(input_function_subs)
+
+    ############################################################
+    # convert any Functions left in dynamics to Symbols
+    # replace any function that is a function of only 't': func(t)
+    # NOTE:
+    # - dont want to replace atmosphere_get(var(t))
+    #   only replace "var(t)" with "var"
+    ############################################################
+
+    def sub_func(expr, subs: list, id: int, result: list):
+        # result[id] = expr.subs(subs)
+        for sub in subs:
+            expr = expr.subs(sub)
+        result[id] = expr
+        # NOTE: verbose options
+        # njobs_done = len([i for i in result if i is not None])
+        # njobs = len(result)
+        # complete = njobs_done / njobs
+        # print("%.1f" % (complete * 100.0))
+
+    dynamics_function_subs = []
+    for row in dynamics:
+        row_funcs = [arg for arg in row.atoms(Function)]  # type:ignore
+        # only looking for user-defined funcs
+        usr_row_funcs = [i for i in row_funcs if hasattr(i, "name") and (i.args == (t,))]
+        for func in usr_row_funcs:
+            dynamics_function_subs += [(func, Symbol(func.name))]
+    # convert back to list
+    # dynamics_function_subs = [i for i in dynamics_function_subs]
+
+    print("starting threads for dynamics substitions...")
+    # NOTE: dynamics matrix can be complex use threading
+    # to speed up substitions
+    thread_results = [None] * int(dynamics.shape[0])
+    thread_funcs = [partial(sub_func, expr, [dynamics_function_subs, state_function_subs], i, thread_results)
+                    for i, expr in enumerate(dynamics)]  # type:ignore
+    threads = [threading.Thread(target=func) for func in thread_funcs]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    dynamics = Matrix(thread_results)
+
+    # dynamics = dynamics.subs(dynamics_function_subs)
+
+    ############################################################
     # check for any undefined differential expresion in dynamics
-    _check_dynamics_for_undefined_diffs(dynamics)
-    _check_dynamics_for_undefined_function(dynamics, state)
+    ############################################################
+    print("doing model checks...")
+    dynamic_functions = [i for i in dynamics.atoms(Function) if hasattr(i, "name") and (i.args == (t,))]
+    if dynamic_functions:
+        raise Exception(f"Undefined Functions found in dynamics matrix:\n{dynamic_functions}")
+
+    # gather symbols from direct updates
+    # NOTE: conversion to str since sympy vars being hashable is unknown right now
+    direct_update_symbols = set()
+    direct_update_symbols.update(set([i.name for i in state_direct_update_set]))
+    direct_update_symbols.update(set([i.name for i in input_direct_update_set]))
+
+    # gather symbols from dynamics
+    dynamics_symbols = set([i.name for i in dynamics.atoms(Symbol)])
+
+    total_symbols = set()
+    total_symbols.update(dynamics_symbols)
+    total_symbols.update(direct_update_symbols)
+
+    # subtract defined symbols in the state & input arrays
+    state_symbols = [i.name for i in state]  # type:ignore
+    input_symbols = [i.name for i in input]  # type:ignore
+    undefined_symbols = total_symbols.difference(set(state_symbols)).difference(set(input_symbols))
+    # ignore default symbols (t, dt)
+    undefined_symbols = undefined_symbols.difference({t.name, dt.name})
+
+    if undefined_symbols:
+        wrap_str = f"\n\n{'=' * 50}\n"
+        Warning(f"{wrap_str}\nUndefined Symbols found in model:\n{undefined_symbols}{wrap_str}")
+        breakpoint()
+
+    ############################################################
+    # _check_dynamics_for_undefined_diffs(dynamics)
+    # _check_dynamics_for_undefined_function(dynamics, state)
 
     # write_array(state, "./temp_state.py")
     # write_array(input, "./temp_input.py")
     # write_array(dynamics, "./temp_dynamics.py")
 
+    print("=" * 50, end="\n\n")
     return (state, input, dynamics)
 
 
