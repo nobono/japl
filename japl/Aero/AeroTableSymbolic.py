@@ -10,8 +10,8 @@ class AeroTableSymbolic:
     which can be used for creating models from symblic expressions."""
 
 
-    def __init__(self, data: str|dict|MatFile) -> None:
-        self.aerotable = AeroTable(data)
+    def __init__(self, data: str|dict|MatFile, from_template: str = "", units: str = "si") -> None:
+        self.aerotable = AeroTable(data, from_template=from_template, units=units)
         self.modules = {
                 "aerotable_get_CA_Boost": self.aerotable.get_CA_Boost,
                 "aerotable_get_CA_Coast": self.aerotable.get_CA_Coast,
@@ -25,6 +25,7 @@ class AeroTableSymbolic:
                 "aerotable_get_CA_Boost_alpha": self.aerotable.get_CA_Boost_alpha,
                 "aerotable_get_CA_Coast_alpha": self.aerotable.get_CA_Coast_alpha,
                 "aerotable_get_CNB_alpha": self.aerotable.get_CNB_alpha,
+                "aerotable_inv_aerodynamics": self.aerotable.inv_aerodynamics,
                 }
         self.get_CA_Boost = Function("aerotable_get_CA_Boost")
         self.get_CA_Coast = Function("aerotable_get_CA_Coast")
@@ -38,3 +39,4 @@ class AeroTableSymbolic:
         self.get_CA_Boost_alpha = Function("aerotable_get_CA_Boost_alpha")
         self.get_CA_Coast_alpha = Function("aerotable_get_CA_Coast_alpha")
         self.get_CNB_alpha = Function("aerotable_get_CNB_alpha")
+        self.inv_aerodynamics = Function("aerotable_inv_aerodynamics")

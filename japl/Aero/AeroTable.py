@@ -142,6 +142,8 @@ class AeroTable:
     __inch_sq_2_m_sq = (1.0 * u.imperial.inch**2).to_value(u.m**2)  # type:ignore
 
     def __init__(self, data: str|dict|MatFile, from_template: str = "", units: str = "si") -> None:
+        self.units = units
+
         # load table from dict or MatFile
         data_dict = {}
         if isinstance(data, str):
@@ -495,6 +497,77 @@ class AeroTable:
     #                    method=method)[0]
 
 
+    def inv_aerodynamics(self,
+                         thrust: float,
+                         acc_cmd: np.ndarray,
+                         dynamic_pressure: float,
+                         mass: float,
+                         alpha: Optional[ArgType] = None,
+                         phi: Optional[ArgType] = None,
+                         mach: Optional[ArgType] = None,
+                         alt: Optional[ArgType] = None,
+                         iota: Optional[ArgType] = None) -> float:
+        if self.units.lower() == "si":
+            alpha_tol = np.radians(0.01)
+        else:
+            alpha_tol = 0.01
+
+        cos = np.cos
+        sin = np.sin
+
+        deg2rad = np.deg2rad(1)
+        alphaTotal = alpha
+        alphaMax = np.radians(35.0)
+        Sref = self.get_Sref()
+        am_c = acc_cmd
+        qBar = dynamic_pressure
+
+        # Alpha tolerance (deg)
+        alpha_tol = .01 * np.radians(1)
+        # alpha_tol = 1e-16
+        # Initialize angle of attack
+        alpha_0 = alphaTotal
+        # Last alpha
+        alpha_last = -1000
+        # Interation counter
+        cnt = 0
+
+        # Gradient search - fixed number of steps
+        while ((abs(alpha_0 - alpha_last) > alpha_tol) and (cnt < 10)):  # type:ignore
+            # Update iteration counter
+            cnt = cnt + 1
+
+            # Update last alpha
+            alpha_last = alpha_0
+
+            # Get derivative of cn wrt alpha
+            ca = self.get_CA_Boost(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            cn = self.get_CNB(alpha=alpha, phi=phi, mach=mach, iota=iota)
+            ca_alpha = self.get_CA_Boost_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            cn_alpha = self.get_CNB_alpha(alpha=alpha, phi=phi, mach=mach, iota=iota)
+            cosa = cos(alpha)  # type:ignore
+            sina = sin(alpha)  # type:ignore
+            cl = (cn * cosa) - (ca * sina)
+            cd = (cn * sina) + (ca * cosa)
+            cl_alpha = ((cn_alpha - (ca * deg2rad)) * cosa) - ((ca_alpha + (cn * deg2rad)) * sina)
+            cd_alpha = ((ca_alpha + (cn * deg2rad)) * cosa) + ((cn_alpha - (ca * deg2rad)) * sina)
+
+            # Get derivative of missile acceleration normal to flight path wrt alpha
+            # d_alpha = alpha_0 - alphaTotal  # type:ignore
+            am_alpha = cl_alpha * qBar * Sref / mass + thrust * cos(alpha_0) / mass
+            am_0 = cl * qBar * Sref / mass + thrust * sin(alpha_0) / mass
+
+            # Update angle of attack
+            alpha_0 = alpha_0 + (am_c - am_0) / am_alpha
+
+            # Bound angle of attack
+            alpha_0 = max(0, min(alpha_0, alphaMax))
+
+        aoa = alpha_0
+
+        return aoa  # type:ignore
+
+
     def get_CA_Boost(self,
                      alpha: Optional[ArgType] = None,
                      phi: Optional[ArgType] = None,
@@ -568,9 +641,8 @@ class AeroTable:
                       alpha: Optional[ArgType] = None,
                       phi: Optional[ArgType] = None,
                       mach: Optional[ArgType] = None,
-                      alt: Optional[ArgType] = None,
                       iota: Optional[ArgType] = None) -> float|np.ndarray:
-        return self.CNB_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+        return self.CNB_alpha(alpha=alpha, phi=phi, mach=mach, iota=iota)
 
 
     def _get_table_args(self, table: DataTable, **kwargs) -> tuple:
