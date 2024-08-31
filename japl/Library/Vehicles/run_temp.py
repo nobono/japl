@@ -22,7 +22,7 @@ with open(f"{DIR}/mmd.pickle", 'rb') as f:
 simobj = SimObject(model)
 q0 = [1, 0, 0, 0]
 r0 = [Earth.radius_equatorial, 0, 0]
-v0 = dcm_ecef_to_enu.T @ np.array([0, 300, 600])
+v0 = dcm_ecef_to_enu.T @ np.array([0, 0, 0])
 alpha_state_0 = [0, 0]
 beta_state_0 = [0, 0]
 p0 = 0
@@ -31,6 +31,20 @@ r_enu0 = [0, 0, 0]
 v_enu0 = [0, 0, 0]
 a_enu0 = [0, 0, 0]
 mach0 = np.linalg.norm(v0) / 343.0
+
+
+# Earth-relative velocity vector
+omega_e = Earth.omega
+C_eci_to_ecef = np.array([
+    [np.cos(0), np.sin(0), 0],   # type:ignore
+    [-np.sin(0), np.cos(0), 0],  # type:ignore
+    [0, 0, 1]])
+omega_skew_ie = np.array([
+    [0, -omega_e, 0],
+    [omega_e, 0, 0],
+    [0, 0, 0],
+    ])
+# v0 = C_eci_to_ecef @ v0 - omega_skew_ie @ (C_eci_to_ecef @ r0)
 
 # simobj.init_state([q0, r0, v0, alpha0, beta0, p0])
 simobj.init_state([q0, r0, v0,
@@ -46,7 +60,7 @@ plotter = PyQtGraphPlotter(frame_rate=30,
                            # xlim=[0, 20],
                            )
 
-sim = Sim(t_span=[0, 100], dt=0.01, simobjs=[simobj],
+sim = Sim(t_span=[0, 1], dt=0.01, simobjs=[simobj],
           integrate_method="rk4")
 sim.run()
 
@@ -61,6 +75,9 @@ print("mass:", simobj.Y[-1, 15])
 print("r_enu:", simobj.Y[-1, 16:19])
 print("v_enu:", simobj.Y[-1, 19:22])
 print("a_enu:", simobj.Y[-1, 22:25])
+print("mach:", simobj.Y[-1, 25])
+
+# print(simobj.Y[0, 19:22], np.linalg.norm(simobj.Y[0, 19:22]) / 343)
 
 simobj.plot.set_config({
     # "E": {
@@ -103,10 +120,10 @@ simobj.plot.set_config({
     #     "yaxis": 'r_n'
     #     },
     })
-plotter.animate(sim)
+# plotter.animate(sim)
 # plotter.plot_obj(simobj)
 # plotter.plot(sim.T, simobj.Y[:, 20])
 # plotter.plot(simobj.Y[:, 18], simobj.Y[:, 20])
 # plotter.plot(simobj.Y[:, 18], simobj.Y[:, 19])
 # plotter.plot(simobj.Y[:, 4], simobj.Y[:, 6])
-plotter.show()
+# plotter.show()
