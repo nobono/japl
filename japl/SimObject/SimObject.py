@@ -289,7 +289,7 @@ class SimObject:
         self.X0 = _X0
 
 
-    def get_plot_data(self, subplot_id: int, index: int) -> tuple[np.ndarray, np.ndarray]:
+    def get_plot_data(self, subplot_id: int, index: Optional[int]) -> tuple[np.ndarray, np.ndarray]:
         """This method returns state data from the SimObject according
         to the user specified state_select."""
 
@@ -305,7 +305,7 @@ class SimObject:
     def _get_data(self, index: Optional[int], state_slice: tuple[int, int]|int|str) -> np.ndarray:
         """This method returns state data from the SimObject."""
 
-        if index is None:
+        if index is None or index == -1:
             index = len(self.Y) - 1
         else:
             index += 1  # instead of grabbin "up-to" index, grab last index as well

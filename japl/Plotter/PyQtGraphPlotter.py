@@ -49,6 +49,8 @@ class PyQtGraphPlotter:
         self.draw_cache_mode: bool = kwargs.get("draw_cache_mode", False)
         self.frame_rate: float = kwargs.get("frame_rate", 10)
         self.moving_bounds: bool = kwargs.get("moving_bounds", False)
+        self.xlim: list = kwargs.get("xlim", [])
+        self.ylim: list = kwargs.get("ylim", [])
 
         # debug
         self.quiet = kwargs.get("quiet", False)
@@ -339,6 +341,12 @@ class PyQtGraphPlotter:
 
         pen = {"color": color_code, "width": size}
         plot_item = win.addPlot(row=row, col=col, colspan=2, title=title, name=title)
+        if self.xlim:
+            plot_item.setRange(xRange=self.xlim)
+        if self.ylim:
+            plot_item.setRange(yRange=self.ylim)
+        # enable autorange
+        # plot_item.enableAutoRange(axis='xy', enable=True)
         self.__apply_style_settings_to_plot(plot_item)
         graphic_item = PlotDataItem(x=[],
                                     y=[],
@@ -621,6 +629,15 @@ class PyQtGraphPlotter:
 
     # def setup_time_slider(self, Nt: int, _simobjs: list[SimObject]) -> None:
     #     pass
+
+
+    def plot_obj(self, simobj: SimObject, **kwargs):
+        self.add_simobject(simobj)
+        for subplot_id in range(len(simobj.plot.get_config())):
+            # get data from SimObject based on state_select user configuration
+            # NOTE: can pass QPen to _update_patch_data
+            xdata, ydata = simobj.get_plot_data(subplot_id, index=-1)
+            simobj._update_patch_data(xdata, ydata, subplot_id=subplot_id)
 
 
     def plot(self,
