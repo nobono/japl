@@ -5,15 +5,15 @@ from japl import Sim
 from japl import SimObject
 from japl import PyQtGraphPlotter
 from japl.Library.Earth.Earth import Earth
-from japl.Math.Rotation import eci_to_enu
+from japl.Math.Rotation import eci_to_enu, eci_to_ecef
 
 DIR = os.path.dirname(__file__)
 
 
 
-dcm_ecef_to_enu = np.array([[-np.sin(0), np.cos(0), 0],
-                            [-np.sin(0) * np.cos(0), -np.sin(0) * np.sin(0), np.cos(0)],
-                            [np.cos(0) * np.cos(0), np.cos(0) * np.sin(0), np.sin(0)]])
+# dcm_ecef_to_enu = np.array([[-np.sin(0), np.cos(0), 0],
+#                             [-np.sin(0) * np.cos(0), -np.sin(0) * np.sin(0), np.cos(0)],
+#                             [np.cos(0) * np.cos(0), np.cos(0) * np.sin(0), np.sin(0)]])
 
 
 with open(f"{DIR}/mmd.pickle", 'rb') as f:
@@ -22,7 +22,7 @@ with open(f"{DIR}/mmd.pickle", 'rb') as f:
 simobj = SimObject(model)
 q0 = [1, 0, 0, 0]
 r0 = [Earth.radius_equatorial, 0, 0]
-v0 = dcm_ecef_to_enu.T @ np.array([0, 0, 0])
+v0 = eci_to_enu(np.array([0, 0, 0]), np.zeros(3), t=0)
 alpha_state_0 = [0, 0]
 beta_state_0 = [0, 0]
 p0 = 0
