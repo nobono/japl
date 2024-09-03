@@ -5,7 +5,7 @@ from sympy import Derivative
 from japl.Model.StateRegister import StateRegister
 from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
 from pprint import pformat
-import multiprocessing as mp
+from multiprocess import Pool  # type:ignore
 import dill as pickle
 
 
@@ -132,7 +132,7 @@ def build_model(state: Matrix,
     # for k, v in def_subs.items():
     #     def_subs[k] = v.subs(state_subs).subs(input_subs)
 
-    with mp.Pool(processes=nproc) as pool:
+    with Pool(processes=nproc) as pool:
         args = [(pickle.dumps((key, expr)),
                  [pickle.dumps(state_subs),
                   pickle.dumps(input_subs),
@@ -148,7 +148,7 @@ def build_model(state: Matrix,
     print("applying substitions to dynamics...")
     # dynamics = dynamics.subs(def_subs)
     # dynamics = dynamics.subs(state_subs).subs(input_subs)
-    with mp.Pool(processes=nproc) as pool:
+    with Pool(processes=nproc) as pool:
         subs = [pickle.dumps(def_subs),
                 pickle.dumps(state_subs),
                 pickle.dumps(input_subs)]
