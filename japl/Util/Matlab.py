@@ -11,11 +11,11 @@ and saving them to a .pickle"""
 
 
 
-__ft2m = (1.0 * u.imperial.foot).to_value(u.m)  # type:ignore
-__inch2m = (1.0 * u.imperial.inch).to_value(u.m)  # type:ignore
-__inch_sq2m_sq = (1.0 * u.imperial.inch**2).to_value(u.m**2)  # type:ignore
-__deg2rad = (np.pi / 180.0)
-__lbminch2Nm = (1.0 * u.imperial.lbm * u.imperial.inch**2).to_value(u.kg * u.m**2)  # type:ignore
+# __ft2m = (1.0 * u.imperial.foot).to_value(u.m)  # type:ignore
+# __inch2m = (1.0 * u.imperial.inch).to_value(u.m)  # type:ignore
+# __inch_sq2m_sq = (1.0 * u.imperial.inch**2).to_value(u.m**2)  # type:ignore
+# __deg2rad = (np.pi / 180.0)
+# __lbminch2Nm = (1.0 * u.imperial.lbm * u.imperial.inch**2).to_value(u.kg * u.m**2)  # type:ignore
 
 
 # matfile = loadmat(__aero_data_path)
