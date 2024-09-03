@@ -54,8 +54,8 @@ def swap_to_correct_axes(array: np.ndarray, labels: list[str]) -> np.ndarray:
 
 # TODO: do this better?
 def from_CMS_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|dict, tuple]:
-    # __ft2m = (1.0 * u.imperial.foot).to_value(u.m)  # type:ignore
-    __deg2rad = (np.pi / 180.0)
+    # ft2m = (1.0 * u.imperial.foot).to_value(u.m)  # type:ignore
+    deg2rad = (np.pi / 180.0)
 
     convert_key_map = [
                        ("Alpha", "alpha"),
@@ -81,9 +81,14 @@ def from_CMS_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|dict,
     mach = data.get("Mach", None)
     alt = data.get("Alt", None)
 
+    ############################################################
+    # Convert to SI units
+    # NOTE: CMS stores aerodata length units as meters so
+    # no SI conversion needed
+    ############################################################
+
     if units.lower() == "si":
-        alpha = alpha * __deg2rad
-        alt = alt  # * __ft2m  # NOTE: CMS may already have alt in meters
+        alpha = alpha * deg2rad
 
     alpha = alpha.astype(np.float64)
     mach = mach.astype(np.float64)
@@ -94,13 +99,17 @@ def from_CMS_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|dict,
     CA_axes = {"mach": mach, "alt": alt}                        # CA-coeff table shape
     IT_axes = {"alpha": alpha, "mach": mach}                    # fin-increment table shape
     CA_Total_axes = {"alpha": alpha, "mach": mach, "alt": alt}  # CA-coeff total table shape
+
     table_axis_axes = (Basic_axes, CA_axes, IT_axes, CA_Total_axes)
     return (data, table_axis_axes)
 
 
 def from_default_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|dict, tuple]:
-    __ft2m = (1.0 * u.imperial.foot).to_value(u.m)  # type:ignore
-    __deg2rad = (np.pi / 180.0)
+    ft2m = (1.0 * u.imperial.foot).to_value(u.m)  # type:ignore
+    inch2m = (1.0 * u.imperial.inch).to_value(u.m)  # type:ignore
+    deg2rad = (np.pi / 180.0)
+    # lbminch2Nm = (1.0 * u.imperial.lbm * u.imperial.inch**2).to_value(u.kg * u.m**2)  # type:ignore
+    inch_sq_2_m_sq = (1.0 * u.imperial.inch**2).to_value(u.m**2)  # type:ignore
 
     alpha = data.get("Alpha", None)
     phi = data.get("Phi", None)
@@ -109,11 +118,32 @@ def from_default_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|d
     iota = data.get("Iota", None)
     # iota_prime = data.get("Iota_Prime", None)
 
+    ############################################################
+    # Convert to SI units
+    # TODO make input and ouput of units better...
+    # NOTE: currently aero data available is in imperial units
+    ############################################################
+    if "Sref" in data:
+        Sref = getattr(data, "Sref")
+        setattr(data, "Sref", Sref * inch_sq_2_m_sq)
+    else:
+        raise Exception("aerodata has no \"Sref\" attribute")
+    if "Lref" in data:
+        Sref = getattr(data, "Lref")
+        setattr(data, "Lref", Sref * inch2m)
+    else:
+        raise Exception("aerodata has no \"Lref\" attribute")
+    if "MRC" in data:
+        Sref = getattr(data, "MRC")
+        setattr(data, "MRC", Sref * inch2m)
+    else:
+        raise Exception("aerodata has no \"MRC\" (Missile Reference Center) attribute")
+
     if units.lower() == "si":
-        alpha = alpha * __deg2rad
-        phi = phi * __deg2rad
-        alt = alt * __ft2m
-        iota = iota * __deg2rad
+        alpha = alpha * deg2rad
+        phi = phi * deg2rad
+        alt = alt * ft2m
+        iota = iota * deg2rad
 
     alpha = alpha.astype(np.float64)
     phi = phi.astype(np.float64)
@@ -135,11 +165,11 @@ class AeroTable:
     """This class is for containing Aerotable data for a particular
     SimObject."""
 
-    __ft2m = (1.0 * u.imperial.foot).to_value(u.m)  # type:ignore
-    __inch2m = (1.0 * u.imperial.inch).to_value(u.m)  # type:ignore
-    __deg2rad = (np.pi / 180.0)
-    __lbminch2Nm = (1.0 * u.imperial.lbm * u.imperial.inch**2).to_value(u.kg * u.m**2)  # type:ignore
-    __inch_sq_2_m_sq = (1.0 * u.imperial.inch**2).to_value(u.m**2)  # type:ignore
+    # __ft2m = (1.0 * u.imperial.foot).to_value(u.m)  # type:ignore
+    # __inch2m = (1.0 * u.imperial.inch).to_value(u.m)  # type:ignore
+    # __deg2rad = (np.pi / 180.0)
+    # __lbminch2Nm = (1.0 * u.imperial.lbm * u.imperial.inch**2).to_value(u.kg * u.m**2)  # type:ignore
+    # __inch_sq_2_m_sq = (1.0 * u.imperial.inch**2).to_value(u.m**2)  # type:ignore
 
     def __init__(self, data: str|dict|MatFile, from_template: str = "", units: str = "si") -> None:
         self.units = units
@@ -194,9 +224,9 @@ class AeroTable:
         _CLNB = data_dict.get("CLNB", None)          # (alpha, phi, mach, iota)
         _CYB = data_dict.get("CYB", None)            # (alpha, phi, mach, iota)
 
-        Sref = data_dict.get("Sref", 0)
-        Lref = data_dict.get("Lref", 0)
-        MRC = data_dict.get("MRC", 0)
+        self.Sref = data_dict.get("Sref", 0.0)  # surface area reference
+        self.Lref = data_dict.get("Lref", 0.0)  # length reference
+        self.MRC = data_dict.get("MRC", 0.0)    # missile reference center
 
         ############################################################
         # Initialize as DataTables
@@ -222,6 +252,25 @@ class AeroTable:
          IT_axes,
          CA_Total_axes) = table_axis_axes
 
+        # store increments for ease of access
+        _total_axes = {}
+        _total_axes.update(Basic_axes)
+        _total_axes.update(CA_axes)
+        _total_axes.update(IT_axes)
+        _total_axes.update(CA_Total_axes)
+        self.increments = Increments()
+        if "alpha" in _total_axes:
+            self.increments.alpha = _total_axes["alpha"]
+        if "phi" in _total_axes:
+            self.increments.phi = _total_axes["phi"]
+        if "mach" in _total_axes:
+            self.increments.mach = _total_axes["mach"]
+        if "alt" in _total_axes:
+            self.increments.alt = _total_axes["alt"]
+        if "iota" in _total_axes:
+            self.increments.iota = _total_axes["iota"]
+
+        # create DataTables
         self.CA_inv = DataTable(_CA_inv, Basic_axes)
         self.CA_Basic = DataTable(_CA_Basic, Basic_axes)
         self.CA_0_Boost = DataTable(_CA_0_Boost, CA_axes)
@@ -250,15 +299,6 @@ class AeroTable:
         self.CLMB = DataTable(_CLMB, IT_axes)
         self.CLNB = DataTable(_CLNB, IT_axes)
         self.CYB = DataTable(_CYB, IT_axes)
-
-        ############################################################
-        # Convert to SI units
-        # TODO make input and ouput of units better...
-        # NOTE: currently aero data available is in imperial units
-        ############################################################
-        self.Sref = Sref * self.__inch_sq_2_m_sq
-        self.Lref = Lref * self.__inch2m
-        self.MRC = MRC * self.__inch2m
 
         # MRC may be a float or array
         # TODO: maybe do this better
@@ -499,73 +539,54 @@ class AeroTable:
 
     def inv_aerodynamics(self,
                          thrust: float,
-                         acc_cmd: np.ndarray,
+                         acc_cmd: float,
                          dynamic_pressure: float,
                          mass: float,
-                         alpha: Optional[ArgType] = None,
-                         phi: Optional[ArgType] = None,
-                         mach: Optional[ArgType] = None,
-                         alt: Optional[ArgType] = None,
-                         iota: Optional[ArgType] = None) -> float:
+                         alpha: float,
+                         phi: Optional[float] = None,
+                         mach: Optional[float] = None,
+                         alt: Optional[float] = None,
+                         iota: Optional[float] = None) -> float:
         if self.units.lower() == "si":
             alpha_tol = np.radians(0.01)
         else:
             alpha_tol = 0.01
 
-        cos = np.cos
-        sin = np.sin
-
-        deg2rad = np.deg2rad(1)
-        alphaTotal = alpha
-        alphaMax = np.radians(35.0)
+        alpha_max = max(self.increments.alpha)
         Sref = self.get_Sref()
-        am_c = acc_cmd
-        qBar = dynamic_pressure
 
-        # Alpha tolerance (deg)
-        alpha_tol = .01 * np.radians(1)
-        # alpha_tol = 1e-16
-        # Initialize angle of attack
-        alpha_0 = alphaTotal
-        # Last alpha
         alpha_last = -1000
-        # Interation counter
-        cnt = 0
+        count = 0
 
-        # Gradient search - fixed number of steps
-        while ((abs(alpha_0 - alpha_last) > alpha_tol) and (cnt < 10)):  # type:ignore
-            # Update iteration counter
-            cnt = cnt + 1
+        # gradient search
+        while ((abs(alpha - alpha_last) > alpha_tol) and (count < 10)):  # type:ignore
+            count += 1
+            alpha_last = alpha
 
-            # Update last alpha
-            alpha_last = alpha_0
+            # get coeffs from aerotable
+            CA = self.get_CA_Boost(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            CN = self.get_CNB(alpha=alpha, phi=phi, mach=mach, iota=iota)
+            CA_alpha = self.get_CA_Boost_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            CN_alpha = self.get_CNB_alpha(alpha=alpha, phi=phi, mach=mach, iota=iota)
 
-            # Get derivative of cn wrt alpha
-            ca = self.get_CA_Boost(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
-            cn = self.get_CNB(alpha=alpha, phi=phi, mach=mach, iota=iota)
-            ca_alpha = self.get_CA_Boost_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
-            cn_alpha = self.get_CNB_alpha(alpha=alpha, phi=phi, mach=mach, iota=iota)
-            cosa = cos(alpha)  # type:ignore
-            sina = sin(alpha)  # type:ignore
-            cl = (cn * cosa) - (ca * sina)
-            cd = (cn * sina) + (ca * cosa)
-            cl_alpha = ((cn_alpha - (ca * deg2rad)) * cosa) - ((ca_alpha + (cn * deg2rad)) * sina)
-            cd_alpha = ((ca_alpha + (cn * deg2rad)) * cosa) + ((cn_alpha - (ca * deg2rad)) * sina)
+            # get derivative of CL wrt alpha
+            cosa = np.cos(alpha)
+            sina = np.sin(alpha)
+            CL = (CN * cosa) - (CA * sina)
+            CL_alpha = ((CN_alpha - CA) * cosa) - ((CA_alpha + CN) * sina)
+            # CD = (CN * sina) + (CA * cosa)
+            # CD_alpha = ((CA_alpha + CN) * cosa) + ((CN_alpha - CA) * sina)
 
-            # Get derivative of missile acceleration normal to flight path wrt alpha
-            # d_alpha = alpha_0 - alphaTotal  # type:ignore
-            am_alpha = cl_alpha * qBar * Sref / mass + thrust * cos(alpha_0) / mass
-            am_0 = cl * qBar * Sref / mass + thrust * sin(alpha_0) / mass
+            # calculate current normal acceleration, acc0, and normal acceleration due to
+            # the change in alpha, acc_alpha. Use the difference between the two to
+            # iteratively update alpha.
+            acc_alpha = CL_alpha * dynamic_pressure * Sref / mass + thrust * np.cos(alpha) / mass
+            acc0 = CL * dynamic_pressure * Sref / mass + thrust * np.sin(alpha) / mass
+            alpha = alpha + (acc_cmd - acc0) / acc_alpha
+            alpha = max(0, min(alpha, alpha_max))
 
-            # Update angle of attack
-            alpha_0 = alpha_0 + (am_c - am_0) / am_alpha
-
-            # Bound angle of attack
-            alpha_0 = max(0, min(alpha_0, alphaMax))
-
-        aoa = alpha_0
-
-        return aoa  # type:ignore
+        angle_of_attack = alpha
+        return angle_of_attack
 
 
     def get_CA_Boost(self,
