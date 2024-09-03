@@ -199,6 +199,10 @@ class MatFile:
             self.__setattr__("data", MatStruct(self._raw_data))
 
 
+    def __contains__(self, attr_name: str) -> bool:
+        return hasattr(self, attr_name)
+
+
     def get(self, key: str, default=None) -> Any:
         if hasattr(self, key):
             return self.__getattribute__(key)
