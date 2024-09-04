@@ -501,6 +501,7 @@ g_b_m_new = (r_i_m / r_i_m.norm()) * gacc
 
 
 ##################################################
+# add quaternion regularization term
 # NOTE: how to incorporate quaternion normaliztion
 #       into the dynamics. for integration processes
 #       with less accuracy lambda must be increased
@@ -508,7 +509,8 @@ g_b_m_new = (r_i_m / r_i_m.norm()) * gacc
 #       compared to lambda = ~1e-3 for runge-kutta
 ##################################################
 lam = 1e-3
-q_m_dot_2 = q_m_dot - lam * (q_m.norm()**2 - 1.0) * q_m  # type:ignore
+q_m_norm = ((q_m.T * q_m)**0.5)[0]
+q_m_dot_2 = q_m_dot - lam * (q_m_norm - 1.0) * q_m
 ##################################################
 
 vel_mag = Function("vel_mag")(t)
@@ -525,11 +527,11 @@ defs = (
        (omega_n, sp.Float(50)),
        (zeta, sp.Float(0.7)),
 
-       (K_phi, sp.Float(1.)),
+       (K_phi, sp.Float(1)),
        (omega_p, sp.Float(20)),
        (phi_c, sp.Float(0)),
        (T_r, sp.Float(0.5)),
-       (C_s, sp.Float(343)),
+       (C_s, 343),
 
        # (vel_mag.diff(t), V.diff(t)),
        )
