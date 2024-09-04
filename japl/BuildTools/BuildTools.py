@@ -27,13 +27,6 @@ def array_subs_func(expr, subs: list[dict]) -> bytes:
     return pickle.dumps(expr)
 
 
-def array_subs_func2(expr, subs: dict) -> bytes:
-    expr = pickle.loads(expr)
-    subs = pickle.loads(subs)
-    expr = expr.subs(subs)
-    return pickle.dumps(expr)
-
-
 def create_error_header(msg: str, char: str = "-", char_len: int = 40) -> str:
     seg = char * char_len
     header = "\n\n" + seg + f"\n{msg}:\n" + seg + "\n"
@@ -73,12 +66,11 @@ def build_model(state: Matrix,
                           f"\n\n{undefined_diff_funcs}."
                           "\n\nEither define this expression or update this state as a DirectUpdate.")
 
-    # ------------------------------------
-    # NOTE: gather direct update: (state_var, sub_expr) for substition
-    # also gather direct update (state_var (Function), state_var (Symbol))
-    # for substition into defs
     ############################################################
     # 1: resolve state & input to Symbols
+    # gather direct update: (state_var, sub_expr) for substition
+    # also gather direct update (state_var (Function), state_var (Symbol))
+    # for substition into defs
     ############################################################
     print("resolving state & input to Symbols...")
     state_subs = {i: Symbol(i.name) for i in state.atoms(Function)}
@@ -230,10 +222,12 @@ def write_array(array, out_path: str):
             f.write('\n')
 
 
+@DeprecationWarning
 def _get_direct_updates(array):
     return [i for i in array if isinstance(i, DirectUpdateSymbol)]
 
 
+@DeprecationWarning
 def _get_sub_expr(array):
     return [i.sub_expr for i in array if isinstance(i, DirectUpdateSymbol)]
 
@@ -247,12 +241,14 @@ def _apply_subs_to_expr(expr, subs: dict|list[dict]):
         return expr
 
 
+@DeprecationWarning
 def _apply_subs_to_dict(subs: dict):
     for key, val in subs.items():
         subs[key] = _apply_subs_to_expr(val, subs)
     return subs
 
 
+@DeprecationWarning
 def _create_symbol_subs(array):
     """This method generates a 'subs' dict from provided array of
     symbolic variables which map Symbols, Functions, DirectUpdateSymbol
@@ -310,6 +306,7 @@ def _check_var_array_types(array, array_name: str = "array"):
                             f"variable and assign to it the expression using the definitions tuple.")
 
 
+@DeprecationWarning
 def _check_dynamics_for_undefined_diffs(dynamics):
     """This method checks for any undefined Derivative types in the dynamics.
     undefined Derivatives indicate a missing substition in the definitions."""
@@ -320,6 +317,7 @@ def _check_dynamics_for_undefined_diffs(dynamics):
                             f"the definitions or update using DirectUpdate().")
 
 
+@DeprecationWarning
 def _check_dynamics_for_undefined_function(dynamics: Matrix, state: Matrix):
     seg = "-" * 40
     error_header = "\n\n" + seg + "\nUndefined functions found in dynamics:" + "\n" + seg
@@ -348,6 +346,7 @@ def _check_dynamics_for_undefined_function(dynamics: Matrix, state: Matrix):
         raise Exception(error_header + f"\n\n{found_vars_str}")
 
 
+@DeprecationWarning
 def _check_array_for_undefined_function(array: Matrix, array_name: str, array_compare,
                                         force_symbol: bool = False) -> None:
     error_msg = create_error_header(f"Undefined functions found in {array_name}")
@@ -396,6 +395,7 @@ def _create_subs_from_definitions(sub: tuple|list|dict) -> dict:
     return ret
 
 
+@DeprecationWarning
 def _apply_subs_to_direct_updates(state: Matrix, subs: dict|list[dict]) -> None:
     """applies substitions to DirectUpdateSymbol.expr which is the expression
     that is lambdified for direct state updates."""
@@ -413,6 +413,7 @@ def _apply_subs_to_direct_updates(state: Matrix, subs: dict|list[dict]) -> None:
                 raise Exception("unhandled case.")
 
 
+@DeprecationWarning
 def _apply_definitions_to_array(array: Matrix, subs: dict):
     """This method is for applying substitions to an array of
     symbolic variables. substitions are made by instantiating
