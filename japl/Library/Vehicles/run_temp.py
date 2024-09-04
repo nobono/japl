@@ -5,45 +5,50 @@ from japl import Sim
 from japl import SimObject
 from japl import PyQtGraphPlotter
 from japl.Library.Earth.Earth import Earth
-from japl.Math.Rotation import eci_to_enu, eci_to_ecef
+from japl.Math.Rotation import eci_to_enu
+from japl.Math.Rotation import eci_to_ecef
+from japl.Math.Rotation import enu_to_ecef
 
 DIR = os.path.dirname(__file__)
 
 
 
-# dcm_ecef_to_enu = np.array([[-np.sin(0), np.cos(0), 0],
-#                             [-np.sin(0) * np.cos(0), -np.sin(0) * np.sin(0), np.cos(0)],
-#                             [np.cos(0) * np.cos(0), np.cos(0) * np.sin(0), np.sin(0)]])
-
-
 with open(f"{DIR}/mmd.pickle", 'rb') as f:
     model = dill.load(f)
 
+ecef0 = [Earth.radius_equatorial, 0, 0]
 simobj = SimObject(model)
+
+
+r_enu0 = [0, 0, 1000]
+v_enu0 = [0, 400, 200]
+a_enu0 = [0, 0, 0]
+
 q0 = [1, 0, 0, 0]
-r0 = [Earth.radius_equatorial, 0, 0]
-v0 = eci_to_enu(np.array([0, 0, 0]), np.zeros(3), t=0)
+r0 = enu_to_ecef(r_enu0, ecef0)
+v0 = enu_to_ecef(v_enu0, ecef0, is_position=False)
 alpha_state_0 = [0, 0]
 beta_state_0 = [0, 0]
 p0 = 0
 mass0 = 600
-r_enu0 = [0, 0, 0]
-v_enu0 = [0, 0, 0]
-a_enu0 = [0, 0, 0]
 mach0 = np.linalg.norm(v0) / 343.0
 
+# print(v0)
+# print(mach0)
+# print(enu_to_ecef([0, 0, 0], ecef0, is_position=False))
+# quit()
 
 # Earth-relative velocity vector
-omega_e = Earth.omega
-C_eci_to_ecef = np.array([
-    [np.cos(0), np.sin(0), 0],   # type:ignore
-    [-np.sin(0), np.cos(0), 0],  # type:ignore
-    [0, 0, 1]])
-omega_skew_ie = np.array([
-    [0, -omega_e, 0],
-    [omega_e, 0, 0],
-    [0, 0, 0],
-    ])
+# omega_e = Earth.omega
+# C_eci_to_ecef = np.array([
+#     [np.cos(0), np.sin(0), 0],   # type:ignore
+#     [-np.sin(0), np.cos(0), 0],  # type:ignore
+#     [0, 0, 1]])
+# omega_skew_ie = np.array([
+#     [0, -omega_e, 0],
+#     [omega_e, 0, 0],
+#     [0, 0, 0],
+#     ])
 # v0 = C_eci_to_ecef @ v0 - omega_skew_ie @ (C_eci_to_ecef @ r0)
 
 # simobj.init_state([q0, r0, v0, alpha0, beta0, p0])
@@ -60,7 +65,7 @@ plotter = PyQtGraphPlotter(frame_rate=30,
                            # xlim=[0, 20],
                            )
 
-sim = Sim(t_span=[0, 1], dt=0.01, simobjs=[simobj],
+sim = Sim(t_span=[0, 50], dt=0.01, simobjs=[simobj],
           integrate_method="rk4")
 sim.run()
 
@@ -98,6 +103,7 @@ simobj.plot.set_config({
     "M": {
         "xaxis": 't',
         "yaxis": 'mach',
+        "size": 2,
         },
     # "U": {
     #     "xaxis": 't',
@@ -120,10 +126,10 @@ simobj.plot.set_config({
     #     "yaxis": 'r_n'
     #     },
     })
-# plotter.animate(sim)
+plotter.animate(sim)
 # plotter.plot_obj(simobj)
 # plotter.plot(sim.T, simobj.Y[:, 20])
 # plotter.plot(simobj.Y[:, 18], simobj.Y[:, 20])
 # plotter.plot(simobj.Y[:, 18], simobj.Y[:, 19])
 # plotter.plot(simobj.Y[:, 4], simobj.Y[:, 6])
-# plotter.show()
+plotter.show()

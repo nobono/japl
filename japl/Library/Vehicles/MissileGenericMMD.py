@@ -23,6 +23,7 @@ from japl.Math.Rotation import eci_to_ecef
 from japl.Math.Rotation import eci_to_enu
 from japl.Math.RotationSymbolic import ecef_to_lla_sym
 from japl.Library.Earth.Earth import Earth
+from japl.Util.Desym import Desym
 from japl import PyQtGraphPlotter
 
 DIR = os.path.dirname(__file__)
@@ -97,6 +98,8 @@ f_b_T_x = Function("f_b_T_x", real=True)(t)  # type:ignore
 f_b_T_y = Function("f_b_T_y", real=True)(t)  # type:ignore
 f_b_T_z = Function("f_b_T_z", real=True)(t)  # type:ignore
 f_b_T = Matrix([f_b_T_x, f_b_T_y, f_b_T_z])
+
+thrust = Function("thrust", real=True)(t)    # type:ignore
 
 q_m = Matrix([q_0, q_1, q_2, q_3])
 r_i_m = Matrix([pos_i_x, pos_i_y, pos_i_z])  # eci position
@@ -417,8 +420,6 @@ v_enu_m_new = C_eci_to_enu * v_i_m
 a_enu_m_new = C_body_to_eci * C_eci_to_enu * a_b_m
 
 
-thrust = 50_000.0
-# mass = 300.0
 alt = r_enu_m[2]
 alpha_total = aerotable.inv_aerodynamics(
         thrust,  # type:ignore
@@ -431,16 +432,50 @@ alpha_total = aerotable.inv_aerodynamics(
         alt,
         0.0,
         )
-# thrust: float,
-# acc_cmd: np.ndarray,
-# dynamics_pressure: float,
-# mass: float,
-# alpha: Optional[ArgType] = None,
-# phi: Optional[ArgType] = None,
-# mach: Optional[ArgType] = None,
-# alt: Optional[ArgType] = None,
-# iota: Optional[ArgType] = None) -> float:
-###########################################
+
+#############################################
+# thrust = Symbol("thrust")
+# acc_cmd = Symbol("acc_cmd")
+# dynq = Symbol("dynq")
+# mass = Symbol("mass")
+# alpha = Symbol("alpha")
+# phi = Symbol("phi")
+# mach = Symbol("mach")
+# alt = Symbol("alt")
+# iota = Symbol("iota")
+
+# _vars = (thrust,
+#          acc_cmd,
+#          dynq,
+#          mass,
+#          alpha,
+#          phi,
+#          mach,
+#          alt,
+#          iota)
+
+# _func = aerotable.inv_aerodynamics(thrust,
+#                                    acc_cmd,
+#                                    dynq,
+#                                    mass,
+#                                    alpha,
+#                                    phi,
+#                                    mach,
+#                                    alt,
+#                                    iota)
+# f = Desym(_vars, _func, modules=[aerotable.modules], dummify=True)
+
+# thrust = 50_000.0
+# am_c = 4.848711297583447
+# q_bar = 30.953815676156566
+# mass = 3.040822554083198e+02
+# alpha = np.radians(0.021285852300486)
+# mach = 0.020890665777000
+# alt = 0.097541062161326
+# ret = f(thrust, am_c, q_bar, mass, alpha, 0, mach, alt, 0)
+# print(ret)
+# quit()
+#############################################
 
 # (51)
 alpha_c_out = atan2(tan(alpha_total), cos(phi_Ac))
