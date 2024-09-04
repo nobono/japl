@@ -65,41 +65,41 @@ dt = Symbol("dt")
 
 omega_e = Earth.omega
 
-q_0 = Function("q_0", real=True)(t)  # type:ignore
-q_1 = Function("q_1", real=True)(t)  # type:ignore
-q_2 = Function("q_2", real=True)(t)  # type:ignore
-q_3 = Function("q_3", real=True)(t)  # type:ignore
+q_0 = Function("q_0", real=True)(t)
+q_1 = Function("q_1", real=True)(t)
+q_2 = Function("q_2", real=True)(t)
+q_3 = Function("q_3", real=True)(t)
 
-q_0_dot = Function("q_0_dot", real=True)(t)  # type:ignore
-q_1_dot = Function("q_1_dot", real=True)(t)  # type:ignore
-q_2_dot = Function("q_2_dot", real=True)(t)  # type:ignore
-q_3_dot = Function("q_3_dot", real=True)(t)  # type:ignore
+q_0_dot = Function("q_0_dot", real=True)(t)
+q_1_dot = Function("q_1_dot", real=True)(t)
+q_2_dot = Function("q_2_dot", real=True)(t)
+q_3_dot = Function("q_3_dot", real=True)(t)
 
-pos_i_x = Function("pos_i_x", real=True)(t)  # type:ignore
-pos_i_y = Function("pos_i_y", real=True)(t)  # type:ignore
-pos_i_z = Function("pos_i_z", real=True)(t)  # type:ignore
+pos_i_x = Function("pos_i_x", real=True)(t)
+pos_i_y = Function("pos_i_y", real=True)(t)
+pos_i_z = Function("pos_i_z", real=True)(t)
 
-vel_i_x = Function("vel_i_x", real=True)(t)  # type:ignore
-vel_i_y = Function("vel_i_y", real=True)(t)  # type:ignore
-vel_i_z = Function("vel_i_z", real=True)(t)  # type:ignore
+vel_i_x = Function("vel_i_x", real=True)(t)
+vel_i_y = Function("vel_i_y", real=True)(t)
+vel_i_z = Function("vel_i_z", real=True)(t)
 
-acc_b_x = Symbol("acc_b_x", real=True)  # type:ignore
-acc_b_y = Symbol("acc_b_y", real=True)  # type:ignore
-acc_b_z = Symbol("acc_b_z", real=True)  # type:ignore
+acc_b_x = Symbol("acc_b_x", real=True)
+acc_b_y = Symbol("acc_b_y", real=True)
+acc_b_z = Symbol("acc_b_z", real=True)
 
 # Aerodynamics force vector
-f_b_A_x = Function("f_b_A_x", real=True)(t)  # type:ignore
-f_b_A_y = Function("f_b_A_y", real=True)(t)  # type:ignore
-f_b_A_z = Function("f_b_A_z", real=True)(t)  # type:ignore
+f_b_A_x = Function("f_b_A_x", real=True)(t)
+f_b_A_y = Function("f_b_A_y", real=True)(t)
+f_b_A_z = Function("f_b_A_z", real=True)(t)
 f_b_A = Matrix([f_b_A_x, f_b_A_y, f_b_A_z])
 
 # Motor thrust force vector
-f_b_T_x = Function("f_b_T_x", real=True)(t)  # type:ignore
-f_b_T_y = Function("f_b_T_y", real=True)(t)  # type:ignore
-f_b_T_z = Function("f_b_T_z", real=True)(t)  # type:ignore
+f_b_T_x = Function("f_b_T_x", real=True)(t)
+f_b_T_y = Function("f_b_T_y", real=True)(t)
+f_b_T_z = Function("f_b_T_z", real=True)(t)
 f_b_T = Matrix([f_b_T_x, f_b_T_y, f_b_T_z])
 
-thrust = Function("thrust", real=True)(t)    # type:ignore
+thrust = Function("thrust", real=True)(t)
 
 q_m = Matrix([q_0, q_1, q_2, q_3])
 r_i_m = Matrix([pos_i_x, pos_i_y, pos_i_z])  # eci position
@@ -109,24 +109,24 @@ a_i_m = Matrix(symbols("acc_i_x, acc_i_y, acc_i_z"))  # eci acceleration
 
 mass = Symbol("mass", real=True)
 
-mach = Function("mach", real=True)(t)  # type:ignore
+mach = Function("mach", real=True)(t)
 
 C_s = Symbol("C_s", real=True)  # speed of sound
 
 # Earth grav acceleration
-g_b_m_x = Function("g_b_m_x", real=True)(t)  # type:ignore
-g_b_m_y = Function("g_b_m_y", real=True)(t)  # type:ignore
-g_b_m_z = Function("g_b_m_z", real=True)(t)  # type:ignore
+g_b_m_x = Function("g_b_m_x", real=True)(t)
+g_b_m_y = Function("g_b_m_y", real=True)(t)
+g_b_m_z = Function("g_b_m_z", real=True)(t)
 g_b_m = Matrix([g_b_m_x, g_b_m_y, g_b_m_z])
 
 # Angle-of-Attack & Sideslip-Angle
-alpha = Function("alpha", real=True)(t)  # type:ignore
-alpha_dot = Function("alpha_dot", real=True)(t)  # type:ignore
-alpha_dot_dot = Function("alpha_dot_dot", real=True)(t)  # type:ignore
+alpha = Function("alpha", real=True)(t)
+alpha_dot = Function("alpha_dot", real=True)(t)
+alpha_dot_dot = Function("alpha_dot_dot", real=True)(t)
 
-beta = Function("beta", real=True)(t)  # type:ignore
-beta_dot = Function("beta_dot", real=True)(t)  # type:ignore
-beta_dot_dot = Function("beta_dot_dot", real=True)(t)  # type:ignore
+beta = Function("beta", real=True)(t)
+beta_dot = Function("beta_dot", real=True)(t)
+beta_dot_dot = Function("beta_dot_dot", real=True)(t)
 
 ecef_to_lla_map = Function("ecef_to_lla_map")
 ecef_to_enu_map = Function("ecef_to_enu_map")
