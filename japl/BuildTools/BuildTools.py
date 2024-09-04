@@ -171,9 +171,17 @@ def build_model(state: Matrix,
     if dynamic_functions:
         raise Exception(f"Undefined Functions found in dynamics matrix:\n{dynamic_functions}")
 
+    # gather symbols from state & input arrays
+    state_symbols = [i.name for i in state]  # type:ignore
+    input_symbols = [i.name for i in input]  # type:ignore
+
+    # gather any symbols used indirectly in state & input arrays
+    state_direct_update_set = state_direct_updates.atoms(Symbol)
+    input_direct_update_set = input_direct_updates.atoms(Symbol)
+
     # gather symbols from direct updates
-    state_direct_update_set = state.atoms(DirectUpdateSymbol)
-    input_direct_update_set = input.atoms(DirectUpdateSymbol)
+    state_direct_update_set.update(state.atoms(DirectUpdateSymbol))
+    input_direct_update_set.update(input.atoms(DirectUpdateSymbol))
 
     # NOTE: conversion to str since sympy
     # vars being hashable is unknown right now
@@ -189,8 +197,6 @@ def build_model(state: Matrix,
     total_symbols.update(direct_update_symbols)
 
     # subtract defined symbols in the state & input arrays
-    state_symbols = [i.name for i in state]  # type:ignore
-    input_symbols = [i.name for i in input]  # type:ignore
     undefined_symbols = total_symbols.difference(set(state_symbols)).difference(set(input_symbols))
     # ignore default symbols (t, dt)
     undefined_symbols = undefined_symbols.difference({t.name, dt.name})
