@@ -37,7 +37,8 @@ def create_error_header(msg: str, char: str = "-", char_len: int = 40) -> str:
 def build_model(state: Matrix,
                 input: Matrix,
                 dynamics: Matrix,
-                definitions: tuple = ()) -> tuple:
+                definitions: tuple = (),
+                use_multiprocess_build: bool = True) -> tuple:
     """
     Notes:
         - state and input arrays must maintain their symbolic name.
@@ -121,33 +122,37 @@ def build_model(state: Matrix,
     # 6: apply state & input resolved Symbols to definition subs
     ############################################################
     print("applying state & input variable substitions to definitions...")
-    # for k, v in def_subs.items():
-    #     def_subs[k] = v.subs(state_subs).subs(input_subs)
 
-    with Pool(processes=cpu_count()) as pool:
-        args = [(pickle.dumps((key, expr)),
-                 [pickle.dumps(state_subs),
-                  pickle.dumps(input_subs),
-                  pickle.dumps(def_subs)]) for key, expr in def_subs.items()]
-        results = [pool.apply_async(dict_subs_func, arg) for arg in args]
-        results = [pickle.loads(ret.get()) for ret in results]
-    for ret in results:
-        def_subs.update(ret)
+    if use_multiprocess_build:
+        with Pool(processes=cpu_count()) as pool:
+            args = [(pickle.dumps((key, expr)),
+                     [pickle.dumps(state_subs),
+                      pickle.dumps(input_subs),
+                      pickle.dumps(def_subs)]) for key, expr in def_subs.items()]
+            results = [pool.apply_async(dict_subs_func, arg) for arg in args]
+            results = [pickle.loads(ret.get()) for ret in results]
+        for ret in results:
+            def_subs.update(ret)
+    else:
+        for k, v in def_subs.items():
+            def_subs[k] = v.subs(state_subs).subs(input_subs)
 
     ############################################################
     # 7: apply substitions to dynamics array
     ############################################################
     print("applying substitions to dynamics...")
-    # dynamics = dynamics.subs(def_subs)
-    # dynamics = dynamics.subs(state_subs).subs(input_subs)
-    with Pool(processes=cpu_count()) as pool:
-        subs = [pickle.dumps(def_subs),
-                pickle.dumps(state_subs),
-                pickle.dumps(input_subs)]
-        args = [(pickle.dumps(expr), subs) for expr in dynamics]
-        results = [pool.apply_async(array_subs_func, arg) for arg in args]
-        results = [pickle.loads(ret.get()) for ret in results]
-    dynamics = Matrix(results)
+    if use_multiprocess_build:
+        with Pool(processes=cpu_count()) as pool:
+            subs = [pickle.dumps(def_subs),
+                    pickle.dumps(state_subs),
+                    pickle.dumps(input_subs)]
+            args = [(pickle.dumps(expr), subs) for expr in dynamics]
+            results = [pool.apply_async(array_subs_func, arg) for arg in args]
+            results = [pickle.loads(ret.get()) for ret in results]
+        dynamics = Matrix(results)
+    else:
+        dynamics = dynamics.subs(def_subs)
+        dynamics = dynamics.subs(state_subs).subs(input_subs)
 
     ############################################################
     # 8: apply subs to direct updates

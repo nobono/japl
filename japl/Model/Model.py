@@ -205,7 +205,8 @@ class Model:
                         input_vars: list|tuple|Matrix,
                         dynamics_expr: Expr|Matrix|MatrixSymbol,
                         definitions: tuple = (),
-                        modules: dict|list[dict] = {}):
+                        modules: dict|list[dict] = {},
+                        use_multiprocess_build: bool = True):
         """This method initializes a Model from a symbolic expression.
         a Sympy expression can be passed which then is lambdified
         (see Sympy.lambdify) with computational optimization (see Sympy.cse).
@@ -232,7 +233,8 @@ class Model:
          input_direct_updates) = BuildTools.build_model(Matrix(state_vars),
                                                         Matrix(input_vars),
                                                         Matrix(dynamics_expr),
-                                                        definitions)
+                                                        definitions,
+                                                        use_multiprocess_build=use_multiprocess_build)
         model = cls()
         model._type = ModelType.Symbolic
         model.modules = model.__set_modules(modules)
