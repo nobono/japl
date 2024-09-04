@@ -1,6 +1,7 @@
 import os
 from typing import Any
 from sympy import Matrix, Symbol, Function, Expr, Number, nan
+from sympy import Float
 from sympy import Derivative
 from japl.Model.StateRegister import StateRegister
 from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
@@ -387,6 +388,9 @@ def _create_subs_from_definitions(sub: tuple|list|dict) -> dict:
                     ret[elem_old] = elem_new
             else:
                 try:
+                    # convert std number types to sympy Float
+                    if isinstance(new, float) or isinstance(new, int):
+                        new = Float(new)
                     ret[old] = new
                 except Exception as e:
                     raise Exception(e, "\nunhandled case. old and new need to both have '__len__'.")
