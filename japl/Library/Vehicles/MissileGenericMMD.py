@@ -171,7 +171,8 @@ v_e_e = C_eci_to_ecef * v_i_m - omega_skew_ie * r_e_m
 ##################################################
 
 # (12)
-V = v_e_e.norm()
+# V = v_e_e.norm()
+V = ((v_e_e.T * v_e_e)**0.5)[0]
 
 # (10) Mach number
 M = V / C_s
@@ -510,6 +511,8 @@ lam = 1e-3
 q_m_dot_2 = q_m_dot - lam * (q_m.norm()**2 - 1.0) * q_m  # type:ignore
 ##################################################
 
+vel_mag = Function("vel_mag")(t)
+
 defs = (
        (q_m.diff(t), q_m_dot_2),
        (r_i_m.diff(t), v_i_m),
@@ -528,6 +531,7 @@ defs = (
        (T_r, sp.Float(0.5)),
        (C_s, sp.Float(343)),
 
+       # (vel_mag.diff(t), V.diff(t)),
        )
 
 ##################################################
@@ -566,6 +570,8 @@ state = Matrix([
     DirectUpdate(a_enu_m, a_enu_m_new),
     # DirectUpdate(a_i_m, C_eci_to_ecef.T * a_e_e),
     DirectUpdate(mach, M),
+    DirectUpdate(vel_mag, V),
+    # vel_mag,
     ])
 
 input = Matrix([

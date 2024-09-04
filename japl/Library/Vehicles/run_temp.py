@@ -32,6 +32,7 @@ beta_state_0 = [0, 0]
 p0 = 0
 mass0 = 600
 mach0 = np.linalg.norm(v0) / 343.0
+vel_mag0 = 0
 
 # print(v0)
 # print(mach0)
@@ -57,7 +58,8 @@ simobj.init_state([q0, r0, v0,
                    p0,
                    mass0,
                    r_enu0, v_enu0, a_enu0,
-                   mach0])
+                   mach0,
+                   vel_mag0])
 
 plotter = PyQtGraphPlotter(frame_rate=30,
                            figsize=[10, 6],
@@ -67,20 +69,6 @@ plotter = PyQtGraphPlotter(frame_rate=30,
 
 sim = Sim(t_span=[0, 50], dt=0.01, simobjs=[simobj],
           integrate_method="rk4")
-sim.run()
-
-print("quat:", simobj.Y[-1, :4])
-print("quat norm:", np.linalg.norm(simobj.Y[-1, :4]))
-print("r_i:", simobj.Y[-1, 4:7])
-print("v_i:", simobj.Y[-1, 7:10])
-print("alpha_state:", np.degrees(simobj.Y[-1, 10:12]))
-print("beta_state:", simobj.Y[-1, 12:14])
-print("p:", simobj.Y[-1, 14])
-print("mass:", simobj.Y[-1, 15])
-print("r_enu:", simobj.Y[-1, 16:19])
-print("v_enu:", simobj.Y[-1, 19:22])
-print("a_enu:", simobj.Y[-1, 22:25])
-print("mach:", simobj.Y[-1, 25])
 
 # print(simobj.Y[0, 19:22], np.linalg.norm(simobj.Y[0, 19:22]) / 343)
 
@@ -102,7 +90,7 @@ simobj.plot.set_config({
         },
     "M": {
         "xaxis": 't',
-        "yaxis": 'mach',
+        "yaxis": 'vel_mag',
         "size": 2,
         },
     # "U": {
@@ -126,6 +114,8 @@ simobj.plot.set_config({
     #     "yaxis": 'r_n'
     #     },
     })
+
+# sim.run()
 plotter.animate(sim)
 # plotter.plot_obj(simobj)
 # plotter.plot(sim.T, simobj.Y[:, 20])
@@ -133,3 +123,18 @@ plotter.animate(sim)
 # plotter.plot(simobj.Y[:, 18], simobj.Y[:, 19])
 # plotter.plot(simobj.Y[:, 4], simobj.Y[:, 6])
 plotter.show()
+
+ii = sim.istep
+print("quat:", simobj.Y[ii, :4])
+print("quat norm:", np.linalg.norm(simobj.Y[ii, :4]))
+print("r_i:", simobj.Y[ii, 4:7])
+print("v_i:", simobj.Y[ii, 7:10])
+print("alpha_state:", np.degrees(simobj.Y[ii, 10:12]))
+print("beta_state:", simobj.Y[ii, 12:14])
+print("p:", simobj.Y[ii, 14])
+print("mass:", simobj.Y[ii, 15])
+print("r_enu:", simobj.Y[ii, 16:19])
+print("v_enu:", simobj.Y[ii, 19:22])
+print("a_enu:", simobj.Y[ii, 22:25])
+print("mach:", simobj.Y[ii, 25])
+print("vel_mag:", simobj.Y[ii, 26])

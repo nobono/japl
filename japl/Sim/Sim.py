@@ -149,7 +149,7 @@ class Sim:
 
         """
         # DEBUG PROFILE #########
-        self.debug_profiler["run"]()
+        # self.debug_profiler["run"]()
         #########################
 
         # get device input
@@ -235,3 +235,4 @@ class Sim:
             # store results
             self.T[istep] = T_new
             simobj.Y[istep] = X_new
+            self.istep += 1
