@@ -221,9 +221,9 @@ v_b_e_hat_dot = Matrix([u_hat_dot, v_hat_dot, w_hat_dot])
 ##################################################
 
 # p, q, r = symbols("p, q, r", real=True)  # angular velocities (roll, pitch, yaw)
-p = Function("p", real=True)(t)  # type:ignore
-q = Function("q", real=True)(t)  # type:ignore
-r = Function("r", real=True)(t)  # type:ignore
+p = Function("p", real=True)(t)
+q = Function("q", real=True)(t)
+r = Function("r", real=True)(t)
 
 ###############################
 # NOTE: Earth-relative velocity
