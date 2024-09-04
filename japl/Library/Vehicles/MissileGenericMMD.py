@@ -75,17 +75,17 @@ q_1_dot = Function("q_1_dot", real=True)(t)
 q_2_dot = Function("q_2_dot", real=True)(t)
 q_3_dot = Function("q_3_dot", real=True)(t)
 
-pos_i_x = Function("pos_i_x", real=True)(t)
-pos_i_y = Function("pos_i_y", real=True)(t)
-pos_i_z = Function("pos_i_z", real=True)(t)
+r_i_x = Function("r_i_x", real=True)(t)
+r_i_y = Function("r_i_y", real=True)(t)
+r_i_z = Function("r_i_z", real=True)(t)
 
-vel_i_x = Function("vel_i_x", real=True)(t)
-vel_i_y = Function("vel_i_y", real=True)(t)
-vel_i_z = Function("vel_i_z", real=True)(t)
+v_i_x = Function("v_i_x", real=True)(t)
+v_i_y = Function("v_i_y", real=True)(t)
+v_i_z = Function("v_i_z", real=True)(t)
 
-acc_b_x = Symbol("acc_b_x", real=True)
-acc_b_y = Symbol("acc_b_y", real=True)
-acc_b_z = Symbol("acc_b_z", real=True)
+a_b_x = Symbol("a_b_x", real=True)
+a_b_y = Symbol("a_b_y", real=True)
+a_b_z = Symbol("a_b_z", real=True)
 
 # Aerodynamics force vector
 f_b_A_x = Function("f_b_A_x", real=True)(t)
@@ -102,10 +102,10 @@ f_b_T = Matrix([f_b_T_x, f_b_T_y, f_b_T_z])
 thrust = Function("thrust", real=True)(t)
 
 q_m = Matrix([q_0, q_1, q_2, q_3])
-r_i_m = Matrix([pos_i_x, pos_i_y, pos_i_z])  # eci position
-v_i_m = Matrix([vel_i_x, vel_i_y, vel_i_z])  # eci velocity
-a_b_m = Matrix([acc_b_x, acc_b_y, acc_b_z])  # body acceleration
-a_i_m = Matrix(symbols("acc_i_x, acc_i_y, acc_i_z"))  # eci acceleration
+r_i_m = Matrix([r_i_x, r_i_y, r_i_z])  # eci position
+v_i_m = Matrix([v_i_x, v_i_y, v_i_z])  # eci velocity
+a_b_m = Matrix([a_b_x, a_b_y, a_b_z])  # body acceleration
+a_i_m = Matrix(symbols("a_i_x, a_i_y, a_i_z"))  # eci acceleration
 
 mass = Symbol("mass", real=True)
 
@@ -510,27 +510,29 @@ g_b_m_new = (r_i_m / r_i_m.norm()) * gacc
 ##################################################
 lam = 1e-3
 q_m_norm = ((q_m.T * q_m)**0.5)[0]
-q_m_dot_2 = q_m_dot - lam * (q_m_norm - 1.0) * q_m
+q_m_dot_reg = q_m_dot - lam * (q_m_norm - 1.0) * q_m
 ##################################################
 
 vel_mag = Function("vel_mag")(t)
 
 defs = (
-       (q_m.diff(t), q_m_dot_2),
+       (q_m.diff(t), q_m_dot_reg),
        (r_i_m.diff(t), v_i_m),
        (v_i_m.diff(t), C_body_to_eci * a_b_m),
-       (p.diff(t), p_dot),  # type:ignore
-       # (q, q_new),
-       # (r, r_new),
+
+       (p.diff(t), p_dot),
+       # (q.diff(t), q_new.diff(t)),
+       # (r.diff(t), r_new.diff(t)),
+
        (alpha_state.diff(t), alpha_state_dot),
        (beta_state.diff(t), beta_state_dot),
-       (omega_n, sp.Float(50)),
-       (zeta, sp.Float(0.7)),
 
-       (K_phi, sp.Float(1)),
-       (omega_p, sp.Float(20)),
-       (phi_c, sp.Float(0)),
-       (T_r, sp.Float(0.5)),
+       (omega_n, 50),
+       (zeta, 0.7),
+       (K_phi, 1),
+       (omega_p, 20),
+       (phi_c, 0),
+       (T_r, 0.5),
        (C_s, 343),
 
        # (vel_mag.diff(t), V.diff(t)),
@@ -551,10 +553,10 @@ defs = (
 # - Any relationship can be defined in the definition
 #   tuple above.
 # ------------------------------------------------
-acc_b_x = Symbol("acc_b_x", real=True)  # type:ignore
-acc_b_y = Symbol("acc_b_y", real=True)  # type:ignore
-acc_b_z = Symbol("acc_b_z", real=True)  # type:ignore
-st_a_b_m = Matrix([acc_b_x, acc_b_y, acc_b_z])
+# acc_b_x = Symbol("acc_b_x", real=True)
+# acc_b_y = Symbol("acc_b_y", real=True)
+# acc_b_z = Symbol("acc_b_z", real=True)
+# st_a_b_m = Matrix([acc_b_x, acc_b_y, acc_b_z])
 
 
 state = Matrix([
@@ -564,8 +566,8 @@ state = Matrix([
     alpha_state,
     beta_state,
     p,
-    # q,
-    # r,
+    DirectUpdate(q, q_new),
+    DirectUpdate(r, r_new),
     mass,
     DirectUpdate(r_enu_m, r_enu_m_new),
     DirectUpdate(v_enu_m, v_enu_m_new),
