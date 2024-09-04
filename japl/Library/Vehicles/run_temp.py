@@ -24,38 +24,21 @@ r_enu0 = [0, 0, 1000]
 v_enu0 = [0, 400, 200]
 a_enu0 = [0, 0, 0]
 
-q0 = [1, 0, 0, 0]
-r0 = enu_to_ecef(r_enu0, ecef0)
-v0 = enu_to_ecef(v_enu0, ecef0, is_position=False)
+quat0 = [1, 0, 0, 0]
+rm0 = enu_to_ecef(r_enu0, ecef0)
+vm0 = enu_to_ecef(v_enu0, ecef0, is_position=False)
 alpha_state_0 = [0, 0]
 beta_state_0 = [0, 0]
 p0 = 0
+q0 = 0
+r0 = 0
 mass0 = 600
-mach0 = np.linalg.norm(v0) / 343.0
-vel_mag0 = 0
+mach0 = np.linalg.norm(vm0) / 343.0
+vel_mag0 = np.linalg.norm(vm0)
 
-# print(v0)
-# print(mach0)
-# print(enu_to_ecef([0, 0, 0], ecef0, is_position=False))
-# quit()
-
-# Earth-relative velocity vector
-# omega_e = Earth.omega
-# C_eci_to_ecef = np.array([
-#     [np.cos(0), np.sin(0), 0],   # type:ignore
-#     [-np.sin(0), np.cos(0), 0],  # type:ignore
-#     [0, 0, 1]])
-# omega_skew_ie = np.array([
-#     [0, -omega_e, 0],
-#     [omega_e, 0, 0],
-#     [0, 0, 0],
-#     ])
-# v0 = C_eci_to_ecef @ v0 - omega_skew_ie @ (C_eci_to_ecef @ r0)
-
-# simobj.init_state([q0, r0, v0, alpha0, beta0, p0])
-simobj.init_state([q0, r0, v0,
+simobj.init_state([quat0, rm0, vm0,
                    alpha_state_0, beta_state_0,
-                   p0,
+                   p0, q0, r0,
                    mass0,
                    r_enu0, v_enu0, a_enu0,
                    mach0,
@@ -67,7 +50,7 @@ plotter = PyQtGraphPlotter(frame_rate=30,
                            # xlim=[0, 20],
                            )
 
-sim = Sim(t_span=[0, 50], dt=0.01, simobjs=[simobj],
+sim = Sim(t_span=[0, 10], dt=0.01, simobjs=[simobj],
           integrate_method="rk4")
 
 # print(simobj.Y[0, 19:22], np.linalg.norm(simobj.Y[0, 19:22]) / 343)
@@ -115,26 +98,30 @@ simobj.plot.set_config({
     #     },
     })
 
-# sim.run()
-plotter.animate(sim)
+sim.run()
+# plotter.animate(sim)
 # plotter.plot_obj(simobj)
 # plotter.plot(sim.T, simobj.Y[:, 20])
 # plotter.plot(simobj.Y[:, 18], simobj.Y[:, 20])
 # plotter.plot(simobj.Y[:, 18], simobj.Y[:, 19])
 # plotter.plot(simobj.Y[:, 4], simobj.Y[:, 6])
-plotter.show()
+# plotter.show()
 
 ii = sim.istep
-print("quat:", simobj.Y[ii, :4])
-print("quat norm:", np.linalg.norm(simobj.Y[ii, :4]))
-print("r_i:", simobj.Y[ii, 4:7])
-print("v_i:", simobj.Y[ii, 7:10])
-print("alpha_state:", np.degrees(simobj.Y[ii, 10:12]))
-print("beta_state:", simobj.Y[ii, 12:14])
-print("p:", simobj.Y[ii, 14])
-print("mass:", simobj.Y[ii, 15])
-print("r_enu:", simobj.Y[ii, 16:19])
-print("v_enu:", simobj.Y[ii, 19:22])
-print("a_enu:", simobj.Y[ii, 22:25])
-print("mach:", simobj.Y[ii, 25])
-print("vel_mag:", simobj.Y[ii, 26])
+X = simobj.Y[ii]
+quat = simobj.get_state_array(X, ["q_0", "q_1", "q_2", "q_3"])
+print("quat norm:", np.linalg.norm(quat))
+print("quat:", quat)
+print("r_i:", simobj.get_state_array(X, ["r_i_x", "r_i_y", "r_i_z"]))
+print("v_i:", simobj.get_state_array(X, ["v_i_x", "v_i_y", "v_i_z"]))
+print("alpha:", np.degrees(simobj.get_state_array(X, "alpha")), end=", ")
+print("alpha_dot:", np.degrees(simobj.get_state_array(X, "alpha_dot")))
+print("beta:", simobj.get_state_array(X, "beta"), end=", ")
+print("beta_dot:", simobj.get_state_array(X, "beta_dot"))
+print("p:", simobj.get_state_array(X, "p"))
+print("mass:", simobj.get_state_array(X, "mass"))
+print("r_enu:", simobj.get_state_array(X, ["r_e", "r_n", "r_u"]))
+print("v_enu:", simobj.get_state_array(X, ["v_e", "v_n", "v_u"]))
+print("a_enu:", simobj.get_state_array(X, ["a_e", "a_n", "a_u"]))
+print("mach:", simobj.get_state_array(X, "mach"))
+print("vel_mag:", simobj.get_state_array(X, "vel_mag"))
