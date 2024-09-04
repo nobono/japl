@@ -34,7 +34,10 @@ class Increments:
         for i in dir(self):
             attr = getattr(self, i)
             if isinstance(attr, np.ndarray):
-                members += [str(i) + f" [{len(attr)}]"]
+                try:
+                    members += [str(i) + f" [{len(attr)}]"]
+                except Exception as e:  # noqa
+                    members += [str(i) + " []"]
         return "\n".join(members)
 
 
@@ -563,6 +566,7 @@ class AeroTable:
             count += 1
             alpha_last = alpha
 
+            # TODO switch between Boost / Coast
             # get coeffs from aerotable
             CA = self.get_CA_Boost(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
             CN = self.get_CNB(alpha=alpha, phi=phi, mach=mach, iota=iota)
