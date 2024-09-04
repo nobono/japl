@@ -6,7 +6,7 @@ from sympy import atan2
 def vec_norm(vec: Matrix|MatrixSymbol) -> Expr:
     if isinstance(vec, MatrixSymbol):
         vec = vec.as_mutable()
-    return vec.dot(vec)**0.5
+    return (vec.dot(vec)**0.5)[0]
 
 
 def vec_ang_sym(vec1: Matrix|MatrixSymbol, vec2: Matrix|MatrixSymbol) -> InverseTrigonometricFunction:
