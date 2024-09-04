@@ -14,6 +14,7 @@ class AtmosphereSymbolic:
         self.modules = {
                 # "atmosphere": self.atmosphere,
                 "atmosphere_pressure": self.atmosphere.pressure,
+                "atmosphere_density": self.atmosphere.density,
                 "atmosphere_temperature": self.atmosphere.temperature,
                 "atmosphere_speed_of_sound": self.atmosphere.speed_of_sound,
                 "atmosphere_grav_accel": self.atmosphere.grav_accel,
