@@ -12,6 +12,7 @@ from japl.Math.Rotation import ecef_to_eci
 from japl.Math.Rotation import ecef_to_lla
 from japl.Math.Rotation import ecef_to_enu
 from japl.Math.Rotation import lla_to_ecef
+from japl.Math.Rotation import enu_to_ecef
 from sympy import Matrix, MatrixSymbol
 from japl.Math.RotationSymbolic import quat_conj_sym
 from japl.Math.RotationSymbolic import quat_norm_sym
@@ -321,6 +322,24 @@ class TestMathRotation(unittest.TestCase):
         self.assertEqual(east, 0)
         self.assertEqual(north, 0)
         self.assertEqual(up, 1)
+
+
+    def test_enu_to_ecef(self):
+        """for position vector"""
+        radius_equatorial = 6_378_137.0  # meters
+        ecef0 = np.array([radius_equatorial, 0, 0])  # ecef @ t=0
+        enu = np.array([0, 0, 1])
+        ecef = enu_to_ecef(enu, ecef0)
+        self.assertListEqual(ecef.tolist(), [radius_equatorial + 1.0, 0, 0])
+
+
+    def test_enu_to_ecef_case2(self):
+        """for velocity vector"""
+        radius_equatorial = 6_378_137.0  # meters
+        vel_enu = np.array([0, 0, 0])
+        ecef0 = np.array([radius_equatorial, 0, 0])  # ecef @ t=0
+        vel_ecef = enu_to_ecef(vel_enu, ecef0, is_position=False)
+        self.assertListEqual(vel_ecef.tolist(), [0, 465.101142300783, 0])
 
 
     def test_lla_to_ecef(self):

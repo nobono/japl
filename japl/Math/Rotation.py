@@ -1,3 +1,4 @@
+from typing import Optional
 import numpy as np
 from japl.Library.Earth.Earth import Earth
 from quaternion.numpy_quaternion import quaternion
@@ -135,24 +136,33 @@ def ecef_to_lla(ecef_xyz: np.ndarray|list) -> np.ndarray:
     return np.array([lat, lon, ht])
 
 
-def eci_to_enu(eci_xyz, eci0_xyz, t):
+def eci_to_enu(eci_xyz: np.ndarray|list,
+               eci0: Optional[np.ndarray|list],
+               t: float,
+               is_position: bool = True):
     """
     This method converts from ECI coordinates to ENU.
 
     ---------------------------------------------------
     Arguments:
         - eci_xyz: [x, y, z] ECI-coordinate
-        - ecif0_xyz: [x0, y0, z0] ECI-coordinate this is the
-                                  coordinates for the reference
-                                  frame origin
+        - ecif0: [x0, y0, z0] ECI-coordinate (optional)
+                 this is the coordinates for the reference
+                 frame origin. Only neccessary when converting
+                 position between coordinate frames.
+        - is_position: this determines whether translation is
+                       done in the calculation. Translation is
+                       only neccessary for converting position
+                       between coordinate frames.
 
     Returns:
         - enu: [east, north, up] ENU-coordinates
     ---------------------------------------------------
     """
+    eci0 = np.asarray(eci0)
     ecef = eci_to_ecef(eci_xyz, t=t)
-    ecef0 = eci_to_ecef(eci0_xyz, t=t)
-    enu = ecef_to_enu(ecef, ecef0)
+    ecef0 = eci_to_ecef(eci0, t=t)
+    enu = ecef_to_enu(ecef, ecef0, is_position=is_position)
     return enu
 
 
@@ -179,19 +189,24 @@ def lla_to_ecef(lla):
     return np.array([x, y, z])
 
 
-def ecef_to_enu(ecef_xyz: np.ndarray|list, ecef0: np.ndarray|list) -> np.ndarray:
+def ecef_to_enu(ecef_xyz: np.ndarray|list, ecef0: np.ndarray|list,
+                is_position: bool = True) -> np.ndarray:
     """
     This method converts from ECEF coordinates to ENU.
 
     ---------------------------------------------------
     Arguments:
         - ecef_xyz: [x, y, z] ECEF-coordinate
-        - lla0: [lat, lon, alt] reference point. This
-                determines the origin of the local ENU
-                frame.
+        - ecef0: [x0, y0, z0] ECEF-reference point. This
+                 determines the origin of the local ENU
+                 frame.
+        - is_position: this determines whether translation is
+                       done in the calculation. Translation is
+                       only neccessary for converting position
+                       between coordinate frames.
 
     Returns:
-        - enu_xyz: [x, y, z] ENU-coordinates
+        - enu: [east, north, up] ENU-coordinates
     ---------------------------------------------------
     """
     ecef0 = np.asarray(ecef0)
@@ -201,7 +216,49 @@ def ecef_to_enu(ecef_xyz: np.ndarray|list, ecef0: np.ndarray|list) -> np.ndarray
     dcm_ecef_to_enu = np.array([[-sin(lon), cos(lon), 0],
                                 [-sin(lat) * cos(lon), -sin(lat) * sin(lon), cos(lat)],
                                 [cos(lat) * cos(lon), cos(lat) * sin(lon), sin(lat)]])
-    return dcm_ecef_to_enu @ (ecef_xyz - ecef0)
+    if is_position:
+        return dcm_ecef_to_enu @ (ecef_xyz - ecef0)
+    else:
+        return dcm_ecef_to_enu @ ecef_xyz
+
+
+def enu_to_ecef(enu: np.ndarray|list, ecef0: np.ndarray|list,
+                is_position: bool = True):
+    """
+    This method converts from ENU coordinates to ECEF.
+
+    ---------------------------------------------------
+    Arguments:
+        - enu: [east, north, up] ENU-coordinate
+        - ecef0: [x0, y0, z0] ECEF-reference point. This
+                 determines the origin of the local ENU
+                 frame.
+        - is_position: this determines whether translation is
+                       done in the calculation. Translation is
+                       only neccessary for converting position
+                       between coordinate frames.
+
+    Returns:
+        - ecef_xyz: [x, y, z] ECEF-coordinates
+    ---------------------------------------------------
+    """
+    ecef0 = np.asarray(ecef0)
+    cos = np.cos
+    sin = np.sin
+    lat, lon, alt = ecef_to_lla(ecef0)
+    dcm_ecef_to_enu = np.array([[-sin(lon), cos(lon), 0],
+                                [-sin(lat) * cos(lon), -sin(lat) * sin(lon), cos(lat)],
+                                [cos(lat) * cos(lon), cos(lat) * sin(lon), sin(lat)]])
+    if is_position:
+        return (dcm_ecef_to_enu.T @ enu) + ecef0
+    else:
+        # take into account angular velocity of earth
+        omega_e = 7.2921159e-5  # WGS-84
+        omega_skew = np.array([
+            [0, -omega_e, 0],
+            [omega_e, 0, 0],
+            [0, 0, 0]])
+        return dcm_ecef_to_enu.T @ enu + omega_skew @ ecef0
 
 
 def Sq(q: np.ndarray, dtype: type = float) -> np.ndarray:
