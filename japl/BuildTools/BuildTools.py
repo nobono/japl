@@ -6,6 +6,7 @@ from japl.Model.StateRegister import StateRegister
 from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
 from pprint import pformat
 from multiprocess import Pool  # type:ignore
+from multiprocess import cpu_count  # type:ignore
 import dill as pickle
 
 
@@ -51,8 +52,6 @@ def build_model(state: Matrix,
     print("=" * 50)
     print("building model...")
     print("=" * 50)
-
-    nproc = 4  # number of processors
 
     # default symbols imposed by Sim
     t = Symbol("t")
@@ -132,7 +131,7 @@ def build_model(state: Matrix,
     # for k, v in def_subs.items():
     #     def_subs[k] = v.subs(state_subs).subs(input_subs)
 
-    with Pool(processes=nproc) as pool:
+    with Pool(processes=cpu_count()) as pool:
         args = [(pickle.dumps((key, expr)),
                  [pickle.dumps(state_subs),
                   pickle.dumps(input_subs),
@@ -148,7 +147,7 @@ def build_model(state: Matrix,
     print("applying substitions to dynamics...")
     # dynamics = dynamics.subs(def_subs)
     # dynamics = dynamics.subs(state_subs).subs(input_subs)
-    with Pool(processes=nproc) as pool:
+    with Pool(processes=cpu_count()) as pool:
         subs = [pickle.dumps(def_subs),
                 pickle.dumps(state_subs),
                 pickle.dumps(input_subs)]
