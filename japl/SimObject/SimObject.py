@@ -286,7 +286,8 @@ class SimObject:
         _X0 = np.asarray(state, dtype=dtype).flatten()
 
         if _X0.shape != self.X0.shape:
-            raise Exception("attempting to initialize state X0 but array sizes do not match.")
+            raise Exception("\n\nattempting to initialize state X0 but array sizes do not match."
+                            f"\n\ninitialization array:{_X0.shape} != state array:{self.X0.shape}")
 
         self.X0 = _X0
 
@@ -316,7 +317,7 @@ class SimObject:
             return self.Y[:index, state_slice[0]:state_slice[1]]
         elif isinstance(state_slice, int):
             return self.Y[:index, state_slice]
-        elif isinstance(state_slice, str):
+        elif isinstance(state_slice, str):  # type:ignore
             if state_slice.lower() in ['t', 'time']:
                 return self.__T[:index]
             elif state_slice in self.model.state_register:
