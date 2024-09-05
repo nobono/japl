@@ -10,37 +10,14 @@ from sympy import Float
 import sympy as sp
 from japl import Model
 from sympy import Function
-from japl import Sim, SimObject
 from japl.Aero.AtmosphereSymbolic import AtmosphereSymbolic
 from japl.BuildTools.DirectUpdate import DirectUpdate
-from japl.BuildTools.BuildTools import build_model
-from japl.Library.Earth.EarthModelSymbolic import EarthModelSymbolic
 from japl.Aero.AeroTableSymbolic import AeroTableSymbolic
-from japl.Math.Rotation import ecef_to_lla
-from japl.Math.Rotation import ecef_to_enu
-from japl.Math.Rotation import ecef_to_eci
-from japl.Math.Rotation import eci_to_ecef
-from japl.Math.Rotation import eci_to_enu
 from japl.Math.RotationSymbolic import ecef_to_lla_sym
 from japl.Library.Earth.Earth import Earth
-from japl.Util.Desym import Desym
-from japl import PyQtGraphPlotter
 
 DIR = os.path.dirname(__file__)
 np.set_printoptions(suppress=True, precision=8)
-
-# from japl.Math import RotationSymbolic
-# from japl.Math import VecSymbolic
-# earth = EarthModelSymbolic()
-# lla0 = np.array([0, 0, 0])
-# ecef0 = [earth.radius_equatorial, 0, 0]
-# t = 1
-# eci = np.array([earth.radius_equatorial, 0, 0])
-# ecef = eci_to_ecef(eci, t=t)
-# enu = ecef_to_enu(ecef, ecef0)
-# print(enu)
-# print(eci_to_enu(eci, ecef0, t=t))
-# quit()
 
 
 
@@ -83,6 +60,8 @@ v_i_x = Function("v_i_x", real=True)(t)
 v_i_y = Function("v_i_y", real=True)(t)
 v_i_z = Function("v_i_z", real=True)(t)
 
+vel_mag_ecef = Function("vel_mag_ecef")(t)
+
 a_b_x = Symbol("a_b_x", real=True)
 a_b_y = Symbol("a_b_y", real=True)
 a_b_z = Symbol("a_b_z", real=True)
@@ -93,11 +72,17 @@ f_b_A_y = Function("f_b_A_y", real=True)(t)
 f_b_A_z = Function("f_b_A_z", real=True)(t)
 f_b_A = Matrix([f_b_A_x, f_b_A_y, f_b_A_z])
 
+# ENU-frame vectors
+r_enu_m = Matrix(symbols("r_e, r_n, r_u"))
+v_enu_m = Matrix(symbols("v_e, v_n, v_u"))
+a_enu_m = Matrix(symbols("a_e, a_n, a_u"))
+alt = r_enu_m[2]
+
 # Motor thrust force vector
-f_b_T_x = Function("f_b_T_x", real=True)(t)
-f_b_T_y = Function("f_b_T_y", real=True)(t)
-f_b_T_z = Function("f_b_T_z", real=True)(t)
-f_b_T = Matrix([f_b_T_x, f_b_T_y, f_b_T_z])
+# f_b_T_x = Function("f_b_T_x", real=True)(t)
+# f_b_T_y = Function("f_b_T_y", real=True)(t)
+# f_b_T_z = Function("f_b_T_z", real=True)(t)
+# f_b_T = Matrix([f_b_T_x, f_b_T_y, f_b_T_z])
 
 thrust = Function("thrust", real=True)(t)
 
@@ -106,12 +91,6 @@ r_i_m = Matrix([r_i_x, r_i_y, r_i_z])  # eci position
 v_i_m = Matrix([v_i_x, v_i_y, v_i_z])  # eci velocity
 a_b_m = Matrix([a_b_x, a_b_y, a_b_z])  # body acceleration
 a_i_m = Matrix(symbols("a_i_x, a_i_y, a_i_z"))  # eci acceleration
-
-mass = Symbol("mass", real=True)
-
-mach = Function("mach", real=True)(t)
-
-C_s = Symbol("C_s", real=True)  # speed of sound
 
 # Earth grav acceleration
 g_b_m_x = Function("g_b_m_x", real=True)(t)
@@ -128,11 +107,15 @@ beta = Function("beta", real=True)(t)
 beta_dot = Function("beta_dot", real=True)(t)
 beta_dot_dot = Function("beta_dot_dot", real=True)(t)
 
-ecef_to_lla_map = Function("ecef_to_lla_map")
-ecef_to_enu_map = Function("ecef_to_enu_map")
-ecef_to_eci_map = Function("ecef_to_eci_map")
-eci_to_ecef_map = Function("eci_to_ecef_map")
-eci_to_enu_map = Function("eci_to_enu_map")
+# angular velocities (roll, pitch, yaw)
+p = Function("p", real=True)(t)
+q = Function("q", real=True)(t)
+r = Function("r", real=True)(t)
+
+mass = Symbol("mass", real=True)
+mach = Function("mach", real=True)(t)
+C_s = Symbol("C_s", real=True)  # speed of sound
+
 
 ##################################################
 # 2.1 ECI Position and Velocity Derivatives
@@ -171,24 +154,26 @@ v_e_e = C_eci_to_ecef * v_i_m - omega_skew_ie * r_e_m
 ##################################################
 
 # (12)
-# V = v_e_e.norm()
-V = ((v_e_e.T * v_e_e)**0.5)[0]
+epsilon = 1e-18
+V = v_e_e.norm() + epsilon
 
 # (10) Mach number
 M = V / C_s
 
 # (11) Dynamic pressure
-# TODO: fix rho
-# rho = atmosphere.density(alt)
-rho = 1.293  # kg * m^-3
+# rho = 1.293  # kg * m^-3
+rho = atmosphere.density(alt)  # kg * m^-3
 q_bar = 0.5 * rho * V**2
 
 ##################################################
 # invert aerodynamics
 ##################################################
 
+f_b_T = Matrix([0, 0, thrust])
+
 # (6)
-g_i_m = Matrix([-9.81, 0, 0])
+gacc = 0  # -9.81
+g_i_m = Matrix([gacc, 0, 0])
 g_b_m = C_body_to_eci.T * g_i_m
 a_b_m = ((f_b_A + f_b_T) / mass) + g_b_m
 
@@ -219,11 +204,6 @@ v_b_e_hat = Matrix([u_hat, v_hat, w_hat])
 v_b_e_hat_dot = Matrix([u_hat_dot, v_hat_dot, w_hat_dot])
 
 ##################################################
-
-# p, q, r = symbols("p, q, r", real=True)  # angular velocities (roll, pitch, yaw)
-p = Function("p", real=True)(t)
-q = Function("q", real=True)(t)
-r = Function("r", real=True)(t)
 
 ###############################
 # NOTE: Earth-relative velocity
@@ -396,32 +376,10 @@ phi_Ac = atan2(-a_c_y, -a_c_z)
 # (50)
 a_c_new = sqrt(a_c_y**2 + a_c_z**2)
 
-###########################################
-r_enu_m = Matrix(symbols("r_e, r_n, r_u"))
-v_enu_m = Matrix(symbols("v_e, v_n, v_u"))
-a_enu_m = Matrix(symbols("a_e, a_n, a_u"))
+##################################################
+# Aerodynamics Inversion
+##################################################
 
-eci0 = Matrix([Earth.radius_equatorial, 0, 0])
-ecef0 = C_eci_to_ecef * eci0
-lla0 = ecef_to_lla_sym(ecef0)
-lat, lon, alt = lla0
-
-C_ecef_to_enu = Matrix([
-    [-sin(lon), cos(lon), 0],  # type:ignore
-    [-sin(lat) * cos(lon), -sin(lat) * sin(lon), cos(lat)],  # type:ignore
-    [cos(lat) * cos(lon), cos(lat) * sin(lon), sin(lat)]  # type:ignore
-    ])
-
-C_eci_to_enu = C_eci_to_ecef * C_ecef_to_enu
-
-r_ecef_m = C_eci_to_ecef * r_i_m
-r_enu_m_new = C_ecef_to_enu * (r_ecef_m - ecef0)
-
-v_enu_m_new = C_eci_to_enu * v_i_m
-a_enu_m_new = C_body_to_eci * C_eci_to_enu * a_b_m
-
-
-alt = r_enu_m[2]
 alpha_total = aerotable.inv_aerodynamics(
         thrust,  # type:ignore
         a_c_new,
@@ -434,91 +392,54 @@ alpha_total = aerotable.inv_aerodynamics(
         0.0,
         )
 
-#############################################
-# thrust = Symbol("thrust")
-# acc_cmd = Symbol("acc_cmd")
-# dynq = Symbol("dynq")
-# mass = Symbol("mass")
-# alpha = Symbol("alpha")
-# phi = Symbol("phi")
-# mach = Symbol("mach")
-# alt = Symbol("alt")
-# iota = Symbol("iota")
-
-# _vars = (thrust,
-#          acc_cmd,
-#          dynq,
-#          mass,
-#          alpha,
-#          phi,
-#          mach,
-#          alt,
-#          iota)
-
-# _func = aerotable.inv_aerodynamics(thrust,
-#                                    acc_cmd,
-#                                    dynq,
-#                                    mass,
-#                                    alpha,
-#                                    phi,
-#                                    mach,
-#                                    alt,
-#                                    iota)
-# f = Desym(_vars, _func, modules=[aerotable.modules], dummify=True)
-
-# thrust = 50_000.0
-# am_c = 4.848711297583447
-# q_bar = 30.953815676156566
-# mass = 3.040822554083198e+02
-# alpha = np.radians(0.021285852300486)
-# mach = 0.020890665777000
-# alt = 0.097541062161326
-# ret = f(thrust, am_c, q_bar, mass, alpha, 0, mach, alt, 0)
-# print(ret)
-# quit()
-#############################################
-
 # (51)
-alpha_c_out = atan2(tan(alpha_total), cos(phi_Ac))
-beta_c_out = atan2(tan(alpha_total), sin(phi_Ac))
+alpha_c_new = atan2(tan(alpha_total), cos(phi_Ac))
+beta_c_new = atan2(tan(alpha_total), sin(phi_Ac))
 
 ##################################################
-# Differential Definitions
+# ECI to ENU convesion
 ##################################################
-alt = r_enu_m_new[2]
-# gacc = atmosphere.grav_accel(alt)  # type:ignore
-gacc = -9.81
-g_b_m_new = (r_i_m / r_i_m.norm()) * gacc
 
-# CA_Boost = aerotable.get_CA_Boost(alpha, phi, M, alt)  # type:ignore
-# CNB = aerotable.get_CNB(alpha, phi, M)  # type:ignore
-# q_bar_new = atmosphere.dynamic_pressure(v_b_m, alt)  # type:ignore
-# Sref = aerotable.get_Sref()
-# Lref = aerotable.get_Lref()
-# force_z_aero = CNB * q_bar_new * Sref  # type:ignore
-# force_y_aero = CA_Boost * q_bar_new * Sref  # type:ignore
-# force_aero = Matrix([0, force_y_aero, force_z_aero])
+eci0 = Matrix([Earth.radius_equatorial, 0, 0])
+ecef0 = C_eci_to_ecef * eci0
+lla0 = ecef_to_lla_sym(ecef0)
+lat0, lon0, alt0 = lla0
+C_ecef_to_enu = Matrix([
+    [-sin(lon0), cos(lon0), 0],  # type:ignore
+    [-sin(lat0) * cos(lon0), -sin(lat0) * sin(lon0), cos(lat0)],  # type:ignore
+    [cos(lat0) * cos(lon0), cos(lat0) * sin(lon0), sin(lat0)]  # type:ignore
+    ])
 
+r_ecef_m = C_eci_to_ecef * r_i_m
+# r_enu_m_new = C_ecef_to_enu * (r_ecef_m - ecef0)
+# v_enu_m_new = C_eci_to_enu * v_i_m
+# a_enu_m_new = C_eci_to_enu * C_body_to_eci * a_b_m
+
+r_enu_e_new = C_ecef_to_enu * (r_ecef_m - ecef0)
+v_enu_e_new = C_ecef_to_enu * v_e_e
+a_enu_e_new = C_ecef_to_enu * a_e_e
 
 ##################################################
-# add quaternion regularization term
-# NOTE: how to incorporate quaternion normaliztion
-#       into the dynamics. for integration processes
+# Quaternion regularization term:
+# NOTE: incorporate quaternion normaliztion into
+#       the dynamics. for integration processes
 #       with less accuracy lambda must be increased
 #       (i.e.) lambda = ~100 for euler-method.
 #       compared to lambda = ~1e-3 for runge-kutta
 ##################################################
+
 lam = 1e-3
 q_m_norm = ((q_m.T * q_m)**0.5)[0]
 q_m_dot_reg = q_m_dot - lam * (q_m_norm - 1.0) * q_m
-##################################################
 
-vel_mag = Function("vel_mag")(t)
+##################################################
+# Definitions
+##################################################
 
 defs = (
        (q_m.diff(t), q_m_dot_reg),
        (r_i_m.diff(t), v_i_m),
-       (v_i_m.diff(t), C_body_to_eci * a_b_m),
+       (v_i_m.diff(t), v_i_m_dot),
 
        (p.diff(t), p_dot),
        # (q.diff(t), q_new.diff(t)),
@@ -533,9 +454,7 @@ defs = (
        (omega_p, 20),
        (phi_c, 0),
        (T_r, 0.5),
-       (C_s, 343),
-
-       # (vel_mag.diff(t), V.diff(t)),
+       (C_s, atmosphere.speed_of_sound(alt)),
        )
 
 ##################################################
@@ -557,7 +476,7 @@ defs = (
 # acc_b_y = Symbol("acc_b_y", real=True)
 # acc_b_z = Symbol("acc_b_z", real=True)
 # st_a_b_m = Matrix([acc_b_x, acc_b_y, acc_b_z])
-
+v_e_m = Matrix(symbols("v_e_x, v_e_y, v_e_z"))
 
 state = Matrix([
     q_m,
@@ -566,24 +485,25 @@ state = Matrix([
     alpha_state,
     beta_state,
     p,
-    DirectUpdate(q, q_new),
-    DirectUpdate(r, r_new),
+    # DirectUpdate(q, q_new),
+    # DirectUpdate(r, r_new),
     mass,
-    DirectUpdate(r_enu_m, r_enu_m_new),
-    DirectUpdate(v_enu_m, v_enu_m_new),
-    DirectUpdate(a_enu_m, a_enu_m_new),
-    # DirectUpdate(a_i_m, C_eci_to_ecef.T * a_e_e),
+    DirectUpdate(r_enu_m, r_enu_e_new),
+    DirectUpdate(v_enu_m, v_enu_e_new),
+    DirectUpdate(a_enu_m, a_enu_e_new),
     DirectUpdate(mach, M),
-    DirectUpdate(vel_mag, V),
-    # vel_mag,
+    DirectUpdate(vel_mag_ecef, V),
+    DirectUpdate(v_e_m, v_e_e),
     ])
 
 input = Matrix([
-    # DirectUpdate(f_b_A, force_aero),
-    alpha_c,
-    beta_c,
+    DirectUpdate(alpha_c, alpha_c_new),
+    DirectUpdate(beta_c, beta_c_new),
+    a_c_y,
+    a_c_z,
     f_b_A,
-    f_b_T,
+    # f_b_T,
+    thrust,
     ])
 
 ##################################################
@@ -612,22 +532,16 @@ dynamics = state.diff(t)
 #                               Matrix(dynamics),
 #                               defs)
 
-custom_modules = {"ecef_to_lla_map": ecef_to_lla,
-                  "ecef_to_enu_map": ecef_to_enu,
-                  "ecef_to_eci_map": ecef_to_eci,
-                  "eci_to_ecef_map": eci_to_ecef,
-                  "eci_to_enu_map": eci_to_enu}
-
 modules = [atmosphere.modules,
-           aerotable.modules,
-           custom_modules]
+           aerotable.modules]
 
 model = MissileGenericMMD.from_expression(dt,
                                           state,
                                           input,
                                           dynamics,
                                           modules=modules,
-                                          definitions=defs)
+                                          definitions=defs,
+                                          use_multiprocess_build=True)
 
 
 print("saving model...")
