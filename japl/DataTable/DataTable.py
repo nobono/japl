@@ -33,6 +33,9 @@ class DataTable(np.ndarray):
                  mach: Optional[ArgType] = None,
                  alt: Optional[ArgType] = None,
                  iota: Optional[ArgType] = None) -> float|np.ndarray:
+        # lower boundary on altitude
+        if alt is not None:
+            alt = np.maximum(alt, 0.0)
         args = self._get_table_args(table=self, alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
         axes = self._get_table_args(table=self, **self.axes)
         ret = interpn(axes, self, args, method="linear")
