@@ -14,15 +14,19 @@ DIR = os.path.dirname(__file__)
 with open(f"{DIR}/mmd.pickle", 'rb') as f:
     model = dill.load(f)
 
+t_span = [0, 40]
 plotter = PyQtGraphPlotter(frame_rate=30,
                            figsize=[10, 10],
-                           aspect="auto")
+                           aspect="auto",
+                           # xlim=t_span,
+                           # ylim=[-10, 10],
+                           )
 
 ecef0 = [Earth.radius_equatorial, 0, 0]
 simobj = SimObject(model)
 
 r0_enu = [0, 0, 0]
-v0_enu = [0, 0, 0]
+v0_enu = [0, 30, 300]
 a0_enu = [0, 0, 0]
 
 ########################################################
@@ -59,34 +63,41 @@ simobj.init_state([quat0, r0_eci, v0_eci,
 # quit()
 ########################################################
 
-parr = ['v_e_x',
-        'v_e_y',
-        'v_e_z']
-parr = ['v_e',
-        'v_n',
-        'v_u']
+parr = ['r_i_x',
+        'r_i_y',
+        'r_i_z']
+parr = ['r_e',
+        'r_n',
+        'r_u']
 
+# TODO make set_config() a method
+# which appends accaptable arguments / dict
 simobj.plot.set_config({
-    "E": {
-        "xaxis": 't',
-        "yaxis": parr[0],
-        "size": 1,
-        },
-    "N": {
-        "xaxis": 't',
-        "yaxis": parr[1],
-        "size": 1,
-        },
-    "U": {
-        "xaxis": 't',
-        "yaxis": parr[2],
-        "size": 1,
-        },
-    # "N-U": {
-    #     "xaxis": 'r_n',
-    #     "yaxis": 'r_u',
-    #     "size": 2,
+    # "E": {
+    #     "xaxis": 't',
+    #     "yaxis": parr[0],
+    #     "size": 1,
     #     },
+    # "N": {
+    #     "xaxis": 't',
+    #     "yaxis": parr[1],
+    #     "size": 1,
+    #     },
+    # "U": {
+    #     "xaxis": 't',
+    #     "yaxis": parr[2],
+    #     "size": 1,
+    #     },
+    "N-U": {
+        "xaxis": 'r_n',
+        "yaxis": 'r_u',
+        "size": 1,
+        },
+    "N-E": {
+        "xaxis": 'r_n',
+        "yaxis": 'r_e',
+        "size": 1,
+        },
     "Mach": {
         "xaxis": 't',
         "yaxis": 'mach',
@@ -94,7 +105,7 @@ simobj.plot.set_config({
         },
     })
 
-sim = Sim(t_span=[0, 10],
+sim = Sim(t_span=t_span,
           dt=0.01,
           simobjs=[simobj],
           integrate_method="rk4")

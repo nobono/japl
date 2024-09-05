@@ -154,7 +154,7 @@ v_e_e = C_eci_to_ecef * v_i_m - omega_skew_ie * r_e_m
 ##################################################
 
 # (12)
-epsilon = 1e-18
+epsilon = 1e-17
 V = v_e_e.norm() + epsilon
 
 # (10) Mach number
@@ -172,7 +172,7 @@ q_bar = 0.5 * rho * V**2
 f_b_T = Matrix([0, 0, thrust])
 
 # (6)
-gacc = 0  # -9.81
+gacc = -9.81
 g_i_m = Matrix([gacc, 0, 0])
 g_b_m = C_body_to_eci.T * g_i_m
 a_b_m = ((f_b_A + f_b_T) / mass) + g_b_m
@@ -389,7 +389,7 @@ alpha_total = aerotable.inv_aerodynamics(
         phi,
         M,
         alt,
-        0.0,
+        0.0,  # iota
         )
 
 # (51)
@@ -400,8 +400,9 @@ beta_c_new = atan2(tan(alpha_total), sin(phi_Ac))
 # ECI to ENU convesion
 ##################################################
 
-eci0 = Matrix([Earth.radius_equatorial, 0, 0])
-ecef0 = C_eci_to_ecef * eci0
+# eci0 = Matrix([Earth.radius_equatorial, 0, 0])
+ecef0 = Matrix([Earth.radius_equatorial, 0, 0])
+# ecef0 = C_eci_to_ecef * eci0
 lla0 = ecef_to_lla_sym(ecef0)
 lat0, lon0, alt0 = lla0
 C_ecef_to_enu = Matrix([
@@ -409,13 +410,7 @@ C_ecef_to_enu = Matrix([
     [-sin(lat0) * cos(lon0), -sin(lat0) * sin(lon0), cos(lat0)],  # type:ignore
     [cos(lat0) * cos(lon0), cos(lat0) * sin(lon0), sin(lat0)]  # type:ignore
     ])
-
-r_ecef_m = C_eci_to_ecef * r_i_m
-# r_enu_m_new = C_ecef_to_enu * (r_ecef_m - ecef0)
-# v_enu_m_new = C_eci_to_enu * v_i_m
-# a_enu_m_new = C_eci_to_enu * C_body_to_eci * a_b_m
-
-r_enu_e_new = C_ecef_to_enu * (r_ecef_m - ecef0)
+r_enu_e_new = C_ecef_to_enu * (r_e_m - ecef0)
 v_enu_e_new = C_ecef_to_enu * v_e_e
 a_enu_e_new = C_ecef_to_enu * a_e_e
 
