@@ -9,6 +9,7 @@ from pprint import pformat
 from multiprocess import Pool  # type:ignore
 from multiprocess import cpu_count  # type:ignore
 import dill as pickle
+from time import perf_counter
 
 
 
@@ -47,6 +48,8 @@ def build_model(state: Matrix,
     print("=" * 50)
     print("building model...")
     print("=" * 50)
+
+    start_time = perf_counter()
 
     # default symbols imposed by Sim
     t = Symbol("t")
@@ -207,6 +210,9 @@ def build_model(state: Matrix,
     # write_array(state, "./temp_state.py")
     # write_array(input, "./temp_input.py")
     # write_array(dynamics, "./temp_dynamics.py")
+
+    exec_time = perf_counter() - start_time
+    print("exec time: %.3f seconds" % exec_time)
 
     print("=" * 50, end="\n\n")
     return (state, input, dynamics, state_direct_updates, input_direct_updates)
