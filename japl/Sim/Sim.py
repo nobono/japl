@@ -5,6 +5,7 @@ from japl.SimObject.SimObject import SimObject
 from japl.DeviceInput.DeviceInput import DeviceInput
 from japl.Sim.Integrate import runge_kutta_4
 from japl.Sim.Integrate import euler
+from japl.Util.Profiler import Profiler
 from scipy.integrate import solve_ivp
 import time
 
@@ -51,19 +52,7 @@ class Sim:
         for simobj in self.simobjs:
             self.__init_simobj(simobj)
 
-        # debug stuff
-        # TODO make this its own class so we can use
-        # it to profile other classes?
-        def _debug_profiler_func():
-            if self.debug_profiler["count"] > 1:  # 't' is initally 0, discard this point
-                _dt = (time.time() - self.debug_profiler['t'])
-                self.debug_profiler["t_total"] += _dt
-                self.debug_profiler["t_ave"] = self.debug_profiler["t_total"] / self.debug_profiler["count"]
-            self.debug_profiler['t'] = time.time()
-            self.debug_profiler["count"] += 1
-            if self.debug_profiler["count"] >= self.Nt:
-                print("ave_dt: %.5f, ave_Hz: %.1f" % (self.debug_profiler["t_ave"], (1 / self.debug_profiler["t_ave"])))
-        self.debug_profiler = {"t": 0.0, "t_total": 0.0, "count": 0, "t_ave": 0.0, "run": _debug_profiler_func}
+        self.profiler = Profiler()
 
 
     def __init_simobj(self, simobj: SimObject):
@@ -149,7 +138,7 @@ class Sim:
 
         """
         # DEBUG PROFILE #########
-        # self.debug_profiler["run"]()
+        self.profiler()
         #########################
 
         # get device input

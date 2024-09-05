@@ -22,6 +22,7 @@ from pyqtgraph.Qt.QtCore import QTimer
 # from pyqtgraph import PlotWidget
 # from pyqtgraph.Qt.QtCore import QRectF
 from matplotlib import colors as mplcolors
+from japl.Util.Profiler import Profiler
 
 
 
@@ -55,6 +56,7 @@ class PyQtGraphPlotter:
         # debug
         self.quiet = kwargs.get("quiet", False)
         self.instrument_view &= not self.quiet
+        self.profiler = Profiler()
 
         # colors
         self.COLORS = dict(mplcolors.TABLEAU_COLORS, **mplcolors.CSS4_COLORS)  # available colors
@@ -98,7 +100,9 @@ class PyQtGraphPlotter:
 
 
     def animate(self, plot_obj: PlotObj):
-        """This method runs animation plots."""
+        """This method sets up animation plots. The purpose of this
+        method is to execute animated plots for certain provided
+        argument types \"PlotObj\"."""
         self.__setup_from_plot_obj(plot_obj)
 
         # TODO: handle multiple simobjs
@@ -213,7 +217,7 @@ class PyQtGraphPlotter:
         elif isinstance(N, Generator):
             if self.istep >= len(list(N)):
                 self.exit()
-        elif isinstance(N, int):
+        elif isinstance(N, int):  # type:ignore
             if self.istep >= N:
                 self.exit()
 
@@ -472,6 +476,7 @@ class PyQtGraphPlotter:
         #     if (ti := self.get_text_item(0, 0)):
         #         ti.setText(f"{np.round(perr, 2)}")
         # self._tstart = time.time()
+        self.profiler()
 
         # run ODE solver step
         nsteps = max(1, int(frame_rate / (self.dt * 1000)))
