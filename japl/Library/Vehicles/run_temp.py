@@ -26,7 +26,7 @@ ecef0 = [Earth.radius_equatorial, 0, 0]
 simobj = SimObject(model)
 
 r0_enu = [0, 0, 0]
-v0_enu = [0, 800, 30]
+v0_enu = [0, 500, 300]
 a0_enu = [0, 0, 0]
 quat0 = [1, 0, 0, 0]
 
@@ -56,7 +56,7 @@ v0_body = C_body_to_eci.T @ v0_eci
 
 simobj.init_state([quat0, r0_eci, v0_eci,
                    alpha_state_0, beta_state_0,
-                   p0,  # q0, r0,
+                   p0, q0, r0,
                    mass0,
                    r0_enu, v0_enu, a0_enu,
                    mach0,
@@ -118,14 +118,13 @@ sim = Sim(t_span=t_span,
           dt=0.01,
           simobjs=[simobj],
           integrate_method="rk4")
-# sim.run()
+sim.run()
 # plotter.instrument_view = True
-plotter.animate(sim)
-plotter.show()
+# plotter.animate(sim)
+# plotter.show()
 # plotter.plot_obj(simobj)
 # plotter.add_vector()
-
-sim.profiler.print_info()
+# sim.profiler.print_info()
 
 ii = sim.istep
 X = simobj.Y[ii]
@@ -142,6 +141,8 @@ print("alpha_dot:", np.degrees(simobj.get_state_array(X, "alpha_dot")))
 print("beta:", simobj.get_state_array(X, "beta"), end=", ")
 print("beta_dot:", simobj.get_state_array(X, "beta_dot"))
 print("p:", simobj.get_state_array(X, "p"))
+print("q:", simobj.get_state_array(X, "q"))
+print("r:", simobj.get_state_array(X, "r"))
 print("mass:", simobj.get_state_array(X, "mass"))
 print("r_enu:", simobj.get_state_array(X, ["r_e", "r_n", "r_u"]))
 print("v_enu:", simobj.get_state_array(X, ["v_e", "v_n", "v_u"]))
