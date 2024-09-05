@@ -1,6 +1,7 @@
 from typing import Optional, Union
 import numpy as np
 from scipy.interpolate import interpn
+from scipy.interpolate import RegularGridInterpolator
 
 ArgType = Union[float, list, np.ndarray]
 
@@ -11,6 +12,7 @@ class DataTable(np.ndarray):
         input_array = cls.check_input_data(input_array)
         obj = np.asarray(input_array).view(cls)
         obj.axes = axes.copy()
+        obj.interp = None
         return obj
 
 
@@ -19,6 +21,7 @@ class DataTable(np.ndarray):
         if obj is None:
             return
         self.axes = getattr(obj, "axes", {})
+        self.interp: Optional[RegularGridInterpolator] = None
 
 
     def __repr__(self) -> str:
@@ -36,11 +39,18 @@ class DataTable(np.ndarray):
         # lower boundary on altitude
         if alt is not None:
             alt = np.maximum(alt, 0.0)
+        # create interpolation object on first execution
+        if self.interp is None:
+            axes = self._get_table_args(table=self, **self.axes)
+            self.interp = RegularGridInterpolator(axes, self)
         args = self._get_table_args(table=self, alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
-        axes = self._get_table_args(table=self, **self.axes)
-        ret = interpn(axes, self, args, method="linear")
-        if len(ret) == 1:
-            return ret[0]
+        ret = self.interp(args)
+        pass
+        # NOTE: old below
+        # axes = self._get_table_args(table=self, **self.axes)
+        # ret = interpn(axes, self, args, method="linear")
+        if len(ret.shape) < 1:
+            return ret.item()  # type:ignore
         else:
             return ret
 
