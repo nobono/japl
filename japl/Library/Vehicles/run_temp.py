@@ -14,7 +14,7 @@ DIR = os.path.dirname(__file__)
 with open(f"{DIR}/mmd.pickle", 'rb') as f:
     model = dill.load(f)
 
-t_span = [0, 40]
+t_span = [0, 10]
 plotter = PyQtGraphPlotter(frame_rate=30,
                            figsize=[10, 10],
                            aspect="auto",
@@ -26,8 +26,15 @@ ecef0 = [Earth.radius_equatorial, 0, 0]
 simobj = SimObject(model)
 
 r0_enu = [0, 0, 0]
-v0_enu = [0, 30, 300]
+v0_enu = [0, 800, 30]
 a0_enu = [0, 0, 0]
+quat0 = [1, 0, 0, 0]
+
+q_0, q_1, q_2, q_3 = quat0
+C_body_to_eci = np.array([
+    [1 - 2*(q_2**2 + q_3**2), 2*(q_1*q_2 + q_0*q_3) , 2*(q_1*q_3 - q_0*q_2)],   # type:ignore # noqa
+    [2*(q_1*q_2 - q_0*q_3) , 1 - 2*(q_1**2 + q_3**2), 2*(q_2*q_3 + q_0*q_1)],   # type:ignore # noqa
+    [2*(q_1*q_3 + q_0*q_2) , 2*(q_2*q_3 - q_0*q_1), 1 - 2*(q_1**2 + q_2**2)]]).T  # type:ignore # noqa
 
 ########################################################
 quat0 = [1, 0, 0, 0]
@@ -45,6 +52,7 @@ mach0 = np.linalg.norm(v0_ecef) / 343.0  # based on ECEF-frame
 vel_mag0 = np.linalg.norm(v0_ecef)  # based on ECEF-frame
 thrust0 = 0
 v0_ecef = v0_ecef
+v0_body = C_body_to_eci.T @ v0_eci
 
 simobj.init_state([quat0, r0_eci, v0_eci,
                    alpha_state_0, beta_state_0,
@@ -54,6 +62,7 @@ simobj.init_state([quat0, r0_eci, v0_eci,
                    mach0,
                    vel_mag0,
                    v0_ecef,
+                   v0_body,
                    ])
 # print(v0_eci)
 # print(v0_ecef)
@@ -63,12 +72,12 @@ simobj.init_state([quat0, r0_eci, v0_eci,
 # quit()
 ########################################################
 
-parr = ['r_i_x',
-        'r_i_y',
-        'r_i_z']
-parr = ['r_e',
-        'r_n',
-        'r_u']
+# parr = ['v_b_e_x',
+#         'v_b_e_y',
+#         'v_b_e_z']
+# parr = ['v_e',
+#         'v_n',
+#         'v_u']
 
 # TODO make set_config() a method
 # which appends accaptable arguments / dict
@@ -110,13 +119,13 @@ sim = Sim(t_span=t_span,
           simobjs=[simobj],
           integrate_method="rk4")
 # sim.run()
+# plotter.instrument_view = True
 plotter.animate(sim)
 plotter.show()
 # plotter.plot_obj(simobj)
-# plotter.plot(sim.T, simobj.Y[:, 20])
-# plotter.plot(simobj.Y[:, 18], simobj.Y[:, 20])
-# plotter.plot(simobj.Y[:, 18], simobj.Y[:, 19])
-# plotter.plot(simobj.Y[:, 4], simobj.Y[:, 6])
+# plotter.add_vector()
+
+sim.profiler.print_info()
 
 ii = sim.istep
 X = simobj.Y[ii]
@@ -139,5 +148,6 @@ print("v_enu:", simobj.get_state_array(X, ["v_e", "v_n", "v_u"]))
 print("a_enu:", simobj.get_state_array(X, ["a_e", "a_n", "a_u"]))
 print("mach:", simobj.get_state_array(X, "mach"))
 print("vel_mag_ecef:", simobj.get_state_array(X, "vel_mag_ecef"))
+print("v_b_e_hat:", simobj.get_state_array(X, ["v_b_e_x", "v_b_e_y", "v_b_e_z"]))
 
 # print([np.linalg.norm(i) for i in simobj.Y[:10, -5:-2]])

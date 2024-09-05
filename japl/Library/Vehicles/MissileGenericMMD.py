@@ -60,6 +60,11 @@ v_i_x = Function("v_i_x", real=True)(t)
 v_i_y = Function("v_i_y", real=True)(t)
 v_i_z = Function("v_i_z", real=True)(t)
 
+v_b_e_x = Function("v_b_e_x", real=True)(t)
+v_b_e_y = Function("v_b_e_y", real=True)(t)
+v_b_e_z = Function("v_b_e_z", real=True)(t)
+v_b_e_m = Matrix([v_b_e_x, v_b_e_y, v_b_e_z])
+
 vel_mag_ecef = Function("vel_mag_ecef")(t)
 
 a_b_x = Symbol("a_b_x", real=True)
@@ -251,9 +256,6 @@ r_new = (a_b_e[1] - v_dot + p * w + omega_e * C_2) / u
 ##################################################
 
 # (26)
-# TODO
-# TODO
-# TODO q -> q_new?
 omega_b_ib = Matrix([p, q_new, r_new])
 
 ##################################################
@@ -450,6 +452,8 @@ defs = (
        (phi_c, 0),
        (T_r, 0.5),
        (C_s, atmosphere.speed_of_sound(alt)),
+
+       (v_b_e_m.diff(t), v_b_e_dot)
        )
 
 ##################################################
@@ -489,6 +493,8 @@ state = Matrix([
     DirectUpdate(mach, M),
     DirectUpdate(vel_mag_ecef, V),
     DirectUpdate(v_e_m, v_e_e),
+    # DirectUpdate(v_b_e_m, v_b_e)
+    v_b_e_m,
     ])
 
 input = Matrix([
