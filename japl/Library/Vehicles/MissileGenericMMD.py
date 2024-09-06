@@ -52,6 +52,7 @@ q_1_dot = Function("q_1_dot", real=True)(t)
 q_2_dot = Function("q_2_dot", real=True)(t)
 q_3_dot = Function("q_3_dot", real=True)(t)
 
+# ECI-frame
 r_i_x = Function("r_i_x", real=True)(t)
 r_i_y = Function("r_i_y", real=True)(t)
 r_i_z = Function("r_i_z", real=True)(t)
@@ -60,12 +61,44 @@ v_i_x = Function("v_i_x", real=True)(t)
 v_i_y = Function("v_i_y", real=True)(t)
 v_i_z = Function("v_i_z", real=True)(t)
 
+a_i_x = Function("a_i_x", real=True)(t)
+a_i_y = Function("a_i_y", real=True)(t)
+a_i_z = Function("a_i_z", real=True)(t)
+
+r_i_m = Matrix([r_i_x, r_i_y, r_i_z])  # eci position
+v_i_m = Matrix([v_i_x, v_i_y, v_i_z])  # eci velocity
+a_i_m = Matrix([a_i_x, a_i_y, a_i_z])  # eci acceleration
+
+# ECEF-frame
+r_e_x = Function("r_e_x", real=True)(t)
+r_e_y = Function("r_e_y", real=True)(t)
+r_e_z = Function("r_e_z", real=True)(t)
+
+v_e_x = Function("v_e_x", real=True)(t)
+v_e_y = Function("v_e_y", real=True)(t)
+v_e_z = Function("v_e_z", real=True)(t)
+
+a_e_x = Function("a_e_x", real=True)(t)
+a_e_y = Function("a_e_y", real=True)(t)
+a_e_z = Function("a_e_z", real=True)(t)
+
+r_e_m = Matrix([r_e_x, r_e_y, r_e_z])
+v_e_m = Matrix([v_e_x, v_e_y, v_e_z])
+a_e_m = Matrix([a_e_x, a_e_y, a_e_z])
+
+vel_mag_e = Function("vel_mag_e")(t)
+vel_mag_e_dot = Function("vel_mag_e_dot")(t)
+
+# BODY-frame
 v_b_e_x = Function("v_b_e_x", real=True)(t)
 v_b_e_y = Function("v_b_e_y", real=True)(t)
 v_b_e_z = Function("v_b_e_z", real=True)(t)
 v_b_e_m = Matrix([v_b_e_x, v_b_e_y, v_b_e_z])
 
-vel_mag_ecef = Function("vel_mag_ecef")(t)
+v_b_e_hat_x = Function("v_b_e_hat_x", real=True)(t)
+v_b_e_hat_y = Function("v_b_e_hat_y", real=True)(t)
+v_b_e_hat_z = Function("v_b_e_hat_z", real=True)(t)
+v_b_e_m_hat = Matrix([v_b_e_hat_x, v_b_e_hat_y, v_b_e_hat_z])
 
 a_b_x = Symbol("a_b_x", real=True)
 a_b_y = Symbol("a_b_y", real=True)
@@ -92,10 +125,7 @@ alt = r_enu_m[2]
 thrust = Function("thrust", real=True)(t)
 
 q_m = Matrix([q_0, q_1, q_2, q_3])
-r_i_m = Matrix([r_i_x, r_i_y, r_i_z])  # eci position
-v_i_m = Matrix([v_i_x, v_i_y, v_i_z])  # eci velocity
-a_b_m = Matrix([a_b_x, a_b_y, a_b_z])  # body acceleration
-a_i_m = Matrix(symbols("a_i_x, a_i_y, a_i_z"))  # eci acceleration
+a_b_e_m = Matrix([a_b_x, a_b_y, a_b_z])  # body acceleration
 
 # Earth grav acceleration
 g_b_m_x = Function("g_b_m_x", real=True)(t)
@@ -120,6 +150,7 @@ r = Function("r", real=True)(t)
 mass = Symbol("mass", real=True)
 mach = Function("mach", real=True)(t)
 C_s = Symbol("C_s", real=True)  # speed of sound
+rho = Symbol("rho", real=True)  # speed of sound
 
 
 ##################################################
@@ -144,7 +175,7 @@ C_body_to_ecef = C_eci_to_ecef * C_body_to_eci
 ##################################################
 
 # (7) Earth-relative position vector
-r_e_m = C_eci_to_ecef * r_i_m
+r_e_e = C_eci_to_ecef * r_i_m
 
 # (9)
 omega_skew_ie = Matrix([
@@ -154,40 +185,44 @@ omega_skew_ie = Matrix([
     ])
 
 # (8) Earth-relative velocity vector
-v_e_e = C_eci_to_ecef * v_i_m - omega_skew_ie * r_e_m
+v_e_e = C_eci_to_ecef * v_i_m - omega_skew_ie * r_e_e
 
 ##################################################
 
 # (12)
-epsilon = 1e-17
-V = v_e_e.norm() + epsilon
+epsilon = 1e-3
+V = v_e_e.norm()
 
 # (10) Mach number
 M = V / C_s
 
 # (11) Dynamic pressure
 # rho = 1.293  # kg * m^-3
-rho = atmosphere.density(alt)  # kg * m^-3
-q_bar = 0.5 * rho * V**2
+# rho = atmosphere.density(alt)  # kg * m^-3
+q_bar = 0.5 * rho * V**2  # type:ignore
 
 ##################################################
 # invert aerodynamics
 ##################################################
+C_ecef_to_body = C_body_to_ecef.T
 
-f_b_T = Matrix([0, 0, thrust])
+f_b_T = Matrix([thrust, 0, 0])
+
+# TODO compute f_b_A here
+f_b_A = Matrix([0, 0, 0])
 
 # (6)
 gacc = -9.81
 g_i_m = Matrix([gacc, 0, 0])
-g_b_m = C_body_to_eci.T * g_i_m
-a_b_m = ((f_b_A + f_b_T) / mass) + g_b_m
+g_e_m = C_eci_to_ecef * g_i_m
+g_b_e = C_ecef_to_body * g_e_m
+a_b_m = ((f_b_A + f_b_T) / mass) + g_b_e
 
 # (13) Earth-relative acceleration vector
 a_e_e = C_body_to_ecef * a_b_m - (2 * omega_skew_ie * v_e_e)\
-        - (omega_skew_ie * omega_skew_ie * r_e_m)
+        - (omega_skew_ie * omega_skew_ie * r_e_e)
 
 # (29)
-C_ecef_to_body = C_body_to_ecef.T
 a_b_e = C_ecef_to_body * a_e_e
 
 ##################################################
@@ -264,7 +299,7 @@ omega_b_ib = Matrix([p, q_new, r_new])
 r_i_m_dot = v_i_m
 
 # (3)
-v_i_m_dot = C_body_to_eci * a_b_m
+v_i_m_dot = C_body_to_eci * a_b_e_m
 
 ##################################################
 # 2.2 MMD Autopilot Transfer Functions
@@ -413,8 +448,8 @@ C_ecef_to_enu = Matrix([
     [cos(lat0) * cos(lon0), cos(lat0) * sin(lon0), sin(lat0)]  # type:ignore
     ])
 r_enu_e_new = C_ecef_to_enu * (r_e_m - ecef0)
-v_enu_e_new = C_ecef_to_enu * v_e_e
-a_enu_e_new = C_ecef_to_enu * a_e_e
+v_enu_e_new = C_ecef_to_enu * v_e_m
+a_enu_e_new = C_ecef_to_enu * a_e_m
 
 ##################################################
 # Quaternion regularization term:
@@ -442,6 +477,9 @@ defs = (
        # (q.diff(t), q_new.diff(t)),
        # (r.diff(t), r_new.diff(t)),
 
+       (r_e_m.diff(t), v_e_e),
+       (v_e_m.diff(t), a_e_e),
+
        (alpha_state.diff(t), alpha_state_dot),
        (beta_state.diff(t), beta_state_dot),
 
@@ -452,8 +490,12 @@ defs = (
        (phi_c, 0),
        (T_r, 0.5),
        (C_s, atmosphere.speed_of_sound(alt)),
+       (rho, atmosphere.density(alt)),
 
-       (v_b_e_m.diff(t), v_b_e_dot)
+       (v_b_e_m.diff(t), v_b_e_dot),
+       (v_b_e_m_hat.diff(t), v_b_e_hat_dot),
+
+       (vel_mag_e.diff(t), V_dot),
        )
 
 ##################################################
@@ -475,7 +517,6 @@ defs = (
 # acc_b_y = Symbol("acc_b_y", real=True)
 # acc_b_z = Symbol("acc_b_z", real=True)
 # st_a_b_m = Matrix([acc_b_x, acc_b_y, acc_b_z])
-v_e_m = Matrix(symbols("v_e_x, v_e_y, v_e_z"))
 
 state = Matrix([
     q_m,
@@ -487,14 +528,33 @@ state = Matrix([
     DirectUpdate(q, q_new),
     DirectUpdate(r, r_new),
     mass,
+
+    # ENU
     DirectUpdate(r_enu_m, r_enu_e_new),
     DirectUpdate(v_enu_m, v_enu_e_new),
     DirectUpdate(a_enu_m, a_enu_e_new),
+
+    # ECEF
+    # DirectUpdate(r_e_m, r_e_e),
+    # DirectUpdate(v_e_m, v_e_e),
+    # DirectUpdate(a_e_m, a_e_e),
+    r_e_m,
+    v_e_m,
+    DirectUpdate(a_e_m, a_e_e),
+
+    # DirectUpdate(vel_mag_e, V),
+    vel_mag_e,
+    DirectUpdate(vel_mag_e_dot, V_dot),
+
     DirectUpdate(mach, M),
-    DirectUpdate(vel_mag_ecef, V),
-    DirectUpdate(v_e_m, v_e_e),
-    # DirectUpdate(v_b_e_m, v_b_e)
+
+    # DirectUpdate(v_b_e_m, v_b_e_hat),
     v_b_e_m,
+    v_b_e_m_hat,
+
+    DirectUpdate(g_b_m, g_b_e),
+    DirectUpdate(a_b_e_m, a_b_e)
+    # v_b_e_m,
     ])
 
 input = Matrix([
@@ -502,8 +562,6 @@ input = Matrix([
     DirectUpdate(beta_c, beta_c_new),
     a_c_y,
     a_c_z,
-    f_b_A,
-    # f_b_T,
     thrust,
     ])
 
