@@ -39,6 +39,10 @@ class DataTable(np.ndarray):
         # lower boundary on altitude
         if alt is not None:
             alt = np.maximum(alt, 0.0)
+        # protection / boundary for mach
+        if mach is not None:
+            if not hasattr(mach, "__len__") and np.isnan(mach):
+                mach = 0.0
         # create interpolation object on first execution
         if self.interp is None:
             axes = self._get_table_args(table=self, **self.axes)
