@@ -8,6 +8,9 @@ ArgType = Union[float, list, np.ndarray]
 
 
 class DataTable(np.ndarray):
+
+    DEBUG = True  # debug flag allows extra checks for input args
+
     def __new__(cls, input_array, axes: dict):
         input_array = cls.check_input_data(input_array)
         obj = np.asarray(input_array).view(cls)
@@ -36,13 +39,19 @@ class DataTable(np.ndarray):
                  mach: Optional[ArgType] = None,
                  alt: Optional[ArgType] = None,
                  iota: Optional[ArgType] = None) -> float|np.ndarray:
+        # TODO do this better
         # lower boundary on altitude
         if alt is not None:
             alt = np.maximum(alt, 0.0)
+        # TODO do this better
         # protection / boundary for mach
         if mach is not None:
-            if not hasattr(mach, "__len__") and np.isnan(mach):
-                mach = 0.0
+            # if not hasattr(mach, "__len__") and np.isnan(mach):
+            #     mach = 0.0
+            mach = np.clip(mach, self.axes["mach"].min(), self.axes["mach"].max())
+        # TODO do this better
+        if alt is not None:
+            alt = np.clip(alt, self.axes["alt"].min(), self.axes["alt"].max())
         # create interpolation object on first execution
         if self.interp is None:
             axes = self._get_table_args(table=self, **self.axes)
