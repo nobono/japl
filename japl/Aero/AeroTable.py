@@ -6,6 +6,7 @@ from japl.Util.Matlab import MatFile
 from japl.Util.Util import flatten_list
 from japl.DataTable.DataTable import DataTable
 from japl.DataTable.DataTable import ArgType
+from scipy.optimize import minimize_scalar
 
 
 
@@ -540,6 +541,39 @@ class AeroTable:
     #                    method=method)[0]
 
 
+    def ld_guidance(self,
+                    alpha: float,
+                    phi: Optional[float] = None,
+                    mach: Optional[float] = None,
+                    alt: Optional[float] = None,
+                    iota: Optional[float] = None):
+        alpha_max = max(self.increments.alpha)
+        alpha_min = min(self.increments.alpha)
+
+        def ld_ratio(_alpha):
+            CA = self.get_CA_Boost(alpha=_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            CN = self.get_CNB(alpha=_alpha, phi=phi, mach=mach, iota=iota)
+            cosa = np.cos(_alpha)
+            sina = np.sin(_alpha)
+            CL = (CN * cosa) - (CA * sina)
+            CD = (CN * sina) + (CA * cosa)
+            ratio = -CL / CD
+            return ratio
+        result = minimize_scalar(ld_ratio, bounds=(alpha_min, alpha_max), method='bounded')
+        optimal_alpha = result.x
+        ld_max = -result.fun
+        # optimal CL, CD
+        CA = self.get_CA_Boost(alpha=optimal_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+        CN = self.get_CNB(alpha=optimal_alpha, phi=phi, mach=mach, iota=iota)
+        cosa = np.cos(optimal_alpha)
+        sina = np.sin(optimal_alpha)
+        opt_CL = (CN * cosa) - (CA * sina)
+        opt_CD = (CN * sina) + (CA * cosa)
+
+        optimal_alpha = np.clip(optimal_alpha, alpha_min, alpha_max)
+        return opt_CL, opt_CD, optimal_alpha
+
+
     def inv_aerodynamics(self,
                          thrust: float,
                          acc_cmd: float,
@@ -599,8 +633,11 @@ class AeroTable:
                      mach: Optional[ArgType] = None,
                      alt: Optional[ArgType] = None,
                      iota: Optional[ArgType] = None) -> float|np.ndarray:
+        # TODO do this better
+        # protection / boundary for alpha
+        if alpha is not None:
+            alpha = np.clip(alpha, self.CA_Boost.axes["alpha"].min(), self.CA_Boost.axes["alpha"].max())
         return self.CA_Boost(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
-
 
 
     def get_CA_Coast(self,
@@ -609,6 +646,8 @@ class AeroTable:
                      mach: Optional[ArgType] = None,
                      alt: Optional[ArgType] = None,
                      iota: Optional[ArgType] = None) -> float|np.ndarray:
+        if alpha is not None:
+            alpha = np.clip(alpha, self.CA_Boost.axes["alpha"].min(), self.CA_Boost.axes["alpha"].max())
         return self.CA_Coast(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
 
 
@@ -617,6 +656,8 @@ class AeroTable:
                 phi: Optional[ArgType] = None,
                 mach: Optional[ArgType] = None,
                 iota: Optional[ArgType] = None) -> float|np.ndarray:
+        if alpha is not None:
+            alpha = np.clip(alpha, self.CA_Boost.axes["alpha"].min(), self.CA_Boost.axes["alpha"].max())
         return self.CNB(alpha=alpha, phi=phi, mach=mach, iota=iota)
 
 
@@ -650,6 +691,8 @@ class AeroTable:
                            mach: Optional[ArgType] = None,
                            alt: Optional[ArgType] = None,
                            iota: Optional[ArgType] = None) -> float|np.ndarray:
+        if alpha is not None:
+            alpha = np.clip(alpha, self.CA_Boost.axes["alpha"].min(), self.CA_Boost.axes["alpha"].max())
         return self.CA_Boost_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
 
 
@@ -659,6 +702,8 @@ class AeroTable:
                            mach: Optional[ArgType] = None,
                            alt: Optional[ArgType] = None,
                            iota: Optional[ArgType] = None) -> float|np.ndarray:
+        if alpha is not None:
+            alpha = np.clip(alpha, self.CA_Boost.axes["alpha"].min(), self.CA_Boost.axes["alpha"].max())
         return self.CA_Coast_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
 
 
@@ -667,6 +712,8 @@ class AeroTable:
                       phi: Optional[ArgType] = None,
                       mach: Optional[ArgType] = None,
                       iota: Optional[ArgType] = None) -> float|np.ndarray:
+        if alpha is not None:
+            alpha = np.clip(alpha, self.CA_Boost.axes["alpha"].min(), self.CA_Boost.axes["alpha"].max())
         return self.CNB_alpha(alpha=alpha, phi=phi, mach=mach, iota=iota)
 
 
