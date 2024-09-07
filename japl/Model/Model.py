@@ -85,7 +85,8 @@ class Model:
                       state_vars: list|tuple|Matrix,
                       input_vars: list|tuple|Matrix,
                       dynamics_func: Optional[Callable] = None,
-                      update_func: Optional[Callable] = None):
+                      state_update_func: Optional[Callable] = None,
+                      input_update_func: Optional[Callable] = None):
         """This method initializes a Model from a callable function.
         The provided function must have the following signature:
 
@@ -120,10 +121,12 @@ class Model:
         model.input_dim = len(model.input_vars)
         if dynamics_func:
             model.dynamics_func = dynamics_func
-        if update_func:
-            model.direct_state_update_func = update_func
-        if (not dynamics_func) and (not update_func):
-            raise Exception("Both dynamics_func and update_func cannot be undefined.")
+        if state_update_func:
+            model.direct_state_update_func = state_update_func
+        if input_update_func:
+            model.direct_input_update_func = input_update_func
+        if (not dynamics_func) and (not state_update_func):
+            raise Exception("Both dynamics_func and state_update_func cannot be undefined.")
         return model
 
 
