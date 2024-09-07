@@ -143,6 +143,15 @@ def build_model(state: Matrix,
     ############################################################
     # 7: apply substitions to dynamics array
     ############################################################
+    ##################
+    # NOTE IN FUTURE try speed ups by attempting
+    # to turn expr into polynomial where each term can be
+    # substituted for individually and then the full
+    # expression reconstructed.
+    # - poly = expr.as_poly()
+    # - poly.terms() # list[(exps, coeffs), (exps, coeffs)]
+    # - poly.gens # generator which provides order of terms
+    ##################
     print("applying substitions to dynamics...")
     if use_multiprocess_build:
         with Pool(processes=cpu_count()) as pool:
