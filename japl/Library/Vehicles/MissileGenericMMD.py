@@ -209,7 +209,17 @@ C_ecef_to_body = C_body_to_ecef.T
 f_b_T = Matrix([thrust, 0, 0])
 
 # TODO compute f_b_A here
-f_b_A = Matrix([0, 0, 0])
+Sref = aerotable.get_Sref()
+CNB = aerotable.get_CNB(alpha, 0, M)
+
+CA = aerotable.get_CA_Boost(alpha, 0, M, alt)
+# if boosting:
+#     CA = aerotable.get_CA_Boost(alpha=alpha, phi=0, mach=mach, alt=alt)
+# else:
+#     CA = aerotable.get_CA_Coast(alpha=alpha, phi=0, mach=mach, alt=alt)
+f_b_A_x = CA * q_bar * Sref
+f_b_A_z = CNB * q_bar * Sref
+f_b_A = Matrix([-f_b_A_x, 0, -f_b_A_z])
 
 # (6)
 gacc = -9.81
@@ -219,8 +229,8 @@ g_b_e = C_ecef_to_body * g_e_m
 a_b_m = ((f_b_A + f_b_T) / mass) + g_b_e
 
 # (13) Earth-relative acceleration vector
-a_e_e = C_body_to_ecef * a_b_m - (2 * omega_skew_ie * v_e_e)\
-        - (omega_skew_ie * omega_skew_ie * r_e_e)
+a_e_e = (C_body_to_ecef * a_b_m - (2 * omega_skew_ie * v_e_e)
+         - (omega_skew_ie * omega_skew_ie * r_e_e))
 
 # (29)
 a_b_e = C_ecef_to_body * a_e_e
@@ -228,14 +238,16 @@ a_b_e = C_ecef_to_body * a_e_e
 ##################################################
 
 # (32) (33) (34)
-u_hat = (1 + tan(alpha)**2 + tan(beta)**2)  # type:ignore
+u_hat = (1 + tan(alpha)**2 + tan(beta)**2)**(-0.5)  # type:ignore
 v_hat = u_hat * tan(beta)
 w_hat = u_hat * tan(alpha)
 
 # (35) (36) (37)
-u_hat_dot = -(1 + tan(alpha)**2 + tan(beta)**2)**(-3 / 2) * ((alpha_dot * tan(alpha) * sec(alpha)**2) + (beta_dot * tan(beta) * sec(beta)**2)) # type:ignore # noqa
-v_hat_dot = u_hat_dot * tan(beta) + u_hat * beta_dot * sec(beta)**2  # type:ignore
-w_hat_dot = u_hat_dot * tan(alpha) + u_hat * alpha_dot * sec(alpha)**2  # type:ignore
+u_hat_dot = (-(1 + tan(alpha)**2 + tan(beta)**2)**(-3 / 2)  # type:ignore # noqa
+             * ((alpha_dot * tan(alpha) * sec(alpha)**2)
+                + (beta_dot * tan(beta) * sec(beta)**2)))
+v_hat_dot = u_hat_dot * tan(beta) + u_hat * beta_dot * sec(beta)**2
+w_hat_dot = u_hat_dot * tan(alpha) + u_hat * alpha_dot * sec(alpha)**2
 
 # (30)
 v_b_e_hat = Matrix([u_hat, v_hat, w_hat])
@@ -299,16 +311,17 @@ omega_b_ib = Matrix([p, q_new, r_new])
 r_i_m_dot = v_i_m
 
 # (3)
-v_i_m_dot = C_body_to_eci * a_b_e_m
+v_i_m_dot = C_body_to_eci * a_b_e
 
 ##################################################
 # 2.2 MMD Autopilot Transfer Functions
 ##################################################
 omega_n = Symbol("omega_n", real=True)  # natural frequency
 zeta = Symbol("zeta", real=True)  # damping ratio
+alpha_c = Symbol("alpha_c", real=True)  # angle of attack command
+beta_c = Symbol("beta_c", real=True)  # sideslip angle command
 
 # (16) Angle of attack transfer function
-alpha_c = Symbol("alpha_c", real=True)  # angle of attack command
 alpha_state = Matrix([alpha, alpha_dot])
 A_alpha = Matrix([
     [0, 1],
@@ -321,7 +334,6 @@ B_alpha = Matrix([
 alpha_state_dot = A_alpha * alpha_state + B_alpha * alpha_c
 
 # (17) Sideslip angle transfer function
-beta_c = Symbol("beta_c", real=True)  # sideslip angle command
 beta_state = Matrix([beta, beta_dot])
 A_beta = Matrix([
     [0, 1],
@@ -423,15 +435,15 @@ alpha_total = aerotable.inv_aerodynamics(
         q_bar,
         mass,
         alpha,
-        phi,
+        0,  # phi
         M,
         alt,
         0.0,  # iota
         )
 
 # (51)
-alpha_c_new = atan2(tan(alpha_total), cos(phi_Ac))
-beta_c_new = atan2(tan(alpha_total), sin(phi_Ac))
+alpha_c_new = atan(tan(alpha_total) * cos(phi_Ac))  # type:ignore
+beta_c_new = atan(tan(alpha_total) * sin(phi_Ac))  # type:ignore
 
 ##################################################
 # ECI to ENU convesion
@@ -448,6 +460,16 @@ C_ecef_to_enu = Matrix([
     [cos(lat0) * cos(lon0), cos(lat0) * sin(lon0), sin(lat0)]  # type:ignore
     ])
 r_enu_e_new = C_ecef_to_enu * (r_e_m - ecef0)
+
+# NOTE: non-position vectors should use the current vehicle
+# position as the reference point
+lla0 = ecef_to_lla_sym(r_e_m)
+lat0, lon0, alt0 = lla0
+C_ecef_to_enu = Matrix([
+    [-sin(lon0), cos(lon0), 0],  # type:ignore
+    [-sin(lat0) * cos(lon0), -sin(lat0) * sin(lon0), cos(lat0)],  # type:ignore
+    [cos(lat0) * cos(lon0), cos(lat0) * sin(lon0), sin(lat0)]  # type:ignore
+    ])
 v_enu_e_new = C_ecef_to_enu * v_e_m
 a_enu_e_new = C_ecef_to_enu * a_e_m
 
@@ -470,20 +492,31 @@ q_m_dot_reg = q_m_dot - lam * (q_m_norm - 1.0) * q_m
 
 defs = (
        (q_m.diff(t), q_m_dot_reg),
-       (r_i_m.diff(t), v_i_m),
+       (r_i_m.diff(t), r_i_m_dot),
        (v_i_m.diff(t), v_i_m_dot),
 
+       # (alpha_state.diff(t), alpha_state_dot),
+       # (beta_state.diff(t), beta_state_dot),
+       (alpha.diff(t), alpha_state_dot[0]),
+       (alpha_dot.diff(t), alpha_state_dot[1]),
+       (beta.diff(t), beta_state_dot[0]),
+       (beta_dot.diff(t), beta_state_dot[1]),
+
        (p.diff(t), p_dot),
+
+       # TODO (mass, mass_dot),
        # (q.diff(t), q_new.diff(t)),
        # (r.diff(t), r_new.diff(t)),
 
        (r_e_m.diff(t), v_e_e),
        (v_e_m.diff(t), a_e_e),
 
-       (alpha_state.diff(t), alpha_state_dot),
-       (beta_state.diff(t), beta_state_dot),
+       (vel_mag_e.diff(t), V_dot),
 
-       (omega_n, 50),
+       (v_b_e_m.diff(t), v_b_e_dot),
+       (v_b_e_m_hat.diff(t), v_b_e_hat_dot),
+
+       (omega_n, 20),
        (zeta, 0.7),
        (K_phi, 1),
        (omega_p, 20),
@@ -491,11 +524,6 @@ defs = (
        (T_r, 0.5),
        (C_s, atmosphere.speed_of_sound(alt)),
        (rho, atmosphere.density(alt)),
-
-       (v_b_e_m.diff(t), v_b_e_dot),
-       (v_b_e_m_hat.diff(t), v_b_e_hat_dot),
-
-       (vel_mag_e.diff(t), V_dot),
        )
 
 ##################################################
@@ -522,11 +550,18 @@ state = Matrix([
     q_m,
     r_i_m,
     v_i_m,
-    alpha_state,
-    beta_state,
+
+    # alpha_state,
+    # beta_state,
+    alpha,
+    alpha_dot,
+    beta,
+    beta_dot,
+
     p,
     DirectUpdate(q, q_new),
     DirectUpdate(r, r_new),
+
     mass,
 
     # ENU
@@ -535,9 +570,6 @@ state = Matrix([
     DirectUpdate(a_enu_m, a_enu_e_new),
 
     # ECEF
-    # DirectUpdate(r_e_m, r_e_e),
-    # DirectUpdate(v_e_m, v_e_e),
-    # DirectUpdate(a_e_m, a_e_e),
     r_e_m,
     v_e_m,
     DirectUpdate(a_e_m, a_e_e),
@@ -554,7 +586,6 @@ state = Matrix([
 
     DirectUpdate(g_b_m, g_b_e),
     DirectUpdate(a_b_e_m, a_b_e)
-    # v_b_e_m,
     ])
 
 input = Matrix([
