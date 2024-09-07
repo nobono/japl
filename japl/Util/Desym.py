@@ -1,5 +1,6 @@
 from typing import Any
 import numpy as np
+import inspect
 from sympy import Expr
 from sympy import Symbol
 from sympy import Matrix
@@ -55,8 +56,19 @@ class Desym:
                           modules=[self.modules, "numpy"],
                           dummify=dummify,
                           cse=cse)
+        self.code = inspect.getsource(self.f)
+
 
     def __call__(self, *args) -> np.ndarray:
         if self.array_arg:
             args = [*args[0]]       # unpack if option set
         return self.f(*args)
+
+
+    def dump(self, f):
+        """This method dumps the lambdify'd sympy expression
+        code string to a provided file."""
+        try:
+            f.write(self.code)
+        except Exception as e:
+            raise Exception(e)
