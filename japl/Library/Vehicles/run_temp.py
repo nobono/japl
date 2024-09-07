@@ -7,7 +7,10 @@ from japl import SimObject
 from japl import PyQtGraphPlotter
 from japl.Library.Earth.Earth import Earth
 from japl.Math import Rotation
-# from japl.Library.Vehicles.MissileGenericMMD import model
+from pprint import pprint
+# from japl.Library.Vehicles.MissileGenericMMD2 import model
+# from japl.Library.Vehicles.MissileGenericMMD2 import mass_props
+
 
 DIR = os.path.dirname(__file__)
 np.set_printoptions(suppress=True, precision=3)
@@ -16,22 +19,29 @@ np.set_printoptions(suppress=True, precision=3)
 with open(f"{DIR}/mmd.pickle", 'rb') as f:
     model = dill.load(f)
 
-t_span = [0, 1]
-# plotter = PyQtGraphPlotter(frame_rate=30,
-#                            figsize=[10, 10],
-#                            aspect="auto",
-#                            # xlim=t_span,
-#                            # ylim=[-10, 10],
-#                            )
+# model.dynamics_func.code
+# model.direct_state_update_func.code
+# model.direct_input_update_func.code
+# quit()
+
+t_span = [0, 20]
+plotter = PyQtGraphPlotter(frame_rate=30,
+                           figsize=[10, 10],
+                           aspect="auto",
+                           # xlim=[-500, 500],
+                           # ylim=[0, 600],
+                           # ff=5.0,
+                           )
 
 ecef0 = [Earth.radius_equatorial, 0, 0]
 simobj = SimObject(model)
 
 r0_enu = [0, 0, 0]
-v0_enu = [0, 0, 1e-15]
+v0_enu = [0, 0, 1]
 a0_enu = [0, 0, -9.81]
-dcm = Rotation.tait_bryan_to_dcm(np.radians([0, 0, 0]))  # yaw-pitch-roll
+dcm = Rotation.tait_bryan_to_dcm(np.radians([0, 0, 0])).T  # yaw-pitch-roll
 quat0 = quaternion.from_rotation_matrix(dcm).components
+# quat0 = [1, 0, 0, 0]
 
 q_0, q_1, q_2, q_3 = quat0
 C_body_to_eci = np.array([
@@ -56,7 +66,7 @@ p0 = 0
 q0 = 0
 r0 = 0
 
-mass0 = 600
+mass0 = 300  # mass_props["wet_mass"]
 mach0 = np.linalg.norm(v0_ecef) / 343.0  # based on ECEF-frame
 vel_mag0 = np.linalg.norm(v0_ecef)  # based on ECEF-frame
 vel_mag0_dot = 0
@@ -97,13 +107,14 @@ simobj.init_state([quat0,
 # parr = ['v_b_e_x',
 #         'v_b_e_y',
 #         'v_b_e_z']
-# parr = ['v_e',
-#         'v_n',
-#         'v_u']
+parr = ['r_e_x',
+        'r_e_y',
+        'r_e_z']
 
 # TODO make set_config() a method
 # which appends accaptable arguments / dict
 simobj.plot.set_config({
+
     # "E": {
     #     "xaxis": 't',
     #     "yaxis": parr[0],
@@ -119,36 +130,82 @@ simobj.plot.set_config({
     #     "yaxis": parr[2],
     #     "size": 1,
     #     },
+
     "N-U": {
         "xaxis": 'r_n',
         "yaxis": 'r_u',
         "size": 1,
+        "xlim": [-10, 3000],
+        "ylim": [0, 3000],
         },
     "N-E": {
         "xaxis": 'r_n',
         "yaxis": 'r_e',
         "size": 1,
+        "xlim": [-100, 3000],
+        "ylim": [-100, 100],
         },
-    "Mach": {
-        "xaxis": 't',
-        "yaxis": 'mach',
-        "size": 1,
-        },
+    # "Mach": {
+    #     "xaxis": 't',
+    #     "yaxis": 'mach',
+    #     "size": 1,
+    #     },
+
+    # "V": {
+    #     "xaxis": 't',
+    #     "yaxis": 'vel_mag_e',
+    #     "size": 1,
+    #     },
+    # "alpha": {
+    #     "xaxis": 't',
+    #     "yaxis": 'alpha',
+    #     "size": 1,
+    #     },
+    # "beta": {
+    #     "xaxis": 't',
+    #     "yaxis": 'beta',
+    #     "size": 1,
+    #     },
+
+    # "mass": {
+    #     "xaxis": 't',
+    #     "yaxis": 'mass',
+    #     "size": 1,
+    #     },
+
+    # "acc": {
+    #     "xaxis": 't',
+    #     "yaxis": 'g_b_m_x',
+    #     "size": 1,
+    #     },
     })
 
 sim = Sim(t_span=t_span,
           dt=0.01,
           simobjs=[simobj],
           integrate_method="rk4")
-sim.run()
+# sim.run()
 # plotter.instrument_view = True
-# plotter.animate(sim)
-# plotter.show()
+plotter.animate(sim)
 # plotter.plot_obj(simobj)
+plotter.show()
 # plotter.add_vector()
 sim.profiler.print_info()
 
-ii = sim.istep
+# with open("temp_data_2.pickle", 'ab') as f:
+#     dill.dump(simobj.Y, f)
+
+# ii = sim.istep
+# for ii in range(0, len(simobj.Y)):
+#     X = simobj.Y[ii]
+#     print("alpha:", np.degrees(simobj.get_state_array(X, "alpha")))
+
+# id_n = simobj.model.get_state_id("r_n")
+# id_u = simobj.model.get_state_id("r_u")
+# plotter.plot(simobj.Y[:, id_n], simobj.Y[:, id_u])
+# plotter.show()
+
+quit()
 X = simobj.Y[ii]
 quat = simobj.get_state_array(X, ["q_0", "q_1", "q_2", "q_3"])
 yaw_pitch_roll = np.degrees(Rotation.dcm_to_tait_bryan(Rotation.quat_to_dcm(quat)))
