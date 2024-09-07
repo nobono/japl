@@ -52,6 +52,7 @@ class PyQtGraphPlotter:
         self.moving_bounds: bool = kwargs.get("moving_bounds", False)
         self.xlim: list = kwargs.get("xlim", [])
         self.ylim: list = kwargs.get("ylim", [])
+        self.ff: float = kwargs.get("ff", 1)
 
         # debug
         self.quiet = kwargs.get("quiet", False)
@@ -469,36 +470,46 @@ class PyQtGraphPlotter:
 
     def _animate_func(self, frame, simobj: SimObject, step_func: Callable,
                       frame_rate: float, moving_bounds: bool = False):
-        # # TEMP #############################################
-        # # %-error time profile of pyqtgraph painting process
-        # if self.instrument_view and (self.istep % 10) == 0:
-        #     perr = abs((time.time() - self._tstart) - self.dt) / self.dt
-        #     if (ti := self.get_text_item(0, 0)):
-        #         ti.setText(f"{np.round(perr, 2)}")
-        # self._tstart = time.time()
+
         self.profiler()
 
         # run ODE solver step
         nsteps = max(1, int(frame_rate / (self.dt * 1000)))
-        for _ in range(nsteps):
+        for _ in range(int(nsteps * self.ff)):
             self.istep += 1
             if self.istep <= self.Nt:
                 step_func(istep=self.istep)
             else:
                 break
 
-        # handle plot axes boundaries
-        # self.update_axes_boundary(
-        #         self.ax,
-        #         pos=(xdata[-1], ydata[-1]),
-        #         moving_bounds=moving_bounds
-        #         )
-
-        for subplot_id in range(len(simobj.plot.get_config())):
+        # for subplot_id in range(len(simobj.plot.get_config())):
+        plot_config = simobj.plot.get_config()
+        for subplot_id, plot_name in enumerate(plot_config):
             # get data from SimObject based on state_select user configuration
             # NOTE: can pass QPen to _update_patch_data
             xdata, ydata = simobj.get_plot_data(subplot_id, self.istep)
             simobj._update_patch_data(xdata, ydata, subplot_id=subplot_id)
+
+            ##########################################
+            # this code allows xlim, ylim ranges to be
+            # defined and used until data goes outside
+            # of bounds and autorange is enabled.
+            ##########################################
+            widget_items = list(self.wins[0].centralWidget.items.keys())  # type:ignore
+            subplot = plot_config[plot_name]
+            # xrange, yrange = widget_items[subplot_id].viewRange()
+            xlim = subplot.get("xlim", None)
+            ylim = subplot.get("ylim", None)
+            if xlim:
+                if (xdata[-1] < xlim[0]) or (xdata[-1] > xlim[1]):
+                    widget_items[subplot_id].enableAutoRange(x=True)
+                else:
+                    widget_items[subplot_id].setRange(xRange=xlim)
+            if ylim:
+                if (ydata[-1] < ylim[0]) or (ydata[-1] > ylim[1]):
+                    widget_items[subplot_id].enableAutoRange(y=True)
+                else:
+                    widget_items[subplot_id].setRange(yRange=ylim)
 
         # drawing the instrument view of vehicle
         # TODO generalize: each simobj has its own body to draw.
