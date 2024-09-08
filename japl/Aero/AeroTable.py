@@ -1,6 +1,6 @@
 from typing import Optional
 import numpy as np
-import pickle
+import dill as pickle
 from astropy import units as u
 from japl.Util.Matlab import MatFile
 from japl.Util.Util import flatten_list
@@ -61,16 +61,14 @@ def from_CMS_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|dict,
     # ft2m = (1.0 * u.imperial.foot).to_value(u.m)  # type:ignore
     deg2rad = (np.pi / 180.0)
 
-    convert_key_map = [
-                       ("Alpha", "alpha"),
+    convert_key_map = [("Alpha", "alpha"),
                        ("Mach", "mach"),
                        ("Alt", "alt"),
                        ("CA_Boost", "CA_Powered"),
                        ("CA_Coast", "CA_Unpowered"),
-                       ("CNB", "CN"),
-                       ]
+                       ("CNB", "CN")]
+
     # store to correct attribute name
-    # CNB_labels = data.get("CN_GridLabels")
     for map in convert_key_map:
         key_out, key_in = map
         table: np.ndarray = data.get(key_in)  # type:ignore
@@ -104,8 +102,8 @@ def from_CMS_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|dict,
     IT_axes = {"alpha": alpha, "mach": mach}                    # fin-increment table shape
     CA_Total_axes = {"alpha": alpha, "mach": mach, "alt": alt}  # CA-coeff total table shape
 
-    table_axis_axes = (Basic_axes, CA_axes, IT_axes, CA_Total_axes)
-    return (data, table_axis_axes)
+    table_axes = (Basic_axes, CA_axes, IT_axes, CA_Total_axes)
+    return (data, table_axes)
 
 
 def from_default_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|dict, tuple]:
@@ -160,8 +158,8 @@ def from_default_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|d
     IT_axes = {"alpha": alpha, "phi": phi, "mach": mach, "iota": iota}                    # fin-increment table shape
     CA_Total_axes = {"alpha": alpha, "phi": phi, "mach": mach, "alt": alt, "iota": iota}  # CA-coeff total table shape
 
-    table_axis_axes = (Basic_axes, CA_axes, IT_axes, CA_Total_axes)
-    return (data, table_axis_axes)
+    table_axes = (Basic_axes, CA_axes, IT_axes, CA_Total_axes)
+    return (data, table_axes)
 
 
 class AeroTable:
@@ -192,9 +190,9 @@ class AeroTable:
         # formatting.
         match from_template.lower():
             case "cms":
-                data_dict, table_axis_axes = from_CMS_table(data_dict, units=units)
+                data_dict, table_axes = from_CMS_table(data_dict, units=units)
             case _:
-                data_dict, table_axis_axes = from_default_table(data_dict, units=units)
+                data_dict, table_axes = from_default_table(data_dict, units=units)
 
         ############################################################
         # Load tables from data
@@ -254,7 +252,7 @@ class AeroTable:
         (Basic_axes,
          CA_axes,
          IT_axes,
-         CA_Total_axes) = table_axis_axes
+         CA_Total_axes) = table_axes
 
         # store increments for ease of access
         _total_axes = {}
