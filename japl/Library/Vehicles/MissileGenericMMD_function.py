@@ -136,7 +136,7 @@ def pog(t,
         body_rates,
         complete=False) -> tuple:
 
-    altitudePSS = 0
+    altitudePSS = 0  # pitch sequence start altitude
 
     if altm >= altitudePSS and not complete:
         vleg = desired_vleg
