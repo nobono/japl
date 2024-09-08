@@ -104,7 +104,7 @@ def check_pog(t,
     # Check if Pitchover Sequence is Complete
     ######################################################
     # Compute current vleg
-    currentVLEG = np.arctan2(vm[2], np.linalg.norm(vm))
+    currentVLEG = np.arctan2(vm[2], np.linalg.norm(vm[:2]))
 
     # Check if current vleg is within desired tolerance
     vlegDiff = vleg - currentVLEG
@@ -115,6 +115,8 @@ def check_pog(t,
 
     # Check if body rates are within desired tolerance
     rateCheck = (np.abs(body_rates) <= rate_tolerance).all()
+
+    # print(vlegCheck, aoaCheck, rateCheck)
 
     if vlegCheck and aoaCheck and rateCheck:
         complete = True
@@ -156,21 +158,25 @@ def pog(t,
             uvm = np.zeros(3)
 
         # Compute angle between missile velocity and EN-plane
-        vma_vert = np.arctan2(vm[2], np.sqrt(vm[0]**2 + vm[1]**1))
+        vma_vert = np.arctan2(vm[2], np.sqrt(vm[0]**2 + vm[1]**2))
 
         # Compute heading error
         heading_error = abs(vleg - vma_vert)
 
         # Compute angle between missile velocity and NU-plane
-        vma_horz = np.arctan2(vm[0], vm[1])
+        vma_horz = np.arctan2(vm[0], np.sqrt(vm[1]**2 + vm[2]**2))
 
         # Define desired flight path angle on EN-plane
         fpa_horz = bearing_angle + lead_angle
 
         # Compute bearing error
-        bearing_error = abs(vma_horz - fpa_horz)
+        bearing_error = abs(fpa_horz - vma_horz)
 
-        gainK = 0.0982
+        # print(complete, np.degrees(vleg), np.degrees(vma_vert))
+        # print(complete, np.degrees(vma_horz), np.degrees(fpa_horz))
+        pass
+
+        gainK = 4.29
         gainKh = 0
 
         guide_law = "mr_pitchover"

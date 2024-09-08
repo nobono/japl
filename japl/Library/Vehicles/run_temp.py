@@ -17,6 +17,7 @@ DIR = os.path.dirname(__file__)
 np.set_printoptions(suppress=True, precision=3)
 
 
+complete = False
 
 ########################################################
 # Load Tables
@@ -24,6 +25,8 @@ np.set_printoptions(suppress=True, precision=3)
 
 mass_props = MassPropTable(DIR + "/../../../aeromodel/stage_1_mass.mat",
                            from_template="CMS")
+# mass_props.burn_time = np.linspace(0, 5, len(mass_props.burn_time))
+# mass_props.wet_mass = 150
 # aero = AeroTable(DIR + "/../../../aeromodel/stage_1_aero.mat",
 #                        from_template="CMS")
 
@@ -37,26 +40,36 @@ def user_input_func(t, X, U, dt, *args):
     global complete
 
     alpha = X[10]
-    r_enu_m = X[18:21]
+    r_enu_m = X[19:22]
+    v_enu_m = X[22:25]
     alt = r_enu_m[2]
-    v_enu_m = X[21:24]
-    p = X[14]
-    q = X[15]
-    r = X[16]
+    p = X[16]
+    q = X[17]
+    r = X[18]
 
-    complete, a_c = pog(t,
-                        desired_vleg=45,
-                        desired_bearing_angle=0,
-                        alphaTotal=alpha,
-                        altm=alt,
-                        lead_angle=0,
-                        vm=v_enu_m,
-                        body_rates=np.array([p, q, r])
-                        )
-    if complete:
-        pass
-    a_c_y = a_c[1]
-    a_c_z = a_c[2]
+    if not complete or t < 0.1:
+        complete, a_c = pog(t,
+                            desired_vleg=np.radians(45),
+                            desired_bearing_angle=0,
+                            alphaTotal=alpha,
+                            altm=alt,
+                            lead_angle=0,
+                            vm=v_enu_m,
+                            body_rates=np.array([p, q, r])
+                            )
+        a_c_y = a_c[1]
+        a_c_z = a_c[2]
+        if complete:
+            print("POG complete at t=%.2f" % t)
+    else:
+        a_c_y = 0
+        a_c_z = 0
+
+    # a_c_y = 0
+    # a_c_z = 0
+    # if t > 1:
+    #     a_c_y = 0
+    #     a_c_z = 100
 
     # omega_e = Earth.omega
     # q_0, q_1, q_2, q_3 = X[:4]
@@ -109,14 +122,14 @@ plotter = PyQtGraphPlotter(frame_rate=30,
                            aspect="auto",
                            # xlim=[-500, 500],
                            # ylim=[0, 600],
-                           # ff=5.0,
+                           # ff=0.5,
                            )
 
 ########################################################
 # Initialize Model
 ########################################################
 
-t_span = [0, 3]
+t_span = [0, 90]
 ecef0 = [Earth.radius_equatorial, 0, 0]
 simobj = SimObject(model)
 
@@ -140,33 +153,46 @@ v0_ecef = Rotation.enu_to_ecef(v0_enu, ecef0)
 a0_ecef = Rotation.enu_to_ecef(a0_enu, ecef0)
 r0_eci = Rotation.ecef_to_eci_position(r0_ecef, t=0)
 v0_eci = Rotation.ecef_to_eci(v0_ecef, r_ecef=r0_ecef)
-alpha_state_0 = [0, 0]
-beta_state_0 = [0, 0]
+
+alpha0 = 0
+alpha_dot0 = 0
+beta0 = 0
+beta_dot0 = 0
+phi_hat0 = 0
+phi_hat_dot0 = 0
+
 p0 = 0
 q0 = 0
 r0 = 0
+
 mach0 = np.linalg.norm(v0_ecef) / 343.0  # based on ECEF-frame
 vel_mag0 = np.linalg.norm(v0_ecef)  # based on ECEF-frame
-vel_mag0_dot = 0
+vel_mag_dot0 = 0
 thrust0 = 0
+
 v0_ecef = v0_ecef
+
 v0_body = C_body_to_eci.T @ v0_eci
 v0_body_hat = v0_body / np.linalg.norm(v0_body)
 g0_body = [0, 0, -9.81]
 a0_body = [0, 0, -9.81]
+
 wet_mass0 = mass_props.wet_mass
 dry_mass0 = mass_props.dry_mass
+
 CA0 = 0
 CNB0 = 0
 
 simobj.init_state([quat0,
                    r0_eci, v0_eci,
-                   alpha_state_0, beta_state_0,
+                   alpha0, alpha_dot0,
+                   beta0, beta_dot0,
+                   phi_hat0, phi_hat_dot0,
                    p0, q0, r0,
                    r0_enu, v0_enu, a0_enu,
                    r0_ecef, v0_ecef, a0_ecef,
                    vel_mag0,
-                   vel_mag0_dot,
+                   vel_mag_dot0,
                    mach0,
                    v0_body,
                    v0_body_hat,
@@ -195,31 +221,41 @@ simobj.plot.set_config({
     # "N": {"xaxis": 't', "yaxis": parr[1]},
     # "U": {"xaxis": 't', "yaxis": parr[2]},
 
-    "N-U": {"xaxis": 'r_n', "yaxis": 'r_u'},
-    # "N-E": {"xaxis": 'r_n', "yaxis": 'r_e'},
+    "N-U": {"xaxis": 'r_n', "yaxis": 'r_u', "xlim": []},
+    "N-E": {"xaxis": 'r_n', "yaxis": 'r_e', "xlim": []},
 
-    # "Mach": {"xaxis": 't', "yaxis": 'mach'},
-    "Thrust": {"xaxis": 't', "yaxis": 'thrust'},
+    # "v_e": {"xaxis": 'r_n', "yaxis": 'v_e'},
+    # "v_n": {"xaxis": 'r_n', "yaxis": 'v_n'},
+    # "v_u": {"xaxis": 'r_n', "yaxis": 'v_u'},
+
+    "Mach": {"xaxis": 't', "yaxis": 'mach'},
+    # "Thrust": {"xaxis": 't', "yaxis": 'thrust'},
     # "V": {"xaxis": 't', "yaxis": 'vel_mag_e'},
 
     # "alpha": {"xaxis": 't', "yaxis": 'alpha'},
     # "beta": {"xaxis": 't', "yaxis": 'beta'},
+    # "phi_hat": {"xaxis": 't', "yaxis": 'phi_hat'},
+
+    # "p": {"xaxis": 't', "yaxis": 'p'},
 
     # "wet_mass": {"xaxis": 't', "yaxis": 'wet_mass'},
     # "mass_dot": {"xaxis": 't', "yaxis": 'mass_dot'},
 
     # "CA": {"xaxis": 't', "yaxis": 'CA'},
     # "CN": {"xaxis": 't', "yaxis": 'CN'},
+
+    # "a_c_y": {"xaxis": 't', "yaxis": 'a_c_y'},
+    # "a_c_z": {"xaxis": 't', "yaxis": 'a_c_z'},
     })
 
 sim = Sim(t_span=t_span,
           dt=0.01,
           simobjs=[simobj],
           integrate_method="rk4")
-# sim.run()
+sim.run()
 # plotter.instrument_view = True
-plotter.animate(sim)
-# plotter.plot_obj(simobj)
+# plotter.animate(sim)
+plotter.plot_obj(simobj)
 plotter.show()
 # plotter.add_vector()
 sim.profiler.print_info()

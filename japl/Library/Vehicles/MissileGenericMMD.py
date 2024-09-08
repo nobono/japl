@@ -132,28 +132,52 @@ g_b_m_y = Function("g_b_m_y", real=True)(t)
 g_b_m_z = Function("g_b_m_z", real=True)(t)
 g_b_m = Matrix([g_b_m_x, g_b_m_y, g_b_m_z])
 
-# Angle-of-Attack & Sideslip-Angle
+# Angle-of-Attack
 alpha = Function("alpha", real=True)(t)
 alpha_dot = Function("alpha_dot", real=True)(t)
 alpha_dot_dot = Function("alpha_dot_dot", real=True)(t)
 
+# Sideslip-Angle
 beta = Function("beta", real=True)(t)
 beta_dot = Function("beta_dot", real=True)(t)
 beta_dot_dot = Function("beta_dot_dot", real=True)(t)
 
-# angular velocities (roll, pitch, yaw)
-p = Function("p", real=True)(t)
-q = Function("q", real=True)(t)
-r = Function("r", real=True)(t)
+# Roll-Angle
+# phi = Function("phi", real=True)(t)
+phi_hat = Function("phi_hat", real=True)(t)     # Pseudo-roll angle
+phi_hat_dot = Symbol("phi_hat_dot", real=True)  # Pseudo-roll angle rate
+
+# Angle Commands
+alpha_c = Symbol("alpha_c", real=True)          # angle of attack command
+beta_c = Symbol("beta_c", real=True)            # sideslip angle command
+phi_c = Symbol("phi_c", real=True)              # roll angle command
+
+# Autopilot transfer function terms
+omega_n = Symbol("omega_n", real=True)          # alpha & beta natural frequency
+zeta = Symbol("zeta", real=True)                # alpha & beta damping ratio
+omega_p = Symbol("omega_p", real=True)          # roll natural frequency
+T_r = Symbol("T_r", real=True)                  # roll autopilot time constant
+K_phi = Symbol("K_phi", real=True)              # roll controller gain
+
+# angular velocities
+p = Function("p", real=True)(t)                 # roll-rate
+q = Function("q", real=True)(t)                 # pitch-rate
+r = Function("r", real=True)(t)                 # yaw-rate
 
 wet_mass = Function("wet_mass", real=True)(t)
 dry_mass = Symbol("dry_mass", real=True)
 mass_dot = Symbol("mass_dot", real=True)
+Sref = Symbol("Sref", real=True)                # area reference
 
-mach = Function("mach", real=True)(t)
-C_s = Symbol("C_s", real=True)  # speed of sound
-rho = Symbol("rho", real=True)  # speed of sound
+mach = Function("mach", real=True)(t)           # mach number
+C_s = Symbol("C_s", real=True)                  # speed of sound
+rho = Symbol("rho", real=True)                  # air density
 
+# autopilot acceleration commands
+a_c_x = Symbol("a_c_x", real=True)              # acc-x command (body-frame)
+a_c_y = Symbol("a_c_y", real=True)              # acc-y command (body-frame)
+a_c_z = Symbol("a_c_z", real=True)              # acc-z command (body-frame)
+a_c = Matrix([a_c_x, a_c_y, a_c_z])
 
 ##################################################
 # 2.1 ECI Position and Velocity Derivatives
@@ -173,6 +197,8 @@ C_body_to_eci = Matrix([
 
 # (14)
 C_body_to_ecef = C_eci_to_ecef * C_body_to_eci
+
+C_eci_to_body = C_body_to_eci.T
 
 ##################################################
 
@@ -319,10 +345,6 @@ v_i_m_dot = C_body_to_eci * a_b_e
 ##################################################
 # 2.2 MMD Autopilot Transfer Functions
 ##################################################
-omega_n = Symbol("omega_n", real=True)  # natural frequency
-zeta = Symbol("zeta", real=True)        # damping ratio
-alpha_c = Symbol("alpha_c", real=True)  # angle of attack command
-beta_c = Symbol("beta_c", real=True)    # sideslip angle command
 
 # (16) Angle of attack transfer function
 alpha_state = Matrix([alpha, alpha_dot])
@@ -353,24 +375,18 @@ beta_state_dot = A_beta * beta_state + B_beta * beta_c
 ############
 
 # (18) Skid-to_Turn (STT) roll angular velocity
-K_phi = Symbol("K_phi", real=True)       # roll gain
-omega_p = Symbol("omega_p", real=True)   # natural frequency (roll)
-phi_c = Symbol("phi_c", real=True)       # roll angle command
-T_r = Symbol("T_r", real=True)           # roll autopilot time constant
 
 # (19) Pseudo-roll angle
-phi_hat, phi_hat_dot = symbols("phi_hat, phi_hat_dot", real=True)
 phi_hat_dot = p
 
-# (23)
-C_eci_to_body = C_body_to_eci.T
-phi = atan2(C_eci_to_body[1, 2], C_eci_to_body[2, 2])
+# NOTE: this is for BTT
+# phi_new = atan2(C_eci_to_body[1, 2], C_eci_to_body[2, 2])
 
 # (24)
-phi_hat = (1 / T_r) * (phi_c - phi)  # type:ignore
+# phi_dot = (1 / T_r) * (phi_c - phi_new)  # type:ignore
 
 # (22)
-phi_hat_c = phi_c - phi  # type:ignore
+phi_hat_c = phi_c - p
 
 # (21)
 p_c = K_phi * (phi_hat_c - phi_hat)
@@ -393,20 +409,16 @@ q_m_dot = 0.5 * Sq * omega_b_ib
 # 2.4 Computation of the Missile Angular Velocity
 ##################################################
 
-
-###############################
-
 # (28)
-omega_skew_ib = Matrix([
-    [0, -r, q],  # type:ignore
-    [r, 0, -q],  # type:ignore
-    [-q, p, 0]   # type:ignore
-    ])
+# omega_skew_ib = Matrix([
+#     [0, -r, q],
+#     [r, 0, -q],
+#     [-q, p, 0]
+#     ])
 
 # (27)
 # TODO: include this or not?
 # a_b_e = v_b_e_dot + (omega_skew_ib - C_ecef_to_body * omega_skew_ie * C_body_to_ecef) * v_b_e
-
 
 # (46) NOTE: this is for a BTT missile
 
@@ -414,19 +426,14 @@ omega_skew_ib = Matrix([
 # 3.1 Tail-Control Guidance Command Mapping
 ##################################################
 
-# autopilot acceleration commands
-a_c_x, a_c_y, a_c_z = symbols("a_c_x, a_c_y, a_c_z", real=True)
-a_c = Matrix([a_c_x, a_c_y, a_c_z])
-
 # (48) Total life coefficient command
-Sref = Symbol("Sref", real=True)
 C_N_c = (a_c * wet_mass) / q_bar * Sref
 
 # (49) Aerodynamics roll angle command
 phi_Ac = atan2(-a_c_y, -a_c_z)
 
 # (50)
-a_c_new = sqrt(a_c_y**2 + a_c_z**2)
+a_c_new = sqrt(a_c_y**2 + a_c_z**2)  # type:ignore
 
 ##################################################
 # Aerodynamics Inversion
@@ -438,7 +445,7 @@ alpha_total = aerotable.inv_aerodynamics(
         q_bar,
         wet_mass,
         alpha,
-        0,  # phi
+        phi_hat,
         M,
         alt,
         0.0,  # iota
@@ -500,10 +507,7 @@ defs = (
 
        (alpha_state.diff(t), alpha_state_dot),
        (beta_state.diff(t), beta_state_dot),
-       # (alpha.diff(t), alpha_state_dot[0]),
-       # (alpha_dot.diff(t), alpha_state_dot[1]),
-       # (beta.diff(t), beta_state_dot[0]),
-       # (beta_dot.diff(t), beta_state_dot[1]),
+       (phi_hat.diff(t), phi_hat_dot),
 
        (p.diff(t), p_dot),
 
@@ -548,10 +552,12 @@ state = Matrix([
     r_i_m,
     v_i_m,
 
-    alpha,
+    alpha,      # 10
     alpha_dot,
     beta,
     beta_dot,
+    phi_hat,
+    DirectUpdate("phi_hat_dot", phi_hat_dot),  # 15
 
     # Angular rates
     p,
@@ -559,8 +565,8 @@ state = Matrix([
     DirectUpdate(r, r_new),
 
     # ENU
-    DirectUpdate(r_enu_m, r_enu_e_new),
-    DirectUpdate(v_enu_m, v_enu_e_new),
+    DirectUpdate(r_enu_m, r_enu_e_new),         # 19
+    DirectUpdate(v_enu_m, v_enu_e_new),         # 22
     DirectUpdate(a_enu_m, a_enu_e_new),
 
     # ECEF
