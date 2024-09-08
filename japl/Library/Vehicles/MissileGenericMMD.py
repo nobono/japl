@@ -29,7 +29,7 @@ class MissileGenericMMD(Model):
 ################################################
 
 atmosphere = AtmosphereSymbolic()
-aerotable = AeroTableSymbolic(DIR + "/../../../aeromodel/cms_sr_stage1aero.mat",
+aerotable = AeroTableSymbolic(DIR + "/../../../aeromodel/stage_1_aero.mat",
                               from_template="CMS")
 
 ##################################################
