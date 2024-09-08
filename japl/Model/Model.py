@@ -483,6 +483,9 @@ class Model:
         ext = ".japl"
         save_path = os.path.join(path, name + ext)
         print("saving model to path:", path)
+        # remove existing file if exists
+        if os.path.isfile(save_path):
+            os.remove(save_path)
         with open(save_path, 'ab') as file:
             data = (self._type,
                     self.modules,
