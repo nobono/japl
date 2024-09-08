@@ -7,7 +7,6 @@ from japl.Sim.Integrate import runge_kutta_4
 from japl.Sim.Integrate import euler
 from japl.Util.Profiler import Profiler
 from scipy.integrate import solve_ivp
-import time
 
 
 
@@ -162,6 +161,10 @@ class Sim:
         # process all direct updates before storing values
         # back into X_new.
         ##################################################################
+
+        # apply any user-defined input functions
+        if simobj.model.user_input_function:
+            simobj.model.user_input_function(tstep, X, U, dt)
 
         # apply direct updates to input
         if simobj.model.direct_input_update_func:
