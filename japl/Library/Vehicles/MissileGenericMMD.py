@@ -581,6 +581,9 @@ state = Matrix([
     # Mass Properties
     wet_mass,
     dry_mass,
+
+    DirectUpdate("CA", CA),
+    DirectUpdate("CN", CNB),
     ])
 
 input = Matrix([
