@@ -633,8 +633,8 @@ model = MissileGenericMMD.from_expression(dt,
                                           definitions=defs,
                                           use_multiprocess_build=True)
 
-
-print("saving model...")
-with open(f"{DIR}/mmd.pickle", 'wb') as f:
-    dill.dump(model, f)
+model.save(path="./", name="mmd")
+# print("saving model...")
+# with open(f"{DIR}/mmd.pickle", 'wb') as f:
+#     dill.dump(model, f)
 quit()
