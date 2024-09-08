@@ -1,3 +1,5 @@
+import os
+import dill
 from typing import Callable, Optional
 import numpy as np
 from enum import Enum
@@ -45,6 +47,8 @@ class Model:
         self.input_dim = 0
         self.direct_state_update_func: Optional[Callable] = None
         self.direct_input_update_func: Optional[Callable] = None
+        self.user_input_function: Optional[Callable] = None
+
         self.A = np.array([])
         self.B = np.array([])
         self.C = np.array([])
@@ -86,7 +90,7 @@ class Model:
                       input_vars: list|tuple|Matrix,
                       dynamics_func: Optional[Callable] = None,
                       state_update_func: Optional[Callable] = None,
-                      input_update_func: Optional[Callable] = None):
+                      input_update_func: Optional[Callable] = None) -> "Model":
         """This method initializes a Model from a callable function.
         The provided function must have the following signature:
 
@@ -138,7 +142,7 @@ class Model:
                         A: np.ndarray|Matrix,
                         B: np.ndarray|Matrix,
                         C: Optional[np.ndarray|Matrix] = None,
-                        D: Optional[np.ndarray|Matrix] = None):
+                        D: Optional[np.ndarray|Matrix] = None) -> "Model":
         """This method initializes a Model from the matrices describing.
         a linear time-invariant system (LTI).
 
@@ -209,7 +213,7 @@ class Model:
                         dynamics_expr: Expr|Matrix|MatrixSymbol,
                         definitions: tuple = (),
                         modules: dict|list[dict] = {},
-                        use_multiprocess_build: bool = True):
+                        use_multiprocess_build: bool = True) -> "Model":
         """This method initializes a Model from a symbolic expression.
         a Sympy expression can be passed which then is lambdified
         (see Sympy.lambdify) with computational optimization (see Sympy.cse).
@@ -281,6 +285,8 @@ class Model:
                 pass
             case ModelType.Symbolic:
                 pass
+            case _:
+                raise Exception("unhandled case.")
 
         # run state-register checks
         self.state_register._pre_sim_checks()
@@ -453,3 +459,67 @@ class Model:
         t = Symbol('t')  # 't' variable needed to adhear to func argument format
         update_func = Desym((t, *self.vars), Matrix(direct_updates), modules=self.modules)
         return update_func
+
+
+    def set_input_function(self, func: Callable) -> None:
+        """This method takes a function and inserts it before the
+        Model's direct input updates.
+
+        NOTE that if the Model has any defined direct input updates,
+        the user's changes to the input array may be modified or
+        over-written.
+
+        -------------------------------------------------------------------
+        Arguments:
+            - func: Callable function with the signature func(t, X, U, dt, ...)
+                    where X is the state array, U is the input array.
+        -------------------------------------------------------------------
+        """
+        self.user_input_function = func
+
+
+    def save(self, path: str, name: str):
+        """This method saves a model to a .japl file."""
+        ext = ".japl"
+        save_path = os.path.join(path, name + ext)
+        print("saving model to path:", path)
+        with open(save_path, 'ab') as file:
+            data = (self._type,
+                    self.modules,
+                    self.state_vars,
+                    self.input_vars,
+                    self.dt_var,
+                    self.vars,
+                    self.state_dim,
+                    self.input_dim,
+                    self.dynamics_func,
+                    self.dynamics_expr,
+                    self.direct_state_update_func,
+                    self.direct_input_update_func,
+                    self.user_input_function)
+            dill.dump(data, file)
+
+
+    @classmethod
+    def from_file(cls, path: str) -> "Model":
+        """This method loads a Model from a .japl file."""
+        with open(path, 'rb') as file:
+            data = dill.load(file)
+        obj = cls()
+        (obj._type,
+         obj.modules,
+         obj.state_vars,
+         obj.input_vars,
+         obj.dt_var,
+         obj.vars,
+         obj.state_dim,
+         obj.input_dim,
+         obj.dynamics_func,
+         obj.dynamics_expr,
+         obj.direct_state_update_func,
+         obj.direct_input_update_func,
+         obj.user_input_function) = data
+        # initialize the state & input registers
+        obj.set_state(obj.state_vars)
+        obj.set_input(obj.input_vars)
+        return obj
