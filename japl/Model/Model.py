@@ -471,7 +471,8 @@ class Model:
 
         -------------------------------------------------------------------
         Arguments:
-            - func: Callable function with the signature func(t, X, U, dt, ...)
+            - func: Callable function with the signature:
+                        func(t, X, U, dt, ...)
                     where X is the state array, U is the input array.
         -------------------------------------------------------------------
         """
