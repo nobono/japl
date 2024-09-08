@@ -7,24 +7,63 @@ from japl import SimObject
 from japl import PyQtGraphPlotter
 from japl.Library.Earth.Earth import Earth
 from japl.Math import Rotation
+from japl import Model
 from pprint import pprint
 # from japl.Library.Vehicles.MissileGenericMMD2 import model
 # from japl.Library.Vehicles.MissileGenericMMD2 import mass_props
-
 
 DIR = os.path.dirname(__file__)
 np.set_printoptions(suppress=True, precision=3)
 
 
+########################################################
+# Custom Input Function
+########################################################
+
+def user_input_func(t, X, U, dt, *args):
+    if t < 4:
+        omega_e = Earth.omega
+        q_0, q_1, q_2, q_3 = X[:4]
+        r_e_m = X[27:30]
+        C_eci_to_ecef = np.array([
+            [np.cos(omega_e * t), np.sin(omega_e * t), 0],
+            [-np.sin(omega_e * t), np.cos(omega_e * t), 0],
+            [0, 0, 1]])
+        C_body_to_eci = np.array([
+            [1 - 2*(q_2**2 + q_3**2), 2*(q_1*q_2 + q_0*q_3) , 2*(q_1*q_3 - q_0*q_2)],  # type:ignore # noqa
+            [2*(q_1*q_2 - q_0*q_3) , 1 - 2*(q_1**2 + q_3**2), 2*(q_2*q_3 + q_0*q_1)],  # type:ignore # noqa
+            [2*(q_1*q_3 + q_0*q_2) , 2*(q_2*q_3 - q_0*q_1), 1 - 2*(q_1**2 + q_2**2)]]).T  # type:ignore # noqa
+        C_body_to_ecef = C_eci_to_ecef @ C_body_to_eci
+        lla0 = Rotation.ecef_to_lla(r_e_m)
+        lat0, lon0, _ = lla0
+        C_ecef_to_enu = np.array([
+            [-np.sin(lon0), np.cos(lon0), 0],
+            [-np.sin(lat0) * np.cos(lon0), -np.sin(lat0) * np.sin(lon0), np.cos(lat0)],
+            [np.cos(lat0) * np.cos(lon0), np.cos(lat0) * np.sin(lon0), np.sin(lat0)],
+            ])
+        acc_cmd_ecef = C_ecef_to_enu.T @ np.array([0, 1, 1])
+        acc_cmd_body = C_body_to_ecef.T @ acc_cmd_ecef
+        acc_cmd_body = 60 * (acc_cmd_body / np.linalg.norm(acc_cmd_body))
+        a_c_y = acc_cmd_body[1]
+        a_c_z = acc_cmd_body[2]
+        U[2] = a_c_y
+        U[3] = a_c_z
+        U[4] = 40_000
+
+
+########################################################
+# Load model
+########################################################
+
 with open(f"{DIR}/mmd.pickle", 'rb') as f:
-    model = dill.load(f)
+    model: Model = dill.load(f)
+# model = Model.from_file(DIR + "/mmd.japl")
+model.set_input_function(user_input_func)
 
-# model.dynamics_func.code
-# model.direct_state_update_func.code
-# model.direct_input_update_func.code
-# quit()
+########################################################
+# Setup plotter
+########################################################
 
-t_span = [0, 20]
 plotter = PyQtGraphPlotter(frame_rate=30,
                            figsize=[10, 10],
                            aspect="auto",
@@ -33,6 +72,11 @@ plotter = PyQtGraphPlotter(frame_rate=30,
                            # ff=5.0,
                            )
 
+########################################################
+# Initialize Model
+########################################################
+
+t_span = [0, 30]
 ecef0 = [Earth.radius_equatorial, 0, 0]
 simobj = SimObject(model)
 
@@ -50,22 +94,17 @@ C_body_to_eci = np.array([
     [2*(q_1*q_3 + q_0*q_2) , 2*(q_2*q_3 - q_0*q_1), 1 - 2*(q_1**2 + q_2**2)]]).T  # type:ignore # noqa
 
 ########################################################
-# quat0 = [1, 0, 0, 0]
 
 r0_ecef = Rotation.enu_to_ecef_position(r0_enu, ecef0)
 v0_ecef = Rotation.enu_to_ecef(v0_enu, ecef0)
 a0_ecef = Rotation.enu_to_ecef(a0_enu, ecef0)
-
 r0_eci = Rotation.ecef_to_eci_position(r0_ecef, t=0)
 v0_eci = Rotation.ecef_to_eci(v0_ecef, r_ecef=r0_ecef)
-
 alpha_state_0 = [0, 0]
 beta_state_0 = [0, 0]
-
 p0 = 0
 q0 = 0
 r0 = 0
-
 mass0 = 300  # mass_props["wet_mass"]
 mach0 = np.linalg.norm(v0_ecef) / 343.0  # based on ECEF-frame
 vel_mag0 = np.linalg.norm(v0_ecef)  # based on ECEF-frame
@@ -74,12 +113,8 @@ thrust0 = 0
 v0_ecef = v0_ecef
 v0_body = C_body_to_eci.T @ v0_eci
 v0_body_hat = v0_body / np.linalg.norm(v0_body)
-
 g0_body = [0, 0, -9.81]
 a0_body = [0, 0, -9.81]
-
-# print(vel_mag0)
-# quit()
 
 simobj.init_state([quat0,
                    r0_eci, v0_eci,
@@ -96,12 +131,7 @@ simobj.init_state([quat0,
                    g0_body,
                    a0_body,
                    ])
-# print(v0_eci)
-# print(v0_ecef)
-# print(v0_enu)
-# print(vel_mag0)
-# print('-' * 50)
-# quit()
+
 ########################################################
 
 # parr = ['v_b_e_x',
@@ -145,27 +175,28 @@ simobj.plot.set_config({
         "xlim": [-100, 3000],
         "ylim": [-100, 100],
         },
-    # "Mach": {
-    #     "xaxis": 't',
-    #     "yaxis": 'mach',
-    #     "size": 1,
-    #     },
+    "Mach": {
+        "xaxis": 't',
+        "yaxis": 'mach',
+        "size": 1,
+        },
 
     # "V": {
     #     "xaxis": 't',
     #     "yaxis": 'vel_mag_e',
     #     "size": 1,
     #     },
-    # "alpha": {
-    #     "xaxis": 't',
-    #     "yaxis": 'alpha',
-    #     "size": 1,
-    #     },
-    # "beta": {
-    #     "xaxis": 't',
-    #     "yaxis": 'beta',
-    #     "size": 1,
-    #     },
+
+    "alpha": {
+        "xaxis": 't',
+        "yaxis": 'alpha',
+        "size": 1,
+        },
+    "beta": {
+        "xaxis": 't',
+        "yaxis": 'beta',
+        "size": 1,
+        },
 
     # "mass": {
     #     "xaxis": 't',
@@ -194,16 +225,6 @@ sim.profiler.print_info()
 
 # with open("temp_data_2.pickle", 'ab') as f:
 #     dill.dump(simobj.Y, f)
-
-# ii = sim.istep
-# for ii in range(0, len(simobj.Y)):
-#     X = simobj.Y[ii]
-#     print("alpha:", np.degrees(simobj.get_state_array(X, "alpha")))
-
-# id_n = simobj.model.get_state_id("r_n")
-# id_u = simobj.model.get_state_id("r_u")
-# plotter.plot(simobj.Y[:, id_n], simobj.Y[:, id_u])
-# plotter.show()
 
 quit()
 X = simobj.Y[ii]
