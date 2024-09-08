@@ -5,6 +5,7 @@ import quaternion
 from japl import Sim
 from japl import SimObject
 from japl import PyQtGraphPlotter
+from japl.Aero.AeroTable import AeroTable
 from japl.Library.Earth.Earth import Earth
 from japl.Math import Rotation
 from japl import Model
@@ -20,7 +21,10 @@ np.set_printoptions(suppress=True, precision=3)
 # Load Tables
 ########################################################
 
-mass_props = MassPropTable(DIR + "/../../../aeromodel/stage_1_mass.mat", from_template="CMS")
+mass_props = MassPropTable(DIR + "/../../../aeromodel/stage_1_mass.mat",
+                           from_template="CMS")
+# aero = AeroTable(DIR + "/../../../aeromodel/stage_1_aero.mat",
+#                        from_template="CMS")
 
 ########################################################
 # Custom Input Function
