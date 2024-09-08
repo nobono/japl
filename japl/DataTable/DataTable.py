@@ -41,17 +41,12 @@ class DataTable(np.ndarray):
                  iota: Optional[ArgType] = None) -> float|np.ndarray:
         # TODO do this better
         # lower boundary on altitude
-        if alt is not None:
-            alt = np.maximum(alt, 0.0)
+        if (alt is not None) and ("alt" in self.axes):
+            alt = np.clip(alt, self.axes["alt"].min(), self.axes["alt"].max())
         # TODO do this better
         # protection / boundary for mach
-        if mach is not None:
-            # if not hasattr(mach, "__len__") and np.isnan(mach):
-            #     mach = 0.0
+        if (mach is not None) and ("mach" in self.axes):
             mach = np.clip(mach, self.axes["mach"].min(), self.axes["mach"].max())
-        # TODO do this better
-        if alt is not None:
-            alt = np.clip(alt, self.axes["alt"].min(), self.axes["alt"].max())
         # create interpolation object on first execution
         if self.interp is None:
             axes = self._get_table_args(table=self, **self.axes)
