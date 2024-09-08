@@ -1,8 +1,7 @@
 import japl
 import numpy as np
 from collections.abc import Generator
-from typing import Optional
-from japl.Aero.AeroTable import AeroTable
+from typing import Optional, Callable
 from japl.Model.Model import Model
 from japl.Util.Util import flatten_list
 from pyqtgraph import PlotDataItem, mkPen
@@ -93,8 +92,8 @@ class _PlotInterface:
 
     @DeprecationWarning
     def _get_qt_pen(self, subplot_id: int) -> QPen:
-        pen_color = self.qt_traces[subplot_id].opts['pen'].color().getRgb()[:3]
-        pen_width = self.qt_traces[subplot_id].opts['pen'].width()
+        pen_color = self.qt_traces[subplot_id].opts['pen'].color().getRgb()[:3]  # type:ignore
+        pen_width = self.qt_traces[subplot_id].opts['pen'].width()  # type:ignore
         return mkPen(pen_color, width=pen_width)
 
 
@@ -128,8 +127,6 @@ class SimObject:
         self.__T = np.array([])
 
         self._setup_model(**kwargs)
-
-        self.aerotable: Optional[AeroTable] = kwargs.get("aerotable", None)
 
         # interface for visualization
         self.plot = _PlotInterface(
