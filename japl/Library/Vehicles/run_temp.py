@@ -55,9 +55,9 @@ def user_input_func(t, X, U, dt, *args):
 # Load model
 ########################################################
 
-with open(f"{DIR}/mmd.pickle", 'rb') as f:
-    model: Model = dill.load(f)
-# model = Model.from_file(DIR + "/mmd.japl")
+# with open(f"{DIR}/mmd.pickle", 'rb') as f:
+#     model: Model = dill.load(f)
+model = Model.from_file(DIR + "/mmd.japl")
 model.set_input_function(user_input_func)
 
 ########################################################
