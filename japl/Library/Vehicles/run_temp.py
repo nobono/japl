@@ -8,47 +8,58 @@ from japl import PyQtGraphPlotter
 from japl.Library.Earth.Earth import Earth
 from japl.Math import Rotation
 from japl import Model
+from japl.MassProp.MassPropTable import MassPropTable
 from pprint import pprint
-# from japl.Library.Vehicles.MissileGenericMMD2 import model
-# from japl.Library.Vehicles.MissileGenericMMD2 import mass_props
 
 DIR = os.path.dirname(__file__)
 np.set_printoptions(suppress=True, precision=3)
 
 
+
+########################################################
+# Load Tables
+########################################################
+
+mass_props = MassPropTable(DIR + "/../../../aeromodel/stage_1_mass.mat", from_template="CMS")
+
 ########################################################
 # Custom Input Function
 ########################################################
 
+
 def user_input_func(t, X, U, dt, *args):
-    if t < 4:
-        omega_e = Earth.omega
-        q_0, q_1, q_2, q_3 = X[:4]
-        r_e_m = X[27:30]
-        C_eci_to_ecef = np.array([
-            [np.cos(omega_e * t), np.sin(omega_e * t), 0],
-            [-np.sin(omega_e * t), np.cos(omega_e * t), 0],
-            [0, 0, 1]])
-        C_body_to_eci = np.array([
-            [1 - 2*(q_2**2 + q_3**2), 2*(q_1*q_2 + q_0*q_3) , 2*(q_1*q_3 - q_0*q_2)],  # type:ignore # noqa
-            [2*(q_1*q_2 - q_0*q_3) , 1 - 2*(q_1**2 + q_3**2), 2*(q_2*q_3 + q_0*q_1)],  # type:ignore # noqa
-            [2*(q_1*q_3 + q_0*q_2) , 2*(q_2*q_3 - q_0*q_1), 1 - 2*(q_1**2 + q_2**2)]]).T  # type:ignore # noqa
-        C_body_to_ecef = C_eci_to_ecef @ C_body_to_eci
-        lla0 = Rotation.ecef_to_lla(r_e_m)
-        lat0, lon0, _ = lla0
-        C_ecef_to_enu = np.array([
-            [-np.sin(lon0), np.cos(lon0), 0],
-            [-np.sin(lat0) * np.cos(lon0), -np.sin(lat0) * np.sin(lon0), np.cos(lat0)],
-            [np.cos(lat0) * np.cos(lon0), np.cos(lat0) * np.sin(lon0), np.sin(lat0)],
-            ])
-        acc_cmd_ecef = C_ecef_to_enu.T @ np.array([0, 1, 1])
-        acc_cmd_body = C_body_to_ecef.T @ acc_cmd_ecef
-        acc_cmd_body = 60 * (acc_cmd_body / np.linalg.norm(acc_cmd_body))
-        a_c_y = acc_cmd_body[1]
-        a_c_z = acc_cmd_body[2]
-        U[2] = a_c_y
-        U[3] = a_c_z
-        U[4] = 40_000
+    global mass_props
+
+    omega_e = Earth.omega
+    q_0, q_1, q_2, q_3 = X[:4]
+    r_e_m = X[27:30]
+    C_eci_to_ecef = np.array([
+        [np.cos(omega_e * t), np.sin(omega_e * t), 0],
+        [-np.sin(omega_e * t), np.cos(omega_e * t), 0],
+        [0, 0, 1]])
+    C_body_to_eci = np.array([
+        [1 - 2*(q_2**2 + q_3**2), 2*(q_1*q_2 + q_0*q_3) , 2*(q_1*q_3 - q_0*q_2)],  # type:ignore # noqa
+        [2*(q_1*q_2 - q_0*q_3) , 1 - 2*(q_1**2 + q_3**2), 2*(q_2*q_3 + q_0*q_1)],  # type:ignore # noqa
+        [2*(q_1*q_3 + q_0*q_2) , 2*(q_2*q_3 - q_0*q_1), 1 - 2*(q_1**2 + q_2**2)]]).T  # type:ignore # noqa
+    C_body_to_ecef = C_eci_to_ecef @ C_body_to_eci
+    lla0 = Rotation.ecef_to_lla(r_e_m)
+    lat0, lon0, _ = lla0
+    C_ecef_to_enu = np.array([
+        [-np.sin(lon0), np.cos(lon0), 0],
+        [-np.sin(lat0) * np.cos(lon0), -np.sin(lat0) * np.sin(lon0), np.cos(lat0)],
+        [np.cos(lat0) * np.cos(lon0), np.cos(lat0) * np.sin(lon0), np.sin(lat0)],
+        ])
+    acc_cmd_ecef = C_ecef_to_enu.T @ np.array([0, 1, 1])
+    acc_cmd_body = C_body_to_ecef.T @ acc_cmd_ecef
+    acc_cmd_body = 60 * (acc_cmd_body / np.linalg.norm(acc_cmd_body))
+    a_c_y = acc_cmd_body[1]
+    a_c_z = acc_cmd_body[2]
+    if mass_props.get_mass_dot(t) == 0:
+        pass
+    U[2] = a_c_y                       # acc cmd
+    U[3] = a_c_z                       # acc cmd
+    U[4] = mass_props.get_thrust(t)    # thrust
+    U[5] = mass_props.get_mass_dot(t)  # mass_dot
 
 
 ########################################################
@@ -105,7 +116,6 @@ beta_state_0 = [0, 0]
 p0 = 0
 q0 = 0
 r0 = 0
-mass0 = 300  # mass_props["wet_mass"]
 mach0 = np.linalg.norm(v0_ecef) / 343.0  # based on ECEF-frame
 vel_mag0 = np.linalg.norm(v0_ecef)  # based on ECEF-frame
 vel_mag0_dot = 0
@@ -115,12 +125,13 @@ v0_body = C_body_to_eci.T @ v0_eci
 v0_body_hat = v0_body / np.linalg.norm(v0_body)
 g0_body = [0, 0, -9.81]
 a0_body = [0, 0, -9.81]
+wet_mass0 = mass_props.wet_mass
+dry_mass0 = mass_props.dry_mass
 
 simobj.init_state([quat0,
                    r0_eci, v0_eci,
                    alpha_state_0, beta_state_0,
                    p0, q0, r0,
-                   mass0,
                    r0_enu, v0_enu, a0_enu,
                    r0_ecef, v0_ecef, a0_ecef,
                    vel_mag0,
@@ -130,6 +141,8 @@ simobj.init_state([quat0,
                    v0_body_hat,
                    g0_body,
                    a0_body,
+                   wet_mass0,
+                   dry_mass0,
                    ])
 
 ########################################################
@@ -187,20 +200,25 @@ simobj.plot.set_config({
     #     "size": 1,
     #     },
 
-    "alpha": {
-        "xaxis": 't',
-        "yaxis": 'alpha',
-        "size": 1,
-        },
-    "beta": {
-        "xaxis": 't',
-        "yaxis": 'beta',
-        "size": 1,
-        },
-
-    # "mass": {
+    # "alpha": {
     #     "xaxis": 't',
-    #     "yaxis": 'mass',
+    #     "yaxis": 'alpha',
+    #     "size": 1,
+    #     },
+    # "beta": {
+    #     "xaxis": 't',
+    #     "yaxis": 'beta',
+    #     "size": 1,
+    #     },
+
+    "wet_mass": {
+        "xaxis": 't',
+        "yaxis": 'wet_mass',
+        "size": 1,
+        },
+    # "mass_dot": {
+    #     "xaxis": 't',
+    #     "yaxis": 'mass_dot',
     #     "size": 1,
     #     },
 

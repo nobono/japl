@@ -1,4 +1,3 @@
-import dill
 import os
 import numpy as np
 from sympy import Matrix, Symbol, symbols
@@ -147,7 +146,10 @@ p = Function("p", real=True)(t)
 q = Function("q", real=True)(t)
 r = Function("r", real=True)(t)
 
-mass = Symbol("mass", real=True)
+wet_mass = Function("wet_mass", real=True)(t)
+dry_mass = Symbol("dry_mass", real=True)
+mass_dot = Symbol("mass_dot", real=True)
+
 mach = Function("mach", real=True)(t)
 C_s = Symbol("C_s", real=True)  # speed of sound
 rho = Symbol("rho", real=True)  # speed of sound
@@ -226,7 +228,8 @@ gacc = -9.81
 g_i_m = Matrix([gacc, 0, 0])
 g_e_m = C_eci_to_ecef * g_i_m
 g_b_e = C_ecef_to_body * g_e_m
-a_b_m = ((f_b_A + f_b_T) / mass) + g_b_e
+
+a_b_m = ((f_b_A + f_b_T) / wet_mass) + g_b_e
 
 # (13) Earth-relative acceleration vector
 a_e_e = (C_body_to_ecef * a_b_m - (2 * omega_skew_ie * v_e_e)
@@ -317,9 +320,9 @@ v_i_m_dot = C_body_to_eci * a_b_e
 # 2.2 MMD Autopilot Transfer Functions
 ##################################################
 omega_n = Symbol("omega_n", real=True)  # natural frequency
-zeta = Symbol("zeta", real=True)  # damping ratio
+zeta = Symbol("zeta", real=True)        # damping ratio
 alpha_c = Symbol("alpha_c", real=True)  # angle of attack command
-beta_c = Symbol("beta_c", real=True)  # sideslip angle command
+beta_c = Symbol("beta_c", real=True)    # sideslip angle command
 
 # (16) Angle of attack transfer function
 alpha_state = Matrix([alpha, alpha_dot])
@@ -417,7 +420,7 @@ a_c = Matrix([a_c_x, a_c_y, a_c_z])
 
 # (48) Total life coefficient command
 Sref = Symbol("Sref", real=True)
-C_N_c = (a_c * mass) / q_bar * Sref
+C_N_c = (a_c * wet_mass) / q_bar * Sref
 
 # (49) Aerodynamics roll angle command
 phi_Ac = atan2(-a_c_y, -a_c_z)
@@ -433,7 +436,7 @@ alpha_total = aerotable.inv_aerodynamics(
         thrust,  # type:ignore
         a_c_new,
         q_bar,
-        mass,
+        wet_mass,
         alpha,
         0,  # phi
         M,
@@ -495,18 +498,14 @@ defs = (
        (r_i_m.diff(t), r_i_m_dot),
        (v_i_m.diff(t), v_i_m_dot),
 
-       # (alpha_state.diff(t), alpha_state_dot),
-       # (beta_state.diff(t), beta_state_dot),
-       (alpha.diff(t), alpha_state_dot[0]),
-       (alpha_dot.diff(t), alpha_state_dot[1]),
-       (beta.diff(t), beta_state_dot[0]),
-       (beta_dot.diff(t), beta_state_dot[1]),
+       (alpha_state.diff(t), alpha_state_dot),
+       (beta_state.diff(t), beta_state_dot),
+       # (alpha.diff(t), alpha_state_dot[0]),
+       # (alpha_dot.diff(t), alpha_state_dot[1]),
+       # (beta.diff(t), beta_state_dot[0]),
+       # (beta_dot.diff(t), beta_state_dot[1]),
 
        (p.diff(t), p_dot),
-
-       # TODO (mass, mass_dot),
-       # (q.diff(t), q_new.diff(t)),
-       # (r.diff(t), r_new.diff(t)),
 
        (r_e_m.diff(t), v_e_e),
        (v_e_m.diff(t), a_e_e),
@@ -516,12 +515,14 @@ defs = (
        (v_b_e_m.diff(t), v_b_e_dot),
        (v_b_e_m_hat.diff(t), v_b_e_hat_dot),
 
-       (omega_n, 20),
-       (zeta, 0.7),
-       (K_phi, 1),
-       (omega_p, 20),
-       (phi_c, 0),
-       (T_r, 0.5),
+       (wet_mass.diff(t), mass_dot),
+
+       (omega_n, 20),  # natural frequency
+       (zeta, 0.7),    # damping ratio
+       (K_phi, 1),     # roll gain
+       (omega_p, 20),  # natural frequency (roll)
+       (phi_c, 0),     # roll angle command
+       (T_r, 0.5),     # roll autopilot time constant
        (C_s, atmosphere.speed_of_sound(alt)),
        (rho, atmosphere.density(alt)),
        )
@@ -541,28 +542,21 @@ defs = (
 # - Any relationship can be defined in the definition
 #   tuple above.
 # ------------------------------------------------
-# acc_b_x = Symbol("acc_b_x", real=True)
-# acc_b_y = Symbol("acc_b_y", real=True)
-# acc_b_z = Symbol("acc_b_z", real=True)
-# st_a_b_m = Matrix([acc_b_x, acc_b_y, acc_b_z])
 
 state = Matrix([
     q_m,
     r_i_m,
     v_i_m,
 
-    # alpha_state,
-    # beta_state,
     alpha,
     alpha_dot,
     beta,
     beta_dot,
 
+    # Angular rates
     p,
     DirectUpdate(q, q_new),
     DirectUpdate(r, r_new),
-
-    mass,
 
     # ENU
     DirectUpdate(r_enu_m, r_enu_e_new),
@@ -574,18 +568,19 @@ state = Matrix([
     v_e_m,
     DirectUpdate(a_e_m, a_e_e),
 
-    # DirectUpdate(vel_mag_e, V),
     vel_mag_e,
     DirectUpdate(vel_mag_e_dot, V_dot),
-
     DirectUpdate(mach, M),
 
-    # DirectUpdate(v_b_e_m, v_b_e_hat),
     v_b_e_m,
     v_b_e_m_hat,
 
     DirectUpdate(g_b_m, g_b_e),
-    DirectUpdate(a_b_e_m, a_b_e)
+    DirectUpdate(a_b_e_m, a_b_e),
+
+    # Mass Properties
+    wet_mass,
+    dry_mass,
     ])
 
 input = Matrix([
@@ -594,33 +589,18 @@ input = Matrix([
     a_c_y,
     a_c_z,
     thrust,
+    mass_dot,
     ])
 
 ##################################################
 # Define dynamics
 ##################################################
 
-# state.subs(b4subs)
-
 dynamics = state.diff(t)
-
-# for i, j in zip(q_m.diff(t), q_m_dot):
-#     dynamics[0].subs(i, j)
-#     dynamics[1].subs(i, j)
-#     dynamics[2].subs(i, j)
-#     dynamics[3].subs(i, j)
-
-# quit()
 
 ##################################################
 # Build Model
 ##################################################
-# (state_vars,
-#  input_vars,
-#  dynamics_expr) = build_model(Matrix(state),
-#                               Matrix(input),
-#                               Matrix(dynamics),
-#                               defs)
 
 modules = [atmosphere.modules,
            aerotable.modules]
@@ -634,7 +614,3 @@ model = MissileGenericMMD.from_expression(dt,
                                           use_multiprocess_build=True)
 
 model.save(path="./", name="mmd")
-# print("saving model...")
-# with open(f"{DIR}/mmd.pickle", 'wb') as f:
-#     dill.dump(model, f)
-quit()
