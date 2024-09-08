@@ -36,6 +36,7 @@ class Model:
         self._dtype = np.float64
         self.state_register = StateRegister()
         self.input_register = StateRegister()
+        self.static_register = StateRegister()
         self.dynamics_func: Optional[Callable] = None
         self.dynamics_expr = Expr(None)
         self.modules: dict = {}
