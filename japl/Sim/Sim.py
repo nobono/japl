@@ -58,7 +58,9 @@ class Sim:
         # pre-allocate output arrays
         self.T = np.zeros((self.Nt + 1, ))
         simobj.Y = np.zeros((self.Nt + 1, len(simobj.X0)))
+        simobj.U = np.zeros((self.Nt + 1, len(simobj.U0)))
         simobj.Y[0] = simobj.X0
+        simobj.U[0] = simobj.U0
         simobj._set_T_array_ref(self.T)  # simobj.T reference to sim.T
 
 
@@ -149,10 +151,11 @@ class Sim:
         # setup time and initial state for step
         tstep_prev = self.t_array[istep - 1]
         tstep = self.t_array[istep]
-        X = simobj.Y[istep - 1]
+        X = simobj.Y[istep - 1]  # init with previous state
+        U = simobj.U[istep]      # init with current input array (zeros)
 
         # setup input array
-        U = np.zeros(len(simobj.model.input_vars), dtype=self._dtype)
+        # U = np.zeros(len(simobj.model.input_vars), dtype=self._dtype)
 
         ##################################################################
         # apply direct state updates
@@ -186,6 +189,7 @@ class Sim:
         if not simobj.model.dynamics_func:
             self.T[istep] = tstep + dt
             simobj.Y[istep] = X
+            simobj.U[istep] = U
         else:
             ##################################################################
             # Integration Methods
@@ -227,4 +231,5 @@ class Sim:
             # store results
             self.T[istep] = T_new
             simobj.Y[istep] = X_new
+            simobj.U[istep] = U
             self.istep += 1

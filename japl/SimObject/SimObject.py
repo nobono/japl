@@ -122,8 +122,11 @@ class SimObject:
         self.size = kwargs.get("size", 1)
         self.model = model
         self.state_dim = self.model.state_dim
+        self.input_dim = self.model.input_dim
         self.X0 = np.zeros((self.state_dim,))
+        self.U0 = np.zeros((self.input_dim,))
         self.Y = np.array([], dtype=self._dtype)
+        self.U = np.array([], dtype=self._dtype)
         self.__T = np.array([])
 
         self._setup_model(**kwargs)
@@ -319,6 +322,8 @@ class SimObject:
                 return self.__T[:index]
             elif state_slice in self.model.state_register:
                 return self.Y[:index, self.model.state_register[state_slice]["id"]]
+            elif state_slice in self.model.input_register:
+                return self.U[:index, self.model.input_register[state_slice]["id"]]
             else:
                 raise Exception(f"SimObject \"{self.name}\" attempting to access state_selection \"{state_slice}\"\
                         but no state index is registered under this name.")
