@@ -90,8 +90,13 @@ def get_thrust(time, mass_props, pressure):
         return (0, 0, 0, 0)
 
 
-def pog(vm, vleg, bearing_angle, lead_angle,
-        alpha_total, body_rates):
+def check_pog(t,
+              vm,
+              vleg,
+              bearing_angle,
+              lead_angle,
+              alpha_total,
+              body_rates):
     vleg_tolerance = 0.01
     total_aoa_tolerance = 0.01
     rate_tolerance = 0.01
@@ -116,33 +121,85 @@ def pog(vm, vleg, bearing_angle, lead_angle,
     else:
         complete = False
     ######################################################
+    return complete
 
-    # Compute desired flight path vector
-    fp = np.array([np.cos(vleg) * np.sin(bearing_angle),
-                   np.cos(vleg) * np.cos(bearing_angle),
-                   np.sin(vleg)])
 
-    # Compute missile velocity vector
-    uvm = vm / np.linalg.norm(vm)
+def pog(t,
+        desired_vleg,
+        desired_bearing_angle,
+        alphaTotal,
+        altm,
+        # C_body2enu,
+        # gravity,
+        lead_angle,
+        vm,
+        body_rates,
+        complete=False) -> tuple:
 
-    # Compute angle between missile velocity and EN-plane
-    vma_vert = np.arctan2(vm[2], np.sqrt(vm[0]**2 + vm[1]**1))
+    altitudePSS = 0
 
-    # Compute heading error
-    heading_error = abs(vleg - vma_vert)
+    if altm >= altitudePSS and not complete:
+        vleg = desired_vleg
+        bearing_angle = desired_bearing_angle
 
-    # Compute angle between missile velocity and NU-plane
-    vma_horz = np.arctan2(vm[0], vm[1])
+        complete = check_pog(t, vm, vleg, bearing_angle, lead_angle, alphaTotal, body_rates)
 
-    # Define desired flight path angle on EN-plane
-    fpa_horz = bearing_angle + lead_angle
+        # Compute desired flight path vector
+        fp = np.array([np.cos(vleg) * np.sin(bearing_angle),
+                       np.cos(vleg) * np.cos(bearing_angle),
+                       np.sin(vleg)])
 
-    # Compute bearing error
-    bearing_error = abs(vma_horz - fpa_horz)
+        # Compute missile velocity vector
+        if np.linalg.norm(vm) > 0:
+            uvm = vm / np.linalg.norm(vm)
+        else:
+            uvm = np.zeros(3)
 
-    # no guidance (ballistic)
-    ac = np.zeros(3)
-    return (complete, ac)
+        # Compute angle between missile velocity and EN-plane
+        vma_vert = np.arctan2(vm[2], np.sqrt(vm[0]**2 + vm[1]**1))
+
+        # Compute heading error
+        heading_error = abs(vleg - vma_vert)
+
+        # Compute angle between missile velocity and NU-plane
+        vma_horz = np.arctan2(vm[0], vm[1])
+
+        # Define desired flight path angle on EN-plane
+        fpa_horz = bearing_angle + lead_angle
+
+        # Compute bearing error
+        bearing_error = abs(vma_horz - fpa_horz)
+
+        gainK = 0.0982
+        gainKh = 0
+
+        guide_law = "mr_pitchover"
+        match guide_law:
+            case "mr_pitchover":
+                # Compute "vertical" fp angle rate (proportional
+                # to flight path angle error)
+                fpaRate = gainK * heading_error
+
+                # Compute guidance command
+                ac3 = np.linalg.norm(vm) * fpaRate
+
+                # Compute "horizontal" fp angle rate
+                leadRate = gainKh * bearing_error
+
+                # Compute guidance command
+                ac2 = np.linalg.norm(vm) * leadRate
+
+                # Rotate command from body frame to ENU
+                a_c = np.array([0, ac2, ac3])
+            # case "simple":
+            #     gainK = gainK * gravity
+            #     a_c = gainK * (fp - np.dot(fp, uvm) * uvm)
+            case _:
+                # no guidance (ballistic)
+                a_c = np.zeros(3)
+
+        return (complete, a_c)
+    return (complete, np.zeros(3))
 
 
 ################################################
