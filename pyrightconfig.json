@@ -11,5 +11,7 @@
     "reportConstantRedefinition": false,
     "reportMissingTypeArgument": false,
     "reportUnusedVariable": false,
+    "reportPrivateUsage": false,
+    "reportUnnecessaryComparison": false,
 }
 
