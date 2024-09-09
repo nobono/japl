@@ -52,14 +52,15 @@ class TestAeroTableSymbolic(unittest.TestCase):
     def test_get_CNB(self):
         phi = 0
         mach = 1.5
+        alt = 0
         iota = np.radians(0.1)
-        vars = symbols("alpha phi mach iota")
+        vars = symbols("alpha phi mach alt iota")
         expr = self.aerotable_sym.get_CNB(*vars)
         sym_func = Desym(vars, expr,  # type:ignore
                          modules=self.aerotable_sym.modules)
         for alpha in np.linspace(0, .2, 20):
-            ret1 = self.aerotable.get_CNB(alpha, phi, mach, iota)
-            ret2 = sym_func(alpha, phi, mach, iota)
+            ret1 = self.aerotable.get_CNB(alpha, phi, mach, alt, iota)
+            ret2 = sym_func(alpha, phi, mach, alt, iota)
             self.assertEqual(ret1, ret2)
 
 

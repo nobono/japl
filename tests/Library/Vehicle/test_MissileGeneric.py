@@ -287,7 +287,7 @@ class test_MissileGeneric(unittest.TestCase):
 
         iota = np.radians(0.1)
         CLMB = -self.aerotable.get_CLMB(alpha, phi, mach, iota)  # type:ignore
-        CNB = self.aerotable.get_CNB(alpha, phi, mach, iota)  # type:ignore
+        CNB = self.aerotable.get_CNB(alpha, phi, mach, alt, iota)  # type:ignore
         My_coef = CLMB + (cg - self.aerotable.get_MRC()) * CNB  # type:ignore
 
         q = self.atmosphere.dynamic_pressure(vel, alt)  # type:ignore
