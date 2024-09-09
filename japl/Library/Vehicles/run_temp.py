@@ -35,7 +35,7 @@ mass_props = MassPropTable(DIR + "/../../../aeromodel/stage_1_mass.mat",
 ########################################################
 
 
-def user_input_func(t, X, U, dt, *args):
+def user_input_func(t, X, U, S, dt, *args):
     global mass_props
     global complete
 
@@ -47,20 +47,24 @@ def user_input_func(t, X, U, dt, *args):
     q = X[17]
     r = X[18]
 
-    if not complete or t < 0.1:
-        complete, a_c = pog(t,
-                            desired_vleg=np.radians(45),
-                            desired_bearing_angle=0,
-                            alphaTotal=alpha,
-                            altm=alt,
-                            lead_angle=0,
-                            vm=v_enu_m,
-                            body_rates=np.array([p, q, r])
-                            )
-        a_c_y = a_c[1]
-        a_c_z = a_c[2]
-        if complete:
-            print("POG complete at t=%.2f" % t)
+    if t > 1:
+        if not complete or t < 0.1:
+            complete, a_c = pog(t,
+                                desired_vleg=np.radians(85),
+                                desired_bearing_angle=0,
+                                alphaTotal=alpha,
+                                altm=alt,
+                                lead_angle=0,
+                                vm=v_enu_m,
+                                body_rates=np.array([p, q, r])
+                                )
+            a_c_y = a_c[1]
+            a_c_z = a_c[2]
+            if complete:
+                print("POG complete at t=%.2f" % t)
+        else:
+            a_c_y = 0
+            a_c_z = 0
     else:
         a_c_y = 0
         a_c_z = 0
@@ -129,7 +133,7 @@ plotter = PyQtGraphPlotter(frame_rate=30,
 # Initialize Model
 ########################################################
 
-t_span = [0, 90]
+t_span = [0, 10]
 ecef0 = [Earth.radius_equatorial, 0, 0]
 simobj = SimObject(model)
 
@@ -204,6 +208,21 @@ simobj.init_state([quat0,
                    CNB0,
                    ])
 
+omega_n = 20  # natural frequency
+zeta = 0.5    # damping ratio
+K_phi = 1     # roll gain
+omega_p = 20  # natural frequency (roll)
+phi_c = 0     # roll angle command
+T_r = 0.5     # roll autopilot time constant
+
+simobj.init_static([
+    omega_n,
+    zeta,
+    K_phi,
+    omega_p,
+    phi_c,
+    T_r,
+    ])
 ########################################################
 
 # parr = ['v_b_e_x',
@@ -221,15 +240,19 @@ simobj.plot.set_config({
     # "N": {"xaxis": 't', "yaxis": parr[1]},
     # "U": {"xaxis": 't', "yaxis": parr[2]},
 
-    "N-U": {"xaxis": 'r_n', "yaxis": 'r_u', "xlim": []},
-    "N-E": {"xaxis": 'r_n', "yaxis": 'r_e', "xlim": []},
+    "N-U": {"xaxis": 'r_n', "yaxis": 'r_u',
+            "xlim": [0, 7e3],
+            "ylim": [0, 7e3]},
+    "N-E": {"xaxis": 'r_n', "yaxis": 'r_e',
+            "xlim": [0, 7e3],
+            "ylim": [0, 7e3]},
 
     # "v_e": {"xaxis": 'r_n', "yaxis": 'v_e'},
     # "v_n": {"xaxis": 'r_n', "yaxis": 'v_n'},
     # "v_u": {"xaxis": 'r_n', "yaxis": 'v_u'},
 
-    "Mach": {"xaxis": 't', "yaxis": 'mach'},
-    # "Thrust": {"xaxis": 't', "yaxis": 'thrust'},
+    # "Mach": {"xaxis": 't', "yaxis": 'mach'},
+    "Thrust": {"xaxis": 't', "yaxis": 'thrust'},
     # "V": {"xaxis": 't', "yaxis": 'vel_mag_e'},
 
     # "alpha": {"xaxis": 't', "yaxis": 'alpha'},
@@ -241,7 +264,7 @@ simobj.plot.set_config({
     # "wet_mass": {"xaxis": 't', "yaxis": 'wet_mass'},
     # "mass_dot": {"xaxis": 't', "yaxis": 'mass_dot'},
 
-    # "CA": {"xaxis": 't', "yaxis": 'CA'},
+    "CA": {"xaxis": 't', "yaxis": 'CA'},
     # "CN": {"xaxis": 't', "yaxis": 'CN'},
 
     # "a_c_y": {"xaxis": 't', "yaxis": 'a_c_y'},
@@ -252,10 +275,10 @@ sim = Sim(t_span=t_span,
           dt=0.01,
           simobjs=[simobj],
           integrate_method="rk4")
-sim.run()
+# sim.run()
 # plotter.instrument_view = True
-# plotter.animate(sim)
-plotter.plot_obj(simobj)
+plotter.animate(sim)
+# plotter.plot_obj(simobj)
 plotter.show()
 # plotter.add_vector()
 sim.profiler.print_info()

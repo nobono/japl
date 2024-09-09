@@ -63,6 +63,7 @@ class TestBuildTools(unittest.TestCase):
         dynamics = Matrix(state.diff(t))
 
         (state, input, dynamics,
+         static,
          state_direct_updates,
          input_direct_updates) = BuildTools.build_model(state,
                                                         input,

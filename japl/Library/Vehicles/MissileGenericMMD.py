@@ -521,12 +521,13 @@ defs = (
 
        (wet_mass.diff(t), mass_dot),
 
-       (omega_n, 20),  # natural frequency
-       (zeta, 0.7),    # damping ratio
-       (K_phi, 1),     # roll gain
-       (omega_p, 20),  # natural frequency (roll)
-       (phi_c, 0),     # roll angle command
-       (T_r, 0.5),     # roll autopilot time constant
+       # (omega_n, 20),  # natural frequency
+       # (zeta, 0.7),    # damping ratio
+       # (K_phi, 1),     # roll gain
+       # (omega_p, 20),  # natural frequency (roll)
+       # (phi_c, 0),     # roll angle command
+       # (T_r, 0.5),     # roll autopilot time constant
+
        (C_s, atmosphere.speed_of_sound(alt)),
        (rho, atmosphere.density(alt)),
        )
@@ -601,6 +602,14 @@ input = Matrix([
     mass_dot,
     ])
 
+static = Matrix([
+    omega_n,  # natural frequency
+    zeta,     # damping ratio
+    K_phi,    # roll gain
+    omega_p,  # natural frequency (roll)
+    phi_c,    # roll angle command
+    T_r,      # roll autopilot time constant
+    ])
 ##################################################
 # Define dynamics
 ##################################################
@@ -618,6 +627,7 @@ model = MissileGenericMMD.from_expression(dt,
                                           state,
                                           input,
                                           dynamics,
+                                          static_vars=static,
                                           modules=modules,
                                           definitions=defs,
                                           use_multiprocess_build=True)

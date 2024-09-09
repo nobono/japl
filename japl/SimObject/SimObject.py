@@ -123,8 +123,10 @@ class SimObject:
         self.model = model
         self.state_dim = self.model.state_dim
         self.input_dim = self.model.input_dim
+        self.static_dim = self.model.static_dim
         self.X0 = np.zeros((self.state_dim,))
         self.U0 = np.zeros((self.input_dim,))
+        self.S0 = np.zeros((self.static_dim,))
         self.Y = np.array([], dtype=self._dtype)
         self.U = np.array([], dtype=self._dtype)
         self.__T = np.array([])
@@ -243,7 +245,7 @@ class SimObject:
         return True
 
 
-    def step(self, t: float, X: np.ndarray, U: np.ndarray, dt: float) -> np.ndarray:
+    def step(self, t: float, X: np.ndarray, U: np.ndarray, S: np.ndarray, dt: float) -> np.ndarray:
         """This method is the update-step of the SimObject dynamic model. It calls
         the SimObject Model's step() function.
 
@@ -253,6 +255,7 @@ class SimObject:
         -- t - current time
         -- X - current state array of SimObject
         -- U - current input array of SimObject
+        -- S - static variables array of SimObject
         -- dt - delta time
         -------------------------------------------------------------------
         -------------------------------------------------------------------
@@ -262,7 +265,7 @@ class SimObject:
         -------------------------------------------------------------------
         """
         # self.update(X)
-        return self.model.step(t, X, U, dt)
+        return self.model.step(t, X, U, S, dt)
 
 
     def update(self, X: np.ndarray):
@@ -288,8 +291,29 @@ class SimObject:
         if _X0.shape != self.X0.shape:
             raise Exception("\n\nattempting to initialize state X0 but array sizes do not match."
                             f"\n\ninitialization array:{_X0.shape} != state array:{self.X0.shape}")
-
         self.X0 = _X0
+
+
+    def init_static(self, state: np.ndarray|list, dtype: type = float) -> None:
+        """This method takes a numpy array or list (or nested list) and stores this data
+        into the initial static array SimObject.S0. This method is for user convenience when initializing
+        a static variables dynamics model.
+
+        -------------------------------------------------------------------
+        -- Arguments
+        -------------------------------------------------------------------
+        -- state - array, list or nested list of static array
+        -------------------------------------------------------------------
+        """
+
+        if isinstance(state, list):
+            state = flatten_list(state)
+        _S0 = np.asarray(state, dtype=dtype).flatten()
+
+        if _S0.shape != self.S0.shape:
+            raise Exception("\n\nattempting to initialize static array S0 but array sizes do not match."
+                            f"\n\ninitialization array:{_S0.shape} != state array:{self.S0.shape}")
+        self.S0 = _S0
 
 
     def get_plot_data(self, subplot_id: int, index: Optional[int]) -> tuple[np.ndarray, np.ndarray]:
