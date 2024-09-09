@@ -11,110 +11,120 @@ from japl.Math import Rotation
 from japl import Model
 from japl.MassProp.MassPropTable import MassPropTable
 from pprint import pprint
-from japl.Library.Vehicles.MissileGenericMMD_function import pog
+from japl.Library.Vehicles.pog import pog
+from japl import Atmosphere
 
 DIR = os.path.dirname(__file__)
 np.set_printoptions(suppress=True, precision=3)
 
 
 complete = False
+apogee = False
 
 ########################################################
-# Load Tables
+# Load
 ########################################################
 
+model = Model.from_file(DIR + "/mmd.japl")
+simobj = SimObject(model)
+atmosphere = Atmosphere()
 mass_props = MassPropTable(DIR + "/../../../aeromodel/stage_1_mass.mat",
                            from_template="CMS")
-# mass_props.burn_time = np.linspace(0, 5, len(mass_props.burn_time))
-# mass_props.wet_mass = 150
-# aero = AeroTable(DIR + "/../../../aeromodel/stage_1_aero.mat",
-#                        from_template="CMS")
+aerotable = AeroTable(DIR + "/../../../aeromodel/stage_1_aero.mat",
+                      from_template="orion")
 
 ########################################################
 # Custom Input Function
 ########################################################
 
 
-def user_input_func(t, X, U, S, dt, *args):
+def ned_to_body_cmd(t, X, U, S, dt, acc_enu_cmd):
+    omega_e = Earth.omega
+    q_0, q_1, q_2, q_3 = X[:4]
+    r_e_m = X[27:30]
+    C_eci_to_ecef = np.array([
+        [np.cos(omega_e * t), np.sin(omega_e * t), 0],
+        [-np.sin(omega_e * t), np.cos(omega_e * t), 0],
+        [0, 0, 1]])
+    C_body_to_eci = np.array([
+        [1 - 2*(q_2**2 + q_3**2), 2*(q_1*q_2 + q_0*q_3) , 2*(q_1*q_3 - q_0*q_2)],  # type:ignore # noqa
+        [2*(q_1*q_2 - q_0*q_3) , 1 - 2*(q_1**2 + q_3**2), 2*(q_2*q_3 + q_0*q_1)],  # type:ignore # noqa
+        [2*(q_1*q_3 + q_0*q_2) , 2*(q_2*q_3 - q_0*q_1), 1 - 2*(q_1**2 + q_2**2)]]).T  # type:ignore # noqa
+    C_body_to_ecef = C_eci_to_ecef @ C_body_to_eci
+    lla0 = Rotation.ecef_to_lla(r_e_m)
+    lat0, lon0, _ = lla0
+    C_ecef_to_enu = np.array([
+        [-np.sin(lon0), np.cos(lon0), 0],
+        [-np.sin(lat0) * np.cos(lon0), -np.sin(lat0) * np.sin(lon0), np.cos(lat0)],
+        [np.cos(lat0) * np.cos(lon0), np.cos(lat0) * np.sin(lon0), np.sin(lat0)],
+        ])
+    acc_cmd_ecef = C_ecef_to_enu.T @ np.asarray(acc_enu_cmd)
+    acc_cmd_body = C_body_to_ecef.T @ acc_cmd_ecef
+    acc_cmd_body = 60 * (acc_cmd_body / np.linalg.norm(acc_cmd_body))
+    a_c_y = acc_cmd_body[1]
+    a_c_z = acc_cmd_body[2]
+    return (a_c_y, a_c_z)
+
+
+def user_input_func(t, X, U, S, dt, simobj):
     global mass_props
     global complete
 
-    alpha = X[10]
-    r_enu_m = X[19:22]
-    v_enu_m = X[22:25]
+    alpha = simobj.get_state_array(X, "alpha")
+    r_enu_m = simobj.get_state_array(X, ["r_e", "r_n", "r_u"])
+    v_enu_m = simobj.get_state_array(X, ["v_e", "v_n", "v_u"])
     alt = r_enu_m[2]
-    p = X[16]
-    q = X[17]
-    r = X[18]
+    body_rates = simobj.get_state_array(X, ["p", "q", "r"])
+    mass = simobj.get_state_array(X, "wet_mass")
+    q_bar = simobj.get_state_array(X, "q_bar")
+    mach = simobj.get_state_array(X, "mach")
 
-    if t > 1:
-        if not complete or t < 0.1:
-            complete, a_c = pog(t,
-                                desired_vleg=np.radians(85),
-                                desired_bearing_angle=0,
-                                alphaTotal=alpha,
-                                altm=alt,
-                                lead_angle=0,
-                                vm=v_enu_m,
-                                body_rates=np.array([p, q, r])
-                                )
-            a_c_y = a_c[1]
-            a_c_z = a_c[2]
-            if complete:
-                print("POG complete at t=%.2f" % t)
+    a_c_y = 0
+    a_c_z = 0
+    if True:
+        if t > 2.0:
+            S[-1] = 0
         else:
+            if not complete or t < 0.1:
+                complete, a_c = pog(t,
+                                    desired_vleg=np.radians(45),
+                                    desired_bearing_angle=0,
+                                    alphaTotal=alpha,
+                                    altm=alt,
+                                    lead_angle=0,
+                                    vm=v_enu_m,
+                                    body_rates=body_rates)
+                a_c_y = a_c[1]
+                a_c_z = a_c[2]
+                if complete:
+                    S[-1] = 0
+                    print("POG complete at t=%.2f" % t)
+    if True:
+        flag_apogee = v_enu_m[2] < 0.0
+        if flag_apogee:
+            # print("apogee reached")
+            # do L/D guidance
+            Sref = aerotable.get_Sref()
+            opt_CL, opt_CD, opt_alpha = aerotable.ld_guidance(alpha=alpha, mach=mach, alt=alt)
+            f_l = opt_CL * q_bar * Sref
+            f_d = opt_CD * q_bar * Sref
+            a_l = f_l / mass
+            a_d = f_d / mass
             a_c_y = 0
-            a_c_z = 0
-    else:
-        a_c_y = 0
-        a_c_z = 0
+            a_c_z = -a_l
+            # print(a_c_y, a_c_z)
 
-    # a_c_y = 0
-    # a_c_z = 0
-    # if t > 1:
-    #     a_c_y = 0
-    #     a_c_z = 100
-
-    # omega_e = Earth.omega
-    # q_0, q_1, q_2, q_3 = X[:4]
-    # r_e_m = X[27:30]
-    # C_eci_to_ecef = np.array([
-    #     [np.cos(omega_e * t), np.sin(omega_e * t), 0],
-    #     [-np.sin(omega_e * t), np.cos(omega_e * t), 0],
-    #     [0, 0, 1]])
-    # C_body_to_eci = np.array([
-    #     [1 - 2*(q_2**2 + q_3**2), 2*(q_1*q_2 + q_0*q_3) , 2*(q_1*q_3 - q_0*q_2)],  # type:ignore # noqa
-    #     [2*(q_1*q_2 - q_0*q_3) , 1 - 2*(q_1**2 + q_3**2), 2*(q_2*q_3 + q_0*q_1)],  # type:ignore # noqa
-    #     [2*(q_1*q_3 + q_0*q_2) , 2*(q_2*q_3 - q_0*q_1), 1 - 2*(q_1**2 + q_2**2)]]).T  # type:ignore # noqa
-    # C_body_to_ecef = C_eci_to_ecef @ C_body_to_eci
-    # lla0 = Rotation.ecef_to_lla(r_e_m)
-    # lat0, lon0, _ = lla0
-    # C_ecef_to_enu = np.array([
-    #     [-np.sin(lon0), np.cos(lon0), 0],
-    #     [-np.sin(lat0) * np.cos(lon0), -np.sin(lat0) * np.sin(lon0), np.cos(lat0)],
-    #     [np.cos(lat0) * np.cos(lon0), np.cos(lat0) * np.sin(lon0), np.sin(lat0)],
-    #     ])
-    # acc_cmd_ecef = C_ecef_to_enu.T @ np.array([0, 1, 1])
-    # acc_cmd_body = C_body_to_ecef.T @ acc_cmd_ecef
-    # acc_cmd_body = 60 * (acc_cmd_body / np.linalg.norm(acc_cmd_body))
-    # a_c_y = acc_cmd_body[1]
-    # a_c_z = acc_cmd_body[2]
-    # if mass_props.get_mass_dot(t) == 0:
-    #     pass
-
-    U[2] = a_c_y                       # acc cmd
-    U[3] = a_c_z                       # acc cmd
-    U[4] = mass_props.get_thrust(t)    # thrust
-    U[5] = mass_props.get_mass_dot(t)  # mass_dot
+    pressure = atmosphere.pressure(alt)
+    U[2] = a_c_y                                # acc cmd
+    U[3] = a_c_z                                # acc cmd
+    U[4] = mass_props.get_thrust(t, pressure)   # thrust
+    U[5] = mass_props.get_mass_dot(t)           # mass_dot
 
 
 ########################################################
-# Load model
+# Add user-function
 ########################################################
 
-# with open(f"{DIR}/mmd.pickle", 'rb') as f:
-#     model: Model = dill.load(f)
-model = Model.from_file(DIR + "/mmd.japl")
 model.set_input_function(user_input_func)
 
 ########################################################
@@ -124,25 +134,23 @@ model.set_input_function(user_input_func)
 plotter = PyQtGraphPlotter(frame_rate=30,
                            figsize=[10, 10],
                            aspect="auto",
-                           # xlim=[-500, 500],
-                           # ylim=[0, 600],
-                           # ff=0.5,
+                           ff=5.0,
                            )
 
 ########################################################
 # Initialize Model
 ########################################################
 
-t_span = [0, 10]
+t_span = [0, 50]
 ecef0 = [Earth.radius_equatorial, 0, 0]
-simobj = SimObject(model)
 
 r0_enu = [0, 0, 0]
 v0_enu = [0, 0, 1]
 a0_enu = [0, 0, -9.81]
-dcm = Rotation.tait_bryan_to_dcm(np.radians([0, 0, 0])).T  # yaw-pitch-roll
-quat0 = quaternion.from_rotation_matrix(dcm).components
+# dcm = Rotation.tait_bryan_to_dcm(np.radians([0, 0, 0])).T  # yaw-pitch-roll
+# quat0 = quaternion.from_rotation_matrix(dcm).components
 # quat0 = [1, 0, 0, 0]
+quat0 = quaternion.from_euler_angles(np.radians([0, -45, 0])).components
 
 q_0, q_1, q_2, q_3 = quat0
 C_body_to_eci = np.array([
@@ -181,11 +189,16 @@ v0_body_hat = v0_body / np.linalg.norm(v0_body)
 g0_body = [0, 0, -9.81]
 a0_body = [0, 0, -9.81]
 
-wet_mass0 = mass_props.wet_mass
+wet_mass0 = 108 / 2.2  # mass_props.wet_mass  # + (24.1224 / 2.2)
 dry_mass0 = mass_props.dry_mass
+# print(wet_mass0)
+
+lift0 = 0
+drag0 = 0
 
 CA0 = 0
 CNB0 = 0
+q_bar0 = 0
 
 simobj.init_state([quat0,
                    r0_eci, v0_eci,
@@ -206,14 +219,18 @@ simobj.init_state([quat0,
                    dry_mass0,
                    CA0,
                    CNB0,
+                   q_bar0,
+                   lift0,
+                   drag0,
                    ])
 
 omega_n = 20  # natural frequency
-zeta = 0.5    # damping ratio
+zeta = 0.7    # damping ratio
 K_phi = 1     # roll gain
 omega_p = 20  # natural frequency (roll)
 phi_c = 0     # roll angle command
 T_r = 0.5     # roll autopilot time constant
+flag_boosting = 1
 
 simobj.init_static([
     omega_n,
@@ -222,6 +239,7 @@ simobj.init_static([
     omega_p,
     phi_c,
     T_r,
+    flag_boosting,
     ])
 ########################################################
 
@@ -241,18 +259,23 @@ simobj.plot.set_config({
     # "U": {"xaxis": 't', "yaxis": parr[2]},
 
     "N-U": {"xaxis": 'r_n', "yaxis": 'r_u',
-            "xlim": [0, 7e3],
-            "ylim": [0, 7e3]},
-    "N-E": {"xaxis": 'r_n', "yaxis": 'r_e',
-            "xlim": [0, 7e3],
-            "ylim": [0, 7e3]},
+            # "xlim": [0, 7e3],
+            # "ylim": [0, 7e3]
+            },
+    # "N-E": {"xaxis": 'r_n', "yaxis": 'r_e',
+    #         "xlim": [0, 7e3],
+    #         "ylim": [0, 7e3]
+    #         },
 
     # "v_e": {"xaxis": 'r_n', "yaxis": 'v_e'},
     # "v_n": {"xaxis": 'r_n', "yaxis": 'v_n'},
     # "v_u": {"xaxis": 'r_n', "yaxis": 'v_u'},
 
-    # "Mach": {"xaxis": 't', "yaxis": 'mach'},
+    # "a_u": {"xaxis": 'r_n', "yaxis": 'a_u'},
+
+    "Mach": {"xaxis": 't', "yaxis": 'mach'},
     "Thrust": {"xaxis": 't', "yaxis": 'thrust'},
+    # "Drag": {"xaxis": 't', "yaxis": 'drag'},
     # "V": {"xaxis": 't', "yaxis": 'vel_mag_e'},
 
     # "alpha": {"xaxis": 't', "yaxis": 'alpha'},
@@ -260,27 +283,51 @@ simobj.plot.set_config({
     # "phi_hat": {"xaxis": 't', "yaxis": 'phi_hat'},
 
     # "p": {"xaxis": 't', "yaxis": 'p'},
+    # "q": {"xaxis": 't', "yaxis": 'q'},
+    # "r": {"xaxis": 't', "yaxis": 'r'},
 
     # "wet_mass": {"xaxis": 't', "yaxis": 'wet_mass'},
+    # "dry_mass": {"xaxis": 't', "yaxis": 'dry_mass'},
     # "mass_dot": {"xaxis": 't', "yaxis": 'mass_dot'},
 
-    "CA": {"xaxis": 't', "yaxis": 'CA'},
+    # "CA": {"xaxis": 't', "yaxis": 'CA'},
     # "CN": {"xaxis": 't', "yaxis": 'CN'},
+
+    "lift": {"xaxis": 't', "yaxis": 'lift'},
+    "drag": {"xaxis": 't', "yaxis": 'drag'},
 
     # "a_c_y": {"xaxis": 't', "yaxis": 'a_c_y'},
     # "a_c_z": {"xaxis": 't', "yaxis": 'a_c_z'},
     })
 
+
+########################################################
+# Events
+########################################################
+
+def event_hit_ground(t, X, U, S, dt, simobj) -> bool:
+    if simobj.get_state_array(X, "r_u") < 0:
+        return True
+    else:
+        return False
+
+########################################################
+# Sim
+########################################################
+
+
 sim = Sim(t_span=t_span,
           dt=0.01,
           simobjs=[simobj],
           integrate_method="rk4")
+
+sim.add_event(event_hit_ground, "stop")
 # sim.run()
 # plotter.instrument_view = True
-plotter.animate(sim)
-# plotter.plot_obj(simobj)
-plotter.show()
+plotter.animate(sim).show()
+# plotter.plot_obj(simobj).show()
 # plotter.add_vector()
+# plotter.show()
 sim.profiler.print_info()
 
 # with open("temp_data_2.pickle", 'ab') as f:
