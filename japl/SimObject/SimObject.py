@@ -245,7 +245,7 @@ class SimObject:
         return True
 
 
-    def step(self, t: float, X: np.ndarray, U: np.ndarray, dt: float) -> np.ndarray:
+    def step(self, t: float, X: np.ndarray, U: np.ndarray, S: np.ndarray, dt: float) -> np.ndarray:
         """This method is the update-step of the SimObject dynamic model. It calls
         the SimObject Model's step() function.
 
@@ -255,6 +255,7 @@ class SimObject:
         -- t - current time
         -- X - current state array of SimObject
         -- U - current input array of SimObject
+        -- S - static variables array of SimObject
         -- dt - delta time
         -------------------------------------------------------------------
         -------------------------------------------------------------------
@@ -264,7 +265,7 @@ class SimObject:
         -------------------------------------------------------------------
         """
         # self.update(X)
-        return self.model.step(t, X, U, dt)
+        return self.model.step(t, X, U, S, dt)
 
 
     def update(self, X: np.ndarray):
@@ -309,7 +310,7 @@ class SimObject:
             state = flatten_list(state)
         _S0 = np.asarray(state, dtype=dtype).flatten()
 
-        if _S0.shape != self.X0.shape:
+        if _S0.shape != self.S0.shape:
             raise Exception("\n\nattempting to initialize static array S0 but array sizes do not match."
                             f"\n\ninitialization array:{_S0.shape} != state array:{self.S0.shape}")
         self.S0 = _S0

@@ -86,7 +86,7 @@ def build_model(state: Matrix,
     input_subs = {i: Symbol(i.name) for i in input.atoms(Function)}
     input_subs.update({i.state_expr: Symbol(i.state_expr.name) for i in input.atoms(DirectUpdateSymbol)})
 
-    static_subs = {i: Symbol(i.name) for i in input.atoms(Function)}
+    static_subs = {i: Symbol(i.name) for i in static.atoms(Function)}
 
     ############################################################
     # 3: get state direct update array
@@ -132,10 +132,11 @@ def build_model(state: Matrix,
 
     if use_multiprocess_build:
         with Pool(processes=cpu_count()) as pool:
-            args = [(pickle.dumps((key, expr)),
-                     [pickle.dumps(state_subs),
-                      pickle.dumps(input_subs),
-                      pickle.dumps(def_subs)]) for key, expr in def_subs.items()]
+            subs = [pickle.dumps(state_subs),
+                    pickle.dumps(input_subs),
+                    pickle.dumps(def_subs),
+                    pickle.dumps(static_subs)]
+            args = [(pickle.dumps((key, expr)), subs) for key, expr in def_subs.items()]
             results = [pool.apply_async(dict_subs_func, arg) for arg in args]
             results = [pickle.loads(ret.get()) for ret in results]
         for ret in results:
@@ -161,7 +162,8 @@ def build_model(state: Matrix,
         with Pool(processes=cpu_count()) as pool:
             subs = [pickle.dumps(def_subs),
                     pickle.dumps(state_subs),
-                    pickle.dumps(input_subs)]
+                    pickle.dumps(input_subs),
+                    pickle.dumps(static_subs)]
             args = [(pickle.dumps(expr), subs) for expr in dynamics]
             results = [pool.apply_async(array_subs_func, arg) for arg in args]
             results = [pickle.loads(ret.get()) for ret in results]
@@ -175,9 +177,11 @@ def build_model(state: Matrix,
     ############################################################
     state_direct_updates = state_direct_updates.subs(def_subs)
     state_direct_updates = state_direct_updates.subs(state_subs).subs(input_subs)
+    state_direct_updates = state_direct_updates.subs(static_subs)
 
     input_direct_updates = input_direct_updates.subs(def_subs)
     input_direct_updates = input_direct_updates.subs(state_subs).subs(input_subs)
+    input_direct_updates = input_direct_updates.subs(static_subs)
 
     ############################################################
     # check for any undefined differential expresion in dynamics
@@ -190,6 +194,7 @@ def build_model(state: Matrix,
     # gather symbols from state & input arrays
     state_symbols = [i.name for i in state]  # type:ignore
     input_symbols = [i.name for i in input]  # type:ignore
+    static_symbols = [i.name for i in static]  # type:ignore
 
     # gather any symbols used indirectly in state & input arrays
     state_direct_update_set = state_direct_updates.atoms(Symbol)
@@ -214,10 +219,13 @@ def build_model(state: Matrix,
 
     # subtract defined symbols in the state & input arrays
     undefined_symbols = total_symbols.difference(set(state_symbols)).difference(set(input_symbols))
+    # subtract static symbols
+    undefined_symbols = undefined_symbols.difference(set(static_symbols))
     # ignore default symbols (t, dt)
     undefined_symbols = undefined_symbols.difference({t.name, dt.name})
 
     if undefined_symbols:
+        breakpoint()
         error_msg_wrapper(f"Undefined Symbols found in model:\n{undefined_symbols}")
 
     # write_array(state, "./temp_state.py")
@@ -228,7 +236,8 @@ def build_model(state: Matrix,
     print("exec time: %.3f seconds" % exec_time)
 
     print("=" * 50, end="\n\n")
-    return (state, input, dynamics, state_direct_updates, input_direct_updates)
+    return (state, input, dynamics, static,
+            state_direct_updates, input_direct_updates)
 
 
 def error_msg_wrapper(msg) -> str:

@@ -98,10 +98,11 @@ class Model:
         """This method initializes a Model from a callable function.
         The provided function must have the following signature:
 
-            func(t, X, U, dt)
+            func(t, X, U, S, dt)
 
         where, 't' is the sim-time 'X' is the current state, 'U', is
-        the current inputs and 'dt' is the time step.
+        the current inputs, 'S' is the static variables array and 'dt'
+        is the time step.
 
         -------------------------------------------------------------------
         -- Arguments
@@ -126,7 +127,7 @@ class Model:
         model.input_vars = model.input_register.get_vars()
         model.static_vars = model.static_register.get_vars()
         model.dt_var = dt_var
-        model.vars = (model.state_vars, model.input_vars, dt_var)
+        model.vars = (model.state_vars, model.input_vars, model.static_vars, dt_var)
         model.state_dim = len(model.state_vars)
         model.input_dim = len(model.input_vars)
         model.static_dim = len(model.static_vars)
@@ -229,26 +230,32 @@ class Model:
         -------------------------------------------------------------------
         -- Arguments
         -------------------------------------------------------------------
-        -- dt_var - symbolic dt e
+        -- dt_var - symbolic dt
         -- state_vars - iterable of symbolic state variables
         -- input_vars - iterable of symbolic input variables
         -- dynamics_expr - Sympy symbolic dynamics expression
+        -- static_vars - iterable of symbolic static variables
         -- modules - pass custom library to Desym (see sympy.lambdify)
         -------------------------------------------------------------------
         -- Returns
         -------------------------------------------------------------------
         -- cls - the initialized Model
         -------------------------------------------------------------------
+
+        NOTE: static variables are symbolic variables which are initialized
+        but not stored as part of the state or input arrays.
         """
         # first build model using provided definitions
         (state_vars,
          input_vars,
          dynamics_expr,
+         static_vars,
          state_direct_updates,
          input_direct_updates) = BuildTools.build_model(Matrix(state_vars),
                                                         Matrix(input_vars),
                                                         Matrix(dynamics_expr),
                                                         definitions,
+                                                        static=Matrix(static_vars),
                                                         use_multiprocess_build=use_multiprocess_build)
         model = cls()
         model._type = ModelType.Symbolic
@@ -258,9 +265,9 @@ class Model:
         model.set_static(static_vars)
         model.state_vars = model.state_register.get_vars()
         model.input_vars = model.input_register.get_vars()
-        model.static_vars = model.state_register.get_vars()
+        model.static_vars = model.static_register.get_vars()
         model.dt_var = dt_var
-        model.vars = (model.state_vars, model.input_vars, dt_var)
+        model.vars = (model.state_vars, model.input_vars, model.static_vars, dt_var)
         model.dynamics_expr = dynamics_expr
         model.direct_state_update_func = model.__process_direct_state_updates(state_direct_updates)
         model.direct_input_update_func = model.__process_direct_state_updates(input_direct_updates)
@@ -319,14 +326,17 @@ class Model:
             return np.empty([])
 
 
-    def step(self, t: float, X: np.ndarray, U: np.ndarray, dt: float) -> np.ndarray:
+    def step(self, t: float, X: np.ndarray, U: np.ndarray, S: np.ndarray, dt: float) -> np.ndarray:
         """This method is the step method of Model over a single time step.
 
         -------------------------------------------------------------------
         -- Arguments
         -------------------------------------------------------------------
+        -- t - current time
         -- X - state array for nstep of the model
         -- U - input array for nstep of the model
+        -- S - static variables array of SimObject
+        -- dt - delta time
         -------------------------------------------------------------------
         -- Returns
         -------------------------------------------------------------------
@@ -338,7 +348,7 @@ class Model:
         # self.__update_A_matrix_exprs(self.A, X)
         # return self.A @ X + self.B @ U
         # return self.dynamics_func(X, U).flatten()
-        return self(t, X, U, dt)
+        return self(t, X, U, S, dt)
 
 
     def get_static_id(self, names: str|list[str]) -> int|list[int]:
@@ -531,8 +541,9 @@ class Model:
         -------------------------------------------------------------------
         Arguments:
             - func: Callable function with the signature:
-                        func(t, X, U, dt, ...)
-                    where X is the state array, U is the input array.
+                        func(t, X, U, S, dt, ...)
+                    where X is the state array, U is the input array,
+                    S is the static variable array.
         -------------------------------------------------------------------
         """
         self.user_input_function = func

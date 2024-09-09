@@ -89,7 +89,7 @@ class Sim:
                              atol=self.atol)
 
 
-    def step(self, t: float, X: np.ndarray, U: np.ndarray, dt: float, simobj: SimObject):
+    def step(self, t: float, X: np.ndarray, U: np.ndarray, S: np.ndarray, dt: float, simobj: SimObject):
         """This method is the main step function for the Sim class."""
 
         ########################################################
@@ -100,7 +100,7 @@ class Sim:
         # force = np.array([1000*lx, 0, 1000*ly])
         # acc_ext = acc_ext + force / mass
         ########################################################
-        Xdot = simobj.step(t, X, U, dt)
+        Xdot = simobj.step(t, X, U, S, dt)
         return Xdot
 
 
@@ -153,6 +153,7 @@ class Sim:
         tstep = self.t_array[istep]
         X = simobj.Y[istep - 1]  # init with previous state
         U = simobj.U[istep]      # init with current input array (zeros)
+        S = simobj.S0
 
         # setup input array
         # U = np.zeros(len(simobj.model.input_vars), dtype=self._dtype)
@@ -167,18 +168,18 @@ class Sim:
 
         # apply any user-defined input functions
         if simobj.model.user_input_function:
-            simobj.model.user_input_function(tstep, X, U, dt)
+            simobj.model.user_input_function(tstep, X, U, S, dt)
 
         # apply direct updates to input
         if simobj.model.direct_input_update_func:
-            U_temp = simobj.model.direct_input_update_func(tstep, X, U, dt).flatten()
+            U_temp = simobj.model.direct_input_update_func(tstep, X, U, S, dt).flatten()
             for i in range(len(U_temp)):
                 if not np.isnan(U_temp[i]):
                     U[i] = U_temp[i]
 
         # apply direct updates to state
         if simobj.model.direct_state_update_func:
-            X_temp = simobj.model.direct_state_update_func(tstep, X, U, dt).flatten()
+            X_temp = simobj.model.direct_state_update_func(tstep, X, U, S, dt).flatten()
             if X_temp is None:
                 raise Exception("Model direct_state_update_func returns None."
                                 f"(in SimObject \"{simobj.name})\"")
@@ -201,7 +202,7 @@ class Sim:
                             t=tstep,
                             X=X,
                             dt=dt,
-                            args=(U, dt, simobj,),
+                            args=(U, S, dt, simobj,),
                             )
                 case "rk4":
                     X_new, T_new = runge_kutta_4(
@@ -209,7 +210,7 @@ class Sim:
                             t=tstep,
                             X=X,
                             h=dt,
-                            args=(U, dt, simobj,),
+                            args=(U, S, dt, simobj,),
                             )
                 case "odeint":
                     sol = solve_ivp(
@@ -217,7 +218,7 @@ class Sim:
                             t_span=(tstep_prev, tstep),
                             t_eval=[tstep],
                             y0=X,
-                            args=(U, dt, simobj,),
+                            args=(U, S, dt, simobj,),
                             events=self.events,
                             rtol=rtol,
                             atol=atol,
