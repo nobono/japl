@@ -52,7 +52,7 @@ class PyQtGraphPlotter:
         self.moving_bounds: bool = kwargs.get("moving_bounds", False)
         self.xlim: list = kwargs.get("xlim", [])
         self.ylim: list = kwargs.get("ylim", [])
-        self.ff: float = kwargs.get("ff", 1)
+        self.ff: float = kwargs.get("ff", 1)  # fast-forward multplier
 
         # debug
         self.quiet = kwargs.get("quiet", False)
