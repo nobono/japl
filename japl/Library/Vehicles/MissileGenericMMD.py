@@ -30,7 +30,7 @@ class MissileGenericMMD(Model):
 
 atmosphere = AtmosphereSymbolic()
 aerotable = AeroTableSymbolic(DIR + "/../../../aeromodel/stage_1_aero.mat",
-                              from_template="CMS")
+                              from_template="orion")
 
 ##################################################
 # Momentless Missile Dynamics Model
@@ -109,6 +109,9 @@ f_b_A_y = Function("f_b_A_y", real=True)(t)
 f_b_A_z = Function("f_b_A_z", real=True)(t)
 f_b_A = Matrix([f_b_A_x, f_b_A_y, f_b_A_z])
 
+lift = Symbol("lift", real=True)
+drag = Symbol("drag", real=True)
+
 # ENU-frame vectors
 r_enu_m = Matrix(symbols("r_e, r_n, r_u"))
 v_enu_m = Matrix(symbols("v_e, v_n, v_u"))
@@ -158,6 +161,8 @@ zeta = Symbol("zeta", real=True)                # alpha & beta damping ratio
 omega_p = Symbol("omega_p", real=True)          # roll natural frequency
 T_r = Symbol("T_r", real=True)                  # roll autopilot time constant
 K_phi = Symbol("K_phi", real=True)              # roll controller gain
+
+flag_boosting = Symbol("flag_boosting")         # vehicle is boosting
 
 # angular velocities
 p = Function("p", real=True)(t)                 # roll-rate
@@ -238,13 +243,9 @@ f_b_T = Matrix([thrust, 0, 0])
 
 # TODO compute f_b_A here
 Sref = aerotable.get_Sref()
-CNB = aerotable.get_CNB(alpha, 0, M)
+CNB = aerotable.get_CNB(alpha, 0, M, alt)
+CA = aerotable.get_CA(flag_boosting, alpha, 0, M, alt)
 
-CA = aerotable.get_CA_Boost(alpha, 0, M, alt)
-# if boosting:
-#     CA = aerotable.get_CA_Boost(alpha=alpha, phi=0, mach=mach, alt=alt)
-# else:
-#     CA = aerotable.get_CA_Coast(alpha=alpha, phi=0, mach=mach, alt=alt)
 f_b_A_x = CA * q_bar * Sref
 f_b_A_z = CNB * q_bar * Sref
 f_b_A = Matrix([-f_b_A_x, 0, -f_b_A_z])
@@ -591,6 +592,10 @@ state = Matrix([
 
     DirectUpdate("CA", CA),
     DirectUpdate("CN", CNB),
+    DirectUpdate("q_bar", q_bar),
+
+    DirectUpdate(drag, f_b_A_x),
+    DirectUpdate(lift, f_b_A_z),
     ])
 
 input = Matrix([
@@ -609,6 +614,7 @@ static = Matrix([
     omega_p,  # natural frequency (roll)
     phi_c,    # roll angle command
     T_r,      # roll autopilot time constant
+    flag_boosting,
     ])
 ##################################################
 # Define dynamics
