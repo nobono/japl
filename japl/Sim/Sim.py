@@ -24,7 +24,7 @@ class Sim:
         self.t_span = t_span
         self.dt = dt
         self.simobjs = simobjs
-        self.events = kwargs.get("events", [])
+        self.events: list[tuple] = kwargs.get("events", [])
         self.integrate_method = kwargs.get("integrate_method", "rk4")
         assert self.integrate_method in ["odeint", "euler", "rk4"]
 
@@ -64,6 +64,11 @@ class Sim:
         simobj._set_T_array_ref(self.T)  # simobj.T reference to sim.T
 
 
+    def add_event(self, func: Callable, action: str) -> None:
+        # TODO make better...
+        self.events += [(action, func)]
+
+
     def run(self) -> None:
 
         # TODO: handle multiple simobjs
@@ -80,13 +85,15 @@ class Sim:
         # TODO should we combine all given SimObjects into single state?
         #       this would be efficient for n-body problem...
         for istep in range(1, self.Nt + 1):
-            self._step_solve(dynamics_func=self.step,
-                             istep=istep,
-                             dt=self.dt,
-                             simobj=simobj,
-                             method=self.integrate_method,
-                             rtol=self.rtol,
-                             atol=self.atol)
+            flag_sim_stop = self._step_solve(dynamics_func=self.step,
+                                             istep=istep,
+                                             dt=self.dt,
+                                             simobj=simobj,
+                                             method=self.integrate_method,
+                                             rtol=self.rtol,
+                                             atol=self.atol)
+            if flag_sim_stop:
+                break
 
 
     def step(self, t: float, X: np.ndarray, U: np.ndarray, S: np.ndarray, dt: float, simobj: SimObject):
@@ -113,7 +120,7 @@ class Sim:
                     rtol: float = 1e-6,
                     atol: float = 1e-6,
                     max_step: float = 0.2
-                    ) -> None:
+                    ) -> bool:
         """
             This method is an update step for the ODE solver from time step 't' to 't + dt';
         used by FuncAnimation.
@@ -133,11 +140,14 @@ class Sim:
         -------------------------------------------------------------------
         -- Returns:
         -------------------------------------------------------------------
+        --- sim-stop-flag - bool
         --- t - time array of solution points
         --- y - (Nt x N_state) array of solution points from ODE solver
         -------------------------------------------------------------------
 
         """
+        flag_sim_stop = False
+
         # DEBUG PROFILE #########
         self.profiler()
         #########################
@@ -168,7 +178,7 @@ class Sim:
 
         # apply any user-defined input functions
         if simobj.model.user_input_function:
-            simobj.model.user_input_function(tstep, X, U, S, dt)
+            simobj.model.user_input_function(tstep, X, U, S, dt, simobj)
 
         # apply direct updates to input
         if simobj.model.direct_input_update_func:
@@ -234,3 +244,20 @@ class Sim:
             simobj.Y[istep] = X_new
             simobj.U[istep] = U
             self.istep += 1
+
+            # check events
+            for event in self.events:
+                action, event_func = event
+                flag_event = event_func(tstep, X, U, S, dt, simobj)
+                if flag_event:
+                    match action:
+                        case "stop":
+                            # trim output arrays
+                            self.T = self.T[:self.istep]
+                            simobj.Y = simobj.Y[:self.istep]
+                            simobj.U = simobj.U[:self.istep]
+                            flag_sim_stop = True
+                        case _:
+                            pass
+            return flag_sim_stop
+        return flag_sim_stop
