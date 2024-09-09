@@ -183,7 +183,7 @@ def from_default_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|d
 
     Basic_axes = {"alpha": alpha, "phi": phi, "mach": mach}                               # Basic table shape
     CA_axes = {"phi": phi, "mach": mach, "alt": alt}                                      # CA-coeff table shape
-    CNB_axes = {"alpha": alpha, "phi": phi, "mach": mach}                               # Basic table shape
+    CNB_axes = {"alpha": alpha, "phi": phi, "mach": mach, "iota": iota}                   # Basic table shape
     IT_axes = {"alpha": alpha, "phi": phi, "mach": mach, "iota": iota}                    # fin-increment table shape
     CA_Total_axes = {"alpha": alpha, "phi": phi, "mach": mach, "alt": alt, "iota": iota}  # CA-coeff total table shape
 
