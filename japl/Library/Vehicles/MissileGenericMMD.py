@@ -601,6 +601,14 @@ input = Matrix([
     mass_dot,
     ])
 
+static = Matrix([
+    Symbol("omega_n"),  # natural frequency
+    Symbol("zeta"),     # damping ratio
+    Symbol("K_phi"),    # roll gain
+    Symbol("omega_p"),  # natural frequency (roll)
+    Symbol("phi_c"),    # roll angle command
+    Symbol("T_r"),      # roll autopilot time constant
+    ])
 ##################################################
 # Define dynamics
 ##################################################

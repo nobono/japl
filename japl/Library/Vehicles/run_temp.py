@@ -252,10 +252,10 @@ sim = Sim(t_span=t_span,
           dt=0.01,
           simobjs=[simobj],
           integrate_method="rk4")
-sim.run()
+# sim.run()
 # plotter.instrument_view = True
-# plotter.animate(sim)
-plotter.plot_obj(simobj)
+plotter.animate(sim)
+# plotter.plot_obj(simobj)
 plotter.show()
 # plotter.add_vector()
 sim.profiler.print_info()

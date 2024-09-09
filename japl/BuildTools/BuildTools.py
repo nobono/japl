@@ -39,6 +39,7 @@ def build_model(state: Matrix,
                 input: Matrix,
                 dynamics: Matrix,
                 definitions: tuple = (),
+                static: Matrix = Matrix([]),
                 use_multiprocess_build: bool = True) -> tuple:
     """
     Notes:
@@ -58,6 +59,7 @@ def build_model(state: Matrix,
     # state & input array checks
     _check_var_array_types(state, "state")
     _check_var_array_types(input, "input")
+    _check_var_array_types(static, "static")
 
     # handle formatting of provided definitions, state, input
     def_subs = _create_subs_from_definitions(definitions)
@@ -83,6 +85,8 @@ def build_model(state: Matrix,
 
     input_subs = {i: Symbol(i.name) for i in input.atoms(Function)}
     input_subs.update({i.state_expr: Symbol(i.state_expr.name) for i in input.atoms(DirectUpdateSymbol)})
+
+    static_subs = {i: Symbol(i.name) for i in input.atoms(Function)}
 
     ############################################################
     # 3: get state direct update array
