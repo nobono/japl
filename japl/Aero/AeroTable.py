@@ -99,10 +99,38 @@ def from_CMS_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|dict,
     # table shape axes
     Basic_axes = {"alpha": alpha, "mach": mach}                 # Basic table shape
     CA_axes = {"mach": mach, "alt": alt}                        # CA-coeff table shape
+    CNB_axes = {"alpha": alpha, "mach": mach}
     IT_axes = {"alpha": alpha, "mach": mach}                    # fin-increment table shape
     CA_Total_axes = {"alpha": alpha, "mach": mach, "alt": alt}  # CA-coeff total table shape
 
-    table_axes = (Basic_axes, CA_axes, IT_axes, CA_Total_axes)
+    table_axes = (Basic_axes, CA_axes, CNB_axes, IT_axes, CA_Total_axes)
+    return (data, table_axes)
+
+
+def from_orion_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|dict, tuple]:
+    deg2rad = np.radians(1)
+
+    data, table_axes = from_CMS_table(data=data, units=units)
+    (Basic_axes,
+     CA_axes,
+     CNB_axes,
+     IT_axes,
+     CA_Total_axes) = table_axes
+
+    alpha = data.get("Alpha", None)
+    mach = data.get("Mach", None)
+    alt = data.get("Alt", None)
+
+    if units.lower() == "si":
+        alpha = alpha * deg2rad
+
+    alpha = alpha.astype(np.float64)
+    mach = mach.astype(np.float64)
+    alt = alt.astype(np.float64)
+
+    # adding alt in CNB table
+    CNB_axes = {"alpha": alpha, "mach": mach, "alt": alt}
+    table_axes = (Basic_axes, CA_axes, CNB_axes, IT_axes, CA_Total_axes)
     return (data, table_axes)
 
 
@@ -155,10 +183,11 @@ def from_default_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|d
 
     Basic_axes = {"alpha": alpha, "phi": phi, "mach": mach}                               # Basic table shape
     CA_axes = {"phi": phi, "mach": mach, "alt": alt}                                      # CA-coeff table shape
+    CNB_axes = {"alpha": alpha, "phi": phi, "mach": mach}                               # Basic table shape
     IT_axes = {"alpha": alpha, "phi": phi, "mach": mach, "iota": iota}                    # fin-increment table shape
     CA_Total_axes = {"alpha": alpha, "phi": phi, "mach": mach, "alt": alt, "iota": iota}  # CA-coeff total table shape
 
-    table_axes = (Basic_axes, CA_axes, IT_axes, CA_Total_axes)
+    table_axes = (Basic_axes, CA_axes, CNB_axes, IT_axes, CA_Total_axes)
     return (data, table_axes)
 
 
@@ -191,6 +220,8 @@ class AeroTable:
         match from_template.lower():
             case "cms":
                 data_dict, table_axes = from_CMS_table(data_dict, units=units)
+            case "orion":
+                data_dict, table_axes = from_orion_table(data_dict, units=units)
             case _:
                 data_dict, table_axes = from_default_table(data_dict, units=units)
 
@@ -251,6 +282,7 @@ class AeroTable:
 
         (Basic_axes,
          CA_axes,
+         CNB_axes,
          IT_axes,
          CA_Total_axes) = table_axes
 
@@ -297,7 +329,7 @@ class AeroTable:
 
         self.CA_Boost = DataTable(_CA_Boost, CA_Total_axes)
         self.CA_Coast = DataTable(_CA_Coast, CA_Total_axes)
-        self.CNB = DataTable(_CNB, IT_axes)
+        self.CNB = DataTable(_CNB, CNB_axes)
         self.CLMB = DataTable(_CLMB, IT_axes)
         self.CLNB = DataTable(_CLNB, IT_axes)
         self.CYB = DataTable(_CYB, IT_axes)
@@ -329,7 +361,7 @@ class AeroTable:
             if not (self.CNB_Basic.isnone() and self.CNB_IT.isnone()):
                 self.CNB = DataTable(self.CNB_Basic[:, :, :, np.newaxis]
                                      + self.CNB_IT,
-                                     axes=IT_axes)
+                                     axes=CNB_axes)
         if self.CLMB.isnone():
             if not (self.CLMB_Basic.isnone() and self.CLMB_IT.isnone()):
                 self.CLMB = DataTable(self.CLMB_Basic[:, :, :, np.newaxis]
@@ -550,7 +582,7 @@ class AeroTable:
 
         def ld_ratio(_alpha):
             CA = self.get_CA_Boost(alpha=_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
-            CN = self.get_CNB(alpha=_alpha, phi=phi, mach=mach, iota=iota)
+            CN = self.get_CNB(alpha=_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
             cosa = np.cos(_alpha)
             sina = np.sin(_alpha)
             CL = (CN * cosa) - (CA * sina)
@@ -562,7 +594,7 @@ class AeroTable:
         ld_max = -result.fun
         # optimal CL, CD
         CA = self.get_CA_Boost(alpha=optimal_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
-        CN = self.get_CNB(alpha=optimal_alpha, phi=phi, mach=mach, iota=iota)
+        CN = self.get_CNB(alpha=optimal_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
         cosa = np.cos(optimal_alpha)
         sina = np.sin(optimal_alpha)
         opt_CL = (CN * cosa) - (CA * sina)
@@ -600,10 +632,10 @@ class AeroTable:
 
             # TODO switch between Boost / Coast
             # get coeffs from aerotable
-            CA = self.get_CA_Boost(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
-            CN = self.get_CNB(alpha=alpha, phi=phi, mach=mach, iota=iota)
-            CA_alpha = self.get_CA_Boost_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
-            CN_alpha = self.get_CNB_alpha(alpha=alpha, phi=phi, mach=mach, iota=iota)
+            CA = self.get_CA(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            CN = self.get_CNB(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            CA_alpha = self.get_CA_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            CN_alpha = self.get_CNB_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
 
             # get derivative of CL wrt alpha
             cosa = np.cos(alpha)
@@ -625,6 +657,32 @@ class AeroTable:
         return angle_of_attack
 
 
+    def get_CA(self,
+               boosting: bool = True,
+               alpha: Optional[ArgType] = None,
+               phi: Optional[ArgType] = None,
+               mach: Optional[ArgType] = None,
+               alt: Optional[ArgType] = None,
+               iota: Optional[ArgType] = None) -> float|np.ndarray:
+        if boosting:
+            return self.get_CA_Boost(abs(alpha), phi, mach, alt, iota)  # type:ignore
+        else:
+            return self.get_CA_Coast(abs(alpha), phi, mach, alt, iota)  # type:ignore
+
+
+    def get_CA_alpha(self,
+                     boosting: bool = True,
+                     alpha: Optional[ArgType] = None,
+                     phi: Optional[ArgType] = None,
+                     mach: Optional[ArgType] = None,
+                     alt: Optional[ArgType] = None,
+                     iota: Optional[ArgType] = None) -> float|np.ndarray:
+        if boosting:
+            return self.get_CA_Boost_alpha(abs(alpha), phi, mach, alt, iota)  # type:ignore
+        else:
+            return self.get_CA_Coast_alpha(abs(alpha), phi, mach, alt, iota)  # type:ignore
+
+
     def get_CA_Boost(self,
                      alpha: Optional[ArgType] = None,
                      phi: Optional[ArgType] = None,
@@ -635,7 +693,7 @@ class AeroTable:
         # protection / boundary for alpha
         if alpha is not None:
             alpha = np.clip(alpha, self.CA_Boost.axes["alpha"].min(), self.CA_Boost.axes["alpha"].max())
-        return self.CA_Boost(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+        return self.CA_Boost(alpha=abs(alpha), phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
 
 
     def get_CA_Coast(self,
@@ -646,17 +704,18 @@ class AeroTable:
                      iota: Optional[ArgType] = None) -> float|np.ndarray:
         if alpha is not None:
             alpha = np.clip(alpha, self.CA_Boost.axes["alpha"].min(), self.CA_Boost.axes["alpha"].max())
-        return self.CA_Coast(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+        return self.CA_Coast(alpha=abs(alpha), phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
 
 
     def get_CNB(self,
                 alpha: Optional[ArgType] = None,
                 phi: Optional[ArgType] = None,
                 mach: Optional[ArgType] = None,
+                alt: Optional[ArgType] = None,
                 iota: Optional[ArgType] = None) -> float|np.ndarray:
         if alpha is not None:
             alpha = np.clip(alpha, self.CA_Boost.axes["alpha"].min(), self.CA_Boost.axes["alpha"].max())
-        return self.CNB(alpha=alpha, phi=phi, mach=mach, iota=iota)
+        return self.CNB(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
 
 
     def get_CLMB(self,
@@ -691,7 +750,7 @@ class AeroTable:
                            iota: Optional[ArgType] = None) -> float|np.ndarray:
         if alpha is not None:
             alpha = np.clip(alpha, self.CA_Boost.axes["alpha"].min(), self.CA_Boost.axes["alpha"].max())
-        return self.CA_Boost_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+        return self.CA_Boost_alpha(alpha=abs(alpha), phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
 
 
     def get_CA_Coast_alpha(self,
@@ -702,17 +761,18 @@ class AeroTable:
                            iota: Optional[ArgType] = None) -> float|np.ndarray:
         if alpha is not None:
             alpha = np.clip(alpha, self.CA_Boost.axes["alpha"].min(), self.CA_Boost.axes["alpha"].max())
-        return self.CA_Coast_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+        return self.CA_Coast_alpha(alpha=abs(alpha), phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
 
 
     def get_CNB_alpha(self,
                       alpha: Optional[ArgType] = None,
                       phi: Optional[ArgType] = None,
                       mach: Optional[ArgType] = None,
+                      alt: Optional[ArgType] = None,
                       iota: Optional[ArgType] = None) -> float|np.ndarray:
         if alpha is not None:
             alpha = np.clip(alpha, self.CA_Boost.axes["alpha"].min(), self.CA_Boost.axes["alpha"].max())
-        return self.CNB_alpha(alpha=alpha, phi=phi, mach=mach, iota=iota)
+        return self.CNB_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
 
 
     def _get_table_args(self, table: DataTable, **kwargs) -> tuple:

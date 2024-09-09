@@ -13,6 +13,7 @@ class AeroTableSymbolic:
     def __init__(self, data: str|dict|MatFile, from_template: str = "", units: str = "si") -> None:
         self.aerotable = AeroTable(data, from_template=from_template, units=units)
         self.modules = {
+                "aerotable_get_CA": self.aerotable.get_CA,
                 "aerotable_get_CA_Boost": self.aerotable.get_CA_Boost,
                 "aerotable_get_CA_Coast": self.aerotable.get_CA_Coast,
                 "aerotable_get_CNB": self.aerotable.get_CNB,
@@ -27,6 +28,7 @@ class AeroTableSymbolic:
                 "aerotable_get_CNB_alpha": self.aerotable.get_CNB_alpha,
                 "aerotable_inv_aerodynamics": self.aerotable.inv_aerodynamics,
                 }
+        self.get_CA = Function("aerotable_get_CA")
         self.get_CA_Boost = Function("aerotable_get_CA_Boost")
         self.get_CA_Coast = Function("aerotable_get_CA_Coast")
         self.get_CNB = Function("aerotable_get_CNB")
