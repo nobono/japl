@@ -100,7 +100,7 @@ class PyQtGraphPlotter:
                 self.app.exit()
 
 
-    def animate(self, plot_obj: PlotObj):
+    def animate(self, plot_obj: PlotObj) -> "PyQtGraphPlotter":
         """This method sets up animation plots. The purpose of this
         method is to execute animated plots for certain provided
         argument types \"PlotObj\"."""
@@ -108,7 +108,7 @@ class PyQtGraphPlotter:
 
         # TODO: handle multiple simobjs
         if len(self.simobjs) < 1:
-            return
+            return self
 
         simobj = self.simobjs[0]
 
@@ -160,6 +160,8 @@ class PyQtGraphPlotter:
             pass
         else:
             raise Exception("cannot input this object type to Plotter.")
+
+        return self
 
 
     def show(self) -> None:
@@ -478,7 +480,9 @@ class PyQtGraphPlotter:
         for _ in range(int(nsteps * self.ff)):
             self.istep += 1
             if self.istep <= self.Nt:
-                step_func(istep=self.istep)
+                flag_sim_stop: bool = step_func(istep=self.istep)
+                if flag_sim_stop:
+                    self.exit()
             else:
                 break
 
@@ -647,13 +651,14 @@ class PyQtGraphPlotter:
     #     pass
 
 
-    def plot_obj(self, simobj: SimObject, **kwargs):
+    def plot_obj(self, simobj: SimObject, **kwargs) -> "PyQtGraphPlotter":
         self.add_simobject(simobj)
         for subplot_id in range(len(simobj.plot.get_config())):
             # get data from SimObject based on state_select user configuration
             # NOTE: can pass QPen to _update_patch_data
             xdata, ydata = simobj.get_plot_data(subplot_id, index=-1)
             simobj._update_patch_data(xdata, ydata, subplot_id=subplot_id)
+        return self
 
 
     def plot(self,
