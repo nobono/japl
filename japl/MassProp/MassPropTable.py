@@ -108,7 +108,7 @@ class MassPropTable:
         _prop_mass = data_dict.get("prop_mass", None)
         _burn_time = data_dict.get("burn_time", None)
 
-        self.nozzle_area = _nozzle_area
+        self.nozzle_area: float = _nozzle_area
         self.mass_dot = RegularGridInterpolator((_burn_time,), _mass_dot)
         self.cg = RegularGridInterpolator((_burn_time,), _cg)
         self.dry_mass = _dry_mass
@@ -135,11 +135,34 @@ class MassPropTable:
             return self.cg([t])[0]
 
 
-    def get_thrust(self, t: float) -> float:
+    def get_isp(self, t: float, pressure: float) -> float:
+        thrust = self.get_thrust(t, pressure)
+        g0 = 9.80665
+        mass_dot = self.get_mass_dot(t)
+        isp = thrust / (mass_dot * g0)
+        return isp
+
+
+    def get_raw_thrust(self, t: float) -> float:
+        """(vac_thrust)"""
         if t >= self.burn_time_max:
             return 0.0
         else:
             return self.thrust([t])[0]
+
+
+    def get_thrust(self, t: float, pressure: float):
+        if t <= self.burn_time_max:
+            raw_thrust = self.get_raw_thrust(t)
+            if self.vac_flag:
+                vac_thrust = raw_thrust
+                thrust = max(vac_thrust - np.sign(vac_thrust) * self.nozzle_area * pressure, 0)
+            else:
+                thrust = raw_thrust
+                vac_thrust = thrust + self.nozzle_area * pressure
+            return thrust
+        else:
+            return 0
 
 
     def __repr__(self) -> str:

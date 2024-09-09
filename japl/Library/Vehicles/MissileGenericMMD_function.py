@@ -63,33 +63,6 @@ def create_mass_props(stage_table: MatFile):
     return mass_props
 
 
-def get_thrust(time, mass_props, pressure):
-    nozzle_area = mass_props.get("nozzle_area")
-    mass_dot = mass_props.get("mass_dot")
-    cg = mass_props.get("cg")
-    dry_mass = mass_props.get("dry_mass")
-    wet_mass = mass_props.get("wet_mass")
-    vac_flag = mass_props.get("vac_flag")
-    thrust_table = mass_props.get("thrust")
-    prop_mass = mass_props.get("prop_mass")
-    burn_time = mass_props.get("burn_time")
-
-    if time <= burn_time.max():
-        raw_thrust = thrust_table([time])
-        if vac_flag:
-            vac_thrust = raw_thrust
-            thrust = max(vac_thrust - np.sign(vac_thrust) * nozzle_area * pressure, 0)
-        else:
-            thrust = raw_thrust
-            vac_thrust = thrust + nozzle_area * pressure
-        g0 = 9.80665
-        mass_dot = mass_dot([time])
-        isp = thrust / (mass_dot * g0)
-        return (vac_thrust[0], thrust[0], mass_dot[0], isp[0])
-    else:
-        return (0, 0, 0, 0)
-
-
 ################################################
 # Tables
 ################################################
