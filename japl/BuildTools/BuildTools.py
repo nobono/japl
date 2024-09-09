@@ -17,7 +17,7 @@ def dict_subs_func(key_expr: tuple[str, Any], subs: list) -> bytes:
     key, expr = pickle.loads(key_expr)
     for sub in subs:
         sub = pickle.loads(sub)
-        expr = expr.subs(sub).doit()
+        expr = expr.xreplace(sub).doit()
     return pickle.dumps({key: expr})
 
 
@@ -25,7 +25,7 @@ def array_subs_func(expr, subs: list[dict]) -> bytes:
     expr = pickle.loads(expr)
     for sub in subs:
         sub = pickle.loads(sub)
-        expr = expr.subs(sub).doit()
+        expr = expr.xreplace(sub).doit()
     return pickle.dumps(expr)
 
 
