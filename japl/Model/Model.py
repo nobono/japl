@@ -48,6 +48,8 @@ class Model:
         self.state_dim = 0
         self.input_dim = 0
         self.static_dim = 0
+        self.state_direct_updates: Matrix
+        self.input_direct_updates: Matrix
         self.direct_state_update_func: Optional[Callable] = None
         self.direct_input_update_func: Optional[Callable] = None
         self.user_input_function: Optional[Callable] = None
@@ -269,20 +271,22 @@ class Model:
         model.dt_var = dt_var
         model.vars = (model.state_vars, model.input_vars, model.static_vars, dt_var)
         model.dynamics_expr = dynamics_expr
+        model.state_direct_updates = state_direct_updates
+        model.input_direct_updates = input_direct_updates
         model.direct_state_update_func = model.__process_direct_state_updates(state_direct_updates)
         model.direct_input_update_func = model.__process_direct_state_updates(input_direct_updates)
         model.state_dim = len(model.state_vars)
         model.input_dim = len(model.input_vars)
         model.static_dim = len(model.static_vars)
         # create lambdified function from symbolic expression
-        dyn_vars = (Symbol("t"),) + model.vars
+        # dyn_vars = (Symbol("t"),) + model.vars
         match dynamics_expr.__class__():  # type:ignore
             case Expr():
-                model.dynamics_func = Desym(dyn_vars, dynamics_expr, modules=model.modules)
+                model.dynamics_func = model.__process_direct_state_updates(dynamics_expr)
             case Matrix():
-                model.dynamics_func = Desym(dyn_vars, dynamics_expr, modules=model.modules)
+                model.dynamics_func = model.__process_direct_state_updates(dynamics_expr)
             case MatrixSymbol():
-                model.dynamics_func = Desym(dyn_vars, dynamics_expr, modules=model.modules)
+                model.dynamics_func = model.__process_direct_state_updates(dynamics_expr)
             case _:
                 raise Exception("function provided is not Callable.")
         return model
@@ -509,7 +513,7 @@ class Model:
         return self.state_register.get_sym(name)
 
 
-    def __process_direct_state_updates(self, direct_updates: Matrix):
+    def __process_direct_state_updates(self, direct_updates: Matrix|Expr):
         """This method creates an update function from a symbolic
         Matrix. Any DirectUpdate elements will be updated using its
         substitution expression, "sub_expr", while Symbol & Function
@@ -570,6 +574,8 @@ class Model:
                     self.static_dim,
                     self.dynamics_func,
                     self.dynamics_expr,
+                    self.state_direct_updates,
+                    self.input_direct_updates,
                     self.direct_state_update_func,
                     self.direct_input_update_func,
                     self.user_input_function)
@@ -577,7 +583,7 @@ class Model:
 
 
     @classmethod
-    def from_file(cls, path: str) -> "Model":
+    def from_file(cls, path: str, modules: dict|list[dict] = {}) -> "Model":
         """This method loads a Model from a .japl file."""
         with open(path, 'rb') as file:
             data = dill.load(file)
@@ -594,11 +600,46 @@ class Model:
          obj.static_dim,
          obj.dynamics_func,
          obj.dynamics_expr,
+         obj.state_direct_updates,
+         obj.input_direct_updates,
          obj.direct_state_update_func,
          obj.direct_input_update_func,
          obj.user_input_function) = data
-        # initialize the state & input registers
-        obj.set_state(obj.state_vars)
-        obj.set_input(obj.input_vars)
-        obj.set_static(obj.static_vars)
+        if obj._type == ModelType.Symbolic:
+            # the init from .from_expression()
+            # this is to re-init model with updated modules
+            model = cls()
+            model._type = ModelType.Symbolic
+            model.modules = model.__set_modules(modules)
+            model.set_state(obj.state_vars)  # NOTE: will convert any Function to Symbol
+            model.set_input(obj.input_vars)  # NOTE: will convert any Function to Symbol
+            model.set_static(obj.static_vars)
+            model.state_vars = model.state_register.get_vars()
+            model.input_vars = model.input_register.get_vars()
+            model.static_vars = model.static_register.get_vars()
+            model.dt_var = obj.dt_var
+            model.vars = (model.state_vars, model.input_vars, model.static_vars, obj.dt_var)
+            model.dynamics_expr = obj.dynamics_expr
+            model.direct_state_update_func = model.__process_direct_state_updates(obj.state_direct_updates)
+            model.direct_input_update_func = model.__process_direct_state_updates(obj.input_direct_updates)
+            model.state_dim = len(model.state_vars)
+            model.input_dim = len(model.input_vars)
+            model.static_dim = len(model.static_vars)
+            # create lambdified function from symbolic expression
+            # dyn_vars = (Symbol("t"),) + model.vars
+            match obj.dynamics_expr.__class__():  # type:ignore
+                case Expr():
+                    model.dynamics_func = model.__process_direct_state_updates(obj.dynamics_expr)
+                case Matrix():
+                    model.dynamics_func = model.__process_direct_state_updates(obj.dynamics_expr)
+                case MatrixSymbol():
+                    model.dynamics_func = model.__process_direct_state_updates(obj.dynamics_expr)
+                case _:
+                    raise Exception("function provided is not Callable.")
+            return model
+        else:
+            # initialize the state & input registers
+            obj.set_state(obj.state_vars)
+            obj.set_input(obj.input_vars)
+            obj.set_static(obj.static_vars)
         return obj
