@@ -24,13 +24,17 @@ class MissileGenericMMD(Model):
     pass
 
 
+model = MissileGenericMMD()
+
+
 ################################################
 # Tables
 ################################################
 
 atmosphere = AtmosphereSymbolic()
-aerotable = AeroTableSymbolic(DIR + "/../../../aeromodel/stage_1_aero.mat",
-                              from_template="orion")
+# aerotable = AeroTableSymbolic(DIR + "/../../../aeromodel/stage_1_aero.mat",
+#                               from_template="orion")
+aerotable = AeroTableSymbolic()
 
 ##################################################
 # Momentless Missile Dynamics Model
@@ -163,6 +167,7 @@ T_r = Symbol("T_r", real=True)                  # roll autopilot time constant
 K_phi = Symbol("K_phi", real=True)              # roll controller gain
 
 flag_boosting = Symbol("flag_boosting")         # vehicle is boosting
+stage = Symbol("stage")                         # missile stage (int)
 
 # angular velocities
 p = Function("p", real=True)(t)                 # roll-rate
@@ -615,6 +620,7 @@ static = Matrix([
     phi_c,    # roll angle command
     T_r,      # roll autopilot time constant
     flag_boosting,
+    stage,
     ])
 ##################################################
 # Define dynamics
