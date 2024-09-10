@@ -6,12 +6,12 @@ import quaternion
 from japl.Sim.Sim import Sim
 from japl.SimObject.SimObject import SimObject
 import pyqtgraph as pg
-from pyqtgraph import GraphItem
+from pyqtgraph import GraphItem, PlotItem, mkPen
 from pyqtgraph import GraphicsLayoutWidget
 from pyqtgraph import PlotDataItem
 from pyqtgraph import TextItem
 from pyqtgraph import ViewBox
-from pyqtgraph.Qt.QtGui import QKeySequence, QTransform
+from pyqtgraph.Qt.QtGui import QColor, QKeySequence, QTransform
 from pyqtgraph.Qt.QtWidgets import QApplication
 from pyqtgraph.Qt.QtWidgets import QShortcut
 from pyqtgraph.Qt.QtCore import QCoreApplication
@@ -62,6 +62,8 @@ class PyQtGraphPlotter:
         # colors
         self.COLORS = dict(mplcolors.TABLEAU_COLORS, **mplcolors.CSS4_COLORS)  # available colors
         self.color_cycle = self.__color_cycle()  # color cycle list
+        self.background_color = kwargs.get("background_color", "black")
+        self.text_color = kwargs.get("text_color", "grey")
 
         # configure pyqtgraph options
         pg.setConfigOptions(antialias=self.antialias)
@@ -314,6 +316,9 @@ class PyQtGraphPlotter:
         win = GraphicsLayoutWidget()
         win.resize(*(np.array([*figsize]) * 100))
 
+        # set background color
+        win.setBackground(self.background_color)
+
         # shortcut keys callbacks for each simobj view
         shortcut = QShortcut(QKeySequence("Q"), win)
         shortcut.activated.connect(self.close_windows)
@@ -332,7 +337,9 @@ class PyQtGraphPlotter:
                            color: str = "",
                            size: float = 1,
                            aspect: str = "",
-                           show_grid: bool = True) -> PlotDataItem:
+                           show_grid: bool = True,
+                           xlabel: str = "",
+                           ylabel: str = "") -> PlotDataItem:
         """This method adds a plot to a window. This method adds a plot
         to a specified window; then adds a PlotDataItem to the newly created
         PlotItem."""
@@ -355,6 +362,13 @@ class PyQtGraphPlotter:
         # enable autorange
         # plot_item.enableAutoRange(axis='xy', enable=True)
         self.__apply_style_settings_to_plot(plot_item)
+        # style settings
+        text_color_code = self.__get_color_code(self.text_color)
+        plot_item.setTitle(title, color=self.text_color)
+        plot_item.setLabel("left", xlabel, color=self.text_color)
+        plot_item.setLabel("bottom", ylabel, color=self.text_color)
+        plot_item.getAxis("left").setPen({"color": text_color_code})
+        plot_item.getAxis("bottom").setPen({"color": text_color_code})
         graphic_item = PlotDataItem(x=[],
                                     y=[],
                                     pen=pen,
@@ -661,16 +675,22 @@ class PyQtGraphPlotter:
         return self
 
 
+    def figure(self):
+        self.create_window()
+
+
     def plot(self,
              x: np.ndarray|list,
              y: np.ndarray|list,
              color: str = "",
-             size: float = 3,
+             size: float = 2,
              marker: Optional[str] = None,
              marker_size: int = 1,
              window_id: int = 0,
              title: str = "",
-             **kwargs):
+             xlabel: str = "",
+             ylabel: str = "",
+             **kwargs) -> "PyQtGraphPlotter":
 
         # convert mpl color to rgb
         if color:
@@ -694,25 +714,44 @@ class PyQtGraphPlotter:
         # then get GraphicsItem at [0, 0] (default)
         if len(self.wins) < 1:
             win = self.create_window()
-            plot_item = win.addPlot(row=0, col=0, title=title, name=title)
+            plot_item: PlotItem = win.addPlot(row=0, col=0, title=title, name=title)
+            text_color_code = self.__get_color_code(self.text_color)
+            # style settings
+            plot_item.setTitle(title, color=self.text_color)
+            plot_item.setLabel("left", xlabel, color=self.text_color)
+            plot_item.setLabel("bottom", ylabel, color=self.text_color)
+            plot_item.getAxis("left").setPen({"color": text_color_code})
+            plot_item.getAxis("bottom").setPen({"color": text_color_code})
         else:
-            win = self.wins[window_id]
+            win = self.wins[-1]  # get last created window
             plot_item = win.getItem(row=0, col=0)
+            if plot_item is None:
+                plot_item: PlotItem = win.addPlot(row=0, col=0, title=title, name=title)
+                # style settings
+                text_color_code = self.__get_color_code(self.text_color)
+                plot_item.setTitle(title, color=self.text_color)
+                plot_item.setLabel("left", xlabel, color=self.text_color)
+                plot_item.setLabel("bottom", ylabel, color=self.text_color)
+                plot_item.getAxis("left").setPen({"color": text_color_code})
+                plot_item.getAxis("bottom").setPen({"color": text_color_code})
 
         scatter = pg.PlotCurveItem(x=x, y=y, pen=pen, symbol=marker, symbolPen=symbol_pen)
         plot_item.addItem(scatter)
         self.__apply_style_settings_to_plot(plot_item)
+        return self
 
 
     def scatter(self,
                 x: np.ndarray|list,
                 y: np.ndarray|list,
                 color: str = "",
-                size: int = 1,
+                size: int = 2,
                 marker: str = "o",
                 window_id: int = 0,
                 title: str = "",
-                **kwargs):
+                xlabel: str = "",
+                ylabel: str = "",
+                **kwargs) -> "PyQtGraphPlotter":
 
         # convert mpl color to rgb
         if color:
@@ -732,13 +771,28 @@ class PyQtGraphPlotter:
         if len(self.wins) < 1:
             win = self.create_window()
             plot_item = win.addPlot(row=0, col=0, title=title, name=title)
+            # style settings
+            text_color_code = self.__get_color_code(self.text_color)
+            plot_item.setTitle(title, color=self.text_color)
+            plot_item.setLabel("left", xlabel, color=self.text_color)
+            plot_item.setLabel("bottom", ylabel, color=self.text_color)
+            plot_item.getAxis("left").setPen({"color": text_color_code})
+            plot_item.getAxis("bottom").setPen({"color": text_color_code})
         else:
-            win = self.wins[window_id]
+            win = self.wins[-1]
             plot_item = win.getItem(row=0, col=0)
+            # style settings
+            text_color_code = self.__get_color_code(self.text_color)
+            plot_item.setTitle(title, color=self.text_color)
+            plot_item.setLabel("left", xlabel, color=self.text_color)
+            plot_item.setLabel("bottom", ylabel, color=self.text_color)
+            plot_item.getAxis("left").setPen({"color": text_color_code})
+            plot_item.getAxis("bottom").setPen({"color": text_color_code})
 
         scatter = pg.ScatterPlotItem(x=x, y=y, pen=pen, symbol=marker, symbolPen=symbol_pen)
         plot_item.addItem(scatter)
         self.__apply_style_settings_to_plot(plot_item)
+        return self
 
 
     # def __handle_plot_creation(self):
