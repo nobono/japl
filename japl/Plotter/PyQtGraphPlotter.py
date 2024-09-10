@@ -365,8 +365,8 @@ class PyQtGraphPlotter:
         # style settings
         text_color_code = self.__get_color_code(self.text_color)
         plot_item.setTitle(title, color=self.text_color)
-        plot_item.setLabel("left", xlabel, color=self.text_color)
-        plot_item.setLabel("bottom", ylabel, color=self.text_color)
+        plot_item.setLabel("bottom", xlabel, color=self.text_color)
+        plot_item.setLabel("left", ylabel, color=self.text_color)
         plot_item.getAxis("left").setPen({"color": text_color_code})
         plot_item.getAxis("bottom").setPen({"color": text_color_code})
         graphic_item = PlotDataItem(x=[],
@@ -718,8 +718,8 @@ class PyQtGraphPlotter:
             text_color_code = self.__get_color_code(self.text_color)
             # style settings
             plot_item.setTitle(title, color=self.text_color)
-            plot_item.setLabel("left", xlabel, color=self.text_color)
-            plot_item.setLabel("bottom", ylabel, color=self.text_color)
+            plot_item.setLabel("bottom", xlabel, color=self.text_color)
+            plot_item.setLabel("left", ylabel, color=self.text_color)
             plot_item.getAxis("left").setPen({"color": text_color_code})
             plot_item.getAxis("bottom").setPen({"color": text_color_code})
         else:
@@ -730,8 +730,8 @@ class PyQtGraphPlotter:
                 # style settings
                 text_color_code = self.__get_color_code(self.text_color)
                 plot_item.setTitle(title, color=self.text_color)
-                plot_item.setLabel("left", xlabel, color=self.text_color)
-                plot_item.setLabel("bottom", ylabel, color=self.text_color)
+                plot_item.setLabel("bottom", xlabel, color=self.text_color)
+                plot_item.setLabel("left", ylabel, color=self.text_color)
                 plot_item.getAxis("left").setPen({"color": text_color_code})
                 plot_item.getAxis("bottom").setPen({"color": text_color_code})
 
@@ -774,8 +774,8 @@ class PyQtGraphPlotter:
             # style settings
             text_color_code = self.__get_color_code(self.text_color)
             plot_item.setTitle(title, color=self.text_color)
-            plot_item.setLabel("left", xlabel, color=self.text_color)
-            plot_item.setLabel("bottom", ylabel, color=self.text_color)
+            plot_item.setLabel("bottom", xlabel, color=self.text_color)
+            plot_item.setLabel("left", ylabel, color=self.text_color)
             plot_item.getAxis("left").setPen({"color": text_color_code})
             plot_item.getAxis("bottom").setPen({"color": text_color_code})
         else:
@@ -784,8 +784,8 @@ class PyQtGraphPlotter:
             # style settings
             text_color_code = self.__get_color_code(self.text_color)
             plot_item.setTitle(title, color=self.text_color)
-            plot_item.setLabel("left", xlabel, color=self.text_color)
-            plot_item.setLabel("bottom", ylabel, color=self.text_color)
+            plot_item.setLabel("bottom", xlabel, color=self.text_color)
+            plot_item.setLabel("left", ylabel, color=self.text_color)
             plot_item.getAxis("left").setPen({"color": text_color_code})
             plot_item.getAxis("bottom").setPen({"color": text_color_code})
 
