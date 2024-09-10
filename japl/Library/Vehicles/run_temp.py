@@ -13,6 +13,7 @@ from japl.MassProp.MassPropTable import MassPropTable
 from pprint import pprint
 from japl.Library.Vehicles.pog import pog
 from japl import Atmosphere
+from japl.Util.Results import Results
 
 DIR = os.path.dirname(__file__)
 np.set_printoptions(suppress=True, precision=3)
@@ -30,7 +31,7 @@ simobj = SimObject(model)
 atmosphere = Atmosphere()
 mass_props = MassPropTable(DIR + "/../../../aeromodel/stage_1_mass.mat",
                            from_template="CMS")
-aerotable = AeroTable(DIR + "/../../../aeromodel/stage_1_aero.mat",
+aerotable = AeroTable(DIR + "/../../../aeromodel/stage_2_aero.mat",
                       from_template="orion")
 
 ########################################################
@@ -38,9 +39,9 @@ aerotable = AeroTable(DIR + "/../../../aeromodel/stage_1_aero.mat",
 ########################################################
 
 
-def ned_to_body_cmd(t, X, U, S, dt, acc_enu_cmd):
+def ned_to_body_cmd(t: float, quat: np.ndarray, vec: np.ndarray):
     omega_e = Earth.omega
-    q_0, q_1, q_2, q_3 = X[:4]
+    q_0, q_1, q_2, q_3 = quat
     r_e_m = X[27:30]
     C_eci_to_ecef = np.array([
         [np.cos(omega_e * t), np.sin(omega_e * t), 0],
@@ -58,7 +59,7 @@ def ned_to_body_cmd(t, X, U, S, dt, acc_enu_cmd):
         [-np.sin(lat0) * np.cos(lon0), -np.sin(lat0) * np.sin(lon0), np.cos(lat0)],
         [np.cos(lat0) * np.cos(lon0), np.cos(lat0) * np.sin(lon0), np.sin(lat0)],
         ])
-    acc_cmd_ecef = C_ecef_to_enu.T @ np.asarray(acc_enu_cmd)
+    acc_cmd_ecef = C_ecef_to_enu.T @ np.asarray(vec)
     acc_cmd_body = C_body_to_ecef.T @ acc_cmd_ecef
     acc_cmd_body = 60 * (acc_cmd_body / np.linalg.norm(acc_cmd_body))
     a_c_y = acc_cmd_body[1]
@@ -99,20 +100,20 @@ def user_input_func(t, X, U, S, dt, simobj):
                 if complete:
                     S[-1] = 0
                     print("POG complete at t=%.2f" % t)
-    if True:
-        flag_apogee = v_enu_m[2] < 0.0
-        if flag_apogee:
-            # print("apogee reached")
-            # do L/D guidance
-            Sref = aerotable.get_Sref()
-            opt_CL, opt_CD, opt_alpha = aerotable.ld_guidance(alpha=alpha, mach=mach, alt=alt)
-            f_l = opt_CL * q_bar * Sref
-            f_d = opt_CD * q_bar * Sref
-            a_l = f_l / mass
-            a_d = f_d / mass
-            a_c_y = 0
-            a_c_z = -a_l
-            # print(a_c_y, a_c_z)
+    # if True:
+    #     flag_apogee = v_enu_m[2] < 0.0
+    #     if flag_apogee:
+    #         # print("apogee reached")
+    #         # do L/D guidance
+    #         Sref = aerotable.get_Sref()
+    #         opt_CL, opt_CD, opt_alpha = aerotable.ld_guidance(alpha=alpha, mach=mach, alt=alt)
+    #         f_l = opt_CL * q_bar * Sref
+    #         f_d = opt_CD * q_bar * Sref
+    #         a_l = f_l / mass
+    #         a_d = f_d / mass
+    #         a_c_y = 0
+    #         a_c_z = -a_l
+    #         # print(a_c_y, a_c_z)
 
     pressure = atmosphere.pressure(alt)
     U[2] = a_c_y                                # acc cmd
@@ -135,6 +136,7 @@ plotter = PyQtGraphPlotter(frame_rate=30,
                            figsize=[10, 10],
                            aspect="auto",
                            ff=5.0,
+                           axis_color="grey",
                            )
 
 ########################################################
@@ -274,13 +276,14 @@ simobj.plot.set_config({
     # "a_u": {"xaxis": 'r_n', "yaxis": 'a_u'},
 
     "Mach": {"xaxis": 't', "yaxis": 'mach'},
-    "Thrust": {"xaxis": 't', "yaxis": 'thrust'},
+    # "Thrust": {"xaxis": 't', "yaxis": 'thrust'},
     # "Drag": {"xaxis": 't', "yaxis": 'drag'},
     # "V": {"xaxis": 't', "yaxis": 'vel_mag_e'},
 
     # "alpha": {"xaxis": 't', "yaxis": 'alpha'},
     # "beta": {"xaxis": 't', "yaxis": 'beta'},
     # "phi_hat": {"xaxis": 't', "yaxis": 'phi_hat'},
+    "alpha_c": {"xaxis": 't', "yaxis": 'alpha_c'},
 
     # "p": {"xaxis": 't', "yaxis": 'p'},
     # "q": {"xaxis": 't', "yaxis": 'q'},
@@ -328,7 +331,14 @@ plotter.animate(sim).show()
 # plotter.plot_obj(simobj).show()
 # plotter.add_vector()
 # plotter.show()
-sim.profiler.print_info()
+# sim.profiler.print_info()
+
+# create dict of outputs
+
+
+
+out = Results(sim.T, simobj)
+out.save("./run1.pickle")
 
 # with open("temp_data_2.pickle", 'ab') as f:
 #     dill.dump(simobj.Y, f)
