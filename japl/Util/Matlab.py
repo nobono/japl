@@ -130,6 +130,8 @@ and saving them to a .pickle"""
 ########################################
 ########################################
 
+
+
 class MatStruct:
 
     """This class will recreate the structure of a matlab struct object from the
@@ -139,8 +141,15 @@ class MatStruct:
     def __init__(self, data: np.ndarray) -> None:
         # checks
         names = data.dtype.names
-        vals = data.item()
-        assert len(names) == len(vals)
+        if data.shape == (1, 1):
+            vals = data.item()
+            assert len(names) == len(vals)
+        elif data.shape[0] > 1 or data.shape[1] > 1:
+            # Extract each field as a float array and concatenate them into a single matrix
+            vals = np.row_stack([np.array([float(x[0]) for x in data[name]]) for name in names])
+            assert len(names) == vals.shape[0]
+        else:
+            raise Exception("unhandled case.")
 
         for name, val in zip(names, vals):
             if self.is_struct(val):
