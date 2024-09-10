@@ -121,6 +121,25 @@ class MassPropTable:
         self.burn_time_max = self.burn_time.max()
 
 
+    def set(self, mass_props: "MassPropTable") -> None:
+        """This method re-initializes the mass-property tables with the
+        provided MassPropTable argument. This is to provide different
+        tables if a model switches stages."""
+        table_names = ["nozzle_area",
+                       "mass_dot",
+                       "cg",
+                       "dry_mass",
+                       "wet_mass",
+                       "vac_flag",
+                       "thrust",
+                       "prop_mass",
+                       "burn_time",
+                       "burn_time_max",
+                       ]
+        for name in table_names:
+            setattr(self, name, getattr(mass_props, name))
+
+
     def get_mass_dot(self, t: float) -> float:
         if t >= self.burn_time_max:
             return 0.0
