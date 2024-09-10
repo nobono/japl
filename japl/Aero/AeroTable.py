@@ -202,12 +202,14 @@ class AeroTable:
     # __lbminch2Nm = (1.0 * u.imperial.lbm * u.imperial.inch**2).to_value(u.kg * u.m**2)  # type:ignore
     # __inch_sq_2_m_sq = (1.0 * u.imperial.inch**2).to_value(u.m**2)  # type:ignore
 
-    def __init__(self, data: str|dict|MatFile, from_template: str = "", units: str = "si") -> None:
+    def __init__(self, data: Optional[str|dict|MatFile] = None, from_template: str = "", units: str = "si") -> None:
         self.units = units
 
         # load table from dict or MatFile
         data_dict = {}
-        if isinstance(data, str):
+        if data is None:
+            return
+        elif isinstance(data, str):
             self.__path = data
             if ".pickle" in self.__path:
                 with open(self.__path, "rb") as f:
@@ -452,6 +454,24 @@ class AeroTable:
                         mirrored_table = _table.mirror_axis(alpha_axis)
                         setattr(self, table_name, mirrored_table)
 
+        # modules for symbolic mapping
+        self.modules = {
+                "aerotable_increments": self.increments,
+                "aerotable_get_CA": self.get_CA,
+                "aerotable_get_CA_Boost": self.get_CA_Boost,
+                "aerotable_get_CA_Coast": self.get_CA_Coast,
+                "aerotable_get_CNB": self.get_CNB,
+                "aerotable_get_CLMB": self.get_CLMB,
+                "aerotable_get_CLNB": self.get_CLNB,
+                "aerotable_get_CYB": self.get_CYB,
+                "aerotable_get_MRC": self.get_MRC,
+                "aerotable_get_Sref": self.get_Sref,
+                "aerotable_get_Lref": self.get_Lref,
+                "aerotable_get_CA_Boost_alpha": self.get_CA_Boost_alpha,
+                "aerotable_get_CA_Coast_alpha": self.get_CA_Coast_alpha,
+                "aerotable_get_CNB_alpha": self.get_CNB_alpha,
+                "aerotable_inv_aerodynamics": self.inv_aerodynamics,
+                }
 
     ############################################################
     # Methods
@@ -571,17 +591,57 @@ class AeroTable:
     #                    method=method)[0]
 
 
+    def set(self, aerotable: "AeroTable") -> None:
+        """This method re-initializes the aerotables with the
+        provided AeroTable argument. This is to provide different
+        tables if a model switches stages."""
+        table_names = ["CA_0_Boost",
+                       "CA_0_Coast",
+                       "CA_inv",
+                       "CA_Basic",
+                       "CYB_Basic",
+                       "CNB_Basic",
+                       "CLLB_Basic",
+                       "CLMB_Basic",
+                       "CLNB_Basic",
+                       "CA_IT",
+                       "CYB_IT",
+                       "CNB_IT",
+                       "CLLB_IT",
+                       "CLMB_IT",
+                       "CLNB_IT",
+                       "Fin2_CN",
+                       "Fin2_CBM",
+                       "Fin2_CHM",
+                       "Fin4_CN",
+                       "Fin4_CBM",
+                       "Fin4_CHM",
+                       "CA_Boost",
+                       "CA_Coast",
+                       "CNB",
+                       "CLMB",
+                       "CLNB",
+                       "CYB",
+                       "CA_Boost_alpha",
+                       "CA_Coast_alpha",
+                       "CNB_alpha"]
+        for name in table_names:
+            setattr(self, name, getattr(aerotable, name))
+
+
     def ld_guidance(self,
                     alpha: float,
                     phi: Optional[float] = None,
                     mach: Optional[float] = None,
                     alt: Optional[float] = None,
                     iota: Optional[float] = None):
-        alpha_max = max(self.increments.alpha)
-        alpha_min = min(self.increments.alpha)
+        alpha_max = self.CNB.axes["alpha"].max()
+        alpha_min = self.CNB.axes["alpha"].min()
+        # if alpha > alpha_max or alpha < alpha_min:
+        #     print("alpha clipping....")
 
         def ld_ratio(_alpha):
-            CA = self.get_CA_Boost(alpha=_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            CA = self.get_CA(alpha=_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
             CN = self.get_CNB(alpha=_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
             cosa = np.cos(_alpha)
             sina = np.sin(_alpha)
@@ -593,7 +653,7 @@ class AeroTable:
         optimal_alpha = result.x
         ld_max = -result.fun
         # optimal CL, CD
-        CA = self.get_CA_Boost(alpha=optimal_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+        CA = self.get_CA(alpha=optimal_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
         CN = self.get_CNB(alpha=optimal_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
         cosa = np.cos(optimal_alpha)
         sina = np.sin(optimal_alpha)
