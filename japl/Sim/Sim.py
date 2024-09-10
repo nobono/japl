@@ -162,7 +162,7 @@ class Sim:
         tstep_prev = self.t_array[istep - 1]
         tstep = self.t_array[istep]
         X = simobj.Y[istep - 1]  # init with previous state
-        U = simobj.U[istep]      # init with current input array (zeros)
+        U = simobj.U[istep - 1]      # init with current input array (zeros)
         S = simobj.S0
 
         # setup input array
