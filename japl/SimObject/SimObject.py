@@ -211,6 +211,33 @@ class SimObject:
             input[ret] = np.asarray(vals)
 
 
+    def get_static_array(self, static: np.ndarray, names: str|list[str]) -> np.ndarray:
+        """This method gets values from the static array given the state
+        names."""
+        ret = self.model.get_static_id(names)
+        if isinstance(names, list):
+            if len(names) == 1:
+                return static[ret][0]
+            else:
+                return static[ret]
+        else:
+            return static[ret]
+
+
+    def set_static_array(self, static: np.ndarray, names: str|list[str],
+                        vals: float|list|np.ndarray) -> None:
+        """This method sets values of the static array according to the
+        provided state names and provided values."""
+        ret = self.model.get_static_id(names)
+        if isinstance(names, list):
+            if len(names) == 1:
+                static[ret][0] = np.asarray(vals)
+            else:
+                static[ret] = np.asarray(vals)
+        else:
+            static[ret] = np.asarray(vals)
+
+
     def _pre_sim_checks(self) -> bool:
         """This method is used to check user configuration of SimObjects
         before running a simulation."""
