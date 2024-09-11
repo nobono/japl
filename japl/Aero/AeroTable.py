@@ -204,6 +204,26 @@ class AeroTable:
 
     def __init__(self, data: Optional[str|dict|MatFile] = None, from_template: str = "", units: str = "si") -> None:
         self.units = units
+        self.stages: list[AeroTable] = []
+        self.increments = Increments()
+        # modules for symbolic mapping
+        # self.modules = {
+        #         "aerotable_increments": self.increments,
+        #         "aerotable_get_CA": self.get_CA,
+        #         "aerotable_get_CA_Boost": self.get_CA_Boost,
+        #         "aerotable_get_CA_Coast": self.get_CA_Coast,
+        #         "aerotable_get_CNB": self.get_CNB,
+        #         "aerotable_get_CLMB": self.get_CLMB,
+        #         "aerotable_get_CLNB": self.get_CLNB,
+        #         "aerotable_get_CYB": self.get_CYB,
+        #         "aerotable_get_MRC": self.get_MRC,
+        #         "aerotable_get_Sref": self.get_Sref,
+        #         "aerotable_get_Lref": self.get_Lref,
+        #         "aerotable_get_CA_Boost_alpha": self.get_CA_Boost_alpha,
+        #         "aerotable_get_CA_Coast_alpha": self.get_CA_Coast_alpha,
+        #         "aerotable_get_CNB_alpha": self.get_CNB_alpha,
+        #         "aerotable_inv_aerodynamics": self.inv_aerodynamics,
+        #         }
 
         # load table from dict or MatFile
         data_dict = {}
@@ -454,7 +474,6 @@ class AeroTable:
                         mirrored_table = _table.mirror_axis(alpha_axis)
                         setattr(self, table_name, mirrored_table)
 
-        # modules for symbolic mapping
         self.modules = {
                 "aerotable_increments": self.increments,
                 "aerotable_get_CA": self.get_CA,
@@ -472,8 +491,6 @@ class AeroTable:
                 "aerotable_get_CNB_alpha": self.get_CNB_alpha,
                 "aerotable_inv_aerodynamics": self.inv_aerodynamics,
                 }
-
-        self.stages: list[AeroTable] = []
 
     ############################################################
     # Methods
@@ -756,7 +773,10 @@ class AeroTable:
 
 
     def load_stage(self, stage: int) -> "AeroTable":
-        return self.stages[stage]
+        try:
+            return self.stages[int(stage) - 1]
+        except:
+            breakpoint()
 
 
     def get_CA(self,

@@ -3,6 +3,8 @@ import numpy as np
 from japl.Util.Matlab import MatFile
 from japl import PyQtGraphPlotter
 from japl.Util.Results import Results
+import pyqtgraph as pg
+import pyqtgraph.exporters
 DIR = os.path.dirname(__file__)
 np.set_printoptions(suppress=True, precision=3)
 
@@ -64,38 +66,61 @@ run = run1
 #              xlabel="Time (s)")
 # plotter.plot(getattr(run, "t"), getattr(run, col[1]))
 
-# row = ("Range", "r_n")
-# col = ("Altitude", "r_u")
-# plotter.figure()
-# plotter.plot(getattr(fo, "Range") * km2m, getattr(fo, col[0]) * km2m,
-#              title="Altitude vs. Range",
-#              ylabel="Altitude (m)",
-#              xlabel="Range (m)")
-# plotter.plot(getattr(run, "r_n"), getattr(run, col[1]))
+row = ("Range", "r_n")
+col = ("Altitude", "r_u")
+plotter.figure()
+plotter.plot(getattr(fo, "Range") * km2m, getattr(fo, col[0]) * km2m,
+             title="Altitude vs. Range",
+             ylabel="Altitude (m)",
+             xlabel="Range (m)",
+             legend_name="GPOPS")
+plotter.plot(getattr(run, "r_n"), getattr(run, col[1]),
+             legend_name="ChAD")
 
 # col = ("Mass", "wet_mass")
 # plotter.figure()
 # plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
 #              title="Mass vs. Time",
 #              ylabel="Mass",
-#              xlabel="Time")
-# plotter.plot(getattr(run, "t"), getattr(run, col[1]))
+#              xlabel="Time",
+#              legend_name="GPOPS")
+# plotter.plot(getattr(run, "t"), getattr(run, col[1]),
+#              legend_name="ChAD")
 
 # col = ("Mach", "mach")
 # plotter.figure()
 # plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
 #              title="Mach vs. Time",
 #              ylabel="Mach",
-#              xlabel="Time")
-# plotter.plot(getattr(run, "t"), getattr(run, col[1]))
+#              xlabel="Time (s)",
+#              legend_name="GPOPS")
+# plotter.plot(getattr(run, "t"), getattr(run, col[1]),
+#              legend_name="ChAD")
 
-col = ("Lateral_Acceleration", "a_c_z")
-plotter.figure()
-plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
-             title="Lateral Acc vs. Time",
-             ylabel="Lateral Acc",
-             xlabel="Time")
-plotter.plot(getattr(run, "t"), getattr(run, col[1]))
+# col = ("Lateral_Acceleration", "a_c_z")
+# plotter.figure()
+# plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
+#              title="Lateral Acc vs. Time",
+#              ylabel="Lateral Acc (m/s)",
+#              xlabel="Time (s)",
+#              legend_name="GPOPS")
+# plotter.plot(getattr(run, "t"), getattr(run, col[1]),
+#              legend_name="ChAD")
+
+# col = ("Drag", "drag")
+# plotter.figure()
+# plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
+#              title="Drag vs. Time",
+#              ylabel="Drag (N)",
+#              xlabel="Time (s)",
+#              legend_name="GPOPS")
+# plotter.plot(getattr(run, "t"), getattr(run, col[1]),
+#              legend_name="ChAD")
+
+
+# export = pg.exporters.ImageExporter(p)
+# export.export('./data/test.png')
+
 
 plotter.show()
 

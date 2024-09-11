@@ -82,6 +82,8 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
     global stage_sep
     global aerotable
 
+    print(t)
+
     do_pog = True
     do_ld_guidance = True
 
@@ -97,7 +99,6 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
     a_c_y = 0.00001
     a_c_z = 0.00001
     if do_pog and not pog_complete:
-        # S[-2] = 1
         if not pog_complete or t < 0.1:
             pog_complete, a_c = pog(t,
                                     desired_vleg=np.radians(67),
@@ -110,7 +111,6 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
             a_c_y = a_c[1]
             a_c_z = a_c[2]
             if pog_complete:
-                # S[-2] = 0
                 print("POG pog_complete at t=%.2f" % t)
 
     if do_ld_guidance:
@@ -134,26 +134,20 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
         a_c_y = 0.00001
         a_c_z = 0.00001
     if t >= t_stage_1_sep and not stage_sep:
-        simobj.set_static_array(S, "stage", 2)
         print("stage sep @ %.2f" % t)
-        # aerotable.set(stage_2_aero)
-        # aerotable.CA_Boost = stage_2_aero.CA_Boost
-        # aerotable.CA_Coast = stage_2_aero.CA_Coast
+        aerotable.set(stage_2_aero)
+        simobj.set_static_array(S, "stage", 2)
         simobj.set_state_array(X, "wet_mass", 11.848928)
         stage_sep = True
 
     pressure = atmosphere.pressure(alt)
     thrust = mass_props.get_thrust(t, pressure)
-    S[-2] = (thrust > 0.0)
+    simobj.set_static_array(S, "flag_boosting", (thrust > 0.0))
 
     U[2] = a_c_y                                # acc cmd
     U[3] = a_c_z                                # acc cmd
     U[4] = thrust                               # thrust
     U[5] = mass_props.get_mass_dot(t)           # mass_dot
-    # print("boosting:", S[-2], "thrust", thrust)
-
-
-    # print("boost flag", S[-2])
 
 
 ########################################################
@@ -177,7 +171,7 @@ plotter = PyQtGraphPlotter(frame_rate=30,
 # Initialize Model
 ########################################################
 
-t_span = [0, 40]
+t_span = [0, 300]
 ecef0 = [Earth.radius_equatorial, 0, 0]
 
 r0_enu = [0, 0, 0]
@@ -186,7 +180,10 @@ a0_enu = [0, 0, -9.81]
 # dcm = Rotation.tait_bryan_to_dcm(np.radians([0, 0, 0])).T  # yaw-pitch-roll
 # quat0 = quaternion.from_rotation_matrix(dcm).components
 # quat0 = [1, 0, 0, 0]
-quat0 = quaternion.from_euler_angles(np.radians([0, -67, 0])).components
+# quat0 = quaternion.from_euler_angles(np.radians([0, -70, 0])).components
+ang = 67
+ang = np.radians(ang - 90.0)
+quat0 = [np.cos(ang / 2), 0, np.sin(ang / 2), 0]
 
 q_0, q_1, q_2, q_3 = quat0
 C_body_to_eci = np.array([
@@ -308,7 +305,7 @@ simobj.plot.set_config({
     # "alpha": {"xaxis": 't', "yaxis": 'alpha'},
     # "beta": {"xaxis": 't', "yaxis": 'beta'},
     # "phi_hat": {"xaxis": 't', "yaxis": 'phi_hat'},
-    # "alpha_c": {"xaxis": 't', "yaxis": 'alpha_c'},
+    "alpha_c": {"xaxis": 't', "yaxis": 'alpha_c'},
 
     # "p": {"xaxis": 't', "yaxis": 'p'},
     # "q": {"xaxis": 't', "yaxis": 'q'},
@@ -319,7 +316,7 @@ simobj.plot.set_config({
     # "mass_dot": {"xaxis": 't', "yaxis": 'mass_dot'},
 
     "CA": {"xaxis": 't', "yaxis": 'CA'},
-    "CN": {"xaxis": 't', "yaxis": 'CN'},
+    # "CN": {"xaxis": 't', "yaxis": 'CN'},
 
     # "lift": {"xaxis": 't', "yaxis": 'lift'},
     # "drag": {"xaxis": 't', "yaxis": 'drag'},

@@ -691,7 +691,7 @@ class PyQtGraphPlotter:
              xlabel: str = "",
              ylabel: str = "",
              legend_name: str = "",
-             **kwargs) -> "PyQtGraphPlotter":
+             **kwargs) -> PlotItem:
 
         # convert mpl color to rgb
         if color:
@@ -745,7 +745,7 @@ class PyQtGraphPlotter:
         plot_item.legend.addItem(scatter, legend_name)  # type:ignore
         plot_item.addItem(scatter)
         self.__apply_style_settings_to_plot(plot_item)
-        return self
+        return plot_item
 
 
     def scatter(self,
@@ -758,7 +758,7 @@ class PyQtGraphPlotter:
                 title: str = "",
                 xlabel: str = "",
                 ylabel: str = "",
-                **kwargs) -> "PyQtGraphPlotter":
+                **kwargs) -> PlotItem:
 
         # convert mpl color to rgb
         if color:
@@ -799,7 +799,7 @@ class PyQtGraphPlotter:
         scatter = pg.ScatterPlotItem(x=x, y=y, pen=pen, symbol=marker, symbolPen=symbol_pen)
         plot_item.addItem(scatter)
         self.__apply_style_settings_to_plot(plot_item)
-        return self
+        return plot_item
 
 
     # def __handle_plot_creation(self):
