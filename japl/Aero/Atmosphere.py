@@ -27,6 +27,16 @@ class Atmosphere:
         self._speed_of_sound_interp = RegularGridInterpolator((self._alts,), self._speed_of_sound)
         self._grav_accel_interp = RegularGridInterpolator((self._alts,), self._grav_accel)
 
+        self.modules = {
+                "atmosphere_pressure": self.pressure,
+                "atmosphere_density": self.density,
+                "atmosphere_temperature": self.temperature,
+                "atmosphere_speed_of_sound": self.speed_of_sound,
+                "atmosphere_grav_accel": self.grav_accel,
+                "atmosphere_dynamic_pressure": self.dynamic_pressure,
+                }
+
+
 
     def pressure(self, alt: float|list|np.ndarray) -> float:
         alt = np.maximum(alt, 0)
