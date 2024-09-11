@@ -62,14 +62,14 @@ run = run1
 #              xlabel="Time (s)")
 # plotter.plot(getattr(run, "t"), getattr(run, col[1]))
 
-row = ("Range", "r_n")
-col = ("Altitude", "r_u")
-plotter.figure()
+# row = ("Range", "r_n")
+# col = ("Altitude", "r_u")
+# plotter.figure()
 # plotter.plot(getattr(fo, "Range") * kft2m, getattr(fo, col[0]) * kft2m,
 #              title="Altitude vs. Range",
 #              ylabel="Altitude (m)",
 #              xlabel="Range (m)")
-plotter.plot(getattr(run, "r_n"), getattr(run, col[1]))
+# plotter.plot(getattr(run, "r_n"), getattr(run, col[1]))
 
 # col = ("Mass", "wet_mass")
 # plotter.figure()
@@ -78,6 +78,14 @@ plotter.plot(getattr(run, "r_n"), getattr(run, col[1]))
 #              ylabel="",
 #              xlabel="")
 # plotter.plot(getattr(run, "t"), getattr(run, col[1]))
+
+col = ("Mass", "wet_mass")
+plotter.figure()
+plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
+             title="",
+             ylabel="",
+             xlabel="")
+plotter.plot(getattr(run, "t"), getattr(run, col[1]))
 
 plotter.show()
 
