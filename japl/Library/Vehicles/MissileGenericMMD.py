@@ -32,9 +32,9 @@ model = MissileGenericMMD()
 ################################################
 
 atmosphere = AtmosphereSymbolic()
-# aerotable = AeroTableSymbolic(DIR + "/../../../aeromodel/stage_1_aero.mat",
-#                               from_template="orion")
-aerotable = AeroTableSymbolic()
+aerotable = AeroTableSymbolic(DIR + "/../../../aeromodel/stage_1_aero.mat",
+                              from_template="orion")
+# aerotable = AeroTableSymbolic()
 
 ##################################################
 # Momentless Missile Dynamics Model
