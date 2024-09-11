@@ -51,10 +51,9 @@ mass_props = MassPropTable(DIR + "/../../../aeromodel/stage_1_mass.mat", from_te
 ########################################################
 
 
-def ned_to_body_cmd(t: float, quat: np.ndarray, vec: np.ndarray):
+def ned_to_body_cmd(t: float, quat: np.ndarray, r_ecef: np.ndarray, vec: np.ndarray):
     omega_e = Earth.omega
     q_0, q_1, q_2, q_3 = quat
-    r_e_m = X[27:30]
     C_eci_to_ecef = np.array([
         [np.cos(omega_e * t), np.sin(omega_e * t), 0],
         [-np.sin(omega_e * t), np.cos(omega_e * t), 0],
@@ -64,18 +63,18 @@ def ned_to_body_cmd(t: float, quat: np.ndarray, vec: np.ndarray):
         [2*(q_1*q_2 - q_0*q_3) , 1 - 2*(q_1**2 + q_3**2), 2*(q_2*q_3 + q_0*q_1)],  # type:ignore # noqa
         [2*(q_1*q_3 + q_0*q_2) , 2*(q_2*q_3 - q_0*q_1), 1 - 2*(q_1**2 + q_2**2)]]).T  # type:ignore # noqa
     C_body_to_ecef = C_eci_to_ecef @ C_body_to_eci
-    lla0 = Rotation.ecef_to_lla(r_e_m)
+    lla0 = Rotation.ecef_to_lla(r_ecef)
     lat0, lon0, _ = lla0
     C_ecef_to_enu = np.array([
         [-np.sin(lon0), np.cos(lon0), 0],
         [-np.sin(lat0) * np.cos(lon0), -np.sin(lat0) * np.sin(lon0), np.cos(lat0)],
         [np.cos(lat0) * np.cos(lon0), np.cos(lat0) * np.sin(lon0), np.sin(lat0)],
         ])
-    acc_cmd_ecef = C_ecef_to_enu.T @ np.asarray(vec)
-    acc_cmd_body = C_body_to_ecef.T @ acc_cmd_ecef
-    acc_cmd_body = 60 * (acc_cmd_body / np.linalg.norm(acc_cmd_body))
-    a_c_y = acc_cmd_body[1]
-    a_c_z = acc_cmd_body[2]
+    vec_ecef = C_ecef_to_enu.T @ np.asarray(vec)
+    vec_body = C_body_to_ecef.T @ vec_ecef
+    vec_body = 60 * (vec_body / np.linalg.norm(vec_body))
+    a_c_y = vec_body[1]
+    a_c_z = vec_body[2]
     return (a_c_y, a_c_z)
 
 
