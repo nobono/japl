@@ -77,12 +77,14 @@ class MassPropTable:
     """This class is for containing Mass Properties data for a particular
     SimObject."""
 
-    def __init__(self, data: str|dict|MatFile, from_template: str = "", units: str = "si") -> None:
+    def __init__(self, data: Optional[str|dict|MatFile] = None, from_template: str = "", units: str = "si") -> None:
         self.units = units
 
         # load table from dict or MatFile
         data_dict = {}
-        if isinstance(data, str):
+        if data is None:
+            return
+        elif isinstance(data, str):
             self.__path = data
             if ".pickle" in self.__path:
                 with open(self.__path, "rb") as f:
