@@ -15,9 +15,11 @@ plotter = PyQtGraphPlotter(frame_rate=30,
 
 
 kft2m = .3048 * 1000
+km2m = 1000.0
 
 fo = MatFile(DIR + "/../../../data/flyout.mat").flyout  # type:ignore
-run1 = Results.load(DIR + "/run1_ballistic.pickle")
+# run1 = Results.load(DIR + "/run1_ballistic.pickle")
+run1 = Results.load(DIR + "/../../../data/run1_ld_guidance.pickle")
 run = run1
 
 
@@ -65,7 +67,7 @@ run = run1
 # row = ("Range", "r_n")
 # col = ("Altitude", "r_u")
 # plotter.figure()
-# plotter.plot(getattr(fo, "Range") * kft2m, getattr(fo, col[0]) * kft2m,
+# plotter.plot(getattr(fo, "Range") * km2m, getattr(fo, col[0]) * km2m,
 #              title="Altitude vs. Range",
 #              ylabel="Altitude (m)",
 #              xlabel="Range (m)")
@@ -74,17 +76,25 @@ run = run1
 # col = ("Mass", "wet_mass")
 # plotter.figure()
 # plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
-#              title="",
-#              ylabel="",
-#              xlabel="")
+#              title="Mass vs. Time",
+#              ylabel="Mass",
+#              xlabel="Time")
 # plotter.plot(getattr(run, "t"), getattr(run, col[1]))
 
-col = ("Mass", "wet_mass")
+# col = ("Mach", "mach")
+# plotter.figure()
+# plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
+#              title="Mach vs. Time",
+#              ylabel="Mach",
+#              xlabel="Time")
+# plotter.plot(getattr(run, "t"), getattr(run, col[1]))
+
+col = ("Lateral_Acceleration", "a_c_z")
 plotter.figure()
 plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
-             title="",
-             ylabel="",
-             xlabel="")
+             title="Lateral Acc vs. Time",
+             ylabel="Lateral Acc",
+             xlabel="Time")
 plotter.plot(getattr(run, "t"), getattr(run, col[1]))
 
 plotter.show()

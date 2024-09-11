@@ -15,36 +15,33 @@ from japl import Atmosphere
 from japl.Util.Results import Results
 
 DIR = os.path.dirname(__file__)
+AEROMODEL_DIR = DIR + "/../../../aeromodel/"
 np.set_printoptions(suppress=True, precision=3)
 
 
 pog_complete = False
 apogee = False
+stage_sep = False
 
 ########################################################
 # Load
 ########################################################
+stage_2_aero = AeroTable(AEROMODEL_DIR + "stage_2_aero.mat", from_template="orion")
+stage_1_aero = AeroTable(AEROMODEL_DIR + "stage_1_aero.mat", from_template="orion")
+stage_1_aero_thick = AeroTable(AEROMODEL_DIR + "stage_1_aero_thick.mat", from_template="orion")
+stage_1_mass = MassPropTable(AEROMODEL_DIR + "stage_1_mass.mat", from_template="CMS")
 
 atmosphere = Atmosphere()
-stage_2_aero = AeroTable(DIR + "/../../../aeromodel/stage_2_aero.mat", from_template="orion")
-# aero_thick = AeroTable(DIR + "/../../../aeromodel/stage_1_aero_thick.mat", from_template="orion")
-aerotable = AeroTable(DIR + "/../../../aeromodel/stage_1_aero.mat", from_template="orion")
+aerotable = AeroTable()
+mass_props = MassPropTable()
 
-atm_mod = {
-        "atmosphere_pressure": atmosphere.pressure,
-        "atmosphere_density": atmosphere.density,
-        "atmosphere_temperature": atmosphere.temperature,
-        "atmosphere_speed_of_sound": atmosphere.speed_of_sound,
-        "atmosphere_grav_accel": atmosphere.grav_accel,
-        "atmosphere_dynamic_pressure": atmosphere.dynamic_pressure,
-        }
+aerotable.set(stage_1_aero)
+aerotable.add_stage(stage_1_aero)
+aerotable.add_stage(stage_2_aero)
+mass_props.set(stage_1_mass)
 
-model = Model.from_file(DIR + "/mmd.japl", modules=[aerotable.modules, atm_mod])
-# model.aerotable = aerotable
-# model.aerotable.set_aerotable(DIR + "/../../../aeromodel/stage_1_aero.mat",
-#                               from_template="orion")
+model = Model.from_file(DIR + "/mmd.japl", modules=[aerotable.modules, atmosphere.modules])
 simobj = SimObject(model)
-mass_props = MassPropTable(DIR + "/../../../aeromodel/stage_1_mass.mat", from_template="CMS")
 
 ########################################################
 # Custom Input Function
@@ -82,6 +79,8 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
     global mass_props
     global pog_complete
     global apogee
+    global stage_sep
+    global aerotable
 
     do_pog = True
     do_ld_guidance = True
@@ -97,27 +96,26 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
 
     a_c_y = 0.00001
     a_c_z = 0.00001
-    if do_pog:
-        if t > 2.0:
-            S[-1] = 0
-        else:
-            if not pog_complete or t < 0.1:
-                pog_complete, a_c = pog(t,
-                                        desired_vleg=np.radians(45),
-                                        desired_bearing_angle=0,
-                                        alphaTotal=alpha,
-                                        altm=alt,
-                                        lead_angle=0,
-                                        vm=v_enu_m,
-                                        body_rates=body_rates)
-                a_c_y = a_c[1]
-                a_c_z = a_c[2]
-                if pog_complete:
-                    S[-1] = 0
-                    print("POG pog_complete at t=%.2f" % t)
+    if do_pog and not pog_complete:
+        # S[-2] = 1
+        if not pog_complete or t < 0.1:
+            pog_complete, a_c = pog(t,
+                                    desired_vleg=np.radians(67),
+                                    desired_bearing_angle=0,
+                                    alphaTotal=alpha,
+                                    altm=alt,
+                                    lead_angle=0,
+                                    vm=v_enu_m,
+                                    body_rates=body_rates)
+            a_c_y = a_c[1]
+            a_c_z = a_c[2]
+            if pog_complete:
+                # S[-2] = 0
+                print("POG pog_complete at t=%.2f" % t)
+
     if do_ld_guidance:
         if not apogee:
-            apogee = v_enu_m[2] < 0.0
+            apogee = alt < 0.0
         else:
             # do L/D guidance
             Sref = aerotable.get_Sref()
@@ -129,21 +127,33 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
             a_c_y = 0
             a_c_z = -a_l
 
-    t_coast_phase = [1.9665, 2.5664]
-    t_stage_1_sep = 2.5665
+    t_coast_phase = [1.9665, 2.4664]
+    t_stage_1_sep = 2.4665
     # 2nd stage stuff
     if t >= t_coast_phase[0] and t < t_coast_phase[1]:
         a_c_y = 0.00001
         a_c_z = 0.00001
-    if t >= t_stage_1_sep:
-        aerotable.set(stage_2_aero)
+    if t >= t_stage_1_sep and not stage_sep:
+        simobj.set_static_array(S, "stage", 2)
+        print("stage sep @ %.2f" % t)
+        # aerotable.set(stage_2_aero)
+        # aerotable.CA_Boost = stage_2_aero.CA_Boost
+        # aerotable.CA_Coast = stage_2_aero.CA_Coast
         simobj.set_state_array(X, "wet_mass", 11.848928)
+        stage_sep = True
 
     pressure = atmosphere.pressure(alt)
+    thrust = mass_props.get_thrust(t, pressure)
+    S[-2] = (thrust > 0.0)
+
     U[2] = a_c_y                                # acc cmd
     U[3] = a_c_z                                # acc cmd
-    U[4] = mass_props.get_thrust(t, pressure)   # thrust
+    U[4] = thrust                               # thrust
     U[5] = mass_props.get_mass_dot(t)           # mass_dot
+    # print("boosting:", S[-2], "thrust", thrust)
+
+
+    # print("boost flag", S[-2])
 
 
 ########################################################
@@ -167,7 +177,7 @@ plotter = PyQtGraphPlotter(frame_rate=30,
 # Initialize Model
 ########################################################
 
-t_span = [0, 200]
+t_span = [0, 40]
 ecef0 = [Earth.radius_equatorial, 0, 0]
 
 r0_enu = [0, 0, 0]
@@ -176,7 +186,7 @@ a0_enu = [0, 0, -9.81]
 # dcm = Rotation.tait_bryan_to_dcm(np.radians([0, 0, 0])).T  # yaw-pitch-roll
 # quat0 = quaternion.from_rotation_matrix(dcm).components
 # quat0 = [1, 0, 0, 0]
-quat0 = quaternion.from_euler_angles(np.radians([0, -45, 0])).components
+quat0 = quaternion.from_euler_angles(np.radians([0, -67, 0])).components
 
 q_0, q_1, q_2, q_3 = quat0
 C_body_to_eci = np.array([
@@ -298,24 +308,24 @@ simobj.plot.set_config({
     # "alpha": {"xaxis": 't', "yaxis": 'alpha'},
     # "beta": {"xaxis": 't', "yaxis": 'beta'},
     # "phi_hat": {"xaxis": 't', "yaxis": 'phi_hat'},
-    "alpha_c": {"xaxis": 't', "yaxis": 'alpha_c'},
+    # "alpha_c": {"xaxis": 't', "yaxis": 'alpha_c'},
 
     # "p": {"xaxis": 't', "yaxis": 'p'},
     # "q": {"xaxis": 't', "yaxis": 'q'},
     # "r": {"xaxis": 't', "yaxis": 'r'},
 
-    # "wet_mass": {"xaxis": 't', "yaxis": 'wet_mass'},
+    "wet_mass": {"xaxis": 't', "yaxis": 'wet_mass'},
     # "dry_mass": {"xaxis": 't', "yaxis": 'dry_mass'},
     # "mass_dot": {"xaxis": 't', "yaxis": 'mass_dot'},
 
-    # "CA": {"xaxis": 't', "yaxis": 'CA'},
-    # "CN": {"xaxis": 't', "yaxis": 'CN'},
+    "CA": {"xaxis": 't', "yaxis": 'CA'},
+    "CN": {"xaxis": 't', "yaxis": 'CN'},
 
     # "lift": {"xaxis": 't', "yaxis": 'lift'},
     # "drag": {"xaxis": 't', "yaxis": 'drag'},
 
-    "a_c_y": {"xaxis": 't', "yaxis": 'a_c_y'},
-    "a_c_z": {"xaxis": 't', "yaxis": 'a_c_z'},
+    # "a_c_y": {"xaxis": 't', "yaxis": 'a_c_y'},
+    # "a_c_z": {"xaxis": 't', "yaxis": 'a_c_z'},
     })
 
 
@@ -339,11 +349,11 @@ sim = Sim(t_span=t_span,
           integrate_method="rk4")
 
 sim.add_event(event_hit_ground, "stop")
-# sim.run()
+sim.run()
 
-plotter.animate(sim).show()
+# plotter.animate(sim).show()
 # plotter.plot_obj(simobj).show()
 # sim.profiler.print_info()
 
 out = Results(sim.T, simobj)
-out.save("./run1_ballistic.pickle")
+out.save(DIR + "/../../../data/run1_ld_guidance.pickle")

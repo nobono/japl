@@ -235,8 +235,6 @@ V = v_e_e.norm()
 M = V / C_s
 
 # (11) Dynamic pressure
-# rho = 1.293  # kg * m^-3
-# rho = atmosphere.density(alt)  # kg * m^-3
 q_bar = 0.5 * rho * V**2  # type:ignore
 
 ##################################################
@@ -246,10 +244,9 @@ C_ecef_to_body = C_body_to_ecef.T
 
 f_b_T = Matrix([thrust, 0, 0])
 
-# TODO compute f_b_A here
 Sref = aerotable.get_Sref()
 CNB = aerotable.get_CNB(alpha, 0, M, alt)
-CA = aerotable.get_CA(flag_boosting, alpha, 0, M, alt)
+CA = aerotable.get_CA(stage, flag_boosting, alpha, 0, M, alt)
 
 f_b_A_x = CA * q_bar * Sref
 f_b_A_z = CNB * q_bar * Sref
@@ -446,6 +443,7 @@ a_c_new = sqrt(a_c_y**2 + a_c_z**2)  # type:ignore
 ##################################################
 
 alpha_total = aerotable.inv_aerodynamics(
+        stage,
         thrust,  # type:ignore
         a_c_new,
         q_bar,
@@ -635,13 +633,14 @@ dynamics = state.diff(t)
 modules = [atmosphere.modules,
            aerotable.modules]
 
-model = MissileGenericMMD.from_expression(dt,
-                                          state,
-                                          input,
-                                          dynamics,
-                                          static_vars=static,
-                                          modules=modules,
-                                          definitions=defs,
-                                          use_multiprocess_build=True)
+if __name__ == "__main__":
+    model = MissileGenericMMD.from_expression(dt,
+                                              state,
+                                              input,
+                                              dynamics,
+                                              static_vars=static,
+                                              modules=modules,
+                                              definitions=defs,
+                                              use_multiprocess_build=True)
 
-model.save(path="./", name="mmd")
+    model.save(path="./", name="mmd")

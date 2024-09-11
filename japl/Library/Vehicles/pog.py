@@ -83,11 +83,11 @@ def pog(t,
         # Compute bearing error
         bearing_error = abs(fpa_horz - vma_horz)
 
-        # print(complete, np.degrees(vleg), np.degrees(vma_vert))
-        # print(complete, np.degrees(vma_horz), np.degrees(fpa_horz))
+        # print("heading err:", heading_error)
+        # print("bearing_err:", bearing_error)
         pass
 
-        gainK = 0.0986
+        gainK = -3.9986
         gainKh = 0
 
         guide_law = "mr_pitchover"
