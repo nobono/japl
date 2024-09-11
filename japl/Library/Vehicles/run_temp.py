@@ -84,10 +84,7 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
     global apogee
 
     do_pog = True
-    do_ld_guidance = False
-
-    # 1.9665 drop 1 stage
-    # 2.4665 2nd stage start
+    do_ld_guidance = True
 
     alpha = simobj.get_state_array(X, "alpha")
     r_enu_m = simobj.get_state_array(X, ["r_e", "r_n", "r_u"])
@@ -122,7 +119,6 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
         if not apogee:
             apogee = v_enu_m[2] < 0.0
         else:
-            # print("apogee reached")
             # do L/D guidance
             Sref = aerotable.get_Sref()
             opt_CL, opt_CD, opt_alpha = aerotable.ld_guidance(alpha=alpha, mach=mach, alt=alt)  # type:ignore
@@ -132,15 +128,16 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
             a_d = f_d / mass
             a_c_y = 0
             a_c_z = -a_l
-            # print(a_c_y, a_c_z)
 
+    t_coast_phase = [1.9665, 2.5664]
+    t_stage_1_sep = 2.5665
     # 2nd stage stuff
-    # if t >= 1.9665 and t < 2.5664:
-    #     a_c_y = 0.00001
-    #     a_c_z = 0.00001
-    # if t >= 2.5665:
-    #     aerotable.set(stage_2_aero)
-    #     simobj.set_state_array(X, "wet_mass", 11.848928)
+    if t >= t_coast_phase[0] and t < t_coast_phase[1]:
+        a_c_y = 0.00001
+        a_c_z = 0.00001
+    if t >= t_stage_1_sep:
+        aerotable.set(stage_2_aero)
+        simobj.set_state_array(X, "wet_mass", 11.848928)
 
     pressure = atmosphere.pressure(alt)
     U[2] = a_c_y                                # acc cmd
@@ -162,7 +159,7 @@ model.set_input_function(user_input_func)
 plotter = PyQtGraphPlotter(frame_rate=30,
                            figsize=[10, 10],
                            aspect="auto",
-                           ff=5.0,
+                           ff=1.0,
                            axis_color="grey",
                            )
 
@@ -274,20 +271,9 @@ simobj.init_static([
     ])
 ########################################################
 
-# parr = ['v_b_e_x',
-#         'v_b_e_y',
-#         'v_b_e_z']
-parr = ['r_e_x',
-        'r_e_y',
-        'r_e_z']
-
 # TODO make set_config() a method
 # which appends accaptable arguments / dict
 simobj.plot.set_config({
-
-    # "E": {"xaxis": 't', "yaxis": parr[0]},
-    # "N": {"xaxis": 't', "yaxis": parr[1]},
-    # "U": {"xaxis": 't', "yaxis": parr[2]},
 
     "N-U": {"xaxis": 'r_n', "yaxis": 'r_u',
             # "xlim": [0, 7e3],
@@ -304,7 +290,7 @@ simobj.plot.set_config({
 
     # "a_u": {"xaxis": 'r_n', "yaxis": 'a_u'},
 
-    # "Mach": {"xaxis": 't', "yaxis": 'mach'},
+    "Mach": {"xaxis": 't', "yaxis": 'mach'},
     # "Thrust": {"xaxis": 't', "yaxis": 'thrust'},
     # "Drag": {"xaxis": 't', "yaxis": 'drag'},
     # "V": {"xaxis": 't', "yaxis": 'vel_mag_e'},
@@ -318,7 +304,7 @@ simobj.plot.set_config({
     # "q": {"xaxis": 't', "yaxis": 'q'},
     # "r": {"xaxis": 't', "yaxis": 'r'},
 
-    "wet_mass": {"xaxis": 't', "yaxis": 'wet_mass'},
+    # "wet_mass": {"xaxis": 't', "yaxis": 'wet_mass'},
     # "dry_mass": {"xaxis": 't', "yaxis": 'dry_mass'},
     # "mass_dot": {"xaxis": 't', "yaxis": 'mass_dot'},
 
@@ -328,8 +314,8 @@ simobj.plot.set_config({
     # "lift": {"xaxis": 't', "yaxis": 'lift'},
     # "drag": {"xaxis": 't', "yaxis": 'drag'},
 
-    # "a_c_y": {"xaxis": 't', "yaxis": 'a_c_y'},
-    # "a_c_z": {"xaxis": 't', "yaxis": 'a_c_z'},
+    "a_c_y": {"xaxis": 't', "yaxis": 'a_c_y'},
+    "a_c_z": {"xaxis": 't', "yaxis": 'a_c_z'},
     })
 
 
@@ -347,7 +333,6 @@ def event_hit_ground(t, X, U, S, dt, simobj) -> bool:
 # Sim
 ########################################################
 
-
 sim = Sim(t_span=t_span,
           dt=0.01,
           simobjs=[simobj],
@@ -355,92 +340,10 @@ sim = Sim(t_span=t_span,
 
 sim.add_event(event_hit_ground, "stop")
 # sim.run()
-# plotter.instrument_view = True
+
 plotter.animate(sim).show()
 # plotter.plot_obj(simobj).show()
-# plotter.add_vector()
-# plotter.show()
 # sim.profiler.print_info()
-
-# create dict of outputs
-
-
 
 out = Results(sim.T, simobj)
 out.save("./run1_ballistic.pickle")
-
-# with open("temp_data_2.pickle", 'ab') as f:
-#     dill.dump(simobj.Y, f)
-
-quit()
-X = simobj.Y[ii]
-quat = simobj.get_state_array(X, ["q_0", "q_1", "q_2", "q_3"])
-yaw_pitch_roll = np.degrees(Rotation.dcm_to_tait_bryan(Rotation.quat_to_dcm(quat)))
-divider_str = "-" * 50
-
-print("quat norm:", np.linalg.norm(quat))
-print("quat:", quat)
-print("tait_bryan:", yaw_pitch_roll)
-
-print(f"\n{divider_str}\nAlpha-Beta\n{divider_str}")
-print("alpha:", np.degrees(simobj.get_state_array(X, "alpha")), end=", ")
-print("alpha_dot:", np.degrees(simobj.get_state_array(X, "alpha_dot")))
-print("beta:", simobj.get_state_array(X, "beta"), end=", ")
-print("beta_dot:", simobj.get_state_array(X, "beta_dot"))
-
-print(f"\n{divider_str}\nPQR\n{divider_str}")
-print("p:", simobj.get_state_array(X, "p"))
-print("q:", simobj.get_state_array(X, "q"))
-print("r:", simobj.get_state_array(X, "r"))
-print("mass:", simobj.get_state_array(X, "mass"))
-
-print(f"\n{divider_str}\nECI\n{divider_str}")
-print("r_i:", simobj.get_state_array(X, ["r_i_x", "r_i_y", "r_i_z"]))
-print("v_i:", simobj.get_state_array(X, ["v_i_x", "v_i_y", "v_i_z"]))
-
-print(f"\n{divider_str}\nENU\n{divider_str}")
-print("r_enu:", simobj.get_state_array(X, ["r_e", "r_n", "r_u"]))
-print("v_enu:", simobj.get_state_array(X, ["v_e", "v_n", "v_u"]))
-print("a_enu:", simobj.get_state_array(X, ["a_e", "a_n", "a_u"]))
-print("a_norm:", np.linalg.norm(simobj.get_state_array(X, ["a_e", "a_n", "a_u"])))
-
-print(f"\n{divider_str}\nECEF\n{divider_str}")
-print("v_e_e:", simobj.get_state_array(X, ["v_e_x", "v_e_y", "v_e_z"]),
-      np.linalg.norm(simobj.get_state_array(X, ["v_e_x", "v_e_y", "v_e_z"])))
-print("vel_mag_e:", simobj.get_state_array(X, "vel_mag_e"))
-print("mach:", simobj.get_state_array(X, "mach"))
-
-print(f"\n{divider_str}\nBODY\n{divider_str}")
-print("v_b_e:", simobj.get_state_array(X, ["v_b_e_x", "v_b_e_y", "v_b_e_z"]))
-print("v_b_e_hat:", simobj.get_state_array(X, ["v_b_e_hat_x", "v_b_e_hat_y", "v_b_e_hat_z"]),
-      np.linalg.norm(simobj.get_state_array(X, ["v_b_e_hat_x", "v_b_e_hat_y", "v_b_e_hat_z"])))
-print("g_b_e:", simobj.get_state_array(X, ["g_b_m_x", "g_b_m_y", "g_b_m_z"]),
-      np.linalg.norm(simobj.get_state_array(X, ["g_b_m_x", "g_b_m_y", "g_b_m_z"])))
-print("a_b_e:", simobj.get_state_array(X, ["a_b_x", "a_b_y", "a_b_z"]),
-      np.linalg.norm(simobj.get_state_array(X, ["a_b_x", "a_b_y", "a_b_z"])))
-
-print(f"\n{divider_str}\n{divider_str}")
-
-# dt = 0.01
-# vec = "v_e"
-# for row in simobj.Y[-10:]:
-#     ids = simobj.model.get_state_id([f"{vec}_x", f"{vec}_y", f"{vec}_z"])
-#     vmag_id = simobj.model.get_state_id("vel_mag_e")
-#     vmag_dot_id = simobj.model.get_state_id("vel_mag_e_dot")
-#     v_e_e = row[ids]
-#     vel_mag = row[vmag_id]
-#     vel_mag_dot = row[vmag_dot_id]
-#     print(v_e_e, end=" ")
-#     print(np.linalg.norm(v_e_e), end=" ")
-#     print(vel_mag, end=" ")
-#     # print(vel_mag_dot, end=" ")
-#     print()
-
-
-# ids = simobj.model.get_state_id([f"{vec}_x", f"{vec}_y", f"{vec}_z"])
-# cp = simobj.Y[0, ids]
-# c = simobj.Y[1, ids]
-# delta = np.linalg.norm(c) - np.linalg.norm(cp)
-# print(delta / dt)
-
-# print([np.linalg.norm(i) for i in simobj.Y[:10, -5:-2]]) }}}
