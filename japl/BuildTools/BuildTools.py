@@ -175,13 +175,37 @@ def build_model(state: Matrix,
     ############################################################
     # 8: apply subs to direct updates
     ############################################################
-    state_direct_updates = state_direct_updates.subs(def_subs)
-    state_direct_updates = state_direct_updates.subs(state_subs).subs(input_subs)
-    state_direct_updates = state_direct_updates.subs(static_subs)
+    print("applying substitions to direct state updates...")
+    if use_multiprocess_build:
+        with Pool(processes=cpu_count()) as pool:
+            subs = [pickle.dumps(def_subs),
+                    pickle.dumps(state_subs),
+                    pickle.dumps(input_subs),
+                    pickle.dumps(static_subs)]
+            args = [(pickle.dumps(expr), subs) for expr in state_direct_updates]
+            results = [pool.apply_async(array_subs_func, arg) for arg in args]
+            results = [pickle.loads(ret.get()) for ret in results]
+        state_direct_updates = Matrix(results)
+    else:
+        state_direct_updates = state_direct_updates.subs(def_subs)
+        state_direct_updates = state_direct_updates.subs(state_subs).subs(input_subs)
+        state_direct_updates = state_direct_updates.subs(static_subs)
 
-    input_direct_updates = input_direct_updates.subs(def_subs)
-    input_direct_updates = input_direct_updates.subs(state_subs).subs(input_subs)
-    input_direct_updates = input_direct_updates.subs(static_subs)
+    print("applying substitions to direct input updates...")
+    if use_multiprocess_build:
+        with Pool(processes=cpu_count()) as pool:
+            subs = [pickle.dumps(def_subs),
+                    pickle.dumps(state_subs),
+                    pickle.dumps(input_subs),
+                    pickle.dumps(static_subs)]
+            args = [(pickle.dumps(expr), subs) for expr in input_direct_updates]
+            results = [pool.apply_async(array_subs_func, arg) for arg in args]
+            results = [pickle.loads(ret.get()) for ret in results]
+        input_direct_updates = Matrix(results)
+    else:
+        input_direct_updates = input_direct_updates.subs(def_subs)
+        input_direct_updates = input_direct_updates.subs(state_subs).subs(input_subs)
+        input_direct_updates = input_direct_updates.subs(static_subs)
 
     ############################################################
     # check for any undefined differential expresion in dynamics
