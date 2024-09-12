@@ -675,7 +675,7 @@ class AeroTable:
         self.increments = aerotable.increments
 
 
-    def add_stage(self, aerotable: "Aerotable") -> None:
+    def add_stage(self, aerotable: "AeroTable") -> None:
         self.stages += [aerotable]
 
 
@@ -790,12 +790,9 @@ class AeroTable:
         aerotable = self.load_stage(stage)
         if boosting:
             CA =  aerotable.get_CA_Boost(abs(alpha), phi, mach, alt, iota)  # type:ignore
-            # print("CA boost", id(self.get_CA_Boost))
             return CA
         else:
             CA = aerotable.get_CA_Coast(abs(alpha), phi, mach, alt, iota)  # type:ignore
-            # print("CA coast", CA)
-            # print("CA boost", id(self.get_CA_Boost))
             return CA
 
 
