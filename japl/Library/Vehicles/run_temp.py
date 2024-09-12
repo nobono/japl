@@ -1,4 +1,5 @@
 import os
+import argparse
 import dill
 import numpy as np
 import quaternion
@@ -83,7 +84,7 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
     global stage_sep
     global aerotable
 
-    print(t)
+    # print(t)
 
     do_pog = True
     do_ld_guidance = True
@@ -92,10 +93,18 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
     r_enu_m = simobj.get_state_array(X, ["r_e", "r_n", "r_u"])
     v_enu_m = simobj.get_state_array(X, ["v_e", "v_n", "v_u"])
     alt = r_enu_m[2]
+    vel_up = v_enu_m[2]
     body_rates = simobj.get_state_array(X, ["p", "q", "r"])
     mass = simobj.get_state_array(X, "wet_mass")
     q_bar = simobj.get_state_array(X, "q_bar")
     mach = simobj.get_state_array(X, "mach")
+    boosting = simobj.get_static_array(S, "flag_boosting")
+    stage = simobj.get_static_array(S, "stage")
+
+    if t % 5 == 0:
+        print(f"t:%.2f, range:%.2f, mach:%.2f, alt:%.2f" % (
+            t, r_enu_m[1], mach, alt
+            ))
 
     a_c_y = 0.00001
     a_c_z = 0.00001
@@ -112,15 +121,20 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
             a_c_y = a_c[1]
             a_c_z = a_c[2]
             if pog_complete:
-                print("POG pog_complete at t=%.2f" % t)
+                print("POG pog_complete at t=%.2f (s)" % t)
 
     if do_ld_guidance:
         if not apogee:
-            apogee = alt < 0.0
+            if(apogee := vel_up < 0.0):
+                print("Apogee reached %.2f @ t=%.2f (s)" % (alt, t))
         else:
             # do L/D guidance
             Sref = aerotable.get_Sref()
-            opt_CL, opt_CD, opt_alpha = aerotable.ld_guidance(alpha=alpha, mach=mach, alt=alt)  # type:ignore
+            opt_CL, opt_CD, opt_alpha = aerotable.ld_guidance(stage=stage,  # type:ignore
+                                                              boosting=boosting,  # type:ignore
+                                                              alpha=alpha,  # type:ignore
+                                                              mach=mach, # type:ignore
+                                                              alt=alt)  # type:ignore
             f_l = opt_CL * q_bar * Sref
             f_d = opt_CD * q_bar * Sref
             a_l = f_l / mass
@@ -135,8 +149,8 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
         a_c_y = 0.00001
         a_c_z = 0.00001
     if t >= t_stage_1_sep and not stage_sep:
-        print("stage sep @ %.2f" % t)
-        aerotable.set(stage_2_aero)
+        print("stage sep @ t=%.2f (s)" % t)
+        # aerotable.set(stage_2_aero)
         simobj.set_static_array(S, "stage", 2)
         simobj.set_state_array(X, "wet_mass", 11.848928)
         stage_sep = True
@@ -172,7 +186,6 @@ plotter = PyQtGraphPlotter(frame_rate=30,
 # Initialize Model
 ########################################################
 
-t_span = [0, 300]
 ecef0 = [Earth.radius_equatorial, 0, 0]
 
 r0_enu = [0, 0, 0]
@@ -303,10 +316,10 @@ simobj.plot.set_config({
     # "Drag": {"xaxis": 't', "yaxis": 'drag'},
     # "V": {"xaxis": 't', "yaxis": 'vel_mag_e'},
 
-    # "alpha": {"xaxis": 't', "yaxis": 'alpha'},
+    "alpha": {"xaxis": 't', "yaxis": 'alpha'},
     # "beta": {"xaxis": 't', "yaxis": 'beta'},
     # "phi_hat": {"xaxis": 't', "yaxis": 'phi_hat'},
-    "alpha_c": {"xaxis": 't', "yaxis": 'alpha_c'},
+    # "alpha_c": {"xaxis": 't', "yaxis": 'alpha_c'},
 
     # "p": {"xaxis": 't', "yaxis": 'p'},
     # "q": {"xaxis": 't', "yaxis": 'q'},
@@ -316,7 +329,7 @@ simobj.plot.set_config({
     # "dry_mass": {"xaxis": 't', "yaxis": 'dry_mass'},
     # "mass_dot": {"xaxis": 't', "yaxis": 'mass_dot'},
 
-    "CA": {"xaxis": 't', "yaxis": 'CA'},
+    # "CA": {"xaxis": 't', "yaxis": 'CA'},
     # "CN": {"xaxis": 't', "yaxis": 'CN'},
 
     # "lift": {"xaxis": 't', "yaxis": 'lift'},
@@ -341,17 +354,39 @@ def event_hit_ground(t, X, U, S, dt, simobj) -> bool:
 # Sim
 ########################################################
 
-sim = Sim(t_span=t_span,
-          dt=0.01,
-          simobjs=[simobj],
-          integrate_method="rk4")
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Example script using argparse")
+    parser.add_argument('--show',
+                        dest="show",
+                        default=False,
+                        action="store_true",
+                        help='displays the plots')
+    parser.add_argument('-t',
+                        type=int,
+                        dest="t",
+                        default=400,
+                        help='select sim end time in seconds')
+    parser.add_argument('-o',
+                        dest="output",
+                        type=str,
+                        default="run",
+                        help='Output file name')
+    args = parser.parse_args()
 
-sim.add_event(event_hit_ground, "stop")
-# sim.run()
+    sim = Sim(t_span=[0, args.t],
+              dt=0.01,
+              simobjs=[simobj],
+              integrate_method="rk4")
 
-plotter.animate(sim).show()
-# plotter.plot_obj(simobj).show()
-# sim.profiler.print_info()
+    sim.add_event(event_hit_ground, "stop")
 
-out = Results(sim.T, simobj)
-out.save(DIR + "/../../../data/run1_ld_guidance.pickle")
+    if args.show:
+        plotter.animate(sim).show()
+    else:
+        sim.run()
+        sim.profiler.print_info()
+
+    # plotter.plot_obj(simobj).show()
+
+    out = Results(sim.T, simobj)
+    out.save(DIR + f"/../../../data/{args.output}.pickle")
