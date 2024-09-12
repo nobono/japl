@@ -643,4 +643,4 @@ if __name__ == "__main__":
                                               definitions=defs,
                                               use_multiprocess_build=True)
 
-    model.save(path="./", name="mmd")
+    model.save(path=DIR + "/../../../data/", name="mmd")

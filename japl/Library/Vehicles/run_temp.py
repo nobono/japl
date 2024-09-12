@@ -16,6 +16,7 @@ from japl.Util.Results import Results
 
 DIR = os.path.dirname(__file__)
 AEROMODEL_DIR = DIR + "/../../../aeromodel/"
+DATA_DIR = DIR + "/../../../data/"
 np.set_printoptions(suppress=True, precision=3)
 
 
@@ -28,7 +29,7 @@ stage_sep = False
 ########################################################
 stage_2_aero = AeroTable(AEROMODEL_DIR + "stage_2_aero.mat", from_template="orion")
 stage_1_aero = AeroTable(AEROMODEL_DIR + "stage_1_aero.mat", from_template="orion")
-stage_1_aero_thick = AeroTable(AEROMODEL_DIR + "stage_1_aero_thick.mat", from_template="orion")
+# stage_1_aero_thick = AeroTable(AEROMODEL_DIR + "stage_1_aero_thick.mat", from_template="orion")
 stage_1_mass = MassPropTable(AEROMODEL_DIR + "stage_1_mass.mat", from_template="CMS")
 
 atmosphere = Atmosphere()
@@ -40,7 +41,7 @@ aerotable.add_stage(stage_1_aero)
 aerotable.add_stage(stage_2_aero)
 mass_props.set(stage_1_mass)
 
-model = Model.from_file(DIR + "/mmd.japl", modules=[aerotable.modules, atmosphere.modules])
+model = Model.from_file(DATA_DIR + "mmd.japl", modules=[aerotable.modules, atmosphere.modules])
 simobj = SimObject(model)
 
 ########################################################
@@ -346,9 +347,9 @@ sim = Sim(t_span=t_span,
           integrate_method="rk4")
 
 sim.add_event(event_hit_ground, "stop")
-sim.run()
+# sim.run()
 
-# plotter.animate(sim).show()
+plotter.animate(sim).show()
 # plotter.plot_obj(simobj).show()
 # sim.profiler.print_info()
 
