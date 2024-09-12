@@ -12,8 +12,8 @@ np.set_printoptions(suppress=True, precision=3)
 plotter = PyQtGraphPlotter(frame_rate=30,
                            figsize=[10, 6],
                            aspect="auto",
-                           background_color="white",
-                           text_color="black")
+                           background_color="black",
+                           text_color="white")
 
 
 kft2m = .3048 * 1000
@@ -21,7 +21,7 @@ km2m = 1000.0
 
 fo = MatFile(DIR + "/../../../data/flyout.mat").flyout  # type:ignore
 # run1 = Results.load(DIR + "/run1_ballistic.pickle")
-run1 = Results.load(DIR + "/../../../data/run1_ld_guidance.pickle")
+run1 = Results.load(DIR + "/../../../data/run.pickle")
 run = run1
 
 
@@ -60,22 +60,24 @@ run = run1
 
 # col = ("Altitude", "r_u")
 # plotter.figure()
-# plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]) * kft2m,
+# plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]) * km2m,
 #              title="Altitude vs. Time",
 #              ylabel="Altitude (m)",
-#              xlabel="Time (s)")
-# plotter.plot(getattr(run, "t"), getattr(run, col[1]))
+#              xlabel="Time (s)",
+#              legend_name="GPOPS")
+# plotter.plot(getattr(run, "t"), getattr(run, col[1]),
+#              legend_name="ChAD")
 
-row = ("Range", "r_n")
-col = ("Altitude", "r_u")
-plotter.figure()
-plotter.plot(getattr(fo, "Range") * km2m, getattr(fo, col[0]) * km2m,
-             title="Altitude vs. Range",
-             ylabel="Altitude (m)",
-             xlabel="Range (m)",
-             legend_name="GPOPS")
-plotter.plot(getattr(run, "r_n"), getattr(run, col[1]),
-             legend_name="ChAD")
+# row = ("Range", "r_n")
+# col = ("Altitude", "r_u")
+# plotter.figure()
+# plotter.plot(getattr(fo, "Range") * km2m, getattr(fo, col[0]) * km2m,
+#              title="Altitude vs. Range",
+#              ylabel="Altitude (m)",
+#              xlabel="Range (m)",
+#              legend_name="GPOPS")
+# plotter.plot(getattr(run, "r_n"), getattr(run, col[1]),
+#              legend_name="ChAD")
 
 # col = ("Mass", "wet_mass")
 # plotter.figure()
@@ -116,6 +118,16 @@ plotter.plot(getattr(run, "r_n"), getattr(run, col[1]),
 #              legend_name="GPOPS")
 # plotter.plot(getattr(run, "t"), getattr(run, col[1]),
 #              legend_name="ChAD")
+
+col = ("Axial_Acceleration", "a_b_z")
+plotter.figure()
+plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
+             title="Axial Acc. vs. Time",
+             ylabel="Axial Acc (m/s^2)",
+             xlabel="Time (s)",
+             legend_name="GPOPS")
+plotter.plot(getattr(run, "t"), getattr(run, col[1]),
+             legend_name="ChAD")
 
 
 # export = pg.exporters.ImageExporter(p)
