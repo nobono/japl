@@ -152,6 +152,14 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
         print("stage sep @ t=%.2f (s)" % t)
         # aerotable.set(stage_2_aero)
         simobj.set_static_array(S, "stage", 2)
+        # TODO:
+        # TODO:
+        # TODO:
+        # TODO:
+        # TODO: this is setting s the state but the change in
+        # mass is not reflected in a jump in axial acceleration.
+        # is this due to the mass dynamics, mass_dot, not being
+        # touched at all.
         simobj.set_state_array(X, "wet_mass", 11.848928)
         stage_sep = True
 
@@ -311,12 +319,12 @@ simobj.plot.set_config({
 
     # "a_u": {"xaxis": 'r_n', "yaxis": 'a_u'},
 
-    "Mach": {"xaxis": 't', "yaxis": 'mach'},
+    # "Mach": {"xaxis": 't', "yaxis": 'mach'},
     # "Thrust": {"xaxis": 't', "yaxis": 'thrust'},
     # "Drag": {"xaxis": 't', "yaxis": 'drag'},
     # "V": {"xaxis": 't', "yaxis": 'vel_mag_e'},
 
-    "alpha": {"xaxis": 't', "yaxis": 'alpha'},
+    # "alpha": {"xaxis": 't', "yaxis": 'alpha'},
     # "beta": {"xaxis": 't', "yaxis": 'beta'},
     # "phi_hat": {"xaxis": 't', "yaxis": 'phi_hat'},
     # "alpha_c": {"xaxis": 't', "yaxis": 'alpha_c'},
@@ -337,6 +345,8 @@ simobj.plot.set_config({
 
     # "a_c_y": {"xaxis": 't', "yaxis": 'a_c_y'},
     # "a_c_z": {"xaxis": 't', "yaxis": 'a_c_z'},
+
+    "a_b_m_x": {"xaxis": 't', "yaxis": 'a_b_x'},
     })
 
 
