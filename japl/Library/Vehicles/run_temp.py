@@ -369,7 +369,7 @@ if __name__ == "__main__":
     parser.add_argument('-o',
                         dest="output",
                         type=str,
-                        default="run",
+                        default="",
                         help='Output file name')
     args = parser.parse_args()
 
@@ -389,4 +389,5 @@ if __name__ == "__main__":
     # plotter.plot_obj(simobj).show()
 
     out = Results(sim.T, simobj)
-    out.save(DIR + f"/../../../data/{args.output}.pickle")
+    if args.output:
+        out.save(DIR + f"/../../../data/{args.output}.pickle")
