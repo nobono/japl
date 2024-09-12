@@ -99,16 +99,6 @@ run = run1
 # plotter.plot(getattr(run, "t"), getattr(run, col[1]),
 #              legend_name="ChAD")
 
-# col = ("Lateral_Acceleration", "a_c_z")
-# plotter.figure()
-# plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
-#              title="Lateral Acc vs. Time",
-#              ylabel="Lateral Acc (m/s)",
-#              xlabel="Time (s)",
-#              legend_name="GPOPS")
-# plotter.plot(getattr(run, "t"), getattr(run, col[1]),
-#              legend_name="ChAD")
-
 # col = ("Drag", "drag")
 # plotter.figure()
 # plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
@@ -119,9 +109,19 @@ run = run1
 # plotter.plot(getattr(run, "t"), getattr(run, col[1]),
 #              legend_name="ChAD")
 
-col = ("Axial_Acceleration", "a_b_z")
+# col = ("Lateral_Acceleration", "a_c_z")
+# plotter.figure()
+# plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]) * 10,
+#              title="Lateral Acc vs. Time",
+#              ylabel="Lateral Acc (m/s)",
+#              xlabel="Time (s)",
+#              legend_name="GPOPS")
+# plotter.plot(getattr(run, "t"), getattr(run, col[1]),
+#              legend_name="ChAD")
+
+col = ("Axial_Acceleration", "a_b_x")
 plotter.figure()
-plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
+plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]) * 10,
              title="Axial Acc. vs. Time",
              ylabel="Axial Acc (m/s^2)",
              xlabel="Time (s)",
@@ -129,6 +129,15 @@ plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
 plotter.plot(getattr(run, "t"), getattr(run, col[1]),
              legend_name="ChAD")
 
+# col = ("Velocity", "vel_mag_e")
+# plotter.figure()
+# plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]) * 1000,
+#              title="Velocity. vs. Time",
+#              ylabel="Velocity (m/s)",
+#              xlabel="Time (s)",
+#              legend_name="GPOPS")
+# plotter.plot(getattr(run, "t"), getattr(run, col[1]),
+#              legend_name="ChAD")
 
 # export = pg.exporters.ImageExporter(p)
 # export.export('./data/test.png')
