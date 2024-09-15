@@ -5,6 +5,44 @@ from quaternion.numpy_quaternion import quaternion
 
 
 
+def enu_to_body(t: float, quat: np.ndarray, r_ecef: np.ndarray, enu: np.ndarray):
+    """This method converts a position vector from ENU
+    coordinates to Body-frame coordinates.
+
+    ---------------------------------------------------
+    Arguments:
+        - t: time in seconds
+        - quat: quaternion (body to eci)
+        - r_ecef: [x, y, z] ecef position coordinates
+        - enu: [east, north, up] ENU-coodinates
+
+    Returns:
+        - body_xyz: [x, y, z] BODY-coordinates
+    ---------------------------------------------------
+    """
+    omega_e = Earth.omega
+    q_0, q_1, q_2, q_3 = quat
+    C_eci_to_ecef = np.array([
+        [np.cos(omega_e * t), np.sin(omega_e * t), 0],
+        [-np.sin(omega_e * t), np.cos(omega_e * t), 0],
+        [0, 0, 1]])
+    C_body_to_eci = np.array([
+        [1 - 2*(q_2**2 + q_3**2), 2*(q_1*q_2 + q_0*q_3) , 2*(q_1*q_3 - q_0*q_2)],  # type:ignore # noqa
+        [2*(q_1*q_2 - q_0*q_3) , 1 - 2*(q_1**2 + q_3**2), 2*(q_2*q_3 + q_0*q_1)],  # type:ignore # noqa
+        [2*(q_1*q_3 + q_0*q_2) , 2*(q_2*q_3 - q_0*q_1), 1 - 2*(q_1**2 + q_2**2)]]).T  # type:ignore # noqa
+    C_body_to_ecef = C_eci_to_ecef @ C_body_to_eci
+    lla0 = ecef_to_lla(r_ecef)
+    lat0, lon0, _ = lla0
+    C_ecef_to_enu = np.array([
+        [-np.sin(lon0), np.cos(lon0), 0],
+        [-np.sin(lat0) * np.cos(lon0), -np.sin(lat0) * np.sin(lon0), np.cos(lat0)],
+        [np.cos(lat0) * np.cos(lon0), np.cos(lat0) * np.sin(lon0), np.sin(lat0)],
+        ])
+    vec_ecef = C_ecef_to_enu.T @ np.asarray(enu)
+    body_xyz = C_body_to_ecef.T @ vec_ecef
+    return body_xyz
+
+
 def eci_to_ecef_position(eci_xyz: np.ndarray|list, t: float = 0) -> np.ndarray:
     """This method converts a position vector from ECI
     coordinates to ECEF.

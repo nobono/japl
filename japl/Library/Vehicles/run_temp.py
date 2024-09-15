@@ -50,33 +50,6 @@ simobj = SimObject(model)
 ########################################################
 
 
-def ned_to_body_cmd(t: float, quat: np.ndarray, r_ecef: np.ndarray, vec: np.ndarray):
-    omega_e = Earth.omega
-    q_0, q_1, q_2, q_3 = quat
-    C_eci_to_ecef = np.array([
-        [np.cos(omega_e * t), np.sin(omega_e * t), 0],
-        [-np.sin(omega_e * t), np.cos(omega_e * t), 0],
-        [0, 0, 1]])
-    C_body_to_eci = np.array([
-        [1 - 2*(q_2**2 + q_3**2), 2*(q_1*q_2 + q_0*q_3) , 2*(q_1*q_3 - q_0*q_2)],  # type:ignore # noqa
-        [2*(q_1*q_2 - q_0*q_3) , 1 - 2*(q_1**2 + q_3**2), 2*(q_2*q_3 + q_0*q_1)],  # type:ignore # noqa
-        [2*(q_1*q_3 + q_0*q_2) , 2*(q_2*q_3 - q_0*q_1), 1 - 2*(q_1**2 + q_2**2)]]).T  # type:ignore # noqa
-    C_body_to_ecef = C_eci_to_ecef @ C_body_to_eci
-    lla0 = Rotation.ecef_to_lla(r_ecef)
-    lat0, lon0, _ = lla0
-    C_ecef_to_enu = np.array([
-        [-np.sin(lon0), np.cos(lon0), 0],
-        [-np.sin(lat0) * np.cos(lon0), -np.sin(lat0) * np.sin(lon0), np.cos(lat0)],
-        [np.cos(lat0) * np.cos(lon0), np.cos(lat0) * np.sin(lon0), np.sin(lat0)],
-        ])
-    vec_ecef = C_ecef_to_enu.T @ np.asarray(vec)
-    vec_body = C_body_to_ecef.T @ vec_ecef
-    vec_body = 60 * (vec_body / np.linalg.norm(vec_body))
-    a_c_y = vec_body[1]
-    a_c_z = vec_body[2]
-    return (a_c_y, a_c_z)
-
-
 def user_input_func(t, X, U, S, dt, simobj: SimObject):
     global mass_props
     global pog_complete
