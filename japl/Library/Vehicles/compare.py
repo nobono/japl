@@ -29,8 +29,10 @@ run = run1
 # plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
 #              title="Thrust vs. Time",
 #              ylabel="Thrust (N)",
-#              xlabel="Time (s)")
-# plotter.plot(getattr(run, "t"), getattr(run, col[1]))
+#              xlabel="Time (s)",
+#              legend_name="GPOPS")
+# plotter.plot(getattr(run, "t"), getattr(run, col[1]),
+#              legend_name="CHAD")
 
 
 # col = ("Ca", "CA")
@@ -38,8 +40,10 @@ run = run1
 # plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
 #              title="CA vs. Time",
 #              ylabel="CA",
-#              xlabel="Time")
-# plotter.plot(getattr(run, "t"), getattr(run, col[1]))
+#              xlabel="Time",
+#              legend_name="GPOPS")
+# plotter.plot(getattr(run, "t"), getattr(run, col[1]),
+#              legend_name="CHAD")
 
 # col = ("Cn", "CN")
 # plotter.figure()
@@ -50,13 +54,15 @@ run = run1
 # plotter.plot(getattr(run, "t"), getattr(run, col[1]))
 
 
-# col = ("Angle_of_Attack", "alpha")
-# plotter.figure()
-# plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
-#              title="alpha vs. Time",
-#              ylabel="alpha (deg)",
-#              xlabel="Time (s)")
-# plotter.plot(getattr(run, "t"), np.degrees(getattr(run, col[1])))
+col = ("Angle_of_Attack", "alpha")
+plotter.figure()
+plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
+             title="alpha vs. Time",
+             ylabel="alpha (deg)",
+             xlabel="Time (s)",
+             legend_name="GPOPS")
+plotter.plot(getattr(run, "t"), np.degrees(getattr(run, col[1])),
+             legend_name="ChAD")
 
 # col = ("Altitude", "r_u")
 # plotter.figure()
@@ -68,16 +74,16 @@ run = run1
 # plotter.plot(getattr(run, "t"), getattr(run, col[1]),
 #              legend_name="ChAD")
 
-# row = ("Range", "r_n")
-# col = ("Altitude", "r_u")
-# plotter.figure()
-# plotter.plot(getattr(fo, "Range") * km2m, getattr(fo, col[0]) * km2m,
-#              title="Altitude vs. Range",
-#              ylabel="Altitude (m)",
-#              xlabel="Range (m)",
-#              legend_name="GPOPS")
-# plotter.plot(getattr(run, "r_n"), getattr(run, col[1]),
-#              legend_name="ChAD")
+row = ("Range", "r_n")
+col = ("Altitude", "r_u")
+plotter.figure()
+plotter.plot(getattr(fo, "Range") * km2m, getattr(fo, col[0]) * km2m,
+             title="Altitude vs. Range",
+             ylabel="Altitude (m)",
+             xlabel="Range (m)",
+             legend_name="GPOPS")
+plotter.plot(getattr(run, "r_n"), getattr(run, col[1]),
+             legend_name="ChAD")
 
 # col = ("Mass", "wet_mass")
 # plotter.figure()
@@ -89,15 +95,15 @@ run = run1
 # plotter.plot(getattr(run, "t"), getattr(run, col[1]),
 #              legend_name="ChAD")
 
-# col = ("Mach", "mach")
-# plotter.figure()
-# plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
-#              title="Mach vs. Time",
-#              ylabel="Mach",
-#              xlabel="Time (s)",
-#              legend_name="GPOPS")
-# plotter.plot(getattr(run, "t"), getattr(run, col[1]),
-#              legend_name="ChAD")
+col = ("Mach", "mach")
+plotter.figure()
+plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
+             title="Mach vs. Time",
+             ylabel="Mach",
+             xlabel="Time (s)",
+             legend_name="GPOPS")
+plotter.plot(getattr(run, "t"), getattr(run, col[1]),
+             legend_name="ChAD")
 
 # col = ("Drag", "drag")
 # plotter.figure()
@@ -109,25 +115,25 @@ run = run1
 # plotter.plot(getattr(run, "t"), getattr(run, col[1]),
 #              legend_name="ChAD")
 
-# col = ("Lateral_Acceleration", "a_c_z")
-# plotter.figure()
-# plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]) * 10,
-#              title="Lateral Acc vs. Time",
-#              ylabel="Lateral Acc (m/s)",
-#              xlabel="Time (s)",
-#              legend_name="GPOPS")
-# plotter.plot(getattr(run, "t"), getattr(run, col[1]),
-#              legend_name="ChAD")
-
-col = ("Axial_Acceleration", "a_b_x")
+col = ("Lateral_Acceleration", "a_c_z")
 plotter.figure()
 plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]) * 10,
-             title="Axial Acc. vs. Time",
-             ylabel="Axial Acc (m/s^2)",
+             title="Lateral Acc vs. Time",
+             ylabel="Lateral Acc (m/s)",
              xlabel="Time (s)",
              legend_name="GPOPS")
 plotter.plot(getattr(run, "t"), getattr(run, col[1]),
              legend_name="ChAD")
+
+# col = ("Axial_Acceleration", "a_b_x")
+# plotter.figure()
+# plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]) * 10,
+#              title="Axial Acc. vs. Time",
+#              ylabel="Axial Acc (m/s^2)",
+#              xlabel="Time (s)",
+#              legend_name="GPOPS")
+# plotter.plot(getattr(run, "t"), getattr(run, col[1]),
+#              legend_name="ChAD")
 
 # col = ("Velocity", "vel_mag_e")
 # plotter.figure()

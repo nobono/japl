@@ -60,7 +60,7 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
     # print(t)
 
     do_pog = True
-    do_ld_guidance = True
+    do_ld_guidance = False
 
     alpha = simobj.get_state_array(X, "alpha")
     r_enu_m = simobj.get_state_array(X, ["r_e", "r_n", "r_u"])
@@ -103,8 +103,7 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
         else:
             # do L/D guidance
             Sref = aerotable.get_Sref()
-            opt_CL, opt_CD, opt_alpha = aerotable.ld_guidance(stage=stage,  # type:ignore
-                                                              boosting=boosting,  # type:ignore
+            opt_CL, opt_CD, opt_alpha = aerotable.ld_guidance(boosting=boosting,  # type:ignore
                                                               alpha=alpha,  # type:ignore
                                                               mach=mach, # type:ignore
                                                               alt=alt)  # type:ignore
@@ -125,6 +124,7 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
         print("stage sep @ t=%.2f (s)" % t)
         # aerotable.set(stage_2_aero)
         simobj.set_static_array(S, "stage", 2)
+        aerotable.set_stage(2)
         # TODO:
         # TODO:
         # TODO:
@@ -140,10 +140,12 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
     thrust = mass_props.get_thrust(t, pressure)
     simobj.set_static_array(S, "flag_boosting", (thrust > 0.0))
 
+    mass_dot = mass_props.get_mass_dot(t)
+
     U[2] = a_c_y                                # acc cmd
     U[3] = a_c_z                                # acc cmd
     U[4] = thrust                               # thrust
-    U[5] = mass_props.get_mass_dot(t)           # mass_dot
+    U[5] = mass_dot                             # mass_dot
 
 
 ########################################################
@@ -250,6 +252,7 @@ simobj.init_state([quat0,
                    q_bar0,
                    lift0,
                    drag0,
+                   0,
                    ])
 
 omega_n = 20  # natural frequency
@@ -310,7 +313,7 @@ simobj.plot.set_config({
     # "dry_mass": {"xaxis": 't', "yaxis": 'dry_mass'},
     # "mass_dot": {"xaxis": 't', "yaxis": 'mass_dot'},
 
-    # "CA": {"xaxis": 't', "yaxis": 'CA'},
+    "CA": {"xaxis": 't', "yaxis": 'CA'},
     # "CN": {"xaxis": 't', "yaxis": 'CN'},
 
     # "lift": {"xaxis": 't', "yaxis": 'lift'},
@@ -319,7 +322,9 @@ simobj.plot.set_config({
     # "a_c_y": {"xaxis": 't', "yaxis": 'a_c_y'},
     # "a_c_z": {"xaxis": 't', "yaxis": 'a_c_z'},
 
-    "a_b_m_x": {"xaxis": 't', "yaxis": 'a_b_x'},
+    # "a_b_m_x": {"xaxis": 't', "yaxis": 'a_b_x'},
+
+    # "Sref": {"xaxis": 't', "yaxis": 'Sref'},
     })
 
 
