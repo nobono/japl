@@ -246,7 +246,7 @@ f_b_T = Matrix([thrust, 0, 0])
 
 Sref = aerotable.get_Sref()
 CNB = aerotable.get_CNB(alpha, 0, M, alt)
-CA = aerotable.get_CA(stage, flag_boosting, alpha, 0, M, alt)
+CA = aerotable.get_CA(flag_boosting, alpha, 0, M, alt)
 
 f_b_A_x = CA * q_bar * Sref
 f_b_A_z = CNB * q_bar * Sref
@@ -443,7 +443,6 @@ a_c_new = sqrt(a_c_y**2 + a_c_z**2)  # type:ignore
 ##################################################
 
 alpha_total = aerotable.inv_aerodynamics(
-        stage,
         thrust,  # type:ignore
         a_c_new,
         q_bar,
@@ -587,7 +586,7 @@ state = Matrix([
     v_b_e_m_hat,
 
     DirectUpdate(g_b_m, g_b_e),
-    DirectUpdate(a_b_e_m, a_b_e),
+    DirectUpdate(a_b_e_m, a_b_m),
 
     # Mass Properties
     wet_mass,

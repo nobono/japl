@@ -205,6 +205,7 @@ class AeroTable:
     def __init__(self, data: Optional[str|dict|MatFile] = None, from_template: str = "", units: str = "si") -> None:
         self.units = units
         self.stages: list[AeroTable] = []
+        self.stage_id: int = 0
         self.increments = Increments()
         # modules for symbolic mapping
         # self.modules = {
@@ -667,6 +668,7 @@ class AeroTable:
             setattr(self, name, getattr(aerotable, name))
 
         self.modules = aerotable.modules
+        self.stage_id = aerotable.stage_id
         self.stages = aerotable.stages
         self.units = aerotable.units
         self.Lref = aerotable.Lref
@@ -676,9 +678,11 @@ class AeroTable:
 
 
     def add_stage(self, aerotable: "AeroTable") -> None:
+        """Add a \"stage\" to the aerotable."""
         self.stages += [aerotable]
 
 
+    # TODO: move this to guidance module
     def ld_guidance(self,
                     stage: int,
                     boosting: bool,
@@ -693,7 +697,7 @@ class AeroTable:
         #     print("alpha clipping....")
 
         def ld_ratio(_alpha):
-            CA = self.get_CA(stage=stage, boosting=boosting, alpha=_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            CA = self.get_CA(boosting=boosting, alpha=_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
             CN = self.get_CNB(alpha=_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
             cosa = np.cos(_alpha)
             sina = np.sin(_alpha)
@@ -705,7 +709,7 @@ class AeroTable:
         optimal_alpha = result.x
         ld_max = -result.fun
         # optimal CL, CD
-        CA = self.get_CA(stage=stage, boosting=boosting, alpha=optimal_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+        CA = self.get_CA(boosting=boosting, alpha=optimal_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
         CN = self.get_CNB(alpha=optimal_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
         cosa = np.cos(optimal_alpha)
         sina = np.sin(optimal_alpha)
@@ -717,7 +721,6 @@ class AeroTable:
 
 
     def inv_aerodynamics(self,
-                         stage: int,
                          thrust: float,
                          acc_cmd: float,
                          dynamic_pressure: float,
@@ -747,9 +750,9 @@ class AeroTable:
 
             # TODO switch between Boost / Coast
             # get coeffs from aerotable
-            CA = self.get_CA(stage=stage, boosting=boosting, alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            CA = self.get_CA(boosting=boosting, alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
             CN = self.get_CNB(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
-            CA_alpha = self.get_CA_alpha(stage=stage, boosting=boosting, alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            CA_alpha = self.get_CA_alpha(boosting=boosting, alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
             CN_alpha = self.get_CNB_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
 
             # get derivative of CL wrt alpha
@@ -772,22 +775,35 @@ class AeroTable:
         return angle_of_attack
 
 
+    @DeprecationWarning
     def load_stage(self, stage: int) -> "AeroTable":
-        try:
-            return self.stages[int(stage) - 1]
-        except:
-            breakpoint()
+        if int(stage) == 0:
+            raise Exception("AeroTable stages are not zero-order indexed.")
+        return self.stages[int(stage) - 1]
+
+
+    def set_stage(self, stage: int) -> None:
+        """Set the current stage index for the aerotable. This is
+        so that \"get_stage()\" will return the corresponding aerotable."""
+        if int(stage) == 0:
+            raise Exception("AeroTable stages are not zero-order indexed.")
+        for table in self.stages:
+            table.stage_id = int(stage) - 1
+
+
+    def get_stage(self) -> "AeroTable":
+        """Returns the current aerotable corresponding to the stage_id."""
+        return self.stages[self.stage_id]
 
 
     def get_CA(self,
-               stage: int,
                boosting: bool,
                alpha: Optional[ArgType] = None,
                phi: Optional[ArgType] = None,
                mach: Optional[ArgType] = None,
                alt: Optional[ArgType] = None,
                iota: Optional[ArgType] = None) -> float|np.ndarray:
-        aerotable = self.load_stage(stage)
+        aerotable = self.get_stage()
         if boosting:
             CA =  aerotable.get_CA_Boost(abs(alpha), phi, mach, alt, iota)  # type:ignore
             return CA
@@ -797,18 +813,17 @@ class AeroTable:
 
 
     def get_CA_alpha(self,
-                     stage: int,
                      boosting: bool,
                      alpha: Optional[ArgType] = None,
                      phi: Optional[ArgType] = None,
                      mach: Optional[ArgType] = None,
                      alt: Optional[ArgType] = None,
                      iota: Optional[ArgType] = None) -> float|np.ndarray:
-        aerotable = self.load_stage(stage)
+        aerotable = self.get_stage()
         if boosting:
-            return self.get_CA_Boost_alpha(abs(alpha), phi, mach, alt, iota)  # type:ignore
+            return aerotable.get_CA_Boost_alpha(abs(alpha), phi, mach, alt, iota)  # type:ignore
         else:
-            return self.get_CA_Coast_alpha(abs(alpha), phi, mach, alt, iota)  # type:ignore
+            return aerotable.get_CA_Coast_alpha(abs(alpha), phi, mach, alt, iota)  # type:ignore
 
 
     def get_CA_Boost(self,
@@ -923,7 +938,7 @@ class AeroTable:
 
 
     def get_Sref(self) -> float:
-        return self.Sref
+        return self.get_stage().Sref
 
 
     def get_Lref(self) -> float:

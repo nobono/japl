@@ -252,7 +252,6 @@ simobj.init_state([quat0,
                    q_bar0,
                    lift0,
                    drag0,
-                   0,
                    ])
 
 omega_n = 20  # natural frequency
