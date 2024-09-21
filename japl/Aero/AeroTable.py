@@ -206,25 +206,26 @@ class AeroTable:
         self.units = units
         self.stages: list[AeroTable] = []
         self.stage_id: int = 0
+        self.is_stage: bool = False
         self.increments = Increments()
         # modules for symbolic mapping
-        # self.modules = {
-        #         "aerotable_increments": self.increments,
-        #         "aerotable_get_CA": self.get_CA,
-        #         "aerotable_get_CA_Boost": self.get_CA_Boost,
-        #         "aerotable_get_CA_Coast": self.get_CA_Coast,
-        #         "aerotable_get_CNB": self.get_CNB,
-        #         "aerotable_get_CLMB": self.get_CLMB,
-        #         "aerotable_get_CLNB": self.get_CLNB,
-        #         "aerotable_get_CYB": self.get_CYB,
-        #         "aerotable_get_MRC": self.get_MRC,
-        #         "aerotable_get_Sref": self.get_Sref,
-        #         "aerotable_get_Lref": self.get_Lref,
-        #         "aerotable_get_CA_Boost_alpha": self.get_CA_Boost_alpha,
-        #         "aerotable_get_CA_Coast_alpha": self.get_CA_Coast_alpha,
-        #         "aerotable_get_CNB_alpha": self.get_CNB_alpha,
-        #         "aerotable_inv_aerodynamics": self.inv_aerodynamics,
-        #         }
+        self.modules = {
+                "aerotable_increments": self.increments,
+                "aerotable_get_CA": self.get_CA,
+                "aerotable_get_CA_Boost": self.get_CA_Boost,
+                "aerotable_get_CA_Coast": self.get_CA_Coast,
+                "aerotable_get_CNB": self.get_CNB,
+                "aerotable_get_CLMB": self.get_CLMB,
+                "aerotable_get_CLNB": self.get_CLNB,
+                "aerotable_get_CYB": self.get_CYB,
+                "aerotable_get_MRC": self.get_MRC,
+                "aerotable_get_Sref": self.get_Sref,
+                "aerotable_get_Lref": self.get_Lref,
+                "aerotable_get_CA_Boost_alpha": self.get_CA_Boost_alpha,
+                "aerotable_get_CA_Coast_alpha": self.get_CA_Coast_alpha,
+                "aerotable_get_CNB_alpha": self.get_CNB_alpha,
+                "aerotable_inv_aerodynamics": self.inv_aerodynamics,
+                }
 
         # load table from dict or MatFile
         data_dict = {}
@@ -475,23 +476,23 @@ class AeroTable:
                         mirrored_table = _table.mirror_axis(alpha_axis)
                         setattr(self, table_name, mirrored_table)
 
-        self.modules = {
-                "aerotable_increments": self.increments,
-                "aerotable_get_CA": self.get_CA,
-                "aerotable_get_CA_Boost": self.get_CA_Boost,
-                "aerotable_get_CA_Coast": self.get_CA_Coast,
-                "aerotable_get_CNB": self.get_CNB,
-                "aerotable_get_CLMB": self.get_CLMB,
-                "aerotable_get_CLNB": self.get_CLNB,
-                "aerotable_get_CYB": self.get_CYB,
-                "aerotable_get_MRC": self.get_MRC,
-                "aerotable_get_Sref": self.get_Sref,
-                "aerotable_get_Lref": self.get_Lref,
-                "aerotable_get_CA_Boost_alpha": self.get_CA_Boost_alpha,
-                "aerotable_get_CA_Coast_alpha": self.get_CA_Coast_alpha,
-                "aerotable_get_CNB_alpha": self.get_CNB_alpha,
-                "aerotable_inv_aerodynamics": self.inv_aerodynamics,
-                }
+        # self.modules = {
+        #         "aerotable_increments": self.increments,
+        #         "aerotable_get_CA": self.get_CA,
+        #         "aerotable_get_CA_Boost": self.get_CA_Boost,
+        #         "aerotable_get_CA_Coast": self.get_CA_Coast,
+        #         "aerotable_get_CNB": self.get_CNB,
+        #         "aerotable_get_CLMB": self.get_CLMB,
+        #         "aerotable_get_CLNB": self.get_CLNB,
+        #         "aerotable_get_CYB": self.get_CYB,
+        #         "aerotable_get_MRC": self.get_MRC,
+        #         "aerotable_get_Sref": self.get_Sref,
+        #         "aerotable_get_Lref": self.get_Lref,
+        #         "aerotable_get_CA_Boost_alpha": self.get_CA_Boost_alpha,
+        #         "aerotable_get_CA_Coast_alpha": self.get_CA_Coast_alpha,
+        #         "aerotable_get_CNB_alpha": self.get_CNB_alpha,
+        #         "aerotable_inv_aerodynamics": self.inv_aerodynamics,
+        #         }
 
     ############################################################
     # Methods
@@ -611,6 +612,7 @@ class AeroTable:
     #                    method=method)[0]
 
 
+    @DeprecationWarning
     def set(self, aerotable: "AeroTable") -> None:
         """This method re-initializes the aerotables with the
         provided AeroTable argument. This is to provide different
@@ -679,12 +681,13 @@ class AeroTable:
 
     def add_stage(self, aerotable: "AeroTable") -> None:
         """Add a \"stage\" to the aerotable."""
+        self.is_stage = False
+        aerotable.is_stage = True
         self.stages += [aerotable]
 
 
     # TODO: move this to guidance module
     def ld_guidance(self,
-                    stage: int,
                     boosting: bool,
                     alpha: float,
                     phi: Optional[float] = None,
@@ -730,13 +733,14 @@ class AeroTable:
                          mach: Optional[float] = None,
                          alt: Optional[float] = None,
                          iota: Optional[float] = None) -> float:
-        if self.units.lower() == "si":
+        aerotable = self.get_stage()
+        if aerotable.units.lower() == "si":
             alpha_tol = np.radians(0.01)
         else:
             alpha_tol = 0.01
 
-        alpha_max = max(self.increments.alpha)
-        Sref = self.get_Sref()
+        alpha_max = max(aerotable.increments.alpha)
+        Sref = aerotable.get_Sref()
 
         alpha_last = -1000
         count = 0
@@ -750,10 +754,10 @@ class AeroTable:
 
             # TODO switch between Boost / Coast
             # get coeffs from aerotable
-            CA = self.get_CA(boosting=boosting, alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
-            CN = self.get_CNB(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
-            CA_alpha = self.get_CA_alpha(boosting=boosting, alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
-            CN_alpha = self.get_CNB_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            CA = aerotable.get_CA(boosting=boosting, alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            CN = aerotable.get_CNB(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            CA_alpha = aerotable.get_CA_alpha(boosting=boosting, alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            CN_alpha = aerotable.get_CNB_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
 
             # get derivative of CL wrt alpha
             cosa = np.cos(alpha)
@@ -777,23 +781,25 @@ class AeroTable:
 
     @DeprecationWarning
     def load_stage(self, stage: int) -> "AeroTable":
-        if int(stage) == 0:
+        if int(stage) >= len(self.stages):
             raise Exception("AeroTable stages are not zero-order indexed.")
-        return self.stages[int(stage) - 1]
+        return self.stages[int(stage)]
 
 
     def set_stage(self, stage: int) -> None:
         """Set the current stage index for the aerotable. This is
         so that \"get_stage()\" will return the corresponding aerotable."""
-        if int(stage) == 0:
+        if int(stage) >= len(self.stages):
             raise Exception("AeroTable stages are not zero-order indexed.")
-        for table in self.stages:
-            table.stage_id = int(stage) - 1
+        self.stage_id = int(stage)
 
 
     def get_stage(self) -> "AeroTable":
         """Returns the current aerotable corresponding to the stage_id."""
-        return self.stages[self.stage_id]
+        if self.is_stage:
+            return self
+        else:
+            return self.stages[self.stage_id]
 
 
     def get_CA(self,
@@ -803,13 +809,11 @@ class AeroTable:
                mach: Optional[ArgType] = None,
                alt: Optional[ArgType] = None,
                iota: Optional[ArgType] = None) -> float|np.ndarray:
-        aerotable = self.get_stage()
+        stage = self.get_stage()
         if boosting:
-            CA =  aerotable.get_CA_Boost(abs(alpha), phi, mach, alt, iota)  # type:ignore
-            return CA
+            return stage.get_CA_Boost(abs(alpha), phi, mach, alt, iota)  # type:ignore
         else:
-            CA = aerotable.get_CA_Coast(abs(alpha), phi, mach, alt, iota)  # type:ignore
-            return CA
+            return stage.get_CA_Coast(abs(alpha), phi, mach, alt, iota)  # type:ignore
 
 
     def get_CA_alpha(self,
@@ -819,11 +823,11 @@ class AeroTable:
                      mach: Optional[ArgType] = None,
                      alt: Optional[ArgType] = None,
                      iota: Optional[ArgType] = None) -> float|np.ndarray:
-        aerotable = self.get_stage()
+        stage = self.get_stage()
         if boosting:
-            return aerotable.get_CA_Boost_alpha(abs(alpha), phi, mach, alt, iota)  # type:ignore
+            return stage.get_CA_Boost_alpha(abs(alpha), phi, mach, alt, iota)  # type:ignore
         else:
-            return aerotable.get_CA_Coast_alpha(abs(alpha), phi, mach, alt, iota)  # type:ignore
+            return stage.get_CA_Coast_alpha(abs(alpha), phi, mach, alt, iota)  # type:ignore
 
 
     def get_CA_Boost(self,
@@ -834,9 +838,10 @@ class AeroTable:
                      iota: Optional[ArgType] = None) -> float|np.ndarray:
         # TODO do this better
         # protection / boundary for alpha
+        stage = self.get_stage()
         if alpha is not None:
-            alpha = np.clip(alpha, self.CA_Boost.axes["alpha"].min(), self.CA_Boost.axes["alpha"].max())
-        return self.CA_Boost(alpha=abs(alpha), phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
+            alpha = np.clip(alpha, stage.CA_Boost.axes["alpha"].min(), stage.CA_Boost.axes["alpha"].max())
+        return stage.CA_Boost(alpha=abs(alpha), phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
 
 
     def get_CA_Coast(self,
@@ -845,9 +850,10 @@ class AeroTable:
                      mach: Optional[ArgType] = None,
                      alt: Optional[ArgType] = None,
                      iota: Optional[ArgType] = None) -> float|np.ndarray:
+        stage = self.get_stage()
         if alpha is not None:
-            alpha = np.clip(alpha, self.CA_Boost.axes["alpha"].min(), self.CA_Boost.axes["alpha"].max())
-        return self.CA_Coast(alpha=abs(alpha), phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
+            alpha = np.clip(alpha, stage.CA_Boost.axes["alpha"].min(), stage.CA_Boost.axes["alpha"].max())
+        return stage.CA_Coast(alpha=abs(alpha), phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
 
 
     def get_CNB(self,
@@ -856,9 +862,10 @@ class AeroTable:
                 mach: Optional[ArgType] = None,
                 alt: Optional[ArgType] = None,
                 iota: Optional[ArgType] = None) -> float|np.ndarray:
+        stage = self.get_stage()
         if alpha is not None:
-            alpha = np.clip(alpha, self.CA_Boost.axes["alpha"].min(), self.CA_Boost.axes["alpha"].max())
-        return self.CNB(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            alpha = np.clip(alpha, stage.CA_Boost.axes["alpha"].min(), stage.CA_Boost.axes["alpha"].max())
+        return stage.CNB(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
 
 
     def get_CLMB(self,
@@ -866,7 +873,8 @@ class AeroTable:
                  phi: Optional[ArgType] = None,
                  mach: Optional[ArgType] = None,
                  iota: Optional[ArgType] = None) -> float|np.ndarray:
-        return self.CLMB(alpha=alpha, phi=phi, mach=mach, iota=iota)
+        stage = self.get_stage()
+        return stage.CLMB(alpha=alpha, phi=phi, mach=mach, iota=iota)
 
 
     def get_CLNB(self,
@@ -874,7 +882,8 @@ class AeroTable:
                  phi: Optional[ArgType] = None,
                  mach: Optional[ArgType] = None,
                  iota: Optional[ArgType] = None) -> float|np.ndarray:
-        return self.CLNB(alpha=alpha, phi=phi, mach=mach, iota=iota)
+        stage = self.get_stage()
+        return stage.CLNB(alpha=alpha, phi=phi, mach=mach, iota=iota)
 
 
     def get_CYB(self,
@@ -882,7 +891,8 @@ class AeroTable:
                 phi: Optional[ArgType] = None,
                 mach: Optional[ArgType] = None,
                 iota: Optional[ArgType] = None) -> float|np.ndarray:
-        return self.CYB(alpha=alpha, phi=phi, mach=mach, iota=iota)
+        stage = self.get_stage()
+        return stage.CYB(alpha=alpha, phi=phi, mach=mach, iota=iota)
 
 
     def get_CA_Boost_alpha(self,
@@ -891,9 +901,10 @@ class AeroTable:
                            mach: Optional[ArgType] = None,
                            alt: Optional[ArgType] = None,
                            iota: Optional[ArgType] = None) -> float|np.ndarray:
+        stage = self.get_stage()
         if alpha is not None:
-            alpha = np.clip(alpha, self.CA_Boost.axes["alpha"].min(), self.CA_Boost.axes["alpha"].max())
-        return self.CA_Boost_alpha(alpha=abs(alpha), phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
+            alpha = np.clip(alpha, stage.CA_Boost.axes["alpha"].min(), stage.CA_Boost.axes["alpha"].max())
+        return stage.CA_Boost_alpha(alpha=abs(alpha), phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
 
 
     def get_CA_Coast_alpha(self,
@@ -902,9 +913,10 @@ class AeroTable:
                            mach: Optional[ArgType] = None,
                            alt: Optional[ArgType] = None,
                            iota: Optional[ArgType] = None) -> float|np.ndarray:
+        stage = self.get_stage()
         if alpha is not None:
-            alpha = np.clip(alpha, self.CA_Boost.axes["alpha"].min(), self.CA_Boost.axes["alpha"].max())
-        return self.CA_Coast_alpha(alpha=abs(alpha), phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
+            alpha = np.clip(alpha, stage.CA_Boost.axes["alpha"].min(), stage.CA_Boost.axes["alpha"].max())
+        return stage.CA_Coast_alpha(alpha=abs(alpha), phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
 
 
     def get_CNB_alpha(self,
@@ -913,9 +925,10 @@ class AeroTable:
                       mach: Optional[ArgType] = None,
                       alt: Optional[ArgType] = None,
                       iota: Optional[ArgType] = None) -> float|np.ndarray:
+        stage = self.get_stage()
         if alpha is not None:
-            alpha = np.clip(alpha, self.CA_Boost.axes["alpha"].min(), self.CA_Boost.axes["alpha"].max())
-        return self.CNB_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            alpha = np.clip(alpha, stage.CA_Boost.axes["alpha"].min(), stage.CA_Boost.axes["alpha"].max())
+        return stage.CNB_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
 
 
     def _get_table_args(self, table: DataTable, **kwargs) -> tuple:
@@ -931,10 +944,11 @@ class AeroTable:
 
 
     def get_MRC(self) -> float|np.ndarray:
-        if isinstance(self.MRC, np.ndarray):
-            return self.MRC[0]
+        stage = self.get_stage()
+        if isinstance(stage.MRC, np.ndarray):
+            return stage.MRC[0]
         else:
-            return self.MRC
+            return stage.MRC
 
 
     def get_Sref(self) -> float:
@@ -942,7 +956,7 @@ class AeroTable:
 
 
     def get_Lref(self) -> float:
-        return self.Lref
+        return self.get_stage().Lref
 
 
     def __repr__(self) -> str:

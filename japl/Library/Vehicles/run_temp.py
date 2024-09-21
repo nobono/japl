@@ -28,19 +28,19 @@ stage_sep = False
 ########################################################
 # Load
 ########################################################
-stage_2_aero = AeroTable(AEROMODEL_DIR + "stage_2_aero.mat", from_template="orion")
 stage_1_aero = AeroTable(AEROMODEL_DIR + "stage_1_aero.mat", from_template="orion")
-# stage_1_aero_thick = AeroTable(AEROMODEL_DIR + "stage_1_aero_thick.mat", from_template="orion")
+stage_2_aero = AeroTable(AEROMODEL_DIR + "stage_2_aero.mat", from_template="orion")
 stage_1_mass = MassPropTable(AEROMODEL_DIR + "stage_1_mass.mat", from_template="CMS")
+stage_2_mass = MassPropTable(AEROMODEL_DIR + "stage_2_mass.mat", from_template="CMS")
 
 atmosphere = Atmosphere()
 aerotable = AeroTable()
 mass_props = MassPropTable()
 
-aerotable.set(stage_1_aero)
 aerotable.add_stage(stage_1_aero)
 aerotable.add_stage(stage_2_aero)
-mass_props.set(stage_1_mass)
+mass_props.add_stage(stage_1_mass)
+mass_props.add_stage(stage_2_mass)
 
 model = Model.from_file(DATA_DIR + "mmd.japl", modules=[aerotable.modules, atmosphere.modules])
 simobj = SimObject(model)
@@ -56,8 +56,6 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
     global apogee
     global stage_sep
     global aerotable
-
-    # print(t)
 
     do_pog = True
     do_ld_guidance = False
@@ -123,17 +121,10 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
     if t >= t_stage_1_sep and not stage_sep:
         print("stage sep @ t=%.2f (s)" % t)
         # aerotable.set(stage_2_aero)
-        simobj.set_static_array(S, "stage", 2)
-        aerotable.set_stage(2)
-        # TODO:
-        # TODO:
-        # TODO:
-        # TODO:
-        # TODO: this is setting s the state but the change in
-        # mass is not reflected in a jump in axial acceleration.
-        # is this due to the mass dynamics, mass_dot, not being
-        # touched at all.
-        simobj.set_state_array(X, "wet_mass", 11.848928)
+        simobj.set_static_array(S, "stage", 1)
+        aerotable.set_stage(1)
+        mass_props.set_stage(1)
+        simobj.set_state_array(X, "wet_mass", mass_props.get_wet_mass())
         stage_sep = True
 
     pressure = atmosphere.pressure(alt)
@@ -220,7 +211,7 @@ g0_body = [0, 0, -9.81]
 a0_body = [0, 0, -9.81]
 
 wet_mass0 = 108 / 2.2  # mass_props.wet_mass  # + (24.1224 / 2.2)
-dry_mass0 = mass_props.dry_mass
+dry_mass0 = mass_props.get_dry_mass()
 # print(wet_mass0)
 
 lift0 = 0

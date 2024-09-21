@@ -79,6 +79,9 @@ class MassPropTable:
 
     def __init__(self, data: Optional[str|dict|MatFile] = None, from_template: str = "", units: str = "si") -> None:
         self.units = units
+        self.stages: list[MassPropTable] = []
+        self.is_stage: bool = False
+        self.stage_id: int = 0
 
         # load table from dict or MatFile
         data_dict = {}
@@ -123,6 +126,7 @@ class MassPropTable:
         self.burn_time_max = self.burn_time.max()
 
 
+    @DeprecationWarning
     def set(self, mass_props: "MassPropTable") -> None:
         """This method re-initializes the mass-property tables with the
         provided MassPropTable argument. This is to provide different
@@ -142,45 +146,81 @@ class MassPropTable:
             setattr(self, name, getattr(mass_props, name))
 
 
+    def add_stage(self, mass_props: "MassPropTable") -> None:
+        """Add a \"stage\" to the mass properties."""
+        self.stages += [mass_props]
+
+
+    def set_stage(self, stage: int) -> None:
+        """Set the current stage index for the table. This is
+        so that \"get_stage()\" will return the corresponding table."""
+        if int(stage) >= len(self.stages):
+            raise Exception("MassPropTable stages are not zero-order indexed.")
+        self.stage_id = int(stage)
+
+
+    def get_stage(self) -> "MassPropTable":
+        """Returns the current mass properties corresponding to the stage_id."""
+        if self.is_stage:
+            return self
+        else:
+            return self.stages[self.stage_id]
+
+
+    def get_wet_mass(self) -> float:
+        stage = self.get_stage()
+        return stage.wet_mass
+
+
+    def get_dry_mass(self) -> float:
+        stage = self.get_stage()
+        return stage.dry_mass
+
+
     def get_mass_dot(self, t: float) -> float:
-        if t >= self.burn_time_max:
+        stage = self.get_stage()
+        if t >= stage.burn_time_max:
             return 0.0
         else:
-            return self.mass_dot([t])[0]
+            return stage.mass_dot([t])[0]
 
 
     def get_cg(self, t: float) -> float:
-        if t >= self.burn_time_max:
-            return self.cg([self.burn_time_max])[0]
+        stage = self.get_stage()
+        if t >= stage.burn_time_max:
+            return stage.cg([stage.burn_time_max])[0]
         else:
-            return self.cg([t])[0]
+            return stage.cg([t])[0]
 
 
     def get_isp(self, t: float, pressure: float) -> float:
-        thrust = self.get_thrust(t, pressure)
+        stage = self.get_stage()
+        thrust = stage.get_thrust(t, pressure)
         g0 = 9.80665
-        mass_dot = self.get_mass_dot(t)
+        mass_dot = stage.get_mass_dot(t)
         isp = thrust / (mass_dot * g0)
         return isp
 
 
     def get_raw_thrust(self, t: float) -> float:
         """(vac_thrust)"""
-        if t >= self.burn_time_max:
+        stage = self.get_stage()
+        if t >= stage.burn_time_max:
             return 0.0
         else:
-            return self.thrust([t])[0]
+            return stage.thrust([t])[0]
 
 
     def get_thrust(self, t: float, pressure: float):
-        if t <= self.burn_time_max:
+        stage = self.get_stage()
+        if t <= stage.burn_time_max:
             raw_thrust = self.get_raw_thrust(t)
-            if self.vac_flag:
+            if stage.vac_flag:
                 vac_thrust = raw_thrust
-                thrust = max(vac_thrust - np.sign(vac_thrust) * self.nozzle_area * pressure, 0)
+                thrust = max(vac_thrust - np.sign(vac_thrust) * stage.nozzle_area * pressure, 0)
             else:
                 thrust = raw_thrust
-                vac_thrust = thrust + self.nozzle_area * pressure
+                vac_thrust = thrust + stage.nozzle_area * pressure
             return thrust
         else:
             return 0
