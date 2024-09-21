@@ -245,8 +245,8 @@ C_ecef_to_body = C_body_to_ecef.T
 f_b_T = Matrix([thrust, 0, 0])
 
 Sref = aerotable.get_Sref()
-CNB = aerotable.get_CNB(alpha, 0, M, alt)
-CA = aerotable.get_CA(flag_boosting, alpha, 0, M, alt)
+CNB = aerotable.get_CNB(alpha, np.nan, M, alt, np.nan)
+CA = aerotable.get_CA(alpha, np.nan, M, alt, np.nan, thrust)
 
 f_b_A_x = CA * q_bar * Sref
 f_b_A_z = CNB * q_bar * Sref

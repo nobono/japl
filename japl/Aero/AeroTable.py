@@ -688,19 +688,19 @@ class AeroTable:
 
     # TODO: move this to guidance module
     def ld_guidance(self,
-                    boosting: bool,
                     alpha: float,
                     phi: Optional[float] = None,
                     mach: Optional[float] = None,
                     alt: Optional[float] = None,
-                    iota: Optional[float] = None):
+                    iota: Optional[float] = None,
+                    thrust: float = 0):
         alpha_max = self.CNB.axes["alpha"].max()
         alpha_min = self.CNB.axes["alpha"].min()
         # if alpha > alpha_max or alpha < alpha_min:
         #     print("alpha clipping....")
 
         def ld_ratio(_alpha):
-            CA = self.get_CA(boosting=boosting, alpha=_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            CA = self.get_CA(alpha=_alpha, phi=phi, mach=mach, alt=alt, iota=iota, thrust=thrust)
             CN = self.get_CNB(alpha=_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
             cosa = np.cos(_alpha)
             sina = np.sin(_alpha)
@@ -712,7 +712,7 @@ class AeroTable:
         optimal_alpha = result.x
         ld_max = -result.fun
         # optimal CL, CD
-        CA = self.get_CA(boosting=boosting, alpha=optimal_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+        CA = self.get_CA(alpha=optimal_alpha, phi=phi, mach=mach, alt=alt, iota=iota, thrust=thrust)
         CN = self.get_CNB(alpha=optimal_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
         cosa = np.cos(optimal_alpha)
         sina = np.sin(optimal_alpha)
@@ -754,9 +754,9 @@ class AeroTable:
 
             # TODO switch between Boost / Coast
             # get coeffs from aerotable
-            CA = aerotable.get_CA(boosting=boosting, alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            CA = aerotable.get_CA(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota, thrust=thrust)
             CN = aerotable.get_CNB(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
-            CA_alpha = aerotable.get_CA_alpha(boosting=boosting, alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            CA_alpha = aerotable.get_CA_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota, thrust=thrust)
             CN_alpha = aerotable.get_CNB_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
 
             # get derivative of CL wrt alpha
@@ -803,13 +803,14 @@ class AeroTable:
 
 
     def get_CA(self,
-               boosting: bool,
                alpha: Optional[ArgType] = None,
                phi: Optional[ArgType] = None,
                mach: Optional[ArgType] = None,
                alt: Optional[ArgType] = None,
-               iota: Optional[ArgType] = None) -> float|np.ndarray:
+               iota: Optional[ArgType] = None,
+               thrust: float = 0) -> float|np.ndarray:
         stage = self.get_stage()
+        boosting = (thrust > 0.0)
         if boosting:
             return stage.get_CA_Boost(abs(alpha), phi, mach, alt, iota)  # type:ignore
         else:
@@ -817,13 +818,14 @@ class AeroTable:
 
 
     def get_CA_alpha(self,
-                     boosting: bool,
                      alpha: Optional[ArgType] = None,
                      phi: Optional[ArgType] = None,
                      mach: Optional[ArgType] = None,
                      alt: Optional[ArgType] = None,
-                     iota: Optional[ArgType] = None) -> float|np.ndarray:
+                     iota: Optional[ArgType] = None,
+                     thrust: float = 0) -> float|np.ndarray:
         stage = self.get_stage()
+        boosting = (thrust > 0.0)
         if boosting:
             return stage.get_CA_Boost_alpha(abs(alpha), phi, mach, alt, iota)  # type:ignore
         else:

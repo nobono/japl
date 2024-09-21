@@ -59,8 +59,11 @@ def from_CMS_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|dict,
         wet_mass = data.get("wet_mass")
         dry_mass = data.get("dry_mass")
         prop_mass = data.get("prop_mass")
-        burn_ratio = (np.array([wet_mass] * len(prop_mass)) - prop_mass  # type:ignore
-                      - np.array([dry_mass] * len(prop_mass))) / (wet_mass - dry_mass)  # type:ignore
+        if (wet_mass - dry_mass) == 0.0:
+            burn_ratio = np.zeros_like(wet_mass)
+        else:
+            burn_ratio = (np.array([wet_mass] * len(prop_mass)) - prop_mass  # type:ignore
+                          - np.array([dry_mass] * len(prop_mass))) / (wet_mass - dry_mass)  # type:ignore
         setattr(data, "burn_ratio", burn_ratio)
 
     burn_time_axis = {"burn_time": data.get("burn_time")}
