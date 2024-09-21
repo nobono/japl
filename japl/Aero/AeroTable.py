@@ -694,14 +694,15 @@ class AeroTable:
                     alt: Optional[float] = None,
                     iota: Optional[float] = None,
                     thrust: float = 0):
-        alpha_max = self.CNB.axes["alpha"].max()
-        alpha_min = self.CNB.axes["alpha"].min()
+        stage = self.get_stage()
+        alpha_max = stage.CNB.axes["alpha"].max()
+        alpha_min = stage.CNB.axes["alpha"].min()
         # if alpha > alpha_max or alpha < alpha_min:
         #     print("alpha clipping....")
 
         def ld_ratio(_alpha):
-            CA = self.get_CA(alpha=_alpha, phi=phi, mach=mach, alt=alt, iota=iota, thrust=thrust)
-            CN = self.get_CNB(alpha=_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            CA = stage.get_CA(alpha=_alpha, phi=phi, mach=mach, alt=alt, iota=iota, thrust=thrust)
+            CN = stage.get_CNB(alpha=_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
             cosa = np.cos(_alpha)
             sina = np.sin(_alpha)
             CL = (CN * cosa) - (CA * sina)
@@ -712,8 +713,8 @@ class AeroTable:
         optimal_alpha = result.x
         ld_max = -result.fun
         # optimal CL, CD
-        CA = self.get_CA(alpha=optimal_alpha, phi=phi, mach=mach, alt=alt, iota=iota, thrust=thrust)
-        CN = self.get_CNB(alpha=optimal_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+        CA = stage.get_CA(alpha=optimal_alpha, phi=phi, mach=mach, alt=alt, iota=iota, thrust=thrust)
+        CN = stage.get_CNB(alpha=optimal_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
         cosa = np.cos(optimal_alpha)
         sina = np.sin(optimal_alpha)
         opt_CL = (CN * cosa) - (CA * sina)

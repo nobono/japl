@@ -58,7 +58,7 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
     global aerotable
 
     do_pog = True
-    do_ld_guidance = False
+    do_ld_guidance = True
 
     alpha = simobj.get_state_array(X, "alpha")
     r_enu_m = simobj.get_state_array(X, ["r_e", "r_n", "r_u"])
@@ -71,6 +71,8 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
     mach = simobj.get_state_array(X, "mach")
     boosting = simobj.get_static_array(S, "flag_boosting")
     stage = simobj.get_static_array(S, "stage")
+    pressure = atmosphere.pressure(alt)
+    thrust = mass_props.get_thrust(t, pressure)
 
     if t % 5 == 0:
         print(f"t:%.2f, range:%.2f, mach:%.2f, alt:%.2f" % (
@@ -101,10 +103,10 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
         else:
             # do L/D guidance
             Sref = aerotable.get_Sref()
-            opt_CL, opt_CD, opt_alpha = aerotable.ld_guidance(boosting=boosting,  # type:ignore
-                                                              alpha=alpha,  # type:ignore
-                                                              mach=mach, # type:ignore
-                                                              alt=alt)  # type:ignore
+            opt_CL, opt_CD, opt_alpha = aerotable.ld_guidance(alpha=alpha,  # type:ignore
+                                                              mach=mach,  # type:ignore
+                                                              alt=alt,
+                                                              thrust=thrust)
             f_l = opt_CL * q_bar * Sref
             f_d = opt_CD * q_bar * Sref
             a_l = f_l / mass
@@ -127,8 +129,6 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
         simobj.set_state_array(X, "wet_mass", mass_props.get_wet_mass())
         stage_sep = True
 
-    pressure = atmosphere.pressure(alt)
-    thrust = mass_props.get_thrust(t, pressure)
     simobj.set_static_array(S, "flag_boosting", (thrust > 0.0))
 
     mass_dot = mass_props.get_mass_dot(t)
