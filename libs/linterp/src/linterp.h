@@ -49,7 +49,7 @@ For a description of the algorithms, see:
     typedef unsigned __int64 ssize_t;
 #endif
 #ifdef _WIN64
-    typedef unsigned __int64 ssize_t:
+    typedef unsigned __int64 ssize_t;
 #endif
 
 using std::vector;
