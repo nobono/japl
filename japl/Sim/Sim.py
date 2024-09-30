@@ -5,8 +5,8 @@ from japl.SimObject.SimObject import SimObject
 from japl.DeviceInput.DeviceInput import DeviceInput
 from japl.Sim.Integrate import runge_kutta_4
 from japl.Sim.Integrate import euler
+from japl.Util.Profiler import Profiler
 from scipy.integrate import solve_ivp
-import time
 
 
 
@@ -24,8 +24,8 @@ class Sim:
         self.t_span = t_span
         self.dt = dt
         self.simobjs = simobjs
-        self.events = kwargs.get("events", [])
-        self.integrate_method = kwargs.get("integrate_method", "odeint")
+        self.events: list[tuple] = kwargs.get("events", [])
+        self.integrate_method = kwargs.get("integrate_method", "rk4")
         assert self.integrate_method in ["odeint", "euler", "rk4"]
 
         # setup time array
@@ -51,27 +51,22 @@ class Sim:
         for simobj in self.simobjs:
             self.__init_simobj(simobj)
 
-        # debug stuff
-        # TODO make this its own class so we can use
-        # it to profile other classes?
-        def _debug_profiler_func():
-            if self.debug_profiler["count"] > 1:  # 't' is initally 0, discard this point
-                _dt = (time.time() - self.debug_profiler['t'])
-                self.debug_profiler["t_total"] += _dt
-                self.debug_profiler["t_ave"] = self.debug_profiler["t_total"] / self.debug_profiler["count"]
-            self.debug_profiler['t'] = time.time()
-            self.debug_profiler["count"] += 1
-            if self.debug_profiler["count"] >= self.Nt:
-                print("ave_dt: %.5f, ave_Hz: %.1f" % (self.debug_profiler["t_ave"], (1 / self.debug_profiler["t_ave"])))
-        self.debug_profiler = {"t": 0.0, "t_total": 0.0, "count": 0, "t_ave": 0.0, "run": _debug_profiler_func}
+        self.profiler = Profiler()
 
 
     def __init_simobj(self, simobj: SimObject):
         # pre-allocate output arrays
         self.T = np.zeros((self.Nt + 1, ))
         simobj.Y = np.zeros((self.Nt + 1, len(simobj.X0)))
+        simobj.U = np.zeros((self.Nt + 1, len(simobj.U0)))
         simobj.Y[0] = simobj.X0
+        simobj.U[0] = simobj.U0
         simobj._set_T_array_ref(self.T)  # simobj.T reference to sim.T
+
+
+    def add_event(self, func: Callable, action: str) -> None:
+        # TODO make better...
+        self.events += [(action, func)]
 
 
     def run(self) -> None:
@@ -90,16 +85,18 @@ class Sim:
         # TODO should we combine all given SimObjects into single state?
         #       this would be efficient for n-body problem...
         for istep in range(1, self.Nt + 1):
-            self._step_solve(dynamics_func=self.step,
-                             istep=istep,
-                             dt=self.dt,
-                             simobj=simobj,
-                             method=self.integrate_method,
-                             rtol=self.rtol,
-                             atol=self.atol)
+            flag_sim_stop = self._step_solve(dynamics_func=self.step,
+                                             istep=istep,
+                                             dt=self.dt,
+                                             simobj=simobj,
+                                             method=self.integrate_method,
+                                             rtol=self.rtol,
+                                             atol=self.atol)
+            if flag_sim_stop:
+                break
 
 
-    def step(self, t: float, X: np.ndarray, U: np.ndarray, dt: float, simobj: SimObject):
+    def step(self, t: float, X: np.ndarray, U: np.ndarray, S: np.ndarray, dt: float, simobj: SimObject):
         """This method is the main step function for the Sim class."""
 
         ########################################################
@@ -110,7 +107,7 @@ class Sim:
         # force = np.array([1000*lx, 0, 1000*ly])
         # acc_ext = acc_ext + force / mass
         ########################################################
-        Xdot = simobj.step(X, U, dt)
+        Xdot = simobj.step(t, X, U, S, dt)
         return Xdot
 
 
@@ -123,7 +120,7 @@ class Sim:
                     rtol: float = 1e-6,
                     atol: float = 1e-6,
                     max_step: float = 0.2
-                    ) -> None:
+                    ) -> bool:
         """
             This method is an update step for the ODE solver from time step 't' to 't + dt';
         used by FuncAnimation.
@@ -143,13 +140,16 @@ class Sim:
         -------------------------------------------------------------------
         -- Returns:
         -------------------------------------------------------------------
+        --- sim-stop-flag - bool
         --- t - time array of solution points
         --- y - (Nt x N_state) array of solution points from ODE solver
         -------------------------------------------------------------------
 
         """
+        flag_sim_stop = False
+
         # DEBUG PROFILE #########
-        self.debug_profiler["run"]()
+        self.profiler()
         #########################
 
         # get device input
@@ -161,10 +161,12 @@ class Sim:
         # setup time and initial state for step
         tstep_prev = self.t_array[istep - 1]
         tstep = self.t_array[istep]
-        X = simobj.Y[istep - 1]
+        X = simobj.Y[istep - 1]  # init with previous state
+        U = simobj.U[istep - 1]      # init with current input array (zeros)
+        S = simobj.S0
 
         # setup input array
-        U = np.zeros(len(simobj.model.input_vars), dtype=self._dtype)
+        # U = np.zeros(len(simobj.model.input_vars), dtype=self._dtype)
 
         ##################################################################
         # apply direct state updates
@@ -174,16 +176,20 @@ class Sim:
         # back into X_new.
         ##################################################################
 
+        # apply any user-defined input functions
+        if simobj.model.user_input_function:
+            simobj.model.user_input_function(tstep, X, U, S, dt, simobj)
+
         # apply direct updates to input
         if simobj.model.direct_input_update_func:
-            U_temp = simobj.model.direct_input_update_func(tstep, X, U, dt).flatten()
+            U_temp = simobj.model.direct_input_update_func(tstep, X, U, S, dt).flatten()
             for i in range(len(U_temp)):
                 if not np.isnan(U_temp[i]):
                     U[i] = U_temp[i]
 
         # apply direct updates to state
         if simobj.model.direct_state_update_func:
-            X_temp = simobj.model.direct_state_update_func(tstep, X, U, dt).flatten()
+            X_temp = simobj.model.direct_state_update_func(tstep, X, U, S, dt).flatten()
             if X_temp is None:
                 raise Exception("Model direct_state_update_func returns None."
                                 f"(in SimObject \"{simobj.name})\"")
@@ -194,6 +200,7 @@ class Sim:
         if not simobj.model.dynamics_func:
             self.T[istep] = tstep + dt
             simobj.Y[istep] = X
+            simobj.U[istep] = U
         else:
             ##################################################################
             # Integration Methods
@@ -205,7 +212,7 @@ class Sim:
                             t=tstep,
                             X=X,
                             dt=dt,
-                            args=(U, dt, simobj,),
+                            args=(U, S, dt, simobj,),
                             )
                 case "rk4":
                     X_new, T_new = runge_kutta_4(
@@ -213,7 +220,7 @@ class Sim:
                             t=tstep,
                             X=X,
                             h=dt,
-                            args=(U, dt, simobj,),
+                            args=(U, S, dt, simobj,),
                             )
                 case "odeint":
                     sol = solve_ivp(
@@ -221,7 +228,7 @@ class Sim:
                             t_span=(tstep_prev, tstep),
                             t_eval=[tstep],
                             y0=X,
-                            args=(U, dt, simobj,),
+                            args=(U, S, dt, simobj,),
                             events=self.events,
                             rtol=rtol,
                             atol=atol,
@@ -235,3 +242,22 @@ class Sim:
             # store results
             self.T[istep] = T_new
             simobj.Y[istep] = X_new
+            simobj.U[istep] = U
+            self.istep += 1
+
+            # check events
+            for event in self.events:
+                action, event_func = event
+                flag_event = event_func(tstep, X, U, S, dt, simobj)
+                if flag_event:
+                    match action:
+                        case "stop":
+                            # trim output arrays
+                            self.T = self.T[:self.istep]
+                            simobj.Y = simobj.Y[:self.istep]
+                            simobj.U = simobj.U[:self.istep]
+                            flag_sim_stop = True
+                        case _:
+                            pass
+            return flag_sim_stop
+        return flag_sim_stop

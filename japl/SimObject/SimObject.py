@@ -1,8 +1,7 @@
 import japl
 import numpy as np
 from collections.abc import Generator
-from typing import Optional
-from japl.Aero.AeroTable import AeroTable
+from typing import Optional, Callable
 from japl.Model.Model import Model
 from japl.Util.Util import flatten_list
 from pyqtgraph import PlotDataItem, mkPen
@@ -93,8 +92,8 @@ class _PlotInterface:
 
     @DeprecationWarning
     def _get_qt_pen(self, subplot_id: int) -> QPen:
-        pen_color = self.qt_traces[subplot_id].opts['pen'].color().getRgb()[:3]
-        pen_width = self.qt_traces[subplot_id].opts['pen'].width()
+        pen_color = self.qt_traces[subplot_id].opts['pen'].color().getRgb()[:3]  # type:ignore
+        pen_width = self.qt_traces[subplot_id].opts['pen'].width()  # type:ignore
         return mkPen(pen_color, width=pen_width)
 
 
@@ -123,13 +122,16 @@ class SimObject:
         self.size = kwargs.get("size", 1)
         self.model = model
         self.state_dim = self.model.state_dim
+        self.input_dim = self.model.input_dim
+        self.static_dim = self.model.static_dim
         self.X0 = np.zeros((self.state_dim,))
+        self.U0 = np.zeros((self.input_dim,))
+        self.S0 = np.zeros((self.static_dim,))
         self.Y = np.array([], dtype=self._dtype)
+        self.U = np.array([], dtype=self._dtype)
         self.__T = np.array([])
 
         self._setup_model(**kwargs)
-
-        self.aerotable: Optional[AeroTable] = kwargs.get("aerotable", None)
 
         # interface for visualization
         self.plot = _PlotInterface(
@@ -209,6 +211,33 @@ class SimObject:
             input[ret] = np.asarray(vals)
 
 
+    def get_static_array(self, static: np.ndarray, names: str|list[str]) -> np.ndarray:
+        """This method gets values from the static array given the state
+        names."""
+        ret = self.model.get_static_id(names)
+        if isinstance(names, list):
+            if len(names) == 1:
+                return static[ret][0]
+            else:
+                return static[ret]
+        else:
+            return static[ret]
+
+
+    def set_static_array(self, static: np.ndarray, names: str|list[str],
+                        vals: float|list|np.ndarray) -> None:
+        """This method sets values of the static array according to the
+        provided state names and provided values."""
+        ret = self.model.get_static_id(names)
+        if isinstance(names, list):
+            if len(names) == 1:
+                static[ret][0] = np.asarray(vals)
+            else:
+                static[ret] = np.asarray(vals)
+        else:
+            static[ret] = np.asarray(vals)
+
+
     def _pre_sim_checks(self) -> bool:
         """This method is used to check user configuration of SimObjects
         before running a simulation."""
@@ -243,15 +272,18 @@ class SimObject:
         return True
 
 
-    def step(self, X: np.ndarray, U: np.ndarray, dt: float) -> np.ndarray:
+    def step(self, t: float, X: np.ndarray, U: np.ndarray, S: np.ndarray, dt: float) -> np.ndarray:
         """This method is the update-step of the SimObject dynamic model. It calls
         the SimObject Model's step() function.
 
         -------------------------------------------------------------------
         -- Arguments
         -------------------------------------------------------------------
+        -- t - current time
         -- X - current state array of SimObject
         -- U - current input array of SimObject
+        -- S - static variables array of SimObject
+        -- dt - delta time
         -------------------------------------------------------------------
         -------------------------------------------------------------------
         -- Returns:
@@ -260,7 +292,7 @@ class SimObject:
         -------------------------------------------------------------------
         """
         # self.update(X)
-        return self.model.step(X, U, dt)
+        return self.model.step(t, X, U, S, dt)
 
 
     def update(self, X: np.ndarray):
@@ -284,12 +316,34 @@ class SimObject:
         _X0 = np.asarray(state, dtype=dtype).flatten()
 
         if _X0.shape != self.X0.shape:
-            raise Exception("attempting to initialize state X0 but array sizes do not match.")
-
+            raise Exception("\n\nattempting to initialize state X0 but array sizes do not match."
+                            f"\n\ninitialization array:{_X0.shape} != state array:{self.X0.shape}")
         self.X0 = _X0
 
 
-    def get_plot_data(self, subplot_id: int, index: int) -> tuple[np.ndarray, np.ndarray]:
+    def init_static(self, state: np.ndarray|list, dtype: type = float) -> None:
+        """This method takes a numpy array or list (or nested list) and stores this data
+        into the initial static array SimObject.S0. This method is for user convenience when initializing
+        a static variables dynamics model.
+
+        -------------------------------------------------------------------
+        -- Arguments
+        -------------------------------------------------------------------
+        -- state - array, list or nested list of static array
+        -------------------------------------------------------------------
+        """
+
+        if isinstance(state, list):
+            state = flatten_list(state)
+        _S0 = np.asarray(state, dtype=dtype).flatten()
+
+        if _S0.shape != self.S0.shape:
+            raise Exception("\n\nattempting to initialize static array S0 but array sizes do not match."
+                            f"\n\ninitialization array:{_S0.shape} != state array:{self.S0.shape}")
+        self.S0 = _S0
+
+
+    def get_plot_data(self, subplot_id: int, index: Optional[int]) -> tuple[np.ndarray, np.ndarray]:
         """This method returns state data from the SimObject according
         to the user specified state_select."""
 
@@ -305,7 +359,7 @@ class SimObject:
     def _get_data(self, index: Optional[int], state_slice: tuple[int, int]|int|str) -> np.ndarray:
         """This method returns state data from the SimObject."""
 
-        if index is None:
+        if index is None or index == -1:
             index = len(self.Y) - 1
         else:
             index += 1  # instead of grabbin "up-to" index, grab last index as well
@@ -314,11 +368,13 @@ class SimObject:
             return self.Y[:index, state_slice[0]:state_slice[1]]
         elif isinstance(state_slice, int):
             return self.Y[:index, state_slice]
-        elif isinstance(state_slice, str):
+        elif isinstance(state_slice, str):  # type:ignore
             if state_slice.lower() in ['t', 'time']:
                 return self.__T[:index]
             elif state_slice in self.model.state_register:
                 return self.Y[:index, self.model.state_register[state_slice]["id"]]
+            elif state_slice in self.model.input_register:
+                return self.U[:index, self.model.input_register[state_slice]["id"]]
             else:
                 raise Exception(f"SimObject \"{self.name}\" attempting to access state_selection \"{state_slice}\"\
                         but no state index is registered under this name.")

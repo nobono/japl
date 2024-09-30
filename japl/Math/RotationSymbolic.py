@@ -1,6 +1,9 @@
 from sympy import Matrix, MatrixSymbol, Piecewise
 from sympy import Max, Min, Abs
-from sympy import sin, cos, asin, atan2
+from sympy import Float
+from sympy import sin, cos, asin, acos, atan2
+from sympy import sqrt
+from japl.Library.Earth.EarthModelSymbolic import EarthModelSymbolic
 
 # This files contains methods which mirror Rotation.py
 # but are symbolically defined; returning sympy expressions.
@@ -151,3 +154,117 @@ def dcm_to_tait_bryan_sym(dcm: Matrix|MatrixSymbol) -> Matrix:
                                      dcm_to_tait_bryan_expr_m31])
 
     return dcm_to_tait_bryan_expr
+
+
+def ecef_to_lla_sym(ecef_xyz: Matrix|MatrixSymbol) -> Matrix:
+    """
+    convert from ECEF to geodetic
+    Olson, D. K. (1996). Converting Earth-Centered,
+    Earth-Fixed Coordinates to Geodetic Coordinates.
+    IEEE Transactions on Aerospace and Electronic Systems,
+    32(1), 473–476. https://doi.org/10.1109/7.481290
+
+    U.S. Government work, U.S. copyright does not apply.
+
+    sa https://ieeexplore.ieee.org/document/481290
+
+    ---------------------------------------------------
+    Arguments:
+        - ecef_xyz: [ecef-x, ecef-y, ecef-z] coordinates
+
+    Returns:
+        - lat: lattitude (radians)
+        - lon: longitude (radians)
+        - ht: height (meters)
+    ---------------------------------------------------
+    """
+    if isinstance(ecef_xyz, MatrixSymbol):
+        ecef_xyz = ecef_xyz.as_mutable()
+
+    x, y, z = ecef_xyz
+
+    a = Float(6378137.0)  # wgs-84
+    e2 = Float(6.6943799901377997e-3)  # e**2
+    a1 = Float(4.2697672707157535e+4)  # a * e2
+    a2 = Float(1.8230912546075455e+9)  # a1 * a1
+    a3 = Float(1.4291722289812413e+2)  # a1 * e2 / 2
+    a4 = Float(4.5577281365188637e+9)  # 2.5 * a2
+    a5 = Float(4.2840589930055659e+4)  # a1 + a3
+    a6 = Float(9.9330562000986220e-1)  # 1 - e2
+
+    zp = Abs(z)
+    w2 = x * x + y * y  # type:ignore
+    w = sqrt(w2)
+    z2 = z * z  # type:ignore
+    r2 = w2 + z2
+    r = sqrt(r2)
+
+    cond_r = r < 100000.0  # type:ignore
+    ret1_m1 = 0.0
+    ret1_m2 = 0.0
+    ret1_m3 = -1.e7
+
+    lon = atan2(y, x)
+    s2 = z2 / r2
+    c2 = w2 / r2
+    u = a2 / r
+    v = a3 - a4 / r
+
+    cond_c2 = c2 > 0.3  # type:ignore
+    piece_s = Piecewise(
+            ((zp / r) * (1.0 + c2 * (a1 + u + s2 * v) / r), cond_c2),  # type:ignore
+            (sqrt(1.0 - ((w / r) * (1.0 - s2 * (a5 - u - c2 * v) / r))**2), True)  # type:ignore
+            )
+    piece_lat = Piecewise(
+            (asin(piece_s), cond_c2),
+            (acos((w / r) * (1.0 - s2 * (a5 - u - c2 * v) / r)), True),  # type:ignore
+           )
+    piece_ss = Piecewise(
+            (((zp / r) * (1.0 + c2 * (a1 + u + s2 * v) / r))**2, cond_c2),  # type:ignore
+            (1.0 - ((w / r) * (1.0 - s2 * (a5 - u - c2 * v) / r))**2, True)  # type:ignore
+            )
+    piece_c = Piecewise(
+            (sqrt(1.0 - ((zp / r) * (1.0 + c2 * (a1 + u + s2 * v) / r))**2), cond_c2),  # type:ignore
+            ((w / r) * (1.0 - s2 * (a5 - u - c2 * v) / r), True)  # type:ignore
+            )
+
+    s = piece_s
+    lat = piece_lat
+    ss = piece_ss
+    c = piece_c
+
+    g = 1.0 - e2 * ss  # type:ignore
+    rg = a / sqrt(g)
+    rf = a6 * rg
+    u = w - rg * c  # type:ignore
+    v = zp - rf * s  # type:ignore
+    f = c * u + s * v
+    m = c * v - s * u
+    p = m / (rf / g + f)
+    lat = lat + p
+    ht = f + m * p / 2.0
+
+    cond_z = z < 0.0  # type:ignore
+    piece_lat_out = Piecewise(
+            (-lat, cond_z),
+            (lat, True)
+            )
+
+    ret2_m1 = piece_lat_out
+    ret2_m2 = lon
+    ret2_m3 = ht
+
+    piece_m1 = Piecewise(
+            (ret1_m1, cond_r),
+            (ret2_m1, True)
+            )
+    piece_m2 = Piecewise(
+            (ret1_m2, cond_r),
+            (ret2_m2, True)
+            )
+    piece_m3 = Piecewise(
+            (ret1_m3, cond_r),
+            (ret2_m3, True)
+            )
+    lla = Matrix([piece_m1, piece_m2, piece_m3])
+    return lla

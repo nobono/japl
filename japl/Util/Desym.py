@@ -1,5 +1,6 @@
 from typing import Any
 import numpy as np
+import inspect
 from sympy import Expr
 from sympy import Symbol
 from sympy import Matrix
@@ -35,10 +36,17 @@ class Desym:
                  func: Expr|Matrix|Function,
                  dummify: bool = False,
                  cse: bool = True,
-                 modules: dict = {},
+                 modules: dict|list[dict] = {},
                  array_arg: bool = False) -> None:
-        self.modules = modules
+        self.modules = {}
         self.modules.update(self.custom_lambdify_dict)
+        if isinstance(modules, dict):
+            self.modules.update(modules)
+        elif isinstance(modules, list):
+            for module in modules:
+                self.modules.update(module)
+        else:
+            raise Exception("modules must be dict or list of dicts.")
         self.array_arg = array_arg      # option to pass args as single array
         if isinstance(vars, Symbol):
             self.vars = (vars,)
@@ -48,8 +56,19 @@ class Desym:
                           modules=[self.modules, "numpy"],
                           dummify=dummify,
                           cse=cse)
+        self.code = inspect.getsource(self.f)
+
 
     def __call__(self, *args) -> np.ndarray:
         if self.array_arg:
             args = [*args[0]]       # unpack if option set
         return self.f(*args)
+
+
+    def dump(self, f):
+        """This method dumps the lambdify'd sympy expression
+        code string to a provided file."""
+        try:
+            f.write(self.code)
+        except Exception as e:
+            raise Exception(e)

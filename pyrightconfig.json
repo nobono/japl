@@ -1,0 +1,17 @@
+{
+	  "typeCheckingMode": "strict",
+    "stubPath": "./typings",
+    "reportMissingTypeStubs": false,
+    "reportMissingParameterType": false,
+    "reportUnknownMemberType": false,
+    "reportUnknownVariableType": false,
+    "reportUnknownArgumentType": false,
+    "reportUnknownParameterType": false,
+    "reportUnusedImport": false,
+    "reportConstantRedefinition": false,
+    "reportMissingTypeArgument": false,
+    "reportUnusedVariable": false,
+    "reportPrivateUsage": false,
+    "reportUnnecessaryComparison": false,
+}
+

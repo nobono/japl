@@ -1,3 +1,5 @@
+import os
+import dill
 from typing import Callable, Optional
 import numpy as np
 from enum import Enum
@@ -34,17 +36,24 @@ class Model:
         self._dtype = np.float64
         self.state_register = StateRegister()
         self.input_register = StateRegister()
+        self.static_register = StateRegister()
         self.dynamics_func: Optional[Callable] = None
         self.dynamics_expr = Expr(None)
         self.modules: dict = {}
         self.state_vars = Matrix([])
         self.input_vars = Matrix([])
+        self.static_vars = Matrix([])
         self.dt_var = Symbol("")
         self.vars: tuple = ()
         self.state_dim = 0
         self.input_dim = 0
+        self.static_dim = 0
+        self.state_direct_updates: Matrix
+        self.input_direct_updates: Matrix
         self.direct_state_update_func: Optional[Callable] = None
         self.direct_input_update_func: Optional[Callable] = None
+        self.user_input_function: Optional[Callable] = None
+
         self.A = np.array([])
         self.B = np.array([])
         self.C = np.array([])
@@ -84,15 +93,18 @@ class Model:
                       dt_var: Symbol,
                       state_vars: list|tuple|Matrix,
                       input_vars: list|tuple|Matrix,
+                      static_vars: list|tuple|Matrix = [],
                       dynamics_func: Optional[Callable] = None,
-                      update_func: Optional[Callable] = None):
+                      state_update_func: Optional[Callable] = None,
+                      input_update_func: Optional[Callable] = None) -> "Model":
         """This method initializes a Model from a callable function.
         The provided function must have the following signature:
 
-            func(t, X, U, dt)
+            func(t, X, U, S, dt)
 
         where, 't' is the sim-time 'X' is the current state, 'U', is
-        the current inputs and 'dt' is the time step.
+        the current inputs, 'S' is the static variables array and 'dt'
+        is the time step.
 
         -------------------------------------------------------------------
         -- Arguments
@@ -112,18 +124,23 @@ class Model:
         model._type = ModelType.Function
         model.set_state(state_vars)
         model.set_input(input_vars)
+        model.set_static(static_vars)
         model.state_vars = model.state_register.get_vars()
         model.input_vars = model.input_register.get_vars()
+        model.static_vars = model.static_register.get_vars()
         model.dt_var = dt_var
-        model.vars = (model.state_vars, model.input_vars, dt_var)
+        model.vars = (model.state_vars, model.input_vars, model.static_vars, dt_var)
         model.state_dim = len(model.state_vars)
         model.input_dim = len(model.input_vars)
+        model.static_dim = len(model.static_vars)
         if dynamics_func:
             model.dynamics_func = dynamics_func
-        if update_func:
-            model.direct_state_update_func = update_func
-        if (not dynamics_func) and (not update_func):
-            raise Exception("Both dynamics_func and update_func cannot be undefined.")
+        if state_update_func:
+            model.direct_state_update_func = state_update_func
+        if input_update_func:
+            model.direct_input_update_func = input_update_func
+        if (not dynamics_func) and (not state_update_func):
+            raise Exception("Both dynamics_func and state_update_func cannot be undefined.")
         return model
 
 
@@ -135,7 +152,7 @@ class Model:
                         A: np.ndarray|Matrix,
                         B: np.ndarray|Matrix,
                         C: Optional[np.ndarray|Matrix] = None,
-                        D: Optional[np.ndarray|Matrix] = None):
+                        D: Optional[np.ndarray|Matrix] = None) -> "Model":
         """This method initializes a Model from the matrices describing.
         a linear time-invariant system (LTI).
 
@@ -204,8 +221,10 @@ class Model:
                         state_vars: list|tuple|Matrix,
                         input_vars: list|tuple|Matrix,
                         dynamics_expr: Expr|Matrix|MatrixSymbol,
+                        static_vars: list|tuple|Matrix = [],
                         definitions: tuple = (),
-                        modules: dict|list[dict] = {}):
+                        modules: dict|list[dict] = {},
+                        use_multiprocess_build: bool = True) -> "Model":
         """This method initializes a Model from a symbolic expression.
         a Sympy expression can be passed which then is lambdified
         (see Sympy.lambdify) with computational optimization (see Sympy.cse).
@@ -213,46 +232,61 @@ class Model:
         -------------------------------------------------------------------
         -- Arguments
         -------------------------------------------------------------------
-        -- dt_var - symbolic dt e
+        -- dt_var - symbolic dt
         -- state_vars - iterable of symbolic state variables
         -- input_vars - iterable of symbolic input variables
         -- dynamics_expr - Sympy symbolic dynamics expression
+        -- static_vars - iterable of symbolic static variables
         -- modules - pass custom library to Desym (see sympy.lambdify)
         -------------------------------------------------------------------
         -- Returns
         -------------------------------------------------------------------
         -- cls - the initialized Model
         -------------------------------------------------------------------
+
+        NOTE: static variables are symbolic variables which are initialized
+        but not stored as part of the state or input arrays.
         """
         # first build model using provided definitions
         (state_vars,
          input_vars,
-         dynamics_expr) = BuildTools.build_model(Matrix(state_vars),
-                                                 Matrix(input_vars),
-                                                 Matrix(dynamics_expr),
-                                                 definitions)
+         dynamics_expr,
+         static_vars,
+         state_direct_updates,
+         input_direct_updates) = BuildTools.build_model(Matrix(state_vars),
+                                                        Matrix(input_vars),
+                                                        Matrix(dynamics_expr),
+                                                        definitions,
+                                                        static=Matrix(static_vars),
+                                                        use_multiprocess_build=use_multiprocess_build)
         model = cls()
         model._type = ModelType.Symbolic
         model.modules = model.__set_modules(modules)
         model.set_state(state_vars)  # NOTE: will convert any Function to Symbol
         model.set_input(input_vars)  # NOTE: will convert any Function to Symbol
+        model.set_static(static_vars)
         model.state_vars = model.state_register.get_vars()
         model.input_vars = model.input_register.get_vars()
+        model.static_vars = model.static_register.get_vars()
         model.dt_var = dt_var
-        model.vars = (model.state_vars, model.input_vars, dt_var)
+        model.vars = (model.state_vars, model.input_vars, model.static_vars, dt_var)
         model.dynamics_expr = dynamics_expr
-        model.direct_state_update_func = model.__process_direct_state_updates(model.state_vars)
-        model.direct_input_update_func = model.__process_direct_state_updates(model.input_vars)
+        model.state_direct_updates = state_direct_updates
+        model.input_direct_updates = input_direct_updates
+        model.direct_state_update_func = model.__process_direct_state_updates(state_direct_updates)
+        model.direct_input_update_func = model.__process_direct_state_updates(input_direct_updates)
         model.state_dim = len(model.state_vars)
         model.input_dim = len(model.input_vars)
+        model.static_dim = len(model.static_vars)
         # create lambdified function from symbolic expression
+        # dyn_vars = (Symbol("t"),) + model.vars
         match dynamics_expr.__class__():  # type:ignore
             case Expr():
-                model.dynamics_func = Desym(model.vars, dynamics_expr, modules=model.modules)
+                model.dynamics_func = model.__process_direct_state_updates(dynamics_expr)
             case Matrix():
-                model.dynamics_func = Desym(model.vars, dynamics_expr, modules=model.modules)
+                model.dynamics_func = model.__process_direct_state_updates(dynamics_expr)
             case MatrixSymbol():
-                model.dynamics_func = Desym(model.vars, dynamics_expr, modules=model.modules)
+                model.dynamics_func = model.__process_direct_state_updates(dynamics_expr)
             case _:
                 raise Exception("function provided is not Callable.")
         return model
@@ -273,6 +307,8 @@ class Model:
                 pass
             case ModelType.Symbolic:
                 pass
+            case _:
+                raise Exception("unhandled case.")
 
         # run state-register checks
         self.state_register._pre_sim_checks()
@@ -294,14 +330,17 @@ class Model:
             return np.empty([])
 
 
-    def step(self, X: np.ndarray, U: np.ndarray, dt: float) -> np.ndarray:
+    def step(self, t: float, X: np.ndarray, U: np.ndarray, S: np.ndarray, dt: float) -> np.ndarray:
         """This method is the step method of Model over a single time step.
 
         -------------------------------------------------------------------
         -- Arguments
         -------------------------------------------------------------------
+        -- t - current time
         -- X - state array for nstep of the model
         -- U - input array for nstep of the model
+        -- S - static variables array of SimObject
+        -- dt - delta time
         -------------------------------------------------------------------
         -- Returns
         -------------------------------------------------------------------
@@ -313,7 +352,35 @@ class Model:
         # self.__update_A_matrix_exprs(self.A, X)
         # return self.A @ X + self.B @ U
         # return self.dynamics_func(X, U).flatten()
-        return self(X, U, dt)
+        return self(t, X, U, S, dt)
+
+
+    def get_static_id(self, names: str|list[str]) -> int|list[int]:
+        """This method get the sympy variable associated with the provided
+        name. variables must first be added to the StateRegister. If a list
+        of state names are provided, then a list of corresponding state ids
+        will be returned.
+
+        If sympy MatrixElement has been registered in the state e.g. 'x[i, j]',
+        then the provided name 'x' will return all indices of that particular
+        state.
+
+        -------------------------------------------------------------------
+        -- Arguments
+        -------------------------------------------------------------------
+        -- name - (str | list[str]) name of the symbolic state variable
+                name or a list of symbolic state variable names
+        -------------------------------------------------------------------
+        -- Returns
+        -------------------------------------------------------------------
+        -- (int | list[int]) - the index of the state variable in the
+                state array or list of indices.
+        -------------------------------------------------------------------
+        """
+        if isinstance(names, list):
+            return [self.static_register[k]["id"] for k in names]
+        else:
+            return self.static_register[names]["id"]
 
 
     def get_state_id(self, names: str|list[str]) -> int|list[int]:
@@ -409,6 +476,26 @@ class Model:
         """
         return self.input_register.set(vars=input_vars, labels=labels)
 
+
+    def set_static(self, static_vars: tuple|list|Matrix, labels: Optional[list|tuple] = None):
+        """This method initializes the StateRegister attribute of the Model.
+
+        -------------------------------------------------------------------
+        -- Arguments
+        -------------------------------------------------------------------
+        -- static_vars - iterable of symbolic state variables
+        -- labels - (optional) iterable of labels that may be used by the
+                    Plotter class. order labels must correspond to order
+                    of state_vars.
+        -------------------------------------------------------------------
+        -- Returns
+        -------------------------------------------------------------------
+        -- (Symbol) - the symbolic object of the static variable
+        -------------------------------------------------------------------
+        """
+        return self.static_register.set(vars=static_vars, labels=labels)
+
+
     def get_sym(self, name: str) -> Symbol:
         """This method gets the symbolic variable associated
         with the provided name.
@@ -426,8 +513,8 @@ class Model:
         return self.state_register.get_sym(name)
 
 
-    def __process_direct_state_updates(self, state_vars: Matrix):
-        """This method creates an update function from a symbolic state
+    def __process_direct_state_updates(self, direct_updates: Matrix|Expr):
+        """This method creates an update function from a symbolic
         Matrix. Any DirectUpdate elements will be updated using its
         substitution expression, "sub_expr", while Symbol & Function
         elements result in NaN.
@@ -435,23 +522,124 @@ class Model:
         -------------------------------------------------------------------
         -- Arguments
         -------------------------------------------------------------------
-        -- state_vars - [Matrix|list]
+        -- direct_updates - [Matrix|list]
         -------------------------------------------------------------------
         -- Returns
         -------------------------------------------------------------------
         -- (Callable) - lambdified sympy expression
         -------------------------------------------------------------------
         """
-        state_updates = []
-        for var in state_vars:  # type:ignore
-            if isinstance(var, DirectUpdateSymbol):
-                state_updates.append(var.sub_expr)
-            elif isinstance(var, Symbol):
-                state_updates.append(sp_nan)
-            elif isinstance(var, Function):
-                state_updates.append(sp_nan)
-            else:
-                raise Exception("unhandled case.")
         t = Symbol('t')  # 't' variable needed to adhear to func argument format
-        update_func = Desym((t, *self.vars), Matrix(state_updates), modules=self.modules)
+        update_func = Desym((t, *self.vars), Matrix(direct_updates), modules=self.modules)
         return update_func
+
+
+    def set_input_function(self, func: Callable) -> None:
+        """This method takes a function and inserts it before the
+        Model's direct input updates.
+
+        NOTE that if the Model has any defined direct input updates,
+        the user's changes to the input array may be modified or
+        over-written.
+
+        -------------------------------------------------------------------
+        Arguments:
+            - func: Callable function with the signature:
+                        func(t, X, U, S, dt, ...)
+                    where X is the state array, U is the input array,
+                    S is the static variable array.
+        -------------------------------------------------------------------
+        """
+        self.user_input_function = func
+
+
+    def save(self, path: str, name: str):
+        """This method saves a model to a .japl file."""
+        ext = ".japl"
+        save_path = os.path.join(path, name + ext)
+        print("saving model to path:", path)
+        # remove existing file if exists
+        if os.path.isfile(save_path):
+            os.remove(save_path)
+        with open(save_path, 'ab') as file:
+            data = (self._type,
+                    self.modules,
+                    self.state_vars,
+                    self.input_vars,
+                    self.static_vars,
+                    self.dt_var,
+                    self.vars,
+                    self.state_dim,
+                    self.input_dim,
+                    self.static_dim,
+                    self.dynamics_func,
+                    self.dynamics_expr,
+                    self.state_direct_updates,
+                    self.input_direct_updates,
+                    self.direct_state_update_func,
+                    self.direct_input_update_func,
+                    self.user_input_function)
+            dill.dump(data, file)
+
+
+    @classmethod
+    def from_file(cls, path: str, modules: dict|list[dict] = {}) -> "Model":
+        """This method loads a Model from a .japl file."""
+        with open(path, 'rb') as file:
+            data = dill.load(file)
+        obj = cls()
+        (obj._type,
+         obj.modules,
+         obj.state_vars,
+         obj.input_vars,
+         obj.static_vars,
+         obj.dt_var,
+         obj.vars,
+         obj.state_dim,
+         obj.input_dim,
+         obj.static_dim,
+         obj.dynamics_func,
+         obj.dynamics_expr,
+         obj.state_direct_updates,
+         obj.input_direct_updates,
+         obj.direct_state_update_func,
+         obj.direct_input_update_func,
+         obj.user_input_function) = data
+        if obj._type == ModelType.Symbolic:
+            # the init from .from_expression()
+            # this is to re-init model with updated modules
+            model = cls()
+            model._type = ModelType.Symbolic
+            model.modules = model.__set_modules(modules)
+            model.set_state(obj.state_vars)  # NOTE: will convert any Function to Symbol
+            model.set_input(obj.input_vars)  # NOTE: will convert any Function to Symbol
+            model.set_static(obj.static_vars)
+            model.state_vars = model.state_register.get_vars()
+            model.input_vars = model.input_register.get_vars()
+            model.static_vars = model.static_register.get_vars()
+            model.dt_var = obj.dt_var
+            model.vars = (model.state_vars, model.input_vars, model.static_vars, obj.dt_var)
+            model.dynamics_expr = obj.dynamics_expr
+            model.direct_state_update_func = model.__process_direct_state_updates(obj.state_direct_updates)
+            model.direct_input_update_func = model.__process_direct_state_updates(obj.input_direct_updates)
+            model.state_dim = len(model.state_vars)
+            model.input_dim = len(model.input_vars)
+            model.static_dim = len(model.static_vars)
+            # create lambdified function from symbolic expression
+            # dyn_vars = (Symbol("t"),) + model.vars
+            match obj.dynamics_expr.__class__():  # type:ignore
+                case Expr():
+                    model.dynamics_func = model.__process_direct_state_updates(obj.dynamics_expr)
+                case Matrix():
+                    model.dynamics_func = model.__process_direct_state_updates(obj.dynamics_expr)
+                case MatrixSymbol():
+                    model.dynamics_func = model.__process_direct_state_updates(obj.dynamics_expr)
+                case _:
+                    raise Exception("function provided is not Callable.")
+            return model
+        else:
+            # initialize the state & input registers
+            obj.set_state(obj.state_vars)
+            obj.set_input(obj.input_vars)
+            obj.set_static(obj.static_vars)
+        return obj

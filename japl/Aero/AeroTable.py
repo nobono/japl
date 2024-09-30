@@ -1,11 +1,12 @@
 from typing import Optional
 import numpy as np
-import pickle
+import dill as pickle
 from astropy import units as u
 from japl.Util.Matlab import MatFile
 from japl.Util.Util import flatten_list
 from japl.DataTable.DataTable import DataTable
 from japl.DataTable.DataTable import ArgType
+from scipy.optimize import minimize_scalar
 
 
 
@@ -34,7 +35,10 @@ class Increments:
         for i in dir(self):
             attr = getattr(self, i)
             if isinstance(attr, np.ndarray):
-                members += [str(i) + f" [{len(attr)}]"]
+                try:
+                    members += [str(i) + f" [{len(attr)}]"]
+                except Exception as e:  # noqa
+                    members += [str(i) + " []"]
         return "\n".join(members)
 
 
@@ -54,19 +58,17 @@ def swap_to_correct_axes(array: np.ndarray, labels: list[str]) -> np.ndarray:
 
 # TODO: do this better?
 def from_CMS_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|dict, tuple]:
-    # __ft2m = (1.0 * u.imperial.foot).to_value(u.m)  # type:ignore
-    __deg2rad = (np.pi / 180.0)
+    # ft2m = (1.0 * u.imperial.foot).to_value(u.m)  # type:ignore
+    deg2rad = (np.pi / 180.0)
 
-    convert_key_map = [
-                       ("Alpha", "alpha"),
+    convert_key_map = [("Alpha", "alpha"),
                        ("Mach", "mach"),
                        ("Alt", "alt"),
                        ("CA_Boost", "CA_Powered"),
                        ("CA_Coast", "CA_Unpowered"),
-                       ("CNB", "CN"),
-                       ]
+                       ("CNB", "CN")]
+
     # store to correct attribute name
-    # CNB_labels = data.get("CN_GridLabels")
     for map in convert_key_map:
         key_out, key_in = map
         table: np.ndarray = data.get(key_in)  # type:ignore
@@ -81,9 +83,14 @@ def from_CMS_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|dict,
     mach = data.get("Mach", None)
     alt = data.get("Alt", None)
 
+    ############################################################
+    # Convert to SI units
+    # NOTE: CMS stores aerodata length units as meters so
+    # no SI conversion needed
+    ############################################################
+
     if units.lower() == "si":
-        alpha = alpha * __deg2rad
-        alt = alt  # * __ft2m  # NOTE: CMS may already have alt in meters
+        alpha = alpha * deg2rad
 
     alpha = alpha.astype(np.float64)
     mach = mach.astype(np.float64)
@@ -92,15 +99,47 @@ def from_CMS_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|dict,
     # table shape axes
     Basic_axes = {"alpha": alpha, "mach": mach}                 # Basic table shape
     CA_axes = {"mach": mach, "alt": alt}                        # CA-coeff table shape
+    CNB_axes = {"alpha": alpha, "mach": mach}
     IT_axes = {"alpha": alpha, "mach": mach}                    # fin-increment table shape
     CA_Total_axes = {"alpha": alpha, "mach": mach, "alt": alt}  # CA-coeff total table shape
-    table_axis_axes = (Basic_axes, CA_axes, IT_axes, CA_Total_axes)
-    return (data, table_axis_axes)
+
+    table_axes = (Basic_axes, CA_axes, CNB_axes, IT_axes, CA_Total_axes)
+    return (data, table_axes)
+
+
+def from_orion_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|dict, tuple]:
+    deg2rad = np.radians(1)
+
+    data, table_axes = from_CMS_table(data=data, units=units)
+    (Basic_axes,
+     CA_axes,
+     CNB_axes,
+     IT_axes,
+     CA_Total_axes) = table_axes
+
+    alpha = data.get("Alpha", None)
+    mach = data.get("Mach", None)
+    alt = data.get("Alt", None)
+
+    if units.lower() == "si":
+        alpha = alpha * deg2rad
+
+    alpha = alpha.astype(np.float64)
+    mach = mach.astype(np.float64)
+    alt = alt.astype(np.float64)
+
+    # adding alt in CNB table
+    CNB_axes = {"alpha": alpha, "mach": mach, "alt": alt}
+    table_axes = (Basic_axes, CA_axes, CNB_axes, IT_axes, CA_Total_axes)
+    return (data, table_axes)
 
 
 def from_default_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|dict, tuple]:
-    __ft2m = (1.0 * u.imperial.foot).to_value(u.m)  # type:ignore
-    __deg2rad = (np.pi / 180.0)
+    ft2m = (1.0 * u.imperial.foot).to_value(u.m)  # type:ignore
+    inch2m = (1.0 * u.imperial.inch).to_value(u.m)  # type:ignore
+    deg2rad = (np.pi / 180.0)
+    # lbminch2Nm = (1.0 * u.imperial.lbm * u.imperial.inch**2).to_value(u.kg * u.m**2)  # type:ignore
+    inch_sq_2_m_sq = (1.0 * u.imperial.inch**2).to_value(u.m**2)  # type:ignore
 
     alpha = data.get("Alpha", None)
     phi = data.get("Phi", None)
@@ -109,11 +148,32 @@ def from_default_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|d
     iota = data.get("Iota", None)
     # iota_prime = data.get("Iota_Prime", None)
 
+    ############################################################
+    # Convert to SI units
+    # TODO make input and ouput of units better...
+    # NOTE: currently aero data available is in imperial units
+    ############################################################
+    if "Sref" in data:
+        Sref = getattr(data, "Sref")
+        setattr(data, "Sref", Sref * inch_sq_2_m_sq)
+    else:
+        raise Exception("aerodata has no \"Sref\" attribute")
+    if "Lref" in data:
+        Sref = getattr(data, "Lref")
+        setattr(data, "Lref", Sref * inch2m)
+    else:
+        raise Exception("aerodata has no \"Lref\" attribute")
+    if "MRC" in data:
+        Sref = getattr(data, "MRC")
+        setattr(data, "MRC", Sref * inch2m)
+    else:
+        raise Exception("aerodata has no \"MRC\" (Missile Reference Center) attribute")
+
     if units.lower() == "si":
-        alpha = alpha * __deg2rad
-        phi = phi * __deg2rad
-        alt = alt * __ft2m
-        iota = iota * __deg2rad
+        alpha = alpha * deg2rad
+        phi = phi * deg2rad
+        alt = alt * ft2m
+        iota = iota * deg2rad
 
     alpha = alpha.astype(np.float64)
     phi = phi.astype(np.float64)
@@ -123,11 +183,12 @@ def from_default_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|d
 
     Basic_axes = {"alpha": alpha, "phi": phi, "mach": mach}                               # Basic table shape
     CA_axes = {"phi": phi, "mach": mach, "alt": alt}                                      # CA-coeff table shape
+    CNB_axes = {"alpha": alpha, "phi": phi, "mach": mach, "iota": iota}                   # Basic table shape
     IT_axes = {"alpha": alpha, "phi": phi, "mach": mach, "iota": iota}                    # fin-increment table shape
     CA_Total_axes = {"alpha": alpha, "phi": phi, "mach": mach, "alt": alt, "iota": iota}  # CA-coeff total table shape
 
-    table_axis_axes = (Basic_axes, CA_axes, IT_axes, CA_Total_axes)
-    return (data, table_axis_axes)
+    table_axes = (Basic_axes, CA_axes, CNB_axes, IT_axes, CA_Total_axes)
+    return (data, table_axes)
 
 
 class AeroTable:
@@ -135,16 +196,42 @@ class AeroTable:
     """This class is for containing Aerotable data for a particular
     SimObject."""
 
-    __ft2m = (1.0 * u.imperial.foot).to_value(u.m)  # type:ignore
-    __inch2m = (1.0 * u.imperial.inch).to_value(u.m)  # type:ignore
-    __deg2rad = (np.pi / 180.0)
-    __lbminch2Nm = (1.0 * u.imperial.lbm * u.imperial.inch**2).to_value(u.kg * u.m**2)  # type:ignore
-    __inch_sq_2_m_sq = (1.0 * u.imperial.inch**2).to_value(u.m**2)  # type:ignore
+    # __ft2m = (1.0 * u.imperial.foot).to_value(u.m)  # type:ignore
+    # __inch2m = (1.0 * u.imperial.inch).to_value(u.m)  # type:ignore
+    # __deg2rad = (np.pi / 180.0)
+    # __lbminch2Nm = (1.0 * u.imperial.lbm * u.imperial.inch**2).to_value(u.kg * u.m**2)  # type:ignore
+    # __inch_sq_2_m_sq = (1.0 * u.imperial.inch**2).to_value(u.m**2)  # type:ignore
 
-    def __init__(self, data: str|dict|MatFile, from_template: str = "", units: str = "si") -> None:
+    def __init__(self, data: Optional[str|dict|MatFile] = None, from_template: str = "", units: str = "si") -> None:
+        self.units = units
+        self.stages: list[AeroTable] = []
+        self.stage_id: int = 0
+        self.is_stage: bool = True
+        self.increments = Increments()
+        # modules for symbolic mapping
+        self.modules = {
+                "aerotable_increments": self.increments,
+                "aerotable_get_CA": self.get_CA,
+                "aerotable_get_CA_Boost": self.get_CA_Boost,
+                "aerotable_get_CA_Coast": self.get_CA_Coast,
+                "aerotable_get_CNB": self.get_CNB,
+                "aerotable_get_CLMB": self.get_CLMB,
+                "aerotable_get_CLNB": self.get_CLNB,
+                "aerotable_get_CYB": self.get_CYB,
+                "aerotable_get_MRC": self.get_MRC,
+                "aerotable_get_Sref": self.get_Sref,
+                "aerotable_get_Lref": self.get_Lref,
+                "aerotable_get_CA_Boost_alpha": self.get_CA_Boost_alpha,
+                "aerotable_get_CA_Coast_alpha": self.get_CA_Coast_alpha,
+                "aerotable_get_CNB_alpha": self.get_CNB_alpha,
+                "aerotable_inv_aerodynamics": self.inv_aerodynamics,
+                }
+
         # load table from dict or MatFile
         data_dict = {}
-        if isinstance(data, str):
+        if data is None:
+            return
+        elif isinstance(data, str):
             self.__path = data
             if ".pickle" in self.__path:
                 with open(self.__path, "rb") as f:
@@ -156,9 +243,11 @@ class AeroTable:
         # formatting.
         match from_template.lower():
             case "cms":
-                data_dict, table_axis_axes = from_CMS_table(data_dict, units=units)
+                data_dict, table_axes = from_CMS_table(data_dict, units=units)
+            case "orion":
+                data_dict, table_axes = from_orion_table(data_dict, units=units)
             case _:
-                data_dict, table_axis_axes = from_default_table(data_dict, units=units)
+                data_dict, table_axes = from_default_table(data_dict, units=units)
 
         ############################################################
         # Load tables from data
@@ -192,9 +281,9 @@ class AeroTable:
         _CLNB = data_dict.get("CLNB", None)          # (alpha, phi, mach, iota)
         _CYB = data_dict.get("CYB", None)            # (alpha, phi, mach, iota)
 
-        Sref = data_dict.get("Sref", 0)
-        Lref = data_dict.get("Lref", 0)
-        MRC = data_dict.get("MRC", 0)
+        self.Sref = data_dict.get("Sref", 0.0)  # surface area reference
+        self.Lref = data_dict.get("Lref", 0.0)  # length reference
+        self.MRC = data_dict.get("MRC", 0.0)    # missile reference center
 
         ############################################################
         # Initialize as DataTables
@@ -217,9 +306,29 @@ class AeroTable:
 
         (Basic_axes,
          CA_axes,
+         CNB_axes,
          IT_axes,
-         CA_Total_axes) = table_axis_axes
+         CA_Total_axes) = table_axes
 
+        # store increments for ease of access
+        _total_axes = {}
+        _total_axes.update(Basic_axes)
+        _total_axes.update(CA_axes)
+        _total_axes.update(IT_axes)
+        _total_axes.update(CA_Total_axes)
+        self.increments = Increments()
+        if "alpha" in _total_axes:
+            self.increments.alpha = _total_axes["alpha"]
+        if "phi" in _total_axes:
+            self.increments.phi = _total_axes["phi"]
+        if "mach" in _total_axes:
+            self.increments.mach = _total_axes["mach"]
+        if "alt" in _total_axes:
+            self.increments.alt = _total_axes["alt"]
+        if "iota" in _total_axes:
+            self.increments.iota = _total_axes["iota"]
+
+        # create DataTables
         self.CA_inv = DataTable(_CA_inv, Basic_axes)
         self.CA_Basic = DataTable(_CA_Basic, Basic_axes)
         self.CA_0_Boost = DataTable(_CA_0_Boost, CA_axes)
@@ -244,19 +353,10 @@ class AeroTable:
 
         self.CA_Boost = DataTable(_CA_Boost, CA_Total_axes)
         self.CA_Coast = DataTable(_CA_Coast, CA_Total_axes)
-        self.CNB = DataTable(_CNB, IT_axes)
+        self.CNB = DataTable(_CNB, CNB_axes)
         self.CLMB = DataTable(_CLMB, IT_axes)
         self.CLNB = DataTable(_CLNB, IT_axes)
         self.CYB = DataTable(_CYB, IT_axes)
-
-        ############################################################
-        # Convert to SI units
-        # TODO make input and ouput of units better...
-        # NOTE: currently aero data available is in imperial units
-        ############################################################
-        self.Sref = Sref * self.__inch_sq_2_m_sq
-        self.Lref = Lref * self.__inch2m
-        self.MRC = MRC * self.__inch2m
 
         # MRC may be a float or array
         # TODO: maybe do this better
@@ -285,7 +385,7 @@ class AeroTable:
             if not (self.CNB_Basic.isnone() and self.CNB_IT.isnone()):
                 self.CNB = DataTable(self.CNB_Basic[:, :, :, np.newaxis]
                                      + self.CNB_IT,
-                                     axes=IT_axes)
+                                     axes=CNB_axes)
         if self.CLMB.isnone():
             if not (self.CLMB_Basic.isnone() and self.CLMB_IT.isnone()):
                 self.CLMB = DataTable(self.CLMB_Basic[:, :, :, np.newaxis]
@@ -376,6 +476,23 @@ class AeroTable:
                         mirrored_table = _table.mirror_axis(alpha_axis)
                         setattr(self, table_name, mirrored_table)
 
+        # self.modules = {
+        #         "aerotable_increments": self.increments,
+        #         "aerotable_get_CA": self.get_CA,
+        #         "aerotable_get_CA_Boost": self.get_CA_Boost,
+        #         "aerotable_get_CA_Coast": self.get_CA_Coast,
+        #         "aerotable_get_CNB": self.get_CNB,
+        #         "aerotable_get_CLMB": self.get_CLMB,
+        #         "aerotable_get_CLNB": self.get_CLNB,
+        #         "aerotable_get_CYB": self.get_CYB,
+        #         "aerotable_get_MRC": self.get_MRC,
+        #         "aerotable_get_Sref": self.get_Sref,
+        #         "aerotable_get_Lref": self.get_Lref,
+        #         "aerotable_get_CA_Boost_alpha": self.get_CA_Boost_alpha,
+        #         "aerotable_get_CA_Coast_alpha": self.get_CA_Coast_alpha,
+        #         "aerotable_get_CNB_alpha": self.get_CNB_alpha,
+        #         "aerotable_inv_aerodynamics": self.inv_aerodynamics,
+        #         }
 
     ############################################################
     # Methods
@@ -495,14 +612,239 @@ class AeroTable:
     #                    method=method)[0]
 
 
+    @DeprecationWarning
+    def set(self, aerotable: "AeroTable") -> None:
+        """This method re-initializes the aerotables with the
+        provided AeroTable argument. This is to provide different
+        tables if a model switches stages."""
+        table_names = ["CA_0_Boost",
+                       "CA_0_Coast",
+                       "CA_inv",
+                       "CA_Basic",
+                       "CYB_Basic",
+                       "CNB_Basic",
+                       "CLLB_Basic",
+                       "CLMB_Basic",
+                       "CLNB_Basic",
+                       "CA_IT",
+                       "CYB_IT",
+                       "CNB_IT",
+                       "CLLB_IT",
+                       "CLMB_IT",
+                       "CLNB_IT",
+                       "Fin2_CN",
+                       "Fin2_CBM",
+                       "Fin2_CHM",
+                       "Fin4_CN",
+                       "Fin4_CBM",
+                       "Fin4_CHM",
+                       "CA_Boost",
+                       "CA_Coast",
+                       "CNB",
+                       "CLMB",
+                       "CLNB",
+                       "CYB",
+                       "CA_Boost_alpha",
+                       "CA_Coast_alpha",
+                       "CNB_alpha"]
+        method_names = ["get_CA",
+                        "get_CA_alpha",
+                        "get_CA_Boost",
+                        "get_CA_Coast",
+                        "get_CA_Boost_alpha",
+                        "get_CA_Coast_alpha",
+                        "get_CNB",
+                        "get_CNB_alpha",
+                        "get_CLMB",
+                        "get_CLNB",
+                        "get_CYB",
+                        "get_MRC",
+                        "get_Lref",
+                        "get_Sref",
+                        "ld_guidance",
+                        "inv_aerodynamics",
+                        ]
+        for name in table_names:
+            setattr(self, name, getattr(aerotable, name))
+        for name in method_names:
+            setattr(self, name, getattr(aerotable, name))
+
+        self.modules = aerotable.modules
+        self.stage_id = aerotable.stage_id
+        self.stages = aerotable.stages
+        self.units = aerotable.units
+        self.Lref = aerotable.Lref
+        self.Sref = aerotable.Sref
+        self.MRC = aerotable.MRC
+        self.increments = aerotable.increments
+
+
+    def add_stage(self, aerotable: "AeroTable") -> None:
+        """Add a \"stage\" to the aerotable."""
+        self.is_stage = False
+        aerotable.is_stage = True
+        self.stages += [aerotable]
+
+
+    # TODO: move this to guidance module
+    def ld_guidance(self,
+                    alpha: float,
+                    phi: Optional[float] = None,
+                    mach: Optional[float] = None,
+                    alt: Optional[float] = None,
+                    iota: Optional[float] = None,
+                    thrust: float = 0):
+        stage = self.get_stage()
+        alpha_max = stage.CNB.axes["alpha"].max()
+        alpha_min = stage.CNB.axes["alpha"].min()
+        # if alpha > alpha_max or alpha < alpha_min:
+        #     print("alpha clipping....")
+
+        def ld_ratio(_alpha):
+            CA = stage.get_CA(alpha=_alpha, phi=phi, mach=mach, alt=alt, iota=iota, thrust=thrust)
+            CN = stage.get_CNB(alpha=_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            cosa = np.cos(_alpha)
+            sina = np.sin(_alpha)
+            CL = (CN * cosa) - (CA * sina)
+            CD = (CN * sina) + (CA * cosa)
+            ratio = -CL / CD
+            return ratio
+        result = minimize_scalar(ld_ratio, bounds=(alpha_min, alpha_max), method='bounded')
+        optimal_alpha = result.x
+        ld_max = -result.fun
+        # optimal CL, CD
+        CA = stage.get_CA(alpha=optimal_alpha, phi=phi, mach=mach, alt=alt, iota=iota, thrust=thrust)
+        CN = stage.get_CNB(alpha=optimal_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+        cosa = np.cos(optimal_alpha)
+        sina = np.sin(optimal_alpha)
+        opt_CL = (CN * cosa) - (CA * sina)
+        opt_CD = (CN * sina) + (CA * cosa)
+
+        optimal_alpha = np.clip(optimal_alpha, alpha_min, alpha_max)
+        return opt_CL, opt_CD, optimal_alpha
+
+
+    def inv_aerodynamics(self,
+                         thrust: float,
+                         acc_cmd: float,
+                         dynamic_pressure: float,
+                         mass: float,
+                         alpha: float,
+                         phi: Optional[float] = None,
+                         mach: Optional[float] = None,
+                         alt: Optional[float] = None,
+                         iota: Optional[float] = None) -> float:
+        aerotable = self.get_stage()
+        if aerotable.units.lower() == "si":
+            alpha_tol = np.radians(0.01)
+        else:
+            alpha_tol = 0.01
+
+        alpha_max = max(aerotable.increments.alpha)
+        Sref = aerotable.get_Sref()
+
+        alpha_last = -1000
+        count = 0
+
+        boosting = (thrust > 0.0)
+
+        # gradient search
+        while ((abs(alpha - alpha_last) > alpha_tol) and (count < 10)):  # type:ignore
+            count += 1
+            alpha_last = alpha
+
+            # TODO switch between Boost / Coast
+            # get coeffs from aerotable
+            CA = aerotable.get_CA(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota, thrust=thrust)
+            CN = aerotable.get_CNB(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            CA_alpha = aerotable.get_CA_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota, thrust=thrust)
+            CN_alpha = aerotable.get_CNB_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+
+            # get derivative of CL wrt alpha
+            cosa = np.cos(alpha)
+            sina = np.sin(alpha)
+            CL = (CN * cosa) - (CA * sina)
+            CL_alpha = ((CN_alpha - CA) * cosa) - ((CA_alpha + CN) * sina)
+            # CD = (CN * sina) + (CA * cosa)
+            # CD_alpha = ((CA_alpha + CN) * cosa) + ((CN_alpha - CA) * sina)
+
+            # calculate current normal acceleration, acc0, and normal acceleration due to
+            # the change in alpha, acc_alpha. Use the difference between the two to
+            # iteratively update alpha.
+            acc_alpha = CL_alpha * dynamic_pressure * Sref / mass + thrust * np.cos(alpha) / mass
+            acc0 = CL * dynamic_pressure * Sref / mass + thrust * np.sin(alpha) / mass
+            alpha = alpha + (acc_cmd - acc0) / acc_alpha
+            alpha = max(0, min(alpha, alpha_max))
+
+        angle_of_attack = alpha
+        return angle_of_attack
+
+
+    @DeprecationWarning
+    def load_stage(self, stage: int) -> "AeroTable":
+        if int(stage) >= len(self.stages):
+            raise Exception("AeroTable stages are not zero-order indexed.")
+        return self.stages[int(stage)]
+
+
+    def set_stage(self, stage: int) -> None:
+        """Set the current stage index for the aerotable. This is
+        so that \"get_stage()\" will return the corresponding aerotable."""
+        if int(stage) >= len(self.stages):
+            raise Exception("AeroTable stages are not zero-order indexed.")
+        self.stage_id = int(stage)
+
+
+    def get_stage(self) -> "AeroTable":
+        """Returns the current aerotable corresponding to the stage_id."""
+        if self.is_stage:
+            return self
+        else:
+            return self.stages[self.stage_id]
+
+
+    def get_CA(self,
+               alpha: Optional[ArgType] = None,
+               phi: Optional[ArgType] = None,
+               mach: Optional[ArgType] = None,
+               alt: Optional[ArgType] = None,
+               iota: Optional[ArgType] = None,
+               thrust: float = 0) -> float|np.ndarray:
+        stage = self.get_stage()
+        boosting = (thrust > 0.0)
+        if boosting:
+            return stage.get_CA_Boost(abs(alpha), phi, mach, alt, iota)  # type:ignore
+        else:
+            return stage.get_CA_Coast(abs(alpha), phi, mach, alt, iota)  # type:ignore
+
+
+    def get_CA_alpha(self,
+                     alpha: Optional[ArgType] = None,
+                     phi: Optional[ArgType] = None,
+                     mach: Optional[ArgType] = None,
+                     alt: Optional[ArgType] = None,
+                     iota: Optional[ArgType] = None,
+                     thrust: float = 0) -> float|np.ndarray:
+        stage = self.get_stage()
+        boosting = (thrust > 0.0)
+        if boosting:
+            return stage.get_CA_Boost_alpha(abs(alpha), phi, mach, alt, iota)  # type:ignore
+        else:
+            return stage.get_CA_Coast_alpha(abs(alpha), phi, mach, alt, iota)  # type:ignore
+
+
     def get_CA_Boost(self,
                      alpha: Optional[ArgType] = None,
                      phi: Optional[ArgType] = None,
                      mach: Optional[ArgType] = None,
                      alt: Optional[ArgType] = None,
                      iota: Optional[ArgType] = None) -> float|np.ndarray:
-        return self.CA_Boost(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
-
+        # TODO do this better
+        # protection / boundary for alpha
+        stage = self.get_stage()
+        if alpha is not None:
+            alpha = np.clip(alpha, stage.CA_Boost.axes["alpha"].min(), stage.CA_Boost.axes["alpha"].max())
+        return stage.CA_Boost(alpha=abs(alpha), phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
 
 
     def get_CA_Coast(self,
@@ -511,15 +853,22 @@ class AeroTable:
                      mach: Optional[ArgType] = None,
                      alt: Optional[ArgType] = None,
                      iota: Optional[ArgType] = None) -> float|np.ndarray:
-        return self.CA_Coast(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+        stage = self.get_stage()
+        if alpha is not None:
+            alpha = np.clip(alpha, stage.CA_Boost.axes["alpha"].min(), stage.CA_Boost.axes["alpha"].max())
+        return stage.CA_Coast(alpha=abs(alpha), phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
 
 
     def get_CNB(self,
                 alpha: Optional[ArgType] = None,
                 phi: Optional[ArgType] = None,
                 mach: Optional[ArgType] = None,
+                alt: Optional[ArgType] = None,
                 iota: Optional[ArgType] = None) -> float|np.ndarray:
-        return self.CNB(alpha=alpha, phi=phi, mach=mach, iota=iota)
+        stage = self.get_stage()
+        if alpha is not None:
+            alpha = np.clip(alpha, stage.CA_Boost.axes["alpha"].min(), stage.CA_Boost.axes["alpha"].max())
+        return stage.CNB(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
 
 
     def get_CLMB(self,
@@ -527,7 +876,8 @@ class AeroTable:
                  phi: Optional[ArgType] = None,
                  mach: Optional[ArgType] = None,
                  iota: Optional[ArgType] = None) -> float|np.ndarray:
-        return self.CLMB(alpha=alpha, phi=phi, mach=mach, iota=iota)
+        stage = self.get_stage()
+        return stage.CLMB(alpha=alpha, phi=phi, mach=mach, iota=iota)
 
 
     def get_CLNB(self,
@@ -535,7 +885,8 @@ class AeroTable:
                  phi: Optional[ArgType] = None,
                  mach: Optional[ArgType] = None,
                  iota: Optional[ArgType] = None) -> float|np.ndarray:
-        return self.CLNB(alpha=alpha, phi=phi, mach=mach, iota=iota)
+        stage = self.get_stage()
+        return stage.CLNB(alpha=alpha, phi=phi, mach=mach, iota=iota)
 
 
     def get_CYB(self,
@@ -543,7 +894,8 @@ class AeroTable:
                 phi: Optional[ArgType] = None,
                 mach: Optional[ArgType] = None,
                 iota: Optional[ArgType] = None) -> float|np.ndarray:
-        return self.CYB(alpha=alpha, phi=phi, mach=mach, iota=iota)
+        stage = self.get_stage()
+        return stage.CYB(alpha=alpha, phi=phi, mach=mach, iota=iota)
 
 
     def get_CA_Boost_alpha(self,
@@ -552,7 +904,10 @@ class AeroTable:
                            mach: Optional[ArgType] = None,
                            alt: Optional[ArgType] = None,
                            iota: Optional[ArgType] = None) -> float|np.ndarray:
-        return self.CA_Boost_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+        stage = self.get_stage()
+        if alpha is not None:
+            alpha = np.clip(alpha, stage.CA_Boost.axes["alpha"].min(), stage.CA_Boost.axes["alpha"].max())
+        return stage.CA_Boost_alpha(alpha=abs(alpha), phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
 
 
     def get_CA_Coast_alpha(self,
@@ -561,7 +916,10 @@ class AeroTable:
                            mach: Optional[ArgType] = None,
                            alt: Optional[ArgType] = None,
                            iota: Optional[ArgType] = None) -> float|np.ndarray:
-        return self.CA_Coast_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+        stage = self.get_stage()
+        if alpha is not None:
+            alpha = np.clip(alpha, stage.CA_Boost.axes["alpha"].min(), stage.CA_Boost.axes["alpha"].max())
+        return stage.CA_Coast_alpha(alpha=abs(alpha), phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
 
 
     def get_CNB_alpha(self,
@@ -570,7 +928,10 @@ class AeroTable:
                       mach: Optional[ArgType] = None,
                       alt: Optional[ArgType] = None,
                       iota: Optional[ArgType] = None) -> float|np.ndarray:
-        return self.CNB_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+        stage = self.get_stage()
+        if alpha is not None:
+            alpha = np.clip(alpha, stage.CA_Boost.axes["alpha"].min(), stage.CA_Boost.axes["alpha"].max())
+        return stage.CNB_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
 
 
     def _get_table_args(self, table: DataTable, **kwargs) -> tuple:
@@ -586,18 +947,19 @@ class AeroTable:
 
 
     def get_MRC(self) -> float|np.ndarray:
-        if isinstance(self.MRC, np.ndarray):
-            return self.MRC[0]
+        stage = self.get_stage()
+        if isinstance(stage.MRC, np.ndarray):
+            return stage.MRC[0]
         else:
-            return self.MRC
+            return stage.MRC
 
 
     def get_Sref(self) -> float:
-        return self.Sref
+        return self.get_stage().Sref
 
 
     def get_Lref(self) -> float:
-        return self.Lref
+        return self.get_stage().Lref
 
 
     def __repr__(self) -> str:

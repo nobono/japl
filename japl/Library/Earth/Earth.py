@@ -1,8 +1,4 @@
 import numpy as np
-from sympy import Matrix
-from sympy import deg, sqrt
-from sympy import sin, cos, atan2
-from sympy import Float
 
 
 _mu = 3986004.418e8               # (m^3 / s^2), Earth gravitational parameter
@@ -16,18 +12,18 @@ _radius_equatorial = 6_378_137.0  # meters
 
 
 def cosd(ang):
-    return deg(cos(ang))
+    return np.degrees(np.cos(ang))
 
 
 def sind(ang):
-    return deg(sin(ang))
+    return np.degrees(np.sin(ang))
 
 
 def atan2d(y, x):
-    return deg(atan2(y, x))
+    return np.degrees(np.arctan2(y, x))
 
 
-class EarthModelSymbolic:
+class Earth:
 
     """This class is an Earth Ellipsoid Reference Model based on
     WGS84."""
@@ -62,23 +58,20 @@ class EarthModelSymbolic:
     #     """
 
 
-    def enu2ecef_cms(self, enu: Matrix, lla0: Matrix):
+    def enu2ecef_cms(self, x_east, y_north, z_up, lat0, lon0, h0):
         """Transform position from local Cartesian (ENU) to geocentric (ECEF)"""
-        a = Float(self.semimajor_axis)
-        f = Float(self.flattening)
-        e2 = Float(self.eccentricity**2)
-
-        lat0, lon0, h0 = lla0
-        x_east, y_north, z_up = enu
+        a = self.semimajor_axis
+        f = self.flattening
+        e2 = self.eccentricity**2
 
         if f == 0:
-            r = h0 + a  # type:ignore
+            r = h0 + a
             rho = r * cosd(lat0)
             z0 = r * sind(lat0)
         else:
             sin_phi = sind(lat0)
             cos_phi = cosd(lat0)
-            N = a / sqrt(1 - e2 * sin_phi**2)
+            N = a / np.sqrt(1 - e2 * sin_phi**2)
             rho = (N + h0) * cos_phi
             z0 = (N * (1 - e2) + h0) * sin_phi  # type:ignore
         x0 = rho * cosd(lon0)
@@ -99,22 +92,21 @@ class EarthModelSymbolic:
 
 
     def ecef_to_geodetic(self,
-                         ecef_xyz: Matrix,
+                         ecef_xyz: np.ndarray,
                          flattening,
                          semimajor_axis):
-
-        a = Float(self.semimajor_axis)
-        b = Float(self.semiminor_axis)
-        f = Float(self.flattening)
-        e2 = Float(self.eccentricity**2)
+        a = self.semimajor_axis
+        b = self.semiminor_axis
+        f = self.flattening
+        e2 = self.eccentricity**2
 
         x, y, z = ecef_xyz
-        rho = sqrt(x**2 + y**2)  # type:ignore
+        rho = np.sqrt(x**2 + y**2)  # type:ignore
         lamb = atan2d(y, x)
 
         if flattening == 0:
             phi = atan2d(z, rho)
-            h = sqrt(z**2 + rho**2) - a  # type:ignore
+            h = np.sqrt(z**2 + rho**2) - a  # type:ignore
         else:
             # Spheroid properties
             ep2 = e2 / (1 - e2)  # Square of second eccentricity # type:ignore
@@ -144,20 +136,7 @@ class EarthModelSymbolic:
 
             # Ellipsoidal height from final value for latitude
             sin_phi = sind(phi)
-            N = semimajor_axis / sqrt(1 - e2 * sin_phi**2)
+            N = semimajor_axis / np.sqrt(1 - e2 * sin_phi**2)
             h = rho * cosd(phi) + (z + e2 * N * sin_phi) * sin_phi - N
 
         return (phi, lamb, h)
-
-
-# earth = EarthModelSymbolic()
-# print(earth.eccentricity**2)
-# print(earth.flattening * (2 - earth.flattening))
-# j2 = (2 / 3) * earth.flattening * (1 - (2 / 5) * ((earth.omega**2 * earth.semimajor_axis**3) / earth.mu))
-# print(earth.J2)
-# print(j2)
-
-# print(earth.flattening)
-# print(earth.inv_flattening)
-# print(earth.eccentricity**2)
-# print(earth.semimajor_axis)
