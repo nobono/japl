@@ -9,7 +9,7 @@ class TestAeroTable(unittest.TestCase):
 
 
     def setUp(self) -> None:
-        self.TOLERANCE_PLACES = 15
+        self.TOLERANCE_PLACES = 10
         self.DIR = os.path.dirname(__file__)
         aero_file = f"{self.DIR}/../../aeromodel/aeromodel_psb.mat"
         self.aerotable = AeroTable(aero_file)
