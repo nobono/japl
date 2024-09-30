@@ -3,6 +3,8 @@ import numpy as np
 from setuptools import setup
 from setuptools import find_packages
 from setuptools import Extension
+from pybind11.setup_helpers import Pybind11Extension
+# from glob import glob
 import platform
 
 
@@ -26,13 +28,17 @@ ode_int_ext = Extension(name="odeint",
                         # extra_link_args=["-shared"],
                         )
 
+linterp_ext = Pybind11Extension("linterp", ["libs/linterp/src/linterp.cpp"])
+
+ext_modules = [ode_int_ext, linterp_ext]
+
 setup(
         name='japl',
         version='0.1',
         install_requires=[],
         packages=find_packages('.'),
         package_dir={'': '.'},
-        ext_modules=[ode_int_ext],
+        ext_modules=ext_modules,
         libraries=[],
         author="nobono",
         author_email="shincdavid@gmail.com",
