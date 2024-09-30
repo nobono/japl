@@ -49,6 +49,11 @@ jobs:
           libxcb-render-util0 \
           libxcb-xinerama0
 
+    - name: Build and Install extension modules
+      run: |
+        python setup.py build_ext --inplace
+        pytohn setup.py install
+
     - name: Test with unittest
       run: |
         pytest
