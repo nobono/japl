@@ -1,7 +1,6 @@
+from japl.Interpolation.Interpolation import LinearInterp
 from typing import Optional, Union
 import numpy as np
-from scipy.interpolate import interpn
-from scipy.interpolate import RegularGridInterpolator
 
 ArgType = Union[float, list, np.ndarray]
 
@@ -24,7 +23,7 @@ class DataTable(np.ndarray):
         if obj is None:
             return
         self.axes = getattr(obj, "axes", {})
-        self.interp: Optional[RegularGridInterpolator] = None
+        self.interp: Optional[LinearInterp] = None
 
 
     def __repr__(self) -> str:
@@ -39,24 +38,23 @@ class DataTable(np.ndarray):
                  mach: Optional[ArgType] = None,
                  alt: Optional[ArgType] = None,
                  iota: Optional[ArgType] = None) -> float|np.ndarray:
+
         # TODO do this better
         # lower boundary on altitude
         if (alt is not None) and ("alt" in self.axes):
             alt = np.clip(alt, self.axes["alt"].min(), self.axes["alt"].max())
+
         # TODO do this better
         # protection / boundary for mach
         if (mach is not None) and ("mach" in self.axes):
             mach = np.clip(mach, self.axes["mach"].min(), self.axes["mach"].max())
+
         # create interpolation object on first execution
         if self.interp is None:
             axes = self._get_table_args(table=self, **self.axes)
-            self.interp = RegularGridInterpolator(axes, self)
+            self.interp = LinearInterp(axes, self)
         args = self._get_table_args(table=self, alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
         ret = self.interp(args)
-        pass
-        # NOTE: old below
-        # axes = self._get_table_args(table=self, **self.axes)
-        # ret = interpn(axes, self, args, method="linear")
         if len(ret.shape) < 1:
             return ret.item()  # type:ignore
         else:
