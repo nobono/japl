@@ -11,11 +11,11 @@ and saving them to a .pickle"""
 
 
 
-__ft2m = (1.0 * u.imperial.foot).to_value(u.m)  # type:ignore
-__inch2m = (1.0 * u.imperial.inch).to_value(u.m)  # type:ignore
-__inch_sq2m_sq = (1.0 * u.imperial.inch**2).to_value(u.m**2)  # type:ignore
-__deg2rad = (np.pi / 180.0)
-__lbminch2Nm = (1.0 * u.imperial.lbm * u.imperial.inch**2).to_value(u.kg * u.m**2)  # type:ignore
+# __ft2m = (1.0 * u.imperial.foot).to_value(u.m)  # type:ignore
+# __inch2m = (1.0 * u.imperial.inch).to_value(u.m)  # type:ignore
+# __inch_sq2m_sq = (1.0 * u.imperial.inch**2).to_value(u.m**2)  # type:ignore
+# __deg2rad = (np.pi / 180.0)
+# __lbminch2Nm = (1.0 * u.imperial.lbm * u.imperial.inch**2).to_value(u.kg * u.m**2)  # type:ignore
 
 
 # matfile = loadmat(__aero_data_path)
@@ -130,6 +130,8 @@ __lbminch2Nm = (1.0 * u.imperial.lbm * u.imperial.inch**2).to_value(u.kg * u.m**
 ########################################
 ########################################
 
+
+
 class MatStruct:
 
     """This class will recreate the structure of a matlab struct object from the
@@ -139,8 +141,15 @@ class MatStruct:
     def __init__(self, data: np.ndarray) -> None:
         # checks
         names = data.dtype.names
-        vals = data.item()
-        assert len(names) == len(vals)
+        if data.shape == (1, 1):
+            vals = data.item()
+            assert len(names) == len(vals)
+        elif data.shape[0] > 1 or data.shape[1] > 1:
+            # Extract each field as a float array and concatenate them into a single matrix
+            vals = np.row_stack([np.array([float(x[0]) for x in data[name]]) for name in names])
+            assert len(names) == vals.shape[0]
+        else:
+            raise Exception("unhandled case.")
 
         for name, val in zip(names, vals):
             if self.is_struct(val):
@@ -197,6 +206,10 @@ class MatFile:
                         self.__setattr__(k, self.safe_unpack(v))
         elif isinstance(self._raw_data, np.ndarray):
             self.__setattr__("data", MatStruct(self._raw_data))
+
+
+    def __contains__(self, attr_name: str) -> bool:
+        return hasattr(self, attr_name)
 
 
     def get(self, key: str, default=None) -> Any:

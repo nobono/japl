@@ -93,8 +93,8 @@ def aero_update(simobj: SimObject, alpha, phi, mach, iota, alt):
     assert simobj.aerotable
     vel = mach * atmosphere.speed_of_sound(alt)
 
-    CLMB = -simobj.aerotable.get_CLMB_Total(alpha, phi, mach, iota)
-    CNB = simobj.aerotable.get_CNB_Total(alpha, phi, mach, iota)
+    CLMB = -simobj.aerotable.get_CLMB(alpha, phi, mach, iota)
+    CNB = simobj.aerotable.get_CNB(alpha, phi, mach, iota)
 
     My_coef = CLMB + (simobj.cg - simobj.aerotable.MRC[0]) * CNB
 

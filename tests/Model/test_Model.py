@@ -28,16 +28,18 @@ class TestExample(unittest.TestCase):
     def test_from_function(self):
         state, input, dt, dynamics = self.setup()
 
-        def func(X, U, dt):
+        def func(t, X, U, S, dt):
             subs = {"vx": 0, "vy": 0, "vz": 0, "ax": 1, "ay": 0, "az": 0}
             return np.array(dynamics.subs(subs))
 
-        model = Model.from_function(dt, state, input, func)
-        self.assertListEqual(list(model.vars), [state, input, dt])
+        model = Model.from_function(dt, state, input, dynamics_func=func)
+        static = Matrix([])
+        self.assertListEqual(list(model.vars), [state, input, static, dt])
         self.assertEqual(len(model.state_vars), model.state_dim)
         self.assertEqual(len(model.input_vars), model.input_dim)
         self.assertEqual(model.dynamics_func, func)
-        self.assertListEqual(model([0, 0, 0, 0, 0, 0], [1, 0, 0], 0.01).tolist(), np.array([0, 0, 0, 1, 0, 0]).tolist())
+        self.assertListEqual(model(0, [0, 0, 0, 0, 0, 0], [1, 0, 0], [], 0.01).tolist(),
+                             np.array([0, 0, 0, 1, 0, 0]).tolist())
 
 
     def test_from_statespace(self):
@@ -69,12 +71,14 @@ class TestExample(unittest.TestCase):
 
     def test_from_expression(self):
         state, input, dt, dynamics = self.setup()
-        model = Model.from_expression(dt, state, input, dynamics)
-        self.assertListEqual(list(model.vars), [state, input, dt])
+        model = Model.from_expression(dt, state, input, dynamics_expr=dynamics)
+        static = Matrix([])
+        self.assertListEqual(list(model.vars), [state, input, static, dt])
         self.assertEqual(len(model.state_vars), model.state_dim)
         self.assertEqual(len(model.input_vars), model.input_dim)
         self.assertEqual(model.dynamics_expr, dynamics)
-        self.assertListEqual(model([0, 0, 0, 0, 0, 0], [1, 0, 0], 0.01).tolist(), np.array([0, 0, 0, 1, 0, 0]).tolist())
+        self.assertListEqual(model(0, [0, 0, 0, 0, 0, 0], [1, 0, 0], [], 0.01).tolist(),
+                             np.array([0, 0, 0, 1, 0, 0]).tolist())
 
 
 if __name__ == '__main__':

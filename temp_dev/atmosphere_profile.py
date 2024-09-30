@@ -35,7 +35,7 @@ for i in range(M):
     #         at._CA_Basic,
     #         [alpha, phi, mach],
     #         method=method)[0]
-    CLMB = at.get_CLMB_Total(alpha, phi, mach, iota)
+    CLMB = at.get_CLMB(alpha, phi, mach, iota)
 
 t = (time.time() - st) / M
 print("dt: %.5f, Hz: %.1f" % (t, 1 / t))

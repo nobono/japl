@@ -17,3 +17,6 @@ numpy-quaternion==2023.0.3
 plotext==5.2.8
 inputs==0.5
 pytest==8.3.2
+dill==0.3.8
+multiprocess==0.70.16
+pybind11==2.13.5
