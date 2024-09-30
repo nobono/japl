@@ -30,7 +30,7 @@ ode_int_ext = Extension(name="odeint",
 
 linterp_ext = Pybind11Extension("linterp", ["libs/linterp/src/linterp.cpp"])
 
-ext_modules = [ode_int_ext, linterp_ext]
+ext_modules = [linterp_ext]
 
 setup(
         name='japl',
