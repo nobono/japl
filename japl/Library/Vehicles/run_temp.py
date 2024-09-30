@@ -98,7 +98,7 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
 
     if do_ld_guidance:
         if not apogee:
-            if(apogee := vel_up < 0.0):
+            if (apogee := vel_up < 0.0):
                 print("Apogee reached %.2f @ t=%.2f (s)" % (alt, t))
         else:
             # do L/D guidance
@@ -331,6 +331,7 @@ def event_hit_ground(t, X, U, S, dt, simobj) -> bool:
 ########################################################
 # Sim
 ########################################################
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Example script using argparse")
