@@ -334,7 +334,7 @@ class PyQtGraphPlotter:
                            title: str = "",
                            row: int = 0,
                            col: int = 0,
-                           color: str = "",
+                           color_code: str = "",
                            size: float = 1,
                            aspect: str = "",
                            show_grid: bool = True,
@@ -347,12 +347,6 @@ class PyQtGraphPlotter:
         if isinstance(win, int):
             win = self.wins[win]
 
-        # resolve color str to hex color code
-        if color:
-            color_code = self.__get_color_code(color)
-        else:
-            color_code = next(self.color_cycle)
-
         pen = {"color": color_code, "width": size}
         plot_item = win.addPlot(row=row, col=col, colspan=2, title=title, name=title)
         if self.xlim:
@@ -362,6 +356,7 @@ class PyQtGraphPlotter:
         # enable autorange
         # plot_item.enableAutoRange(axis='xy', enable=True)
         self.__apply_style_settings_to_plot(plot_item)
+
         # style settings
         text_color_code = self.__get_color_code(self.text_color)
         plot_item.setTitle(title, color=self.text_color)
@@ -393,14 +388,42 @@ class PyQtGraphPlotter:
         # add plot-style to each window using SimObject._PlotInterface
         # config dict.
         for i, (title, axes) in enumerate(simobj.plot.get_config().items()):
+            # get values from plot config
+            # if no color specified in config,
+            # try to get color from simobj
             aspect = axes.get("aspect", self.aspect)
-            color = axes.get("color")
+            color = axes.get("color", simobj.plot.color)
             size = axes.get("size", 1)
-            graphic_item = self.add_plot_to_window(win=win, title=title, row=i, col=0, color=color,
-                                                   size=size, aspect=aspect)
-            # add GraphicsItem reference to SimObject
-            # NOTE: is this out-dated?
+            marker = axes.get("marker", None)
+
+            # resolve color str to hex color code
+            # or get random color
+            if color:
+                color_code = self.__get_color_code(color)
+            else:
+                color_code = next(self.color_cycle)
+
+            # setup line plot for simobj
+            graphic_item = self.add_plot_to_window(win=win, title=title, row=i, col=0,
+                                                   color_code=color_code, size=size, aspect=aspect,
+                                                   plot_item_type=pg.PlotDataItem)
             simobj.plot.qt_traces += [graphic_item]
+
+            # setup marker for simobj
+            if marker:
+                marker_pen = {"color": color_code, "width": size}
+                marker_item = pg.ScatterPlotItem(x=[], y=[], pen=marker_pen,
+                                                 useCache=self.draw_cache_mode,
+                                                 antialias=self.antialias,
+                                                 autoDownsample=True,
+                                                 downsampleMethod="peak",
+                                                 clipToView=True,
+                                                 skipFiniteCheck=True,
+                                                 symbol=marker)
+                # refer to current plot in current window
+                plot_item = win.getItem(row=i, col=0)
+                plot_item.addItem(marker_item)
+                simobj.plot.qt_markers += [marker_item]
             num_plots += 1
 
         # setup vehicle viewer widget
