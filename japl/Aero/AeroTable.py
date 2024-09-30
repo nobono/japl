@@ -206,7 +206,7 @@ class AeroTable:
         self.units = units
         self.stages: list[AeroTable] = []
         self.stage_id: int = 0
-        self.is_stage: bool = False
+        self.is_stage: bool = True
         self.increments = Increments()
         # modules for symbolic mapping
         self.modules = {
