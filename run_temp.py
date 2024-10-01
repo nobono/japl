@@ -368,4 +368,4 @@ if __name__ == "__main__":
 
     out = Results(sim.T, simobj)
     if args.output:
-        out.save(DIR + f"/../../../data/{args.output}.pickle")
+        out.save(DIR + f"/data/{args.output}.pickle")
