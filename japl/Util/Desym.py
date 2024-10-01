@@ -42,7 +42,7 @@ class Desym:
         self.modules.update(self.custom_lambdify_dict)
         if isinstance(modules, dict):
             self.modules.update(modules)
-        elif isinstance(modules, list):
+        elif isinstance(modules, list):  # type:ignore
             for module in modules:
                 self.modules.update(module)
         else:
