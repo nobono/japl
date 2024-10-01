@@ -1,12 +1,12 @@
 import time
 from japl.Util.Desym import Desym
-# from sympy.utilities.autowrap import autowrap
+from sympy.utilities.autowrap import autowrap
 # from sympy.utilities.codegen import codegen
 # from sympy.utilities.codegen import C99CodeGen, CodeGen, Routine
 from sympy import Matrix, symbols
 # from sympy import lambdify
 import numpy as np
-from libraries.Custom.wrapper_module_0 import autofunc_c as mod  # type:ignore
+# from libraries.Custom.wrapper_module_0 import autofunc_c as mod  # type:ignore
 from numba import njit
 
 
@@ -52,7 +52,8 @@ dynamics: Matrix = X_new.diff(dt)  # type:ignore
 lamf = Desym((state, input, dt), dynamics)
 # lamf = lambdify((state, input, dt), dynamics)
 
-outdir = "japl/Library/Custom"
+# outdir = "japl/Library/Custom"
+outdir = "./testy"
 
 # # Generate C code for the expression
 # [(c_name, c_code), (h_name, c_header)] = codegen(
@@ -77,17 +78,19 @@ outdir = "japl/Library/Custom"
 # code_gen = CustomCodeGen()
 # Routine("myfunc", )
 
-# wrapf = autowrap(expr=dynamics,
-#                  args=(*state, *input, dt),
-#                  language="C",
-#                  include_dirs=[],
-#                  # library_dirs=
-#                  # libraries=,
-#                  verbose=True,
-#                  backend="cython",
-#                  tempdir=outdir,
-#                  # code_gen=code_gen,
-#                  )
+st = time.perf_counter()
+wrapf = autowrap(expr=dynamics,
+                 args=(*state, *input, dt),
+                 language="C",
+                 include_dirs=[],
+                 # library_dirs=
+                 # libraries=,
+                 verbose=False,
+                 backend="cython",
+                 # tempdir=outdir,
+                 # code_gen=code_gen,
+                 )
+print("wrap exec:", time.perf_counter() - st)
 
 
 pm = ([0,0,0, 0,0,0, 0,0,0, 1,0,0,0, 10], [1,0,0, 0,0,0], 0.01)     # noqa
@@ -120,25 +123,25 @@ def pyf(X, U, dt):
         ])
 
 
-N = 1_000_000
-st = time.time()
+N = 100_000
+st = time.perf_counter()
 for i in range(N):
     pyf(*pm)
-py_time = time.time() - st
+py_time = time.perf_counter() - st
 print("\nexec py:", py_time)
 
-st = time.time()
+st = time.perf_counter()
 for i in range(N):
     lamf(*pm)
-lam_time = time.time() - st
+lam_time = time.perf_counter() - st
 print("\nexec lam:", lam_time)
 
-st = time.time()
+st = time.perf_counter()
 for i in range(N):
-    # wrapf(*pm[0], *pm[1], pm[2])
-    mod(*pm[0], *pm[1], pm[2])
-wrap_time = time.time() - st
+    wrapf(*pm[0], *pm[1], pm[2])
+    # mod(*pm[0], *pm[1], pm[2])
+wrap_time = time.perf_counter() - st
 print("\nexec wrap:", wrap_time)
 
 
-print(f"\n{py_time / wrap_time}")
+# print(f"\n{py_time / wrap_time}")
