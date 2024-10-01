@@ -591,6 +591,7 @@ class Model:
         """This method loads a Model from a .japl file. Models are saved
         as a tuple of class attributes. Loading a model from a file unpacks
         said attributes and initializes a Model object.
+
         NOTE:
             currently, modules must be passed to this method and reloaded
             into the model in order for Aero & MassProp data tables to work.
