@@ -102,9 +102,13 @@ class Model:
 
             func(t, X, U, S, dt)
 
-        where, 't' is the sim-time 'X' is the current state, 'U', is
-        the current inputs, 'S' is the static variables array and 'dt'
-        is the time step.
+        where,
+
+            - 't' is the sim-time
+            - 'X' is the current state
+            - 'U', is the current inputs
+            - 'S' is the static variables array
+            - 'dt' is the time step.
 
         -------------------------------------------------------------------
         -- Arguments
@@ -328,6 +332,26 @@ class Model:
             return self.dynamics_func(*args).flatten()
         else:
             return np.empty([])
+
+
+    def dump_code(self):
+        """This method will provide the code strings for dynamics,
+        direct-state-update and direct-input-update expressions.
+        This only applies if the Model is symbolically created."""
+        dynamics_code = None
+        state_update_code = None
+        input_update_code = None
+        if (self._type == ModelType.Symbolic):
+            if isinstance(self.dynamics_func, Desym):
+                dynamics_code = self.dynamics_func.code
+            if isinstance(self.direct_state_update_func, Desym):
+                state_update_code = self.direct_state_update_func.code
+            if isinstance(self.direct_input_update_func, Desym):
+                input_update_code = self.direct_input_update_func.code
+            return (dynamics_code, state_update_code, input_update_code)
+        else:
+            raise Exception("Desym.dump_code() only available for"
+                            "symbolically defined models")
 
 
     def step(self, t: float, X: np.ndarray, U: np.ndarray, S: np.ndarray, dt: float) -> np.ndarray:
@@ -584,7 +608,17 @@ class Model:
 
     @classmethod
     def from_file(cls, path: str, modules: dict|list[dict] = {}) -> "Model":
-        """This method loads a Model from a .japl file."""
+        """This method loads a Model from a .japl file. Models are saved
+        as a tuple of class attributes. Loading a model from a file unpacks
+        said attributes and initializes a Model object.
+
+        NOTE:
+            currently, modules must be passed to this method and reloaded
+            into the model in order for Aero & MassProp data tables to work.
+            This is because a symbolic model may be created with empty or
+            temporary data tables that are baked into the model output file.
+            data tables are then loaded at runtime.
+        """
         with open(path, 'rb') as file:
             data = dill.load(file)
         obj = cls()

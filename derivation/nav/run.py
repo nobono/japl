@@ -10,6 +10,7 @@ from japl import Sim
 from japl import Model
 from japl import SimObject
 from japl import PyQtGraphPlotter
+from japl import JAPL_HOME_DIR
 
 ##################################################
 # Setup
@@ -20,17 +21,18 @@ rand = np.random.uniform
 NSTATE = 16
 
 # load
-with open("X_new_func.pickle", "rb") as f:
+path = f"{JAPL_HOME_DIR}/derivation/nav/"
+with open(path + "X_new_func.pickle", "rb") as f:
     X_new_func = pickle.load(f)
-with open("P_new_func.pickle", "rb") as f:
+with open(path + "P_new_func.pickle", "rb") as f:
     P_new_func = pickle.load(f)
-with open("X_accel_update_func.pickle", "rb") as f:
+with open(path + "X_accel_update_func.pickle", "rb") as f:
     X_accel_update_func = pickle.load(f)
-with open("P_accel_update_func.pickle", "rb") as f:
+with open(path + "P_accel_update_func.pickle", "rb") as f:
     P_accel_update_func = pickle.load(f)
-with open("X_gps_update_func.pickle", "rb") as f:
+with open(path + "X_gps_update_func.pickle", "rb") as f:
     X_gps_update_func = pickle.load(f)
-with open("P_gps_update_func.pickle", "rb") as f:
+with open(path + "P_gps_update_func.pickle", "rb") as f:
     P_gps_update_func = pickle.load(f)
 
 ##################################################
@@ -70,8 +72,11 @@ P_init = np.eye(NSTATE)
 X = X_init
 P = P_init
 
+gps_count = 0
 
-def ekf_step(t, X, U, dt):
+
+def ekf_step(t, X, U, S, dt):
+    global gps_count
     global P
     variance = np.array(list(var_subs.values()))
     noise = np.array(list(noise_subs.values()))
@@ -83,8 +88,12 @@ def ekf_step(t, X, U, dt):
     #                  0, 0, 0])
 
     U_gyro = np.array([0, 0, 0], dtype=float)
-    # U_accel = np.array([0, 0, 0], dtype=float)
-    U_accel = rand(-.01, .01, size=3)
+    U_accel = np.array([0, 0, -1], dtype=float)
+    # U_accel = np.array([rand(-.01, .01),
+    #                     rand(-.01, .01),
+    #                     rand(-.01, .01) - 1.0,
+    #                     ])
+
     U = np.concatenate([U_gyro, U_accel])
 
     X = state_predict(X, U, get_mat_upper(P), dt)
@@ -93,7 +102,18 @@ def ekf_step(t, X, U, dt):
     P = cov_predict(X, U, get_mat_upper(P), variance, dt)
 
     X, P = accel_meas_update(X, U, get_mat_upper(P), variance, noise, meas, dt_)
-    # X, P = gps_meas_update(X, U, get_mat_upper(P), variance, noise, meas, dt_)
+    # for i in range(P.shape[0]):
+    #     for j in range(P.shape[0]):
+    #         if i > j:
+    #             P[i, j] = P[j, i]
+    if gps_count % 10 == 0:
+        X, P = gps_meas_update(X, U, get_mat_upper(P), variance, noise, meas, dt_)
+    #     for i in range(P.shape[0]):
+    #         for j in range(P.shape[0]):
+    #             if i > j:
+    #                 P[i, j] = P[j, i]
+
+    # print(np.linalg.norm(P))
 
     q = X[:4]
     p = X[4:7]
@@ -107,29 +127,34 @@ def ekf_step(t, X, U, dt):
           f"b_gyr:{b_gyr}")
     # print(P)
     # array_print(X)
+    gps_count += 1
     return X
 
 
 plotter = PyQtGraphPlotter(frame_rate=30, figsize=[10, 6], aspect="auto")
 
+np.random.seed(123)
+
 print("Building Model...")
-model = Model.from_function(dt, state, input, update_func=ekf_step)
+model = Model.from_function(dt, state, input, state_update_func=ekf_step)
 simobj = SimObject(model)
 simobj.init_state(X)
 simobj.plot.set_config({
     "pos-x": {
         "xaxis": 'pos_n',
-        "yaxis": 'pos_e'
+        "yaxis": 'pos_d',
+        "marker": 'o',
         },
-    # "pos-y": {
+    # "pos-z": {
     #     "xaxis": 'time',
-    #     "yaxis": 'pos_e'
+    #     "yaxis": 'pos_d'
     #     }
     })
 
 print("Starting Sim...")
-sim = Sim([0, 10], 0.02, [simobj])
-# sim.run()
-plotter.animate(sim)
+sim = Sim([0, 200], 0.1, [simobj])
+sim.run()
+# plotter.animate(sim)
+plotter.plot(sim.T, simobj.Y[:, 12])
 plotter.show()
 # quit()

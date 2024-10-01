@@ -1,4 +1,5 @@
 from japl.global_opts import get_plotlib, set_plotlib
+from japl.global_opts import JAPL_HOME_DIR
 
 from japl.Model.Model import Model
 from japl.SimObject.SimObject import SimObject

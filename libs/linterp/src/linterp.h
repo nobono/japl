@@ -45,6 +45,13 @@ For a description of the algorithms, see:
 
 #include "pyutil.h"
 
+#ifdef _WIN32
+    typedef unsigned __int64 ssize_t;
+#endif
+#ifdef _WIN64
+    typedef unsigned __int64 ssize_t;
+#endif
+
 using std::vector;
 using std::array;
 typedef unsigned int uint;
@@ -94,21 +101,26 @@ public:
        
     vector<grid_type> m_grid_list;    
     vector<GridRefCountT> m_grid_ref_list;	// reference counts for grids  
-    vector<vector<T> > m_grid_copy_list;  	// if CopyData == true, this holds the copies of the grids
-    
+    vector<vector<T>> m_grid_copy_list;  	// if CopyData == true, this holds the copies of the grids
+
+    // store values to make class pickleable (pybind11)
+    vector<dVec> _f_gridList;
+    vector<int> _f_sizes;
+    py::array_t<double> _data;
+
     // constructors assume that [f_begin, f_end) is a contiguous array in C-order  
     // non ref-counted constructor.
     template <class IterT1, class IterT2, class IterT3>  
     NDInterpolator(IterT1 grids_begin, IterT2 grids_len_begin, IterT3 f_begin, IterT3 f_end) {
         init(grids_begin, grids_len_begin, f_begin, f_end);  
     }
-  
-  // ref-counted constructor
+
+    // ref-counted constructor
     template <class IterT1, class IterT2, class IterT3, class RefCountIterT>
     NDInterpolator(IterT1 grids_begin, IterT2 grids_len_begin, IterT3 f_begin, IterT3 f_end, ArrayRefCountT &refF, RefCountIterT grid_refs_begin) {
         init_refcount(grids_begin, grids_len_begin, f_begin, f_end, refF, grid_refs_begin);
     }	
-  
+
     template <class IterT1, class IterT2, class IterT3>  														
     void init(IterT1 grids_begin, IterT2 grids_len_begin, IterT3 f_begin, IterT3 f_end) {    
         set_grids(grids_begin, grids_len_begin, m_bCopyData);
@@ -146,7 +158,7 @@ public:
     }	
     
     // assumes that [f_begin, f_end) is a contiguous array in C-order  
-    template <class IterT>  
+    template <class IterT>
     void set_f_array(IterT f_begin, IterT f_end, bool bCopy) {
         unsigned int nGridPoints = 1;
         array<int,N> sizes;
@@ -155,15 +167,15 @@ public:
             nGridPoints *= sizes[i];
         }
 
-    int f_len = f_end - f_begin;
-    if ( (m_bContinuous && f_len != nGridPoints) || (!m_bContinuous && f_len != 2 * nGridPoints) ) {
-        throw std::invalid_argument("f has wrong size");
-    }
-    for (unsigned int i=0; i<m_grid_list.size(); i++) {
-        if (!m_bContinuous) { sizes[i] *= 2; }	  
-    }
+        int f_len = f_end - f_begin;
+        if ( (m_bContinuous && f_len != nGridPoints) || (!m_bContinuous && f_len != 2 * nGridPoints) ) {
+            throw std::invalid_argument("f has wrong size");
+        }
+        for (unsigned int i=0; i<m_grid_list.size(); i++) {
+            if (!m_bContinuous) { sizes[i] *= 2; }
+        }
 
-    m_F_copy.clear();
+        m_F_copy.clear();
         if (bCopy == false) {
             m_pF.reset(new array_type(f_begin, sizes));
         } else {
@@ -171,6 +183,7 @@ public:
             m_pF.reset(new array_type(&m_F_copy[0], sizes));
         }
     }  
+
     void set_f_refcount(ArrayRefCountT &refF) {    
       m_ref_F = refF;
     }
@@ -188,41 +201,41 @@ public:
     }
     
     // return the value of f at the given cell and vertex
-T get_f_val(array<int,N> const &cell_index, array<int,N> const &v_index) const {
-    array<int,N> f_index;
-      
-    if (m_bContinuous) {	  
-        for (int i=0; i<N; i++) {
-            if (cell_index[i] < 0) {
-            f_index[i] = 0;		  
-            } else if (cell_index[i] >= m_grid_list[i].size()-1) {
-                f_index[i] = m_grid_list[i].size()-1;		  
-            } else {
-                f_index[i] = cell_index[i] + v_index[i];		  
+    T get_f_val(array<int,N> const &cell_index, array<int,N> const &v_index) const {
+        array<int,N> f_index;
+
+        if (m_bContinuous) {
+            for (int i=0; i<N; i++) {
+                if (cell_index[i] < 0) {
+                f_index[i] = 0;
+                } else if (cell_index[i] >= m_grid_list[i].size()-1) {
+                    f_index[i] = m_grid_list[i].size()-1;
+                } else {
+                    f_index[i] = cell_index[i] + v_index[i];
+                }
+            }
+        } else {
+            for (int i=0; i<N; i++) {
+                if (cell_index[i] < 0) {
+                f_index[i] = 0;
+                } else if (cell_index[i] >= m_grid_list[i].size()-1) {
+                    f_index[i] = (2*m_grid_list[i].size())-1;
+                } else {
+                    f_index[i] = 1 + (2*cell_index[i]) + v_index[i];
+                }
             }
         }
-    } else {
-        for (int i=0; i<N; i++) {
-            if (cell_index[i] < 0) {
-            f_index[i] = 0;
-            } else if (cell_index[i] >= m_grid_list[i].size()-1) {
-                f_index[i] = (2*m_grid_list[i].size())-1;
-            } else {
-                f_index[i] = 1 + (2*cell_index[i]) + v_index[i];
-            }
+        return (*m_pF)(f_index);
+    }
+
+    T get_f_val(array<int,N> const &cell_index, int v) const {
+        array<int,N> v_index;
+        for (int dim=0; dim<N; dim++) {
+            v_index[dim] = (v >> (N-dim-1)) & 1;						// test if the i-th bit is set
         }
-    }
-      return (*m_pF)(f_index);
-    }
-    
-T get_f_val(array<int,N> const &cell_index, int v) const {
-    array<int,N> v_index;
-    for (int dim=0; dim<N; dim++) {
-        v_index[dim] = (v >> (N-dim-1)) & 1;						// test if the i-th bit is set
-    }
-        return get_f_val(cell_index, v_index);
-    }	
-};  
+            return get_f_val(cell_index, v_index);
+        }
+    };
 
 template <int N, class T, bool CopyData = true, bool Continuous = true, class ArrayRefCountT = EmptyClass, class GridRefCountT = EmptyClass>
 class InterpSimplex : public NDInterpolator<N,T,CopyData,Continuous,ArrayRefCountT,GridRefCountT> {

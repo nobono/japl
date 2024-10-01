@@ -95,7 +95,8 @@ class OctaveCodeGenerator:
 
 
 class CCodeGenerator:
-    def __init__(self, file_name):
+    def __init__(self, file_name, strict: bool = False):
+        self.strict = strict
         self.file_name = file_name
         self.file = open(self.file_name, 'w')
 
@@ -103,7 +104,7 @@ class CCodeGenerator:
         self.file.write("// " + string + "\n")
 
     def get_ccode(self, expression):
-        return ccode(expression, type_aliases={real: float32})
+        return ccode(expression, type_aliases={real: float32}, strict=self.strict)
 
 
     def write_lines(self, string, prefix: str = "", postfix: str = "\n"):
@@ -149,12 +150,13 @@ class CCodeGenerator:
                                        self.get_ccode(matrix[i, j]) + ";\n"
 
         write_string = write_string + "\n\n"
-        self.file.write(write_string)
+        self.write_lines(write_string, prefix="\t")
+        self.write_lines("}")
 
 
     def write_function_definition(self, name, args):
         arg_names = ", ".join(str(i) for i in args)
-        string = f"def {name}({arg_names}):\n\n"
+        string = f"void {name}({arg_names})" + " {\n\n"
         self.file.write(string)
 
 

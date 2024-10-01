@@ -4,7 +4,7 @@ from collections.abc import Generator
 from typing import Optional, Callable
 from japl.Model.Model import Model
 from japl.Util.Util import flatten_list
-from pyqtgraph import PlotDataItem, mkPen
+from pyqtgraph import ScatterPlotItem, PlotDataItem, mkPen
 from pyqtgraph.Qt.QtGui import QPen
 from matplotlib.lines import Line2D
 from matplotlib import colors as mplcolors
@@ -63,8 +63,9 @@ class _PlotInterface:
             self.color_code = self.get_mpl_color_code(self.color)
 
         # graphic objects
-        self.traces: list[Line2D] = []
-        self.qt_traces: list[PlotDataItem] = []
+        self.traces: list[Line2D] = []  # line / scatter plot-item for simobj (Matplotlib)
+        self.qt_traces: list[PlotDataItem] = []  # line / scatter plot-items for simobj (PyQtGraph)
+        self.qt_markers: list[ScatterPlotItem] = []  # marker plot-item for simobj (PyQtGraph)
 
 
     def set_config(self, plot_config: dict) -> None:
@@ -107,6 +108,8 @@ class _PlotInterface:
 
         if self.plotting_backend == "pyqtgraph":
             self.qt_traces[subplot_id].setData(x=xdata, y=ydata, **kwargs)
+            if subplot_id < len(self.qt_markers):
+                self.qt_markers[subplot_id].setData(x=[xdata[-1]], y=[ydata[-1]])
 
 
 class SimObject:

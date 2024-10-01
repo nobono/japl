@@ -5,7 +5,7 @@
 
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
-// #include <pybind11/stl.h>  // Enables automatic conversion
+#include <pybind11/stl.h>  // Enables automatic conversion
 
 
 dVec linspace(double first, double last, int len) {
@@ -103,6 +103,10 @@ NDInterpolator_1_ML create_interp_1(pybind11::tuple axes, pybind11::array_t<doub
     auto begins_ends = get_begins_ends(f_gridList.begin(), f_gridList.end());
     NDInterpolator_1_ML interp_multilinear(begins_ends.first.begin(), f_sizes,
                                            f.data(), f.data() + f.size());
+    // store values to make interp class pickeable
+    interp_multilinear._f_gridList = f_gridList;
+    interp_multilinear._f_sizes = f_sizes;
+    interp_multilinear._data = data.attr("copy")();
     return interp_multilinear;
 }
 
@@ -232,12 +236,50 @@ NDInterpolator_5_ML create_interp_5(pybind11::tuple axes, pybind11::array_t<doub
     return interp_multilinear;
 }
 
+typedef double T;
+typedef EmptyClass ArrayRefCountT;
+typedef EmptyClass GridRefCountT;
+typedef boost::numeric::ublas::array_adaptor<T> grid_type;
+typedef boost::const_multi_array_ref<T, 1> array_type;
+typedef std::unique_ptr<array_type> array_type_ptr;
+
+
 // Binding the function to Python
 PYBIND11_MODULE(linterp, m) {
     pybind11::class_<NDInterpolator_1_ML>(m, "Interp1d")
         .def(pybind11::init(&create_interp_1))
         .def("interpolate", &NDInterpolator_1_ML::interpolate, "interpolation method")
-        .def("__call__", &NDInterpolator_1_ML::interpolate, "interpolation method");
+        .def("__call__", &NDInterpolator_1_ML::interpolate, "interpolation method")
+        .def(py::pickle(
+            [](const NDInterpolator_1_ML &p) { // __getstate__
+                /* Return a tuple that fully encodes the state of the object */
+                return py::make_tuple(p._f_gridList, p._f_sizes, p._data);
+            },
+            [](py::tuple t) { // __setstate__
+                if (t.size() != 3)
+                    throw std::runtime_error("Invalid state!");
+
+                /* Reinitialize Interp */
+                vector<dVec> f_gridList = t[0].cast<vector<dVec>>();
+                vector<int> f_sizes = t[1].cast<vector<int>>();
+                py::array_t<double> data = t[2].cast<py::array_t<double>>();
+                const int N = f_gridList.size();
+
+                // process table values
+                pybind11::array_t<double> f(f_sizes);
+                vector<int> index(N);
+                vector<double> arg(N);
+                for (int i=0; i<f_sizes[0]; i++) {
+                    index[0] = i;
+                    arg = get_grid_point(f_gridList, index);
+                    f.mutable_at(i) = *data.data(i);
+                }
+                auto begins_ends = get_begins_ends(f_gridList.begin(), f_gridList.end());
+                NDInterpolator_1_ML p(begins_ends.first.begin(), f_sizes,
+                                                       f.data(), f.data() + f.size());
+                return p;
+            }
+        ));
     pybind11::class_<NDInterpolator_2_ML>(m, "Interp2d")
         .def(pybind11::init(&create_interp_2))
         .def("interpolate", &NDInterpolator_2_ML::interpolate, "interpolation method")

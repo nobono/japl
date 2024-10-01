@@ -1,54 +1,35 @@
 import numpy as np
-import quaternion
-from japl.Math.Math import skew
-from sympy import symbols
-from japl import StateRegister
+import japl
+from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
+from japl import Model
+from derivation.nav.code_gen import CCodeGenerator
+from sympy import cse, symbols, Matrix
 
 
-reg = StateRegister()
-reg.update({"x": {"id": 0, "label": "x"}})
-# syms = symbols(["x, y, z, vx, vy, vz"])[0]
-# s = symbols(["x", "y", "z"])
-quit()
-
-Quat = quaternion.from_float_array
+model = japl.Model.from_file(f"{japl.JAPL_HOME_DIR}/data/mmd.japl")
+d, s, i = model.dump_code()
 
 
-
-# e = quaternion.as_euler_angles(q)
-# qq = quaternion.from_euler_angles([0, 0, 0])
-
-omega = np.array([
-    np.radians(0),
-    np.radians(1),
-    np.radians(0),
-    ])
-
-Skew = skew(omega)
-
-Sw = np.array([
-    [0, *-omega],
-    [omega[0], *Skew[0]],
-    [omega[1], *Skew[1]],
-    [omega[2], *Skew[2]],
-    ])
+def unpack_vars(vars):
+    ret = []
+    for var in vars:
+        if hasattr(var, "__len__"):
+            ret += unpack_vars(var)
+        else:
+            ret += [var]
+    return ret
 
 
-q = Quat([1, 0, 0, 0]).components
-dt = .01
-for i in range(500):
-    # q_dot = 0.5 * Sw @ q
-    Sq = np.array([
-        [-q[1], -q[2], -q[3]],
-        [q[0], -q[3], q[2]],
-        [q[3], q[0], -q[1]],
-        [-q[2], q[1], q[0]],
-        ])
-    q_dot = 0.5 * Sq @ omega
-    q = q_dot * dt + q
-    pass
-pass
-print(q)
-ang = quaternion.as_euler_angles(Quat(q))
-print(np.degrees(ang))
-print(quaternion.from_euler_angles(ang))
+def write_function_to_file(path: str, model: Model, codegen):
+    dynamics_simple = cse(model.dynamics_expr, symbols("X0:1000"), optimizations="basic")
+    vars = unpack_vars(model.vars)
+    gen = codegen(path)
+    gen.write_function_definition(name="dynamics", args=vars)
+    gen.write_subexpressions(dynamics_simple[0])
+    gen.write_matrix(matrix=Matrix(dynamics_simple[1]),
+                     variable_name="Xdot")
+    gen.close()
+
+
+path = f"{japl.JAPL_HOME_DIR}/data/test_code.cpp"
+write_function_to_file(path, model, CCodeGenerator)
