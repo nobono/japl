@@ -14,6 +14,7 @@ from japl.BuildTools.DirectUpdate import DirectUpdate
 from japl.Aero.AeroTableSymbolic import AeroTableSymbolic
 from japl.Math.RotationSymbolic import ecef_to_lla_sym
 from japl.Library.Earth.Earth import Earth
+from japl import JAPL_HOME_DIR
 
 DIR = os.path.dirname(__file__)
 np.set_printoptions(suppress=True, precision=8)
@@ -32,7 +33,7 @@ model = MissileGenericMMD()
 ################################################
 
 atmosphere = AtmosphereSymbolic()
-aerotable = AeroTableSymbolic(DIR + "/../../../aeromodel/stage_1_aero.mat",
+aerotable = AeroTableSymbolic(JAPL_HOME_DIR + "/aeromodel/stage_1_aero.mat",
                               from_template="orion")
 # aerotable = AeroTableSymbolic()
 
@@ -642,4 +643,4 @@ if __name__ == "__main__":
                                               definitions=defs,
                                               use_multiprocess_build=True)
 
-    model.save(path=DIR + "/../../../data/", name="mmd")
+    model.save(path=JAPL_HOME_DIR + "/data/", name="mmd")
