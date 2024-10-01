@@ -23,6 +23,11 @@ from japl.Sim.Integrate import runge_kutta_4
 from japl.Util.Matlab import MatFile
 from scipy.interpolate import RegularGridInterpolator
 
+
+def get_thrust(*args):
+    return (None, None, None, None)
+
+
 DIR = os.path.dirname(__file__)
 np.set_printoptions(suppress=True, precision=8)
 
