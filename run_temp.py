@@ -14,9 +14,9 @@ from japl.Guidance.Guidance import pitchover_guidance
 from japl import Atmosphere
 from japl.Util.Results import Results
 
-DIR = os.path.dirname(__file__)
-AEROMODEL_DIR = DIR + "/aeromodel/"
-DATA_DIR = DIR + "/data/"
+DIR = os.path.dirname(__file__) + "/"
+AEROMODEL_DIR = DIR + "aeromodel/"
+DATA_DIR = DIR + "data/"
 np.set_printoptions(suppress=True, precision=3)
 
 
@@ -368,4 +368,4 @@ if __name__ == "__main__":
 
     out = Results(sim.T, simobj)
     if args.output:
-        out.save(DIR + f"/data/{args.output}.pickle")
+        out.save(DIR + f"data/{args.output}.pickle")
