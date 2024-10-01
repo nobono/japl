@@ -334,7 +334,7 @@ class PyQtGraphPlotter:
                            title: str = "",
                            row: int = 0,
                            col: int = 0,
-                           color_code: str = "",
+                           color: str = "",
                            size: float = 1,
                            aspect: str = "",
                            show_grid: bool = True,
@@ -346,6 +346,12 @@ class PyQtGraphPlotter:
         # if "win" is window-id, get from list
         if isinstance(win, int):
             win = self.wins[win]
+
+        # resolve color str to hex color code
+        if color:
+            color_code = self.__get_color_code(color)
+        else:
+            color_code = next(self.color_cycle)
 
         pen = {"color": color_code, "width": size}
         plot_item = win.addPlot(row=row, col=col, colspan=2, title=title, name=title)
@@ -404,9 +410,8 @@ class PyQtGraphPlotter:
                 color_code = next(self.color_cycle)
 
             # setup line plot for simobj
-            graphic_item = self.add_plot_to_window(win=win, title=title, row=i, col=0,
-                                                   color_code=color_code, size=size, aspect=aspect,
-                                                   plot_item_type=pg.PlotDataItem)
+            graphic_item = self.add_plot_to_window(win=win, title=title, row=i, col=0, color=color,
+                                                   size=size, aspect=aspect)
             simobj.plot.qt_traces += [graphic_item]
 
             # setup marker for simobj
