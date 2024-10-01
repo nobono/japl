@@ -249,7 +249,6 @@ def build_model(state: Matrix,
     undefined_symbols = undefined_symbols.difference({t.name, dt.name})
 
     if undefined_symbols:
-        breakpoint()
         error_msg_wrapper(f"Undefined Symbols found in model:\n{undefined_symbols}")
 
     # write_array(state, "./temp_state.py")
