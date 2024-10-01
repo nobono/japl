@@ -28,7 +28,9 @@ ode_int_ext = Extension(name="odeint",
                         # extra_link_args=["-shared"],
                         )
 
-linterp_ext = Pybind11Extension("linterp", ["libs/linterp/src/linterp.cpp"])
+linterp_ext = Pybind11Extension("linterp", ["libs/linterp/src/linterp.cpp"],
+                                extra_compile_args=['-std=c++11'],
+                                extra_link_args=['-std=c++11'])
 
 ext_modules = [linterp_ext]
 
