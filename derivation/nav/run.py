@@ -75,7 +75,7 @@ P = P_init
 gps_count = 0
 
 
-def ekf_step(t, X, U, dt):
+def ekf_step(t, X, U, S, dt):
     global gps_count
     global P
     variance = np.array(list(var_subs.values()))
@@ -136,7 +136,7 @@ plotter = PyQtGraphPlotter(frame_rate=30, figsize=[10, 6], aspect="auto")
 np.random.seed(123)
 
 print("Building Model...")
-model = Model.from_function(dt, state, input, update_func=ekf_step)
+model = Model.from_function(dt, state, input, state_update_func=ekf_step)
 simobj = SimObject(model)
 simobj.init_state(X)
 simobj.plot.set_config({
