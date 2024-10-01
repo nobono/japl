@@ -102,9 +102,13 @@ class Model:
 
             func(t, X, U, S, dt)
 
-        where, 't' is the sim-time 'X' is the current state, 'U', is
-        the current inputs, 'S' is the static variables array and 'dt'
-        is the time step.
+        where,
+
+            - 't' is the sim-time
+            - 'X' is the current state
+            - 'U', is the current inputs
+            - 'S' is the static variables array
+            - 'dt' is the time step.
 
         -------------------------------------------------------------------
         -- Arguments
