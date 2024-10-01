@@ -1,7 +1,7 @@
 
 
 
-def flatten_list(_list: list) -> list:
+def flatten_list(_list: list|tuple) -> list:
     ret = []
     for item in _list:
         if not hasattr(item, "__len__") or isinstance(item, str):
