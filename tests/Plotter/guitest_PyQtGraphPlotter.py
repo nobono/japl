@@ -35,7 +35,7 @@ class TestPyQtGraphPlotter():
                                                title="test",
                                                row=0,
                                                col=0,
-                                               color=color,
+                                               color_code=color,
                                                size=1,
                                                aspect="equal")
         assert isinstance(plot_item, pg.PlotDataItem)
