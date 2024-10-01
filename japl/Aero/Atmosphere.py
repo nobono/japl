@@ -1,6 +1,7 @@
 import numpy as np
 from ambiance import Atmosphere as AmbianceAtmosphere
 from scipy.interpolate import RegularGridInterpolator
+from japl.Interpolation.Interpolation import LinearInterp
 # from cached_interpolate import CachingInterpolant
 
 
@@ -21,11 +22,18 @@ class Atmosphere:
         self._speed_of_sound = self._atmos.speed_of_sound.copy()
         self._grav_accel = self._atmos.grav_accel.copy()
 
-        self._pressure_interp = RegularGridInterpolator((self._alts,), self._pressure)
-        self._density_interp = RegularGridInterpolator((self._alts,), self._density)
-        self._temperature_in_celsius_interp = RegularGridInterpolator((self._alts,), self._temperature_in_celsius)
-        self._speed_of_sound_interp = RegularGridInterpolator((self._alts,), self._speed_of_sound)
-        self._grav_accel_interp = RegularGridInterpolator((self._alts,), self._grav_accel)
+
+        # self._pressur_interp = RegularGridInterpolator((self._alts,), self._pressure)
+        # self._density_interp = RegularGridInterpolator((self._alts,), self._density)
+        # self._temperature_in_celsius_interp = RegularGridInterpolator((self._alts,), self._temperature_in_celsius)
+        # self._speed_of_sound_interp = RegularGridInterpolator((self._alts,), self._speed_of_sound)
+        # self._grav_accel_interp = RegularGridInterpolator((self._alts,), self._grav_accel)
+
+        self._pressure_interp = LinearInterp((self._alts,), self._pressure)
+        self._density_interp = LinearInterp((self._alts,), self._density)
+        self._temperature_in_celsius_interp = LinearInterp((self._alts,), self._temperature_in_celsius)
+        self._speed_of_sound_interp = LinearInterp((self._alts,), self._speed_of_sound)
+        self._grav_accel_interp = LinearInterp((self._alts,), self._grav_accel)
 
         self.modules = {
                 "atmosphere_pressure": self.pressure,
@@ -37,45 +45,44 @@ class Atmosphere:
                 }
 
 
-
     def pressure(self, alt: float|list|np.ndarray) -> float:
         alt = np.maximum(alt, 0)
         if hasattr(alt, "__len__"):
-            return self._pressure_interp(alt)  # type:ignore
+            return self._pressure_interp((alt,))  # type:ignore
         else:
-            return self._pressure_interp([alt])[0]  # type:ignore
+            return self._pressure_interp(([alt],))[0]  # type:ignore
 
 
     def density(self, alt: float|list|np.ndarray) -> float:
         alt = np.maximum(alt, 0)
         if hasattr(alt, "__len__"):
-            return self._density_interp(alt)  # type:ignore
+            return self._density_interp((alt,))  # type:ignore
         else:
-            return self._density_interp([alt])[0]  # type:ignore
+            return self._density_interp(([alt],))[0]  # type:ignore
 
 
     def temperature(self, alt: float|list|np.ndarray) -> float:
         alt = np.maximum(alt, 0)
         if hasattr(alt, "__len__"):
-            return self._temperature_in_celsius_interp(alt)  # type:ignore
+            return self._temperature_in_celsius_interp((alt,))  # type:ignore
         else:
-            return self._temperature_in_celsius_interp([alt])[0]  # type:ignore
+            return self._temperature_in_celsius_interp(([alt],))[0]  # type:ignore
 
 
     def speed_of_sound(self, alt: float|list|np.ndarray) -> float:
         alt = np.maximum(alt, 0)
         if hasattr(alt, "__len__"):
-            return self._speed_of_sound_interp(alt)  # type:ignore
+            return self._speed_of_sound_interp((alt,))  # type:ignore
         else:
-            return self._speed_of_sound_interp([alt])[0]  # type:ignore
+            return self._speed_of_sound_interp(([alt],))[0]  # type:ignore
 
 
     def grav_accel(self, alt: float|list|np.ndarray) -> float:
         alt = np.maximum(alt, 0)
         if hasattr(alt, "__len__"):
-            return self._grav_accel_interp(alt)  # type:ignore
+            return self._grav_accel_interp((alt,))  # type:ignore
         else:
-            return self._grav_accel_interp([alt])[0]  # type:ignore
+            return self._grav_accel_interp(([alt],))[0]  # type:ignore
 
 
     def dynamic_pressure(self, vel: float|list|np.ndarray, alt: float|list|np.ndarray) -> float:
