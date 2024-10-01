@@ -108,7 +108,8 @@ class _PlotInterface:
 
         if self.plotting_backend == "pyqtgraph":
             self.qt_traces[subplot_id].setData(x=xdata, y=ydata, **kwargs)
-            self.qt_markers[subplot_id].setData(x=[xdata[-1]], y=[ydata[-1]])
+            if subplot_id < len(self.qt_markers):
+                self.qt_markers[subplot_id].setData(x=[xdata[-1]], y=[ydata[-1]])
 
 
 class SimObject:
