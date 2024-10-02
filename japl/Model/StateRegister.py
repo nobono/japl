@@ -1,6 +1,7 @@
 from typing import Optional
+import numpy as np
 
-from sympy import Matrix, symbols
+from sympy import Matrix, symbols, MatrixSymbol
 from sympy import Symbol, Function
 
 # ---------------------------------------------------
@@ -24,12 +25,12 @@ class StateRegister(dict):
     def __init__(self, state: dict|list[str]|str = {}):
         self._syms: list[Symbol] = []
 
-        if isinstance(state, dict):
-            self.update(state)
-        elif isinstance(state, list):
-            self._syms = list(symbols(state))
-        elif isinstance(state, str):
-            self._syms = list(symbols([state])[0])
+        # if isinstance(state, dict):
+        #     self.update(state)
+        # elif isinstance(state, list):
+        #     self._syms = list(symbols(state))
+        # elif isinstance(state, str):
+        #     self._syms = list(symbols([state])[0])
 
 
     def _pre_sim_checks(self) -> None:
@@ -38,11 +39,11 @@ class StateRegister(dict):
 
         # sort the sym variables ordered according to their state index
         self._syms = [v["var"] for _, v in self.items()]
-        self._syms = sorted(self._syms, key=lambda x: self[str(x)]["id"])
+        self._syms = sorted(self._syms, key=lambda x: self[str(x)]["id"])  # type:ignore
 
 
     @staticmethod
-    def _extract_variable(var) -> Symbol:
+    def _extract_variable(var) -> Symbol|MatrixSymbol:
         """This method helps process sympy symbolic variables before
         storing into the register.
 
@@ -53,6 +54,8 @@ class StateRegister(dict):
             return var
         elif isinstance(var, Function):
             return Symbol(var.name)  # type:ignore
+        elif isinstance(var, MatrixSymbol):
+            return var
         else:
             raise Exception("unhandled case.")
 
@@ -62,11 +65,54 @@ class StateRegister(dict):
         for id, var in enumerate(vars):  # type:ignore
             var = self._extract_variable(var)
             var_name = str(var)
+
             if labels and id < len(labels):
                 label = labels[id]
             else:
                 label = var_name
-            self.update({var_name: {"id": id, "label": label, "var": var}})
+
+            if isinstance(var, MatrixSymbol):
+                size = len(var.as_mutable())
+            else:
+                size = 1
+            self.update({var_name: {"id": id, "label": label, "var": var, "size": size}})
+
+
+    def get_ids(self, names: str|list[str]) -> int|list[int]:
+        """This method get the sympy variable associated with the provided
+        name. variables must first be added to the StateRegister. If a list
+        of state names are provided, then a list of corresponding input ids
+        will be returned.
+
+        If sympy MatrixElement has been registered in the input e.g. 'x[i, j]',
+        then the provided name 'x' will return all indices of that particular
+        input.
+
+        -------------------------------------------------------------------
+        -- Arguments
+        -------------------------------------------------------------------
+        -- name - (str | list[str]) name of the symbolic input variable
+                name or a list of symbolic input variable names
+        -------------------------------------------------------------------
+        -- Returns
+        -------------------------------------------------------------------
+        -- (int | list[int]) - the index of the input variable in the
+                input array or list of indices.
+        -------------------------------------------------------------------
+        """
+        if isinstance(names, list):
+            # TODO list of names here doesnt account
+            # for MatrixSymbols
+            ids = [self[k]["id"] for k in names]
+            return ids
+        else:
+            start_id = self[names]["id"]
+            size = self[names]["size"]
+            if size > 1:
+                ids = [*np.arange(start_id, start_id + size)]
+                return ids
+            else:
+                return start_id
 
 
     def get_vars(self) -> Matrix:
