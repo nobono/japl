@@ -1,5 +1,4 @@
 import unittest
-import numpy as np
 from sympy import symbols, Matrix, Symbol, MatrixSymbol
 from japl import StateRegister
 
@@ -45,7 +44,7 @@ class TestStateRegister(unittest.TestCase):
         reg = StateRegister()
         reg.set(state)
         m_ids = reg.get_ids("m")
-        self.assertListEqual(m_ids, [1, 2, 3, 4, 5, 6, 7, 8, 9])  # type:ignore
+        self.assertListEqual(m_ids, [[1, 2, 3], [4, 5, 6], [7, 8, 9]])  # type:ignore
 
 
 if __name__ == '__main__':
