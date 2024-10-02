@@ -183,9 +183,7 @@ class Sim:
         # apply direct updates to input
         if simobj.model.direct_input_update_func:
             U_temp = simobj.model.direct_input_update_func(tstep, X, U, S, dt).flatten()
-            for i in range(len(U_temp)):
-                if not np.isnan(U_temp[i]):
-                    U[i] = U_temp[i]
+            U[~np.isnan(U_temp)] = U_temp[~np.isnan(U_temp)]  # ignore nan values
 
         # apply direct updates to state
         if simobj.model.direct_state_update_func:
@@ -193,9 +191,7 @@ class Sim:
             if X_temp is None:
                 raise Exception("Model direct_state_update_func returns None."
                                 f"(in SimObject \"{simobj.name})\"")
-            for i in range(len(X_temp)):
-                if not np.isnan(X_temp[i]):
-                    X[i] = X_temp[i]
+            X[~np.isnan(X_temp)] = X_temp[~np.isnan(X_temp)]  # ignore nan values
 
         if not simobj.model.dynamics_func:
             self.T[istep] = tstep + dt
@@ -241,11 +237,12 @@ class Sim:
 
             # store results
             self.T[istep] = T_new
-            for i in range(len(X_new)):
-                if not np.isnan(X_new[i]):
-                    simobj.Y[istep][i] = X_new[i]
-                else:
-                    simobj.Y[istep][i] = X[i]
+
+            # ignore any X_new that is nan
+            mask = ~np.isnan(X_new)
+            simobj.Y[istep][mask] = X_new[mask]
+            simobj.Y[istep][~mask] = X[~mask]
+
             # simobj.Y[istep] = X_new
             simobj.U[istep] = U
             self.istep += 1
