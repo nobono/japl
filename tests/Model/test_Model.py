@@ -5,7 +5,7 @@ from japl import Model
 
 
 
-class TestExample(unittest.TestCase):
+class TestModel(unittest.TestCase):
 
 
     def setup(self):
