@@ -62,6 +62,9 @@ def build_model(state: Matrix,
     for var in state:
         if isinstance(var, MatrixElement):
             setattr(var, "name", str(var))
+        elif isinstance(var, DirectUpdateSymbol):
+            if isinstance(var.state_expr, MatrixElement):
+                setattr(var.state_expr, "name", str(var))
 
     # state & input array checks
     _check_var_array_types(state, "state")
@@ -86,12 +89,22 @@ def build_model(state: Matrix,
     # also gather direct update (state_var (Function), state_var (Symbol))
     # for substition into defs
     ############################################################
+    def _name_to_symbolic(var):
+        """this function ensures correct symbolic
+        type is returned. This is to allow MatrixElements
+        to be used."""
+        if isinstance(var, MatrixElement):
+            return var
+        else:
+            name = getattr(var, "name")
+            return Symbol(name)
+
     print("resolving state & input to Symbols...")
     state_subs = {i: Symbol(i.name) for i in state.atoms(Function)}
-    state_subs.update({i.state_expr: Symbol(i.state_expr.name) for i in state.atoms(DirectUpdateSymbol)})
+    state_subs.update({i.state_expr: _name_to_symbolic(i.state_expr) for i in state.atoms(DirectUpdateSymbol)})
 
     input_subs = {i: Symbol(i.name) for i in input.atoms(Function)}
-    input_subs.update({i.state_expr: Symbol(i.state_expr.name) for i in input.atoms(DirectUpdateSymbol)})
+    input_subs.update({i.state_expr: _name_to_symbolic(i.state_expr) for i in input.atoms(DirectUpdateSymbol)})
 
     static_subs = {i: Symbol(i.name) for i in static.atoms(Function)}
 
@@ -104,7 +117,7 @@ def build_model(state: Matrix,
         if isinstance(expr, DirectUpdateSymbol):
             state_direct_updates += [expr.sub_expr]
             # ensure state_expr is not Function
-            expr.state_expr = Symbol(expr.state_expr.name)  # type:ignore
+            expr.state_expr = _name_to_symbolic(expr.state_expr)
         else:
             state_direct_updates += [nan]
     state_direct_updates = Matrix(state_direct_updates)
@@ -118,7 +131,7 @@ def build_model(state: Matrix,
         if isinstance(expr, DirectUpdateSymbol):
             input_direct_updates += [expr.sub_expr]
             # ensure state_expr is not Function
-            expr.state_expr = Symbol(expr.state_expr.name)  # type:ignore
+            expr.state_expr = _name_to_symbolic(expr.state_expr)
         else:
             input_direct_updates += [nan]
     input_direct_updates = Matrix(input_direct_updates)

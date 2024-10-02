@@ -5,6 +5,8 @@ from sympy import Matrix, symbols, MatrixSymbol
 from sympy import Symbol, Function
 from sympy.matrices.expressions.matexpr import MatrixElement
 
+from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
+
 # ---------------------------------------------------
 
 
@@ -63,13 +65,26 @@ class StateRegister(dict):
             raise Exception("unhandled case.")
 
 
-    def set(self, vars: tuple|list|Matrix, labels: Optional[list|tuple] = None):
+    @staticmethod
+    def _extract_variable_name(var) -> str:
+        if isinstance(var, MatrixElement):
+            name = str(var)
+        else:
+            name = getattr(var, "name", None)
+        if name is None:
+            raise Exception("unhandled case: cannot get name attribute from var.")
+        return name
+
+
+    def set(self, vars: tuple|list|Matrix, labels: Optional[list|tuple] = None) -> None:
         """register state and labels"""
         for id, var in enumerate(vars):  # type:ignore
+            # recursive
+            if isinstance(var, DirectUpdateSymbol):
+                self.set([var.state_expr])
+
             var = self._extract_variable(var)
-            var_name = getattr(var, "name", None)
-            if var_name is None:
-                raise Exception("unhandled case: cannot get name attribute from var.")
+            var_name = self._extract_variable_name(var)
 
             if labels and id < len(labels):
                 label = labels[id]

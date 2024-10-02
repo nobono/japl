@@ -1,7 +1,7 @@
 # from sympy.core.function import FunctionClass, UndefinedFunction
 from typing import Union
 from sympy import Symbol
-from sympy import Expr, Matrix, Function, Number
+from sympy import Expr, Matrix, Function, Number, MatrixSymbol
 from sympy.matrices.expressions.matexpr import MatrixElement
 from sympy import zeros as sympy_zeros
 
@@ -16,7 +16,7 @@ class DirectUpdateSymbol(Symbol):
     where state_expr references the state variable and sub_expr references the expression
     or variable which will update the state."""
 
-    def __init__(self, name: str, state_expr: Expr, sub_expr: Expr, **assumptions):
+    def __init__(self, name: str, state_expr: Expr, sub_expr: Expr, **assumptions):  # type:ignore
         self.state_expr = state_expr
         self.sub_expr = sub_expr
         return super().__init__()
@@ -47,6 +47,12 @@ class DirectUpdate(Matrix):
     def process_symbols(var, val) -> Matrix:
         """Takes Matrix, Function, Symbol and returns DirectUpdateSymbol."""
         if isinstance(var, Symbol):
+            name = str(var)
+            return Matrix([DirectUpdateSymbol(name, state_expr=var, sub_expr=val)])
+        # elif isinstance(var, MatrixSymbol):
+        #     return Matrix([DirectUpdate.process_symbols(var_elem, val_elem)
+        #                    for var_elem, val_elem in zip(var, val)])  # type:ignore
+        elif isinstance(var, MatrixElement):
             name = str(var)
             return Matrix([DirectUpdateSymbol(name, state_expr=var, sub_expr=val)])
         match var.__class__():
