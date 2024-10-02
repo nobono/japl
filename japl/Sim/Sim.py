@@ -241,7 +241,12 @@ class Sim:
 
             # store results
             self.T[istep] = T_new
-            simobj.Y[istep] = X_new
+            for i in range(len(X_new)):
+                if not np.isnan(X_new[i]):
+                    simobj.Y[istep][i] = X_new[i]
+                else:
+                    simobj.Y[istep][i] = X[i]
+            # simobj.Y[istep] = X_new
             simobj.U[istep] = U
             self.istep += 1
 
