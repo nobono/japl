@@ -3,6 +3,8 @@ from typing import Any
 from sympy import Matrix, Symbol, Function, Expr, Number, nan
 from sympy import Float
 from sympy import Derivative
+from sympy.matrices import MatrixSymbol
+from sympy.matrices.expressions.matexpr import MatrixElement
 from japl.Model.StateRegister import StateRegister
 from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
 from pprint import pformat
@@ -55,6 +57,11 @@ def build_model(state: Matrix,
     # default symbols imposed by Sim
     t = Symbol("t")
     dt = Symbol("dt")
+
+    # give MatrixElement attr "name"
+    for var in state:
+        if isinstance(var, MatrixElement):
+            setattr(var, "name", str(var))
 
     # state & input array checks
     _check_var_array_types(state, "state")
@@ -358,9 +365,13 @@ def _check_var_array_types(array, array_name: str = "array"):
     for i, elem in enumerate(array):
         if isinstance(elem, Symbol):
             continue
-        if isinstance(elem, Function):
+        elif isinstance(elem, Function):
             continue
-        if isinstance(elem, DirectUpdateSymbol):
+        elif isinstance(elem, DirectUpdateSymbol):
+            continue
+        elif isinstance(elem, MatrixSymbol):
+            continue
+        elif isinstance(elem, MatrixElement):
             continue
         else:
             raise Exception(f"\n\n{array_name}-id[{i}]: cannot register a variable for "
