@@ -3,6 +3,7 @@ import numpy as np
 
 from sympy import Matrix, symbols, MatrixSymbol
 from sympy import Symbol, Function
+from sympy.matrices.expressions.matexpr import MatrixElement
 
 # ---------------------------------------------------
 
@@ -43,7 +44,7 @@ class StateRegister(dict):
 
 
     @staticmethod
-    def _extract_variable(var) -> Symbol|MatrixSymbol:
+    def _extract_variable(var) -> Symbol|MatrixSymbol|MatrixElement:
         """This method helps process sympy symbolic variables before
         storing into the register.
 
@@ -56,6 +57,8 @@ class StateRegister(dict):
             return Symbol(var.name)  # type:ignore
         elif isinstance(var, MatrixSymbol):
             return var
+        elif isinstance(var, MatrixElement):
+            return var
         else:
             raise Exception("unhandled case.")
 
@@ -64,18 +67,32 @@ class StateRegister(dict):
         """register state and labels"""
         for id, var in enumerate(vars):  # type:ignore
             var = self._extract_variable(var)
-            var_name = str(var)
+            var_name = getattr(var, "name", None)
+            if var_name is None:
+                raise Exception("unhandled case: cannot get name attribute from var.")
 
             if labels and id < len(labels):
                 label = labels[id]
             else:
                 label = var_name
 
-            if isinstance(var, MatrixSymbol):
+            self.update({var_name: {"id": id, "label": label, "var": var, "size": 1}})
+
+            # handle MatrixElement and MatrixSymbol
+            if isinstance(var, MatrixElement):
+                # only store parent the first time
+                # so "id" will represent the starting
+                # index.
+                if var.parent.name not in self:
+                    parent_name = var.parent.name
+                    parent = var.parent
+                    label = parent_name
+                    size = len(var.parent.as_mutable())
+                    self.update({parent_name: {"id": id, "label": label, "var": parent, "size": size}})
+            elif isinstance(var, MatrixSymbol):
                 size = len(var.as_mutable())
-            else:
-                size = 1
-            self.update({var_name: {"id": id, "label": label, "var": var, "size": size}})
+                self.update({var_name: {"id": id, "label": label, "var": var, "size": size}})
+
 
 
     def get_ids(self, names: str|list[str]) -> int|list[int]:
@@ -109,14 +126,19 @@ class StateRegister(dict):
             start_id = self[names]["id"]
             size = self[names]["size"]
             if size > 1:
-                ids = [*np.arange(start_id, start_id + size)]
+                ids = np.arange(start_id, start_id + size)
+                # reshape ids to match the MatrixSymbol
+                shape = self[names]["var"].shape
+                ids = ids.reshape(shape).tolist()
                 return ids
             else:
                 return start_id
 
 
     def get_vars(self) -> Matrix:
-        return Matrix([i["var"] for i in self.values()])
+        ignores = [MatrixSymbol]
+        return Matrix([i["var"] for i in self.values()
+                       if i["var"].__class__ not in ignores])
 
 
     def get_sym(self, name: str) -> Symbol:
