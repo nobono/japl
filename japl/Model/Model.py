@@ -401,10 +401,7 @@ class Model:
                 state array or list of indices.
         -------------------------------------------------------------------
         """
-        if isinstance(names, list):
-            return [self.static_register[k]["id"] for k in names]
-        else:
-            return self.static_register[names]["id"]
+        return self.static_register.get_ids(names)
 
 
     def get_state_id(self, names: str|list[str]) -> int|list[int]:
@@ -429,10 +426,7 @@ class Model:
                 state array or list of indices.
         -------------------------------------------------------------------
         """
-        if isinstance(names, list):
-            return [self.state_register[k]["id"] for k in names]
-        else:
-            return self.state_register[names]["id"]
+        return self.state_register.get_ids(names)
 
 
     def get_input_id(self, names: str|list[str]) -> int|list[int]:
@@ -457,10 +451,7 @@ class Model:
                 input array or list of indices.
         -------------------------------------------------------------------
         """
-        if isinstance(names, list):
-            return [self.input_register[k]["id"] for k in names]
-        else:
-            return self.input_register[names]["id"]
+        return self.input_register.get_ids(names)
 
 
     def set_state(self, state_vars: tuple|list|Matrix, labels: Optional[list|tuple] = None):
