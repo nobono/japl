@@ -3,6 +3,10 @@ from typing import Union
 from japl.Math.Rotation import Sq
 from japl.Math.Rotation import quat_norm
 from japl.Math.Rotation import quat_to_dcm
+from japl.Sim.Integrate import runge_kutta_4
+from japl.Sim.Integrate import euler
+# from collections import deque
+from queue import Queue
 
 IterT = Union[np.ndarray, list]
 
@@ -27,7 +31,7 @@ class SensorBase:
         self.noise = np.asarray(noise)
         self.delay = delay
         self.last_measurement_time = 0
-        self.measurement_buffer = []
+        self.buffer = Queue()
         self.S = np.array([
             [scale_factor[0], 0, 0],
             [0, scale_factor[1], 0],
@@ -40,14 +44,30 @@ class SensorBase:
             ])
 
 
+    def count(self) -> int:
+        return self.buffer.qsize()
+
+
     def get_noise(self):
         """returns random uniform noise array reflective
         of the self.noise parameter."""
         return np.array([np.random.uniform(-i, i) for i in self.noise])
 
 
-    def get_measurement(self, time: float, true_val: np.ndarray):
+    def calc_measurement(self, time: float, true_val: np.ndarray):
         return self.M @ self.S @ true_val + self.bias + self.get_noise()
+
+
+    def update(self, time: float, true_val: np.ndarray):
+        meas = self.calc_measurement(time=time, true_val=true_val)
+        buf_info = (time, meas)
+        self.buffer.put(buf_info)
+
+
+    def get_measurement(self, nget: int = -1):
+        if nget < 0:
+            nget = self.buffer.qsize()
+        return [self.buffer.get() for i in range(nget)]
 
 
 class ImuSensor:
@@ -62,16 +82,34 @@ class ImuSensor:
 
 
     @staticmethod
-    def rotation_model(grav_vec: np.ndarray,
-                       ang_vel: np.ndarray,
-                       mag_vec: np.ndarray,
-                       quat: np.ndarray,
-                       dt: float):
-        # vec = np.asarray(vec)
+    def _rotation_dynamics(t, X, *args):
+        """for dev purposes"""
+        quat = X[:4]
+        ang_vel = args[0]
+        return 0.5 * Sq(quat) @ ang_vel
+
+
+    def _rotation_model(self,
+                        quat: np.ndarray,
+                        ang_vel: np.ndarray,
+                        dt: float):
+        """for dev purposes"""
         quat = np.asarray(quat)
-        ang_vel = np.asarray(ang_vel)
-        quat_dot = 0.5 * Sq(quat) @ ang_vel
-        quat_new = quat + quat_dot * dt
+        ang_vel = np.asarray([0, 1, 0])
+        quat_new, _ = runge_kutta_4(f=self._rotation_dynamics, t=0, X=quat, dt=dt, args=(ang_vel,))
+        # quat_new, _ = euler(self.rotation_dynamics, t=0, X=quat, dt=dt, args=(ang_vel,))
         quat_new = quat_norm(quat_new)
-        dcm_new = quat_to_dcm(quat_new)
-        return dcm_new @ vec
+        return quat_new
+
+
+    def update(self,
+               time: float,
+               acc_vec: np.ndarray,
+               ang_vel: np.ndarray,
+               mag_vec: np.ndarray) -> None:
+        acc_vec = np.asarray(acc_vec)
+        ang_vel = np.asarray(ang_vel)
+        mag_vec = np.asarray(mag_vec)
+        self.accelerometer.update(time, acc_vec)
+        self.gyroscope.update(time, ang_vel)
+        self.magnetometer.update(time, mag_vec)

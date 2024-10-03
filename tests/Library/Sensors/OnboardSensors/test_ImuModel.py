@@ -52,7 +52,7 @@ class TestSensorBase3Dof(unittest.TestCase):
         grav_vec = grav_vec0
         for istep, t in enumerate(np.arange(0, 0.3, dt)):
             grav_vec = self.model(grav_vec, quat, ang_vel, dt)
-            ret = sensor.get_measurement(t, grav_vec)
+            ret = sensor.calc_measurement(t, grav_vec)
             self.assertListEqual(true[istep].tolist(), ret.tolist())
 
 
@@ -74,7 +74,7 @@ class TestSensorBase3Dof(unittest.TestCase):
         grav_vec = grav_vec0
         for istep, t in enumerate(np.arange(0, 0.3, dt)):
             grav_vec = self.model(grav_vec, quat, ang_vel, dt)
-            ret = sensor.get_measurement(t, grav_vec)
+            ret = sensor.calc_measurement(t, grav_vec)
             # ang = np.degrees(vec_ang(grav_vec, grav_vec0))
             self.assertListEqual((true[istep] * 2).tolist(), ret.tolist())
 
@@ -93,7 +93,7 @@ class TestSensorBase3Dof(unittest.TestCase):
         grav_vec = grav_vec0
         for istep, t in enumerate(np.arange(0, 0.3, dt)):
             grav_vec = self.model(grav_vec, quat, ang_vel, dt)
-            ret = sensor.get_measurement(t, grav_vec)
+            ret = sensor.calc_measurement(t, grav_vec)
             self.assertListEqual([.1, .1, 1], ret.tolist())
 
 
@@ -111,7 +111,7 @@ class TestSensorBase3Dof(unittest.TestCase):
         grav_vec = grav_vec0
         for istep, t in enumerate(np.arange(0, 0.3, dt)):
             grav_vec = self.model(grav_vec, quat, ang_vel, dt)
-            ret = sensor.get_measurement(t, grav_vec)
+            ret = sensor.calc_measurement(t, grav_vec)
             self.assertListEqual([2, 3, 1], ret.tolist())
 
 
@@ -133,15 +133,58 @@ class TestSensorBase3Dof(unittest.TestCase):
         grav_vec = grav_vec0
         for istep, t in enumerate(np.arange(0, 0.3, dt)):
             grav_vec = self.model(grav_vec, quat, ang_vel, dt)
-            ret = sensor.get_measurement(t, grav_vec)
+            ret = sensor.calc_measurement(t, grav_vec)
             self.assertListEqual(true[istep].tolist(), ret.tolist())
+
+
+    def test_base_get_measurement(self):
+        sensor = SensorBase()
+        dt = 0.1
+        for istep, t in enumerate(np.arange(0, 0.3, dt)):
+            tru = np.array([0, 0, istep])
+            sensor.update(time=t, true_val=tru)
+        measurements = sensor.get_measurement()
+
+        item1 = measurements[0]
+        item2 = measurements[1]
+        item3 = measurements[2]
+        t, meas = item1
+        t2, meas2 = item2
+        t3, meas3 = item3
+        self.assertEqual(t, 0.0)
+        self.assertListEqual(meas.tolist(), [0, 0, 0])
+        self.assertEqual(t2, 0.1)
+        self.assertListEqual(meas2.tolist(), [0, 0, 1])
+        self.assertEqual(t3, 0.2)
+        self.assertListEqual(meas3.tolist(), [0, 0, 2])
 
     ##################################################################
     # IMU tests
     ##################################################################
 
     def test_imu_case1(self):
-        pass
+        sensor = ImuSensor()
+        ang_vel = np.array([0, 0, 0])
+        acc_vec = np.array([0, 0, 1])
+        mag_vec = np.array([1, 0, 0])
+        dt = 0.1
+        for t in np.arange(0, 0.3, dt):
+            sensor.update(time=t,
+                          acc_vec=acc_vec,
+                          ang_vel=ang_vel,
+                          mag_vec=mag_vec)
+        nacc = sensor.accelerometer.count()
+        ngyr = sensor.gyroscope.count()
+        nmag = sensor.magnetometer.count()
+        self.assertEqual(nacc, 3)
+        self.assertEqual(ngyr, 3)
+        self.assertEqual(nmag, 3)
+        acc = sensor.accelerometer.get_measurement(1)[0]
+        gyr = sensor.gyroscope.get_measurement(1)[0]
+        mag = sensor.magnetometer.get_measurement(1)[0]
+        self.assertEqual(acc[1].tolist(), [0, 0, 1])
+        self.assertEqual(gyr[1].tolist(), [0, 0, 0])
+        self.assertEqual(mag[1].tolist(), [1, 0, 0])
 
 
 if __name__ == '__main__':
