@@ -324,7 +324,7 @@ class test_MissileGeneric(unittest.TestCase):
                     f=self.dynamics,
                     t=tstep,
                     X=X,
-                    h=self.dt,
+                    dt=self.dt,
                     args=args
                     )
 

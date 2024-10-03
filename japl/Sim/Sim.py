@@ -224,7 +224,7 @@ class Sim:
                             f=dynamics_func,
                             t=tstep,
                             X=X,
-                            h=dt,
+                            dt=dt,
                             args=(U, S, dt, simobj,),
                             )
                 case "odeint":
