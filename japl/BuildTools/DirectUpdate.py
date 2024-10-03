@@ -16,10 +16,29 @@ class DirectUpdateSymbol(Symbol):
     where state_expr references the state variable and sub_expr references the expression
     or variable which will update the state."""
 
-    def __init__(self, name: str, state_expr: Expr, sub_expr: Expr, **assumptions):  # type:ignore
-        self.state_expr = state_expr
-        self.sub_expr = sub_expr
-        return super().__init__()
+    def __new__(cls, name: str, state_expr: Expr, sub_expr: Expr, **assumptions):
+        """Create the new instance using Symbol's __new__"""
+        obj = Symbol.__new__(cls, name, **assumptions)
+        # Attach the custom attributes
+        obj.state_expr = state_expr
+        obj.sub_expr = sub_expr
+        return obj
+
+    def __getnewargs_ex__(self):  # type:ignore
+        """Return the arguments needed to recreate the object"""
+        return ((self.name, self.state_expr, self.sub_expr), self.assumptions0)
+
+    def __getstate__(self):  # type:ignore
+        """Return the state of the object (custom attributes)"""
+        return {
+            'state_expr': self.state_expr,
+            'sub_expr': self.sub_expr,
+        }
+
+    def __setstate__(self, state):
+        # Restore the state
+        self.state_expr = state['state_expr']
+        self.sub_expr = state['sub_expr']
 
 
 class DirectUpdate(Matrix):
