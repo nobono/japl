@@ -5,11 +5,17 @@ import sympy as sp
 from tqdm import tqdm
 from itertools import permutations
 from sympy import Matrix, Symbol, symbols, cse
+from sympy import MatrixSymbol
 from sympy import default_sort_key, topological_sort
 # from code_gen import PyCodeGenerator
 from code_gen import OctaveCodeGenerator
 # from code_gen import CCodeGenerator
+from japl import Model
+from japl.BuildTools.DirectUpdate import DirectUpdate
 from japl import JAPL_HOME_DIR
+from japl.Sim.Sim import Sim
+from japl.SimObject.SimObject import SimObject
+from japl.Util.Util import flatten_list
 
 
 ################################################################
@@ -269,7 +275,8 @@ Q = G * input_var * G.T
 # Covariance Prediction
 ##################################################
 
-P = create_symmetric_cov_matrix(len(state))
+# P = create_symmetric_cov_matrix(len(state))
+P = MatrixSymbol("P", len(state), len(state)).as_mutable()
 P_new = F * P * F.T + Q
 
 for index in range(P.shape[0]):
@@ -494,6 +501,63 @@ vars_update = [
         list(meas_subs.keys()),
         dt,
         ]
+
+######################################################
+# NOTE: trying to create model from_expression
+######################################################
+# state_update = Matrix([
+#     DirectUpdate(state, X_new),
+#     DirectUpdate(P, P_new),
+#     ])
+
+# static = Matrix([
+#     gyro_x_var,
+#     gyro_y_var,
+#     gyro_z_var,
+#     accel_x_var,
+#     accel_y_var,
+#     accel_z_var,
+#     ])
+
+# # X_new
+# # P_new
+# # X_accel_update
+# # P_accel_update
+# # X_gps_update
+# # P_gps_update
+
+
+# # model = Model.from_expression(dt_var=dt,
+# #                               state_vars=state_update,
+# #                               input_vars=input,
+# #                               static_vars=static,
+# #                               dynamics_expr=Matrix([np.nan] * len(state)),
+# #                               use_multiprocess_build=True)
+# # model.save("./data", "ekf")
+
+# model = Model.from_file("./data/ekf.japl")
+# # pp = np.eye(P.shape[0])
+# # ret = model.direct_state_update_func(0, [1,0,0,0, 0,0,0, 0,1,0, 0,0,0, 0,0,0, pp], [0,0,0, 0,0,0], [1,1,1, 1,1,1], 0.1)
+# # print(ret)
+
+# simobj = SimObject(model)
+# quat0 = [1, 0, 0, 0]
+# p0 = [0, 0, 0]
+# v0 = [0, 0, 0]
+# ab0 = [0, 0, 0]
+# gb0 = [0, 0, 0]
+# P0 = np.eye(P.shape[0])
+# simobj.init_state([quat0, p0, v0, ab0, gb0, P0])
+
+# sim = Sim(t_span=[0, 10],
+#           dt=0.01,
+#           simobjs=[simobj])
+# sim.run()
+
+# Y = simobj.Y[-1]
+# print(Y)
+# quit()
+######################################################
 
 if __name__ == "__main__":
 
