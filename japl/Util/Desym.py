@@ -13,6 +13,7 @@ from sympy import MatrixSymbol
 from sympy.matrices.expressions.matexpr import MatrixElement
 from sympy import lambdify
 from sympy.utilities.autowrap import autowrap
+from copy import deepcopy
 
 
 
@@ -83,7 +84,7 @@ class Desym:
                 # get state_vars from argument tuple
                 # arguments tuple has signature of:
                 #   (t, state_vars, input_vars, static_vars, dt)
-                state_vars = vars[1]
+                state_vars = deepcopy(vars[1])
 
                 if is_iterable:
                     for i, var in enumerate(state_vars):
@@ -172,6 +173,10 @@ class Desym:
     def __call__(self, *args) -> np.ndarray:
         if self.is_array_arg:
             args = [*args[0]]       # unpack if option set
+        # TODO: for completing Matrix in state capability:
+        # args need to be re-formatted (reshaped) for any
+        # matrix being passed to the lambdify'd function
+        # args = (0, [*np.zeros(16), np.eye(16)], np.zeros(6), np.zeros(6), 0.01)
         return self.f(*args)
 
 

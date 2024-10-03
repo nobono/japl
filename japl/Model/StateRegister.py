@@ -27,6 +27,7 @@ class StateRegister(dict):
 
     def __init__(self, state: dict|list[str]|str = {}):
         self._syms: list[Symbol] = []
+        self.matrix_info = {}
 
         # if isinstance(state, dict):
         #     self.update(state)
@@ -93,21 +94,33 @@ class StateRegister(dict):
 
             self.update({var_name: {"id": id, "label": label, "var": var, "size": 1}})
 
-            # handle MatrixElement and MatrixSymbol
-            if isinstance(var, MatrixElement):
-                # only store parent the first time
-                # so "id" will represent the starting
-                # index.
-                if var.parent.name not in self:
-                    parent_name = var.parent.name
-                    parent = var.parent
-                    label = parent_name
-                    size = len(var.parent.as_mutable())
-                    self.update({parent_name: {"id": id, "label": label, "var": parent, "size": size}})
-            elif isinstance(var, MatrixSymbol):
-                size = len(var.as_mutable())
-                self.update({var_name: {"id": id, "label": label, "var": var, "size": size}})
+            # # handle MatrixElement and MatrixSymbol
+            self._handle_set_matrix(id, var, var_name, label)
 
+
+    def _handle_set_matrix(self, id, var, var_name: str, label: str) -> None:
+        # NOTE: regarding self.matrix_info
+        # also store matrix info for quick access
+        # this is later used for reshaping matrices
+        # passed to lambdified (sympy) functions.
+
+        if isinstance(var, MatrixElement):
+            # only store parent the first time
+            # so "id" will represent the starting
+            # index.
+            if var.parent.name not in self:
+                parent_name = var.parent.name
+                parent = var.parent
+                label = parent_name
+                size = len(var.parent.as_mutable())
+                info = {parent_name: {"id": id, "label": label, "var": parent, "size": size}}
+                self.update(info)
+                self.matrix_info.update(info)
+        elif isinstance(var, MatrixSymbol):
+            size = len(var.as_mutable())
+            info = {var_name: {"id": id, "label": label, "var": var, "size": size}}
+            self.update(info)
+            self.matrix_info.update(info)
 
 
     def get_ids(self, names: str|list[str]) -> int|list[int]:
@@ -152,8 +165,8 @@ class StateRegister(dict):
 
     def get_vars(self) -> Matrix:
         ignores = [MatrixSymbol]
-        return Matrix([i["var"] for i in self.values()
-                       if i["var"].__class__ not in ignores])
+        vars = [i["var"] for i in self.values() if i["var"].__class__ not in ignores]
+        return Matrix(vars)
 
 
     def get_sym(self, name: str) -> Symbol:

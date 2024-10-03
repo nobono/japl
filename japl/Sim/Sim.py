@@ -176,12 +176,21 @@ class Sim:
         # back into X_new.
         ##################################################################
 
+        # TODO: (working) expanding for matrix
+        # state_mat_reshape_info = []
+        # for name, info in simobj.model.state_register.matrix_info.items():
+        #     state_mat_reshape_info += [(info["id"], info["size"], info["var"].shape)]
+
+
         # apply any user-defined input functions
         if simobj.model.user_input_function:
             simobj.model.user_input_function(tstep, X, U, S, dt, simobj)
 
         # apply direct updates to input
         if simobj.model.direct_input_update_func:
+            # TODO: (working) expanding for matrix
+            # for info in state_mat_reshape_info:
+            #     id, size, shape = info
             U_temp = simobj.model.direct_input_update_func(tstep, X, U, S, dt).flatten()
             U[~np.isnan(U_temp)] = U_temp[~np.isnan(U_temp)]  # ignore nan values
 
