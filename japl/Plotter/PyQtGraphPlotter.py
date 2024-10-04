@@ -12,10 +12,15 @@ from pyqtgraph import PlotDataItem
 from pyqtgraph import TextItem
 from pyqtgraph import ViewBox
 from pyqtgraph.Qt.QtGui import QColor, QKeySequence, QTransform
-from pyqtgraph.Qt.QtWidgets import QApplication
+from pyqtgraph.Qt.QtWidgets import QApplication, QWidget
 from pyqtgraph.Qt.QtWidgets import QShortcut
+from pyqtgraph.Qt.QtWidgets import QInputDialog
 from pyqtgraph.Qt.QtCore import QCoreApplication
 from pyqtgraph.Qt.QtCore import QTimer
+from pyqtgraph.Qt.QtWidgets import QInputDialog
+from pyqtgraph.exporters import ImageExporter
+from functools import partial
+from japl import JAPL_HOME_DIR
 # from japl.Math.Rotation import quat_to_tait_bryan
 # from pyqtgraph.Qt.QtWidgets import QGridLayout, QWidget, QWidgetItem
 # from pyqtgraph import PlotItem, QtGui, mkColor, mkPen, PlotCurveItem
@@ -324,13 +329,66 @@ class PyQtGraphPlotter:
         win.setBackground(self.background_color)
 
         # shortcut keys callbacks for each simobj view
-        shortcut = QShortcut(QKeySequence("Q"), win)
-        shortcut.activated.connect(self.close_windows)
+        # close all windows
+        close_all_shortcut = QShortcut(QKeySequence("Ctrl+Q"), win)
+        close_all_shortcut.activated.connect(self.close_windows)
+        # close selected window
+        close_shortcut = QShortcut(QKeySequence("Q"), win)
+        close_shortcut.activated.connect(partial(self.close_selected_window_callback, close_shortcut))
+
+        # shortcut key callbacks for figure output
+        output_shortcut = QShortcut(QKeySequence("Ctrl+S"), win)
+        output_shortcut.activated.connect(partial(self.save_window_callback, output_shortcut))
 
         # add to lists
         self.wins.append(win)
-        self.shortcuts.append(shortcut)
+        self.shortcuts.append(close_all_shortcut)  # NOTE: list to access shortcuts for closing all windows
         return win
+
+
+    def _get_current_window_from_callback(self, shortcut: QShortcut) -> QWidget:
+        return shortcut.parentWidget()
+
+
+    def close_selected_window_callback(self, shortcut: QShortcut):
+        win = self._get_current_window_from_callback(shortcut)
+        win.close()
+
+
+    def save_window_callback(self, shortcut: QShortcut) -> None:
+        win = self._get_current_window_from_callback(shortcut)
+        for input_text, ok in self.open_text_input_gui(win):
+            if ok:
+                items = win.centralWidget.items  # type:ignore
+                input_text = input_text.replace(" ", "_")
+                for pitem in items:
+                    export = ImageExporter(pitem)
+                    export.export(f"{JAPL_HOME_DIR}/output/{input_text}.png")
+
+
+    def open_text_input_gui(self, win: QWidget) -> Generator:
+        """
+        This function opens a dialog gui box where user inputs text
+
+        Parameters
+        ----------
+            win : QWidget
+                the window dialog box will appear from
+
+        Returns
+        -------
+            input_text : str
+                text input by user
+            ok : bool
+                whether "ok" button was pressed
+        """
+        # find PlotItems in window.items
+        plot_items = [i for i in win.items() if isinstance(i, PlotItem)]  # type:ignore
+        for i, plot_item in enumerate(plot_items):
+            default_text = plot_item.titleLabel.text
+            box_title = f"Save plot {i + 1} of {len(plot_items)}"
+            input_text, ok = QInputDialog.getText(win, box_title, "Filename:", text=default_text)
+            yield (input_text, ok)
 
 
     def add_plot_to_window(self,
