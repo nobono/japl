@@ -1,5 +1,4 @@
 import dill as pickle
-import timeit
 import numpy as np
 import sympy as sp
 from tqdm import tqdm
@@ -7,32 +6,19 @@ from itertools import permutations
 from sympy import Matrix, Symbol, symbols, cse
 from sympy import MatrixSymbol
 from sympy import default_sort_key, topological_sort
-# from code_gen import PyCodeGenerator
 from japl.BuildTools.CodeGeneration import OctaveCodeGenerator
-# from code_gen import CCodeGenerator
-from japl import Model
 from japl.BuildTools.DirectUpdate import DirectUpdate
 from japl import JAPL_HOME_DIR
 from japl.Sim.Sim import Sim
+from japl import Model
 from japl.SimObject.SimObject import SimObject
 from japl.Util.Util import flatten_list
+from japl.Util.Util import profile
 
 
 ################################################################
 # Helper Methods
 ################################################################
-
-
-def profile(func):
-    def wrapped(*args, **kwargs):
-        start_time = timeit.default_timer()
-        res = func(*args, **kwargs)
-        end_time = timeit.default_timer()
-        print("-" * 50)
-        print(f"{func.__name__} executed in {end_time - start_time} seconds")
-        print("-" * 50)
-        return res
-    return wrapped
 
 
 def get_mat_upper(mat):
@@ -275,8 +261,13 @@ Q = G * input_var * G.T
 # Covariance Prediction
 ##################################################
 
-# P = create_symmetric_cov_matrix(len(state))
 P = MatrixSymbol("P", len(state), len(state)).as_mutable()
+# make P symmetric
+for index in range(P.shape[0]):
+    for j in range(P.shape[0]):
+        if index > j:
+            P[index, j] = P[j, index]
+
 P_new = F * P * F.T + Q
 
 for index in range(P.shape[0]):
