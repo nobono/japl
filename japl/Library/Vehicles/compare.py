@@ -39,14 +39,15 @@ if __name__ == "__main__":
     run = run1
 
 
-    # col = ("Thrust", "thrust")
-    # plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
-    #              title="Thrust vs. Time",
-    #              ylabel="Thrust (N)",
-    #              xlabel="Time (s)",
-    #              legend_name="GPOPS")
-    # plotter.plot(getattr(run, "t"), getattr(run, col[1]),
-    #              legend_name="CHAD")
+    col = ("Thrust", "thrust")
+    plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
+                 title="Thrust vs. Time",
+                 ylabel="Thrust (N)",
+                 xlabel="Time (s)",
+                 legend_name="GPOPS")
+    plotter.plot(getattr(run, "t"), getattr(run, col[1]),
+                 legend_name="CHAD")
+    plotter.reset_color_cycle()
 
 
     col = ("Ca", "CA")
@@ -116,15 +117,16 @@ if __name__ == "__main__":
                  legend_name="ChAD")
     plotter.reset_color_cycle()
 
-    # col = ("Mach", "mach")
-    # plotter.figure()
-    # plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
-    #              title="Mach vs. Time",
-    #              ylabel="Mach",
-    #              xlabel="Time (s)",
-    #              legend_name="GPOPS")
-    # plotter.plot(getattr(run, "t"), getattr(run, col[1]),
-    #              legend_name="ChAD")
+    col = ("Mach", "mach")
+    plotter.figure()
+    plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
+                 title="Mach vs. Time",
+                 ylabel="Mach",
+                 xlabel="Time (s)",
+                 legend_name="GPOPS")
+    plotter.plot(getattr(run, "t"), getattr(run, col[1]),
+                 legend_name="ChAD")
+    plotter.reset_color_cycle()
 
     col = ("Drag", "drag")
     plotter.figure()
@@ -157,15 +159,16 @@ if __name__ == "__main__":
     # plotter.plot(getattr(run, "t"), getattr(run, col[1]),
     #              legend_name="ChAD")
 
-    # col = ("Velocity", "vel_mag_e")
-    # plotter.figure()
-    # plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]) * 1000,
-    #              title="Velocity. vs. Time",
-    #              ylabel="Velocity (m/s)",
-    #              xlabel="Time (s)",
-    #              legend_name="GPOPS")
-    # plotter.plot(getattr(run, "t"), getattr(run, col[1]),
-    #              legend_name="ChAD")
+    col = ("Velocity", "vel_mag_e")
+    plotter.figure()
+    plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]) * 1000,
+                 title="Velocity. vs. Time",
+                 ylabel="Velocity (m/s)",
+                 xlabel="Time (s)",
+                 legend_name="GPOPS")
+    plotter.plot(getattr(run, "t"), getattr(run, col[1]),
+                 legend_name="ChAD")
+    plotter.reset_color_cycle()
 
     # export = pg.exporters.ImageExporter(p)
     # export.export('./data/test.png')
