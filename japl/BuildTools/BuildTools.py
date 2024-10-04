@@ -16,6 +16,8 @@ from time import perf_counter
 
 
 def dict_subs_func(key_expr: tuple[str, Any], subs: list) -> bytes:
+    """used for making substitions into a dict.
+    e.g. when subbing expressions of the definitions dict."""
     key, expr = pickle.loads(key_expr)
     for sub in subs:
         sub = pickle.loads(sub)
@@ -24,6 +26,8 @@ def dict_subs_func(key_expr: tuple[str, Any], subs: list) -> bytes:
 
 
 def array_subs_func(expr, subs: list[dict]) -> bytes:
+    """used for making substitions to expressions of a
+    Matrix."""
     expr = pickle.loads(expr)
     for sub in subs:
         sub = pickle.loads(sub)
@@ -35,6 +39,15 @@ def create_error_header(msg: str, char: str = "-", char_len: int = 40) -> str:
     seg = char * char_len
     header = "\n\n" + seg + f"\n{msg}:\n" + seg + "\n"
     return header
+
+
+def parallel_subs(matrix: Matrix, subs: list):
+    with Pool(processes=cpu_count()) as pool:
+        subs = [pickle.dumps(sub) for sub in subs]
+        args = [(pickle.dumps(expr), subs) for expr in matrix]
+        results = [pool.apply_async(array_subs_func, arg) for arg in args]
+        results = [pickle.loads(ret.get()) for ret in results]
+    return Matrix(results)
 
 
 def build_model(state: Matrix,
