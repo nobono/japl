@@ -228,7 +228,7 @@ class SimObject:
 
 
     def set_static_array(self, static: np.ndarray, names: str|list[str],
-                        vals: float|list|np.ndarray) -> None:
+                         vals: float|list|np.ndarray) -> None:
         """This method sets values of the static array according to the
         provided state names and provided values."""
         ret = self.model.get_static_id(names)
