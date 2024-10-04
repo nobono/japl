@@ -4,7 +4,6 @@ from japl.Util.Matlab import MatFile
 from japl import PyQtGraphPlotter
 from japl.Util.Results import Results
 import pyqtgraph as pg
-from pyqtgraph.exporters import ImageExporter
 import argparse
 from japl import JAPL_HOME_DIR
 
@@ -163,12 +162,6 @@ if __name__ == "__main__":
 
 
     plotter.show()
-
-    items = plotter.wins[0].centralWidget.items  # type:ignore
-    for pitem in items:
-        export = ImageExporter(pitem)
-        export.export('./data/test.png')
-    pass
 
     # Acceleration
     # Altitude
