@@ -65,7 +65,20 @@ class PyQtGraphPlotter:
         self.profiler = Profiler()
 
         # colors
-        self.COLORS = dict(mplcolors.TABLEAU_COLORS, **mplcolors.CSS4_COLORS)  # available colors
+        self.COLORS = mplcolors.TABLEAU_COLORS
+        self.COLORS.update({
+            "black": mplcolors.CSS4_COLORS["black"],
+            "blue": mplcolors.CSS4_COLORS["blue"],
+            "red": mplcolors.CSS4_COLORS["red"],
+            "green": mplcolors.CSS4_COLORS["green"],
+            "navy": mplcolors.CSS4_COLORS["navy"],
+            "magenta": mplcolors.CSS4_COLORS["magenta"],
+            "orange": mplcolors.CSS4_COLORS["orange"],
+            "blueviolet": mplcolors.CSS4_COLORS["blueviolet"],
+            "maroon": mplcolors.CSS4_COLORS["maroon"],
+            "violet": mplcolors.CSS4_COLORS["violet"],
+            "brown": mplcolors.CSS4_COLORS["brown"],
+            })
         self.color_cycle = self.__color_cycle()  # color cycle list
         self.background_color = kwargs.get("background_color", "black")
         self.text_color = kwargs.get("text_color", "grey")
