@@ -78,6 +78,7 @@ class PyQtGraphPlotter:
             "maroon": mplcolors.CSS4_COLORS["maroon"],
             "violet": mplcolors.CSS4_COLORS["violet"],
             "brown": mplcolors.CSS4_COLORS["brown"],
+            "grey": mplcolors.CSS4_COLORS["grey"],
             })
         self.color_cycle = self.__color_cycle()  # color cycle list
         self.background_color = kwargs.get("background_color", "black")
