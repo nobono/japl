@@ -15,6 +15,9 @@ from japl.SimObject.SimObject import SimObject
 from japl.Util.Util import flatten_list
 from japl.Util.Util import profile
 
+from japl.BuildTools.BuildTools import parallel_subs
+from multiprocessing import Pool
+
 
 ################################################################
 # Helper Methods
@@ -372,9 +375,9 @@ K_gps = Matrix()
 K_gps = K_gps.col_insert(0, K_gps_pos_x)
 K_gps = K_gps.col_insert(1, K_gps_pos_y)
 K_gps = K_gps.col_insert(2, K_gps_pos_z)
-K_gps = K_gps.col_insert(0, K_gps_vel_x)
-K_gps = K_gps.col_insert(1, K_gps_vel_y)
-K_gps = K_gps.col_insert(2, K_gps_vel_z)
+K_gps = K_gps.col_insert(3, K_gps_vel_x)
+K_gps = K_gps.col_insert(4, K_gps_vel_y)
+K_gps = K_gps.col_insert(5, K_gps_vel_z)
 
 # accelerometer
 X_accel_update = state + K_accel * (z_accel - H_accel * state)
@@ -424,19 +427,20 @@ var_subs = {
         accel_z_var: .001,
         }
 
-# meas noise
+# measurement noise
 noise_subs = {
-        R_accel_x: 0.1,
-        R_accel_y: 0.1,
-        R_accel_z: 0.1,
-        R_gps_pos_x: 0.01,
-        R_gps_pos_y: 0.01,
-        R_gps_pos_z: 0.01,
-        R_gps_vel_x: 0.01,
-        R_gps_vel_y: 0.01,
-        R_gps_vel_z: 0.01,
+        R_accel_x: 1.e-3,
+        R_accel_y: 1.e-3,
+        R_accel_z: 1.e-3,
+        R_gps_pos_x: 1.,
+        R_gps_pos_y: 1.,
+        R_gps_pos_z: 1.,
+        R_gps_vel_x: 1.,
+        R_gps_vel_y: 1.,
+        R_gps_vel_z: 1.,
         }
 
+# sensor measurements
 meas_subs = {
         z_accel_x: 0,
         z_accel_y: 0,
