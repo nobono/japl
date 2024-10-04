@@ -179,6 +179,10 @@ class PyQtGraphPlotter:
     # Helper Methods
     # --------------------------------------------------------------------------------------
 
+    def reset_color_cycle(self):
+        self.color_cycle = self.__color_cycle()
+
+
     def __color_cycle(self) -> Generator[str, None, None]:
         """This method is a Generator which handles the color cycle of line / scatter
         plots which do not specify a color."""
