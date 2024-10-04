@@ -27,7 +27,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Example script using argparse")
     parser.add_argument('-n',
                         dest="filename",
-                        default="run",
+                        default="run_ld_67",
                         help='filename in /data')
     args = parser.parse_args()
 
@@ -39,14 +39,15 @@ if __name__ == "__main__":
     run = run1
 
 
-    # col = ("Thrust", "thrust")
-    # plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
-    #              title="Thrust vs. Time",
-    #              ylabel="Thrust (N)",
-    #              xlabel="Time (s)",
-    #              legend_name="GPOPS")
-    # plotter.plot(getattr(run, "t"), getattr(run, col[1]),
-    #              legend_name="CHAD")
+    col = ("Thrust", "thrust")
+    plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
+                 title="Thrust vs. Time",
+                 ylabel="Thrust (N)",
+                 xlabel="Time (s)",
+                 legend_name="GPOPS")
+    plotter.plot(getattr(run, "t"), getattr(run, col[1]),
+                 legend_name="CHAD")
+    plotter.reset_color_cycle()
 
 
     col = ("Ca", "CA")
@@ -58,14 +59,18 @@ if __name__ == "__main__":
                  legend_name="GPOPS")
     plotter.plot(getattr(run, "t"), getattr(run, col[1]),
                  legend_name="CHAD")
+    plotter.reset_color_cycle()
 
     col = ("Cn", "CN")
     plotter.figure()
     plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
                  title="CN vs. Time",
                  ylabel="CN",
-                 xlabel="Time")
-    plotter.plot(getattr(run, "t"), getattr(run, col[1]))
+                 xlabel="Time",
+                 legend_name="GPOPS")
+    plotter.plot(getattr(run, "t"), getattr(run, col[1]),
+                 legend_name="ChAD")
+    plotter.reset_color_cycle()
 
 
     col = ("Angle_of_Attack", "alpha")
@@ -77,6 +82,7 @@ if __name__ == "__main__":
                  legend_name="GPOPS")
     plotter.plot(getattr(run, "t"), np.degrees(getattr(run, col[1])),
                  legend_name="ChAD")
+    plotter.reset_color_cycle()
 
     # col = ("Altitude", "r_u")
     # plotter.figure()
@@ -98,26 +104,29 @@ if __name__ == "__main__":
                  legend_name="GPOPS")
     plotter.plot(getattr(run, "r_n"), getattr(run, col[1]),
                  legend_name="ChAD")
+    plotter.reset_color_cycle()
 
-    # col = ("Mass", "wet_mass")
-    # plotter.figure()
-    # plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
-    #              title="Mass vs. Time",
-    #              ylabel="Mass",
-    #              xlabel="Time",
-    #              legend_name="GPOPS")
-    # plotter.plot(getattr(run, "t"), getattr(run, col[1]),
-    #              legend_name="ChAD")
+    col = ("Mass", "wet_mass")
+    plotter.figure()
+    plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
+                 title="Mass vs. Time",
+                 ylabel="Mass",
+                 xlabel="Time",
+                 legend_name="GPOPS")
+    plotter.plot(getattr(run, "t"), getattr(run, col[1]),
+                 legend_name="ChAD")
+    plotter.reset_color_cycle()
 
-    # col = ("Mach", "mach")
-    # plotter.figure()
-    # plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
-    #              title="Mach vs. Time",
-    #              ylabel="Mach",
-    #              xlabel="Time (s)",
-    #              legend_name="GPOPS")
-    # plotter.plot(getattr(run, "t"), getattr(run, col[1]),
-    #              legend_name="ChAD")
+    col = ("Mach", "mach")
+    plotter.figure()
+    plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
+                 title="Mach vs. Time",
+                 ylabel="Mach",
+                 xlabel="Time (s)",
+                 legend_name="GPOPS")
+    plotter.plot(getattr(run, "t"), getattr(run, col[1]),
+                 legend_name="ChAD")
+    plotter.reset_color_cycle()
 
     col = ("Drag", "drag")
     plotter.figure()
@@ -128,6 +137,7 @@ if __name__ == "__main__":
                  legend_name="GPOPS")
     plotter.plot(getattr(run, "t"), getattr(run, col[1]),
                  legend_name="ChAD")
+    plotter.reset_color_cycle()
 
     # col = ("Lateral_Acceleration", "a_c_z")
     # plotter.figure()
@@ -149,15 +159,16 @@ if __name__ == "__main__":
     # plotter.plot(getattr(run, "t"), getattr(run, col[1]),
     #              legend_name="ChAD")
 
-    # col = ("Velocity", "vel_mag_e")
-    # plotter.figure()
-    # plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]) * 1000,
-    #              title="Velocity. vs. Time",
-    #              ylabel="Velocity (m/s)",
-    #              xlabel="Time (s)",
-    #              legend_name="GPOPS")
-    # plotter.plot(getattr(run, "t"), getattr(run, col[1]),
-    #              legend_name="ChAD")
+    col = ("Velocity", "vel_mag_e")
+    plotter.figure()
+    plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]) * 1000,
+                 title="Velocity. vs. Time",
+                 ylabel="Velocity (m/s)",
+                 xlabel="Time (s)",
+                 legend_name="GPOPS")
+    plotter.plot(getattr(run, "t"), getattr(run, col[1]),
+                 legend_name="ChAD")
+    plotter.reset_color_cycle()
 
     # export = pg.exporters.ImageExporter(p)
     # export.export('./data/test.png')
