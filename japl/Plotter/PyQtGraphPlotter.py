@@ -709,6 +709,7 @@ class PyQtGraphPlotter:
 
     def figure(self):
         self.create_window()
+        self.reset_color_cycle()
 
 
     def plot(self,
