@@ -1,6 +1,10 @@
 import re
 from io import TextIOWrapper
 from sympy import ccode, octave_code
+from sympy import Expr
+from sympy import Matrix
+from sympy import symbols
+from sympy import cse
 from sympy.codegen.ast import float32, real
 
 
@@ -20,13 +24,51 @@ class CodeGeneratorBase:
             self.file.write(prefix + line + postfix)
 
 
+    def write_function_definition(self, *args, **kwargs):
+        pass
+
+
+    def write_subexpressions(self, *args, **kwargs):
+        pass
+
+
+    def write_matrix(self, *args, **kwargs):
+        pass
+
+
+    def close(self):
+        pass
+
+
+    def write_function_to_file(self, path: str, function_name: str, expr: Expr,
+                               input_vars: list|tuple, return_var: str,
+                               is_symmetric: bool = False):
+        self.file_name = path
+        self.file = open(self.file_name, 'w')
+        expr_simple = cse(expr, symbols("X_temp0:1000"), optimizations='basic')
+        # cov_code_generator = OctaveCodeGenerator(JAPL_HOME_DIR
+        #                                          + "/derivation/nav/generated/"
+        #                                          + "state_predict.m")
+        self.print_string("Equations for state matrix prediction")
+        self.write_function_definition(name=function_name,
+                                       args=input_vars,
+                                       returns=[return_var])
+        self.write_subexpressions(expr_simple[0])
+        self.write_matrix(matrix=Matrix(expr_simple[1]),
+                          variable_name=return_var,
+                          is_symmetric=is_symmetric)
+        # cov_code_generator.write_function_returns(returns=return_args)
+        self.close()
+
+
 class OctaveCodeGenerator(CodeGeneratorBase):
 
     comment_prefix: str = "%"
 
-    def __init__(self, file_name):
-        self.file_name = file_name
-        self.file = open(self.file_name, 'w')
+    def __init__(self):
+        # self.file_name = file_name
+        # self.file = open(self.file_name, 'w')
+        pass
 
 
     def get_code(self, expression):
@@ -113,10 +155,11 @@ class CCodeGenerator(CodeGeneratorBase):
 
     comment_prefix: str = "//"
 
-    def __init__(self, file_name, strict: bool = False):
+    def __init__(self, strict: bool = False):
         self.strict = strict
-        self.file_name = file_name
-        self.file = open(self.file_name, 'w')
+        # self.file_name = file_name
+        # self.file = open(self.file_name, 'w')
+
 
     def get_code(self, expression):
         return ccode(expression, type_aliases={real: float32}, strict=self.strict)
@@ -181,8 +224,10 @@ class PyCodeGenerator(CodeGeneratorBase):
     comment_prefix: str = "#"
 
     def __init__(self, file_name):
-        self.file_name = file_name
-        self.file = open(self.file_name, 'w')
+        # self.file_name = file_name
+        # self.file = open(self.file_name, 'w'
+        pass
+
 
     def get_code(self, expression):
         return ccode(expression, type_aliases={real: float32})

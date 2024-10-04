@@ -566,81 +566,36 @@ if __name__ == "__main__":
     # Write to File
     ##################################################
 
-    print('Simplifying covariance propagation ...')
-    X_new_simple = cse(X_new, symbols("PX0:1000"), optimizations='basic')
-    P_new_simple = cse(P_new, symbols("PS0:1000"), optimizations='basic')
+    # print('Simplifying covariance propagation ...')
 
-    args = symbols("P,"                         # covariance matrix
-                   "q0, q1, q2, q3,"            # quaternion
-                   "vn, ve, vd,"                # velocity in NED local frame
-                   "pn, pe, pd,"                # position in NED local frame
-                   "dvx, dvy, dvz,"             # delta velocity (accelerometer measurements)
-                   "dax, day, daz,"             # delta angle (gyroscope measurements)
-                   "dax_b, day_b, daz_b,"       # delta angle bias
-                   "dvx_b, dvy_b, dvz_b,"       # delta velocity bias
-                   "daxVar, dayVar, dazVar,"    # gyro input noise
-                   "dvxVar, dvyVar, dvzVar,"    # accel input noise
-                   "dt")
-    return_args = ["nextP"]
+    # args = symbols("P,"                         # covariance matrix
+    #                "q0, q1, q2, q3,"            # quaternion
+    #                "vn, ve, vd,"                # velocity in NED local frame
+    #                "pn, pe, pd,"                # position in NED local frame
+    #                "dvx, dvy, dvz,"             # delta velocity (accelerometer measurements)
+    #                "dax, day, daz,"             # delta angle (gyroscope measurements)
+    #                "dax_b, day_b, daz_b,"       # delta angle bias
+    #                "dvx_b, dvy_b, dvz_b,"       # delta velocity bias
+    #                "daxVar, dayVar, dazVar,"    # gyro input noise
+    #                "dvxVar, dvyVar, dvzVar,"    # accel input noise
+    #                "dt")
 
-    print('Writing state propagation to file ...')
-    cov_code_generator = OctaveCodeGenerator(JAPL_HOME_DIR
-                                             + "/derivation/nav/generated/"
-                                             + "state_predict.m")
-    cov_code_generator.print_string("Equations for state matrix prediction")
-    cov_code_generator.write_function_definition(name="state_predict",
-                                                 args=args,
-                                                 returns=["nextX"])
-    cov_code_generator.write_subexpressions(X_new_simple[0])
-    cov_code_generator.write_matrix(matrix=Matrix(X_new_simple[1]),
-                                    variable_name="nextX",
-                                    is_symmetric=True)
-    # cov_code_generator.write_function_returns(returns=return_args)
-    cov_code_generator.close()
+    # codegen = OctaveCodeGenerator()
+
+    # print('Writing state propagation to file ...')
+    # codegen.write_function_to_file(path=f"{JAPL_HOME_DIR}/derivation/nav/generated/state_predict.m",
+    #                                function_name="state_predict",
+    #                                expr=X_new,
+    #                                input_vars=args,
+    #                                return_var="nextX")
 
 
-    print('Writing covariance propagation to file ...')
-    cov_code_generator = OctaveCodeGenerator(JAPL_HOME_DIR
-                                             + "/derivation/nav/generated/"
-                                             + "cov_predict.m")
-    cov_code_generator.print_string("Equations for covariance matrix prediction, without process noise!")
-    cov_code_generator.write_function_definition(name="cov_predict",
-                                                 args=args,
-                                                 returns=["nextP"])
-    cov_code_generator.write_subexpressions(P_new_simple[0])
-    cov_code_generator.write_matrix(matrix=Matrix(P_new_simple[1]),
-                                    variable_name="nextP",
-                                    is_symmetric=True)
-    # cov_code_generator.write_function_returns(returns=return_args)
-    cov_code_generator.close()
-
-
-    # print('Writing state update to file ...')
-    # cov_code_generator = OctaveCodeGenerator("./generated/state_update.m")
-    # cov_code_generator.print_string("Equations for state matrix update")
-    # cov_code_generator.write_function_definition(name="state_update",
-    #                                              args=args,
-    #                                              returns=["nextX"])
-    # cov_code_generator.write_subexpressions(X_accel_update_simple[0])
-    # cov_code_generator.write_matrix(matrix=Matrix(X_accel_update_simple[1]),
-    #                                 variable_name="nextX",
-    #                                 is_symmetric=True)
-    # # cov_code_generator.write_function_returns(returns=return_args)
-    # cov_code_generator.close()
-
-
-    # print('Writing covariance update to file ...')
-    # cov_code_generator = OctaveCodeGenerator("./generated/cov_update.m")
-    # cov_code_generator.print_string("Equations for covariance matrix prediction, without process noise!")
-    # cov_code_generator.write_function_definition(name="cov_predict",
-    #                                              args=args,
-    #                                              returns=["nextP"])
-    # cov_code_generator.write_subexpressions(P_new_simple[0])
-    # cov_code_generator.write_matrix(matrix=Matrix(P_new_simple[1]),
-    #                                 variable_name="nextP",
-    #                                 is_symmetric=True)
-    # # cov_code_generator.write_function_returns(returns=return_args)
-    # cov_code_generator.close()
+    # print('Writing covariance propagation to file ...')
+    # codegen.write_function_to_file(path=f"{JAPL_HOME_DIR}/derivation/nav/generated/cov_predict.m",
+    #                                function_name="cov_predict",
+    #                                expr=P_new,
+    #                                input_vars=args,
+    #                                return_var="nextP")
 
     ##################################################
     # Sim
