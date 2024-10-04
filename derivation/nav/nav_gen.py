@@ -8,7 +8,7 @@ from sympy import Matrix, Symbol, symbols, cse
 from sympy import MatrixSymbol
 from sympy import default_sort_key, topological_sort
 # from code_gen import PyCodeGenerator
-from code_gen import OctaveCodeGenerator
+from japl.BuildTools.CodeGeneration import OctaveCodeGenerator
 # from code_gen import CCodeGenerator
 from japl import Model
 from japl.BuildTools.DirectUpdate import DirectUpdate
@@ -537,7 +537,8 @@ vars_update = [
 
 # model = Model.from_file("./data/ekf.japl")
 # # pp = np.eye(P.shape[0])
-# # ret = model.direct_state_update_func(0, [1,0,0,0, 0,0,0, 0,1,0, 0,0,0, 0,0,0, pp], [0,0,0, 0,0,0], [1,1,1, 1,1,1], 0.1)
+# # ret = model.direct_state_update_func(0, [1,0,0,0, 0,0,0, 0,1,0, 0,0,0, 0,0,0, pp],
+# #                                          [0,0,0, 0,0,0], [1,1,1, 1,1,1], 0.1)
 # # print(ret)
 
 # simobj = SimObject(model)
