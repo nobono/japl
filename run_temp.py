@@ -47,6 +47,7 @@ simobj = SimObject(model)
 ########################################################
 # Custom Input Function
 ########################################################
+VLEG = 67.0
 
 
 def user_input_func(t, X, U, S, dt, simobj: SimObject):
@@ -55,8 +56,9 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
     global apogee
     global stage_sep
     global aerotable
+    global VLEG
 
-    do_pog = True
+    do_pog = False
     do_ld_guidance = True
 
     alpha = simobj.get_state_array(X, "alpha")
@@ -83,7 +85,7 @@ def user_input_func(t, X, U, S, dt, simobj: SimObject):
     if do_pog and not pog_complete:
         if not pog_complete or t < 0.1:
             pog_complete, a_c = pitchover_guidance(t,
-                                                   desired_vleg=np.radians(67),
+                                                   desired_vleg=np.radians(VLEG),
                                                    desired_bearing_angle=0,
                                                    alphaTotal=alpha,
                                                    altm=alt,
@@ -168,9 +170,9 @@ a0_enu = [0, 0, -9.81]
 # quat0 = quaternion.from_rotation_matrix(dcm).components
 # quat0 = [1, 0, 0, 0]
 # quat0 = quaternion.from_euler_angles(np.radians([0, -70, 0])).components
-ang = 67
-ang = np.radians(ang - 90.0)
-quat0 = [np.cos(ang / 2), 0, np.sin(ang / 2), 0]
+vleg_ang = VLEG
+vleg_ang = np.radians(vleg_ang - 90.0)
+quat0 = [np.cos(vleg_ang / 2), 0, np.sin(vleg_ang / 2), 0]
 
 q_0, q_1, q_2, q_3 = quat0
 C_body_to_eci = np.array([
