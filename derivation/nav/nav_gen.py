@@ -585,7 +585,7 @@ if __name__ == "__main__":
 
     print('Writing state propagation to file ...')
     cov_code_generator = OctaveCodeGenerator(JAPL_HOME_DIR
-                                             + "derivation/nav/generated/"
+                                             + "/derivation/nav/generated/"
                                              + "state_predict.m")
     cov_code_generator.print_string("Equations for state matrix prediction")
     cov_code_generator.write_function_definition(name="state_predict",
@@ -601,7 +601,7 @@ if __name__ == "__main__":
 
     print('Writing covariance propagation to file ...')
     cov_code_generator = OctaveCodeGenerator(JAPL_HOME_DIR
-                                             + "derivation/nav/generated/"
+                                             + "/derivation/nav/generated/"
                                              + "cov_predict.m")
     cov_code_generator.print_string("Equations for covariance matrix prediction, without process noise!")
     cov_code_generator.write_function_definition(name="cov_predict",

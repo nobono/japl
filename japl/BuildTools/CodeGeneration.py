@@ -1,32 +1,47 @@
 import re
+from io import TextIOWrapper
 from sympy import ccode, octave_code
 from sympy.codegen.ast import float32, real
 
 
 
-class OctaveCodeGenerator:
-    def __init__(self, file_name):
-        self.file_name = file_name
-        self.file = open(self.file_name, 'w')
+class CodeGeneratorBase:
 
-    def print_string(self, string):
-        self.file.write("% " + string + "\n")
+    file_name: str
+    file: TextIOWrapper
+    comment_prefix: str
+
+    def print_string(self, string: str) -> None:
+        self.file.write(f"{self.comment_prefix} " + string + "\n")
+
 
     def write_lines(self, string, prefix: str = "", postfix: str = "\n"):
         for line in string.split('\n'):
             self.file.write(prefix + line + postfix)
 
-    def get_ccode(self, expression):
+
+class OctaveCodeGenerator(CodeGeneratorBase):
+
+    comment_prefix: str = "%"
+
+    def __init__(self, file_name):
+        self.file_name = file_name
+        self.file = open(self.file_name, 'w')
+
+
+    def get_code(self, expression):
         # return ccode(expression, type_aliases={real:float32})
         return octave_code(expression)
+
 
     def write_subexpressions(self, subexpressions):
         write_string = ""
         for item in subexpressions:
-            write_string = write_string + str(item[0]) + " = " + self.get_ccode(item[1]) + ";\n"  # type:ignore
+            write_string = write_string + str(item[0]) + " = " + self.get_code(item[1]) + ";\n"  # type:ignore
 
         write_string = self.transform_to_octave_style(write_string)
         self.write_lines(write_string, prefix="\t")
+
 
     def write_matrix(self,
                      matrix,
@@ -37,13 +52,13 @@ class OctaveCodeGenerator:
                      separator=", "):
         write_string = ""
         if matrix.shape[0] * matrix.shape[1] == 1:
-            write_string = write_string + variable_name + " = " + self.get_ccode(matrix[0]) + ";\n"
+            write_string = write_string + variable_name + " = " + self.get_code(matrix[0]) + ";\n"
         elif matrix.shape[0] == 1 or matrix.shape[1] == 1:
             for i in range(0, len(matrix)):
                 write_string = write_string + variable_name +\
                                pre_bracket + str(i + 1) +\
                                post_bracket + " = " +\
-                               self.get_ccode(matrix[i]) + ";\n"
+                               self.get_code(matrix[i]) + ";\n"
                 write_string = self.transform_to_octave_style(write_string)
         else:
             for j in range(0, matrix.shape[1]):
@@ -53,7 +68,7 @@ class OctaveCodeGenerator:
                                 pre_bracket +\
                                 str(i + 1) + separator + str(j + 1) +\
                                 post_bracket + " = " +\
-                                self.get_ccode(matrix[i, j]) + ";\n"
+                                self.get_code(matrix[i, j]) + ";\n"
                         write_string = self.transform_to_octave_style(write_string)
 
         self.write_lines(write_string, prefix="\t")
@@ -94,32 +109,28 @@ class OctaveCodeGenerator:
         self.file.close()
 
 
-class CCodeGenerator:
+class CCodeGenerator(CodeGeneratorBase):
+
+    comment_prefix: str = "//"
+
     def __init__(self, file_name, strict: bool = False):
         self.strict = strict
         self.file_name = file_name
         self.file = open(self.file_name, 'w')
 
-    def print_string(self, string):
-        self.file.write("// " + string + "\n")
-
-    def get_ccode(self, expression):
+    def get_code(self, expression):
         return ccode(expression, type_aliases={real: float32}, strict=self.strict)
-
-
-    def write_lines(self, string, prefix: str = "", postfix: str = "\n"):
-        for line in string.split('\n'):
-            self.file.write(prefix + line + postfix)
 
 
     def write_subexpressions(self, subexpressions):
         write_string = ""
         for item in subexpressions:
-            write_string = write_string + str(item[0]) + " = " + self.get_ccode(item[1]) + ";\n"  # type:ignore
+            write_string = write_string + str(item[0]) + " = " + self.get_code(item[1]) + ";\n"  # type:ignore
 
         write_string = write_string + "\n\n"
         # self.file.write(write_string)
         self.write_lines(write_string, prefix="\t")
+
 
     def write_matrix(self,
                      matrix,
@@ -130,14 +141,14 @@ class CCodeGenerator:
                      separator="]["):
         write_string = ""
         if matrix.shape[0] * matrix.shape[1] == 1:
-            write_string = write_string + variable_name + " = " + self.get_ccode(matrix[0]) + ";\n"
+            write_string = write_string + variable_name + " = " + self.get_code(matrix[0]) + ";\n"
         elif matrix.shape[0] == 1 or matrix.shape[1] == 1:
             for i in range(0, len(matrix)):
                 write_string = write_string + variable_name +\
                                pre_bracket +\
                                str(i + 1) +\
                                post_bracket + " = " +\
-                               self.get_ccode(matrix[i]) + ";\n"
+                               self.get_code(matrix[i]) + ";\n"
 
         else:
             for j in range(0, matrix.shape[1]):
@@ -147,7 +158,7 @@ class CCodeGenerator:
                                        pre_bracket +\
                                        str(i + 1) + separator + str(j + 1) +\
                                        post_bracket + " = " +\
-                                       self.get_ccode(matrix[i, j]) + ";\n"
+                                       self.get_code(matrix[i, j]) + ";\n"
 
         write_string = write_string + "\n\n"
         self.write_lines(write_string, prefix="\t")
@@ -165,31 +176,27 @@ class CCodeGenerator:
 
 
 
-class PyCodeGenerator:
+class PyCodeGenerator(CodeGeneratorBase):
+
+    comment_prefix: str = "#"
+
     def __init__(self, file_name):
         self.file_name = file_name
         self.file = open(self.file_name, 'w')
 
-    def print_string(self, string):
-        self.file.write("# " + string + "\n")
-
-    def get_ccode(self, expression):
+    def get_code(self, expression):
         return ccode(expression, type_aliases={real: float32})
-
-
-    def write_lines(self, string, prefix: str = "", postfix: str = "\n"):
-        for line in string.split('\n'):
-            self.file.write(prefix + line + postfix)
 
 
     def write_subexpressions(self, subexpressions):
         write_string = ""
         for item in subexpressions:
-            write_string = write_string + str(item[0]) + " = " + self.get_ccode(item[1]) + ";\n"  # type:ignore
+            write_string = write_string + str(item[0]) + " = " + self.get_code(item[1]) + "\n"  # type:ignore
 
         write_string = write_string + "\n\n"
         # self.file.write(write_string)
         self.write_lines(write_string, prefix="\t")
+
 
     def write_matrix(self,
                      matrix,
@@ -200,14 +207,14 @@ class PyCodeGenerator:
                      separator="]["):
         write_string = ""
         if matrix.shape[0] * matrix.shape[1] == 1:
-            write_string = write_string + variable_name + " = " + self.get_ccode(matrix[0]) + ";\n"
+            write_string = write_string + variable_name + " = " + self.get_code(matrix[0]) + "\n"
         elif matrix.shape[0] == 1 or matrix.shape[1] == 1:
             for i in range(0, len(matrix)):
                 write_string = write_string + variable_name +\
                                pre_bracket +\
                                str(i + 1) +\
                                post_bracket + " = " +\
-                               self.get_ccode(matrix[i]) + ";\n"
+                               self.get_code(matrix[i]) + "\n"
 
         else:
             for j in range(0, matrix.shape[1]):
@@ -217,7 +224,7 @@ class PyCodeGenerator:
                                        pre_bracket +\
                                        str(i + 1) + separator + str(j + 1) +\
                                        post_bracket + " = " +\
-                                       self.get_ccode(matrix[i, j]) + ";\n"
+                                       self.get_code(matrix[i, j]) + "\n"
 
         write_string = write_string + "\n\n"
         # self.file.write(write_string)
