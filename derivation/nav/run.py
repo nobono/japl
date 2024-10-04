@@ -2,7 +2,6 @@ import dill as pickle
 import numpy as np
 from nav_gen import dt, state, input
 from nav_gen import dt_
-from nav_gen import vars_X, vars_P, vars_all, vars_update
 from nav_gen import state_subs, input_subs, var_subs, noise_subs, meas_subs
 from nav_gen import get_mat_upper
 from nav_gen import array_print

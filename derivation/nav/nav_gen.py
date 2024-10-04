@@ -474,16 +474,16 @@ vars_P = [
         dt,
         ]
 
-vars_all = [
-        list(state_subs.keys()),
-        list(input_subs.keys()),
-        list(get_mat_upper(P)),
-        list(var_subs.keys()),
-        list(noise_subs.keys()),
-        dt,
-        ]
+# vars_all = [
+#         list(state_subs.keys()),
+#         list(input_subs.keys()),
+#         list(get_mat_upper(P)),
+#         list(var_subs.keys()),
+#         list(noise_subs.keys()),
+#         dt,
+#         ]
 
-vars_update = [
+vars_all = [
         list(state_subs.keys()),
         list(input_subs.keys()),
         list(get_mat_upper(P)),
@@ -601,12 +601,12 @@ if __name__ == "__main__":
     P_new_func = profile(sp.lambdify)(vars_P, P_new, cse=True)
 
     # update from accel
-    X_accel_update_func = profile(sp.lambdify)(vars_update, X_accel_update, cse=True)
-    P_accel_update_func = profile(sp.lambdify)(vars_update, P_accel_update, cse=True)
+    X_accel_update_func = profile(sp.lambdify)(vars_all, X_accel_update, cse=True)
+    P_accel_update_func = profile(sp.lambdify)(vars_all, P_accel_update, cse=True)
 
     # update from gps-position
-    X_gps_update_func = profile(sp.lambdify)(vars_update, X_gps_update, cse=True)
-    P_gps_update_func = profile(sp.lambdify)(vars_update, P_gps_update, cse=True)
+    X_gps_update_func = profile(sp.lambdify)(vars_all, X_gps_update, cse=True)
+    P_gps_update_func = profile(sp.lambdify)(vars_all, P_gps_update, cse=True)
 
     out = [("X_new_func", X_new_func),
            ("P_new_func", P_new_func),
