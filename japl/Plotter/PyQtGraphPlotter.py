@@ -770,7 +770,8 @@ class PyQtGraphPlotter:
                 plot_item.getAxis("left").setPen({"color": text_color_code})
                 plot_item.getAxis("bottom").setPen({"color": text_color_code})
         scatter = pg.PlotCurveItem(x=x, y=y, pen=pen, symbol=marker, symbolPen=symbol_pen)
-        plot_item.legend.addItem(scatter, legend_name)  # type:ignore
+        if plot_item.legend:
+            plot_item.legend.addItem(scatter, legend_name)  # type:ignore
         plot_item.addItem(scatter)
         self.__apply_style_settings_to_plot(plot_item)
         return plot_item
