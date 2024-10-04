@@ -27,7 +27,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Example script using argparse")
     parser.add_argument('-n',
                         dest="filename",
-                        default="run_ld_67",
+                        default="run",
                         help='filename in /data')
     args = parser.parse_args()
 
@@ -58,18 +58,14 @@ if __name__ == "__main__":
                  legend_name="GPOPS")
     plotter.plot(getattr(run, "t"), getattr(run, col[1]),
                  legend_name="CHAD")
-    plotter.reset_color_cycle()
 
     col = ("Cn", "CN")
     plotter.figure()
     plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
                  title="CN vs. Time",
                  ylabel="CN",
-                 xlabel="Time",
-                 legend_name="GPOPS")
-    plotter.plot(getattr(run, "t"), getattr(run, col[1]),
-                 legend_name="ChAD")
-    plotter.reset_color_cycle()
+                 xlabel="Time")
+    plotter.plot(getattr(run, "t"), getattr(run, col[1]))
 
 
     col = ("Angle_of_Attack", "alpha")
@@ -81,7 +77,6 @@ if __name__ == "__main__":
                  legend_name="GPOPS")
     plotter.plot(getattr(run, "t"), np.degrees(getattr(run, col[1])),
                  legend_name="ChAD")
-    plotter.reset_color_cycle()
 
     # col = ("Altitude", "r_u")
     # plotter.figure()
@@ -103,18 +98,16 @@ if __name__ == "__main__":
                  legend_name="GPOPS")
     plotter.plot(getattr(run, "r_n"), getattr(run, col[1]),
                  legend_name="ChAD")
-    plotter.reset_color_cycle()
 
-    col = ("Mass", "wet_mass")
-    plotter.figure()
-    plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
-                 title="Mass vs. Time",
-                 ylabel="Mass",
-                 xlabel="Time",
-                 legend_name="GPOPS")
-    plotter.plot(getattr(run, "t"), getattr(run, col[1]),
-                 legend_name="ChAD")
-    plotter.reset_color_cycle()
+    # col = ("Mass", "wet_mass")
+    # plotter.figure()
+    # plotter.plot(getattr(fo, "Time"), getattr(fo, col[0]),
+    #              title="Mass vs. Time",
+    #              ylabel="Mass",
+    #              xlabel="Time",
+    #              legend_name="GPOPS")
+    # plotter.plot(getattr(run, "t"), getattr(run, col[1]),
+    #              legend_name="ChAD")
 
     # col = ("Mach", "mach")
     # plotter.figure()
@@ -135,7 +128,6 @@ if __name__ == "__main__":
                  legend_name="GPOPS")
     plotter.plot(getattr(run, "t"), getattr(run, col[1]),
                  legend_name="ChAD")
-    plotter.reset_color_cycle()
 
     # col = ("Lateral_Acceleration", "a_c_z")
     # plotter.figure()
