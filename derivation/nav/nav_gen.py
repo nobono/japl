@@ -595,10 +595,10 @@ if __name__ == "__main__":
     print("Lambdify-ing Symbolic Expressions...")
 
     # state predict
-    X_new_func = profile(sp.lambdify)(vars_X, X_new, cse=True)
+    X_new_func = profile(sp.lambdify)(vars_all, X_new, cse=True)
 
     # covariance predict
-    P_new_func = profile(sp.lambdify)(vars_P, P_new, cse=True)
+    P_new_func = profile(sp.lambdify)(vars_all, P_new, cse=True)
 
     # update from accel
     X_accel_update_func = profile(sp.lambdify)(vars_all, X_accel_update, cse=True)

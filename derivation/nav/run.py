@@ -39,13 +39,13 @@ with open(path + "P_gps_update_func.pickle", "rb") as f:
 ##################################################
 
 
-def state_predict(X, U, P, *args):
-    X_new = X_new_func(X, U, P.flatten(), *args)
+def state_predict(X, U, P, variance, noise, meas, *args):
+    X_new = X_new_func(X, U, P.flatten(), variance, noise, meas, *args)
     return X_new.flatten()
 
 
-def cov_predict(X, U, P, variance, *args):
-    P_new = P_new_func(X, U, P.flatten(), variance, *args)
+def cov_predict(X, U, P, variance, noise, meas, *args):
+    P_new = P_new_func(X, U, P.flatten(), variance, noise, meas, *args)
     return P_new
 
 
@@ -95,18 +95,20 @@ def ekf_step(t, X, U, S, dt):
 
     U = np.concatenate([U_gyro, U_accel])
 
-    X = state_predict(X, U, get_mat_upper(P), dt)
+    X = state_predict(X, U, get_mat_upper(P), variance, noise, meas, dt)
     q = X[:4].copy()
     X[:4] = q / np.linalg.norm(q)
-    P = cov_predict(X, U, get_mat_upper(P), variance, dt)
+    P = cov_predict(X, U, get_mat_upper(P), variance, noise, meas, dt)
 
-    X, P = accel_meas_update(X, U, get_mat_upper(P), variance, noise, meas, dt_)
+    # X, P = accel_meas_update(X, U, get_mat_upper(P), variance, noise, meas, dt_)
+
     # for i in range(P.shape[0]):
     #     for j in range(P.shape[0]):
     #         if i > j:
     #             P[i, j] = P[j, i]
-    if gps_count % 10 == 0:
-        X, P = gps_meas_update(X, U, get_mat_upper(P), variance, noise, meas, dt_)
+    # if gps_count % 10 == 0:
+    #     X, P = gps_meas_update(X, U, get_mat_upper(P), variance, noise, meas, dt_)
+
     #     for i in range(P.shape[0]):
     #         for j in range(P.shape[0]):
     #             if i > j:
@@ -114,16 +116,16 @@ def ekf_step(t, X, U, S, dt):
 
     # print(np.linalg.norm(P))
 
-    q = X[:4]
-    p = X[4:7]
-    v = X[7:10]
-    b_acc = X[10:13]
-    b_gyr = X[13:16]
-    print(f"q:{q}",
-          f"p:{p}",
-          f"v:{v}",
-          f"b_acc:{b_acc}",
-          f"b_gyr:{b_gyr}")
+    # q = X[:4]
+    # p = X[4:7]
+    # v = X[7:10]
+    # b_acc = X[10:13]
+    # b_gyr = X[13:16]
+    # print(f"q:{q}",
+    #       f"p:{p}",
+    #       f"v:{v}",
+    #       f"b_acc:{b_acc}",
+    #       f"b_gyr:{b_gyr}")
     # print(P)
     # array_print(X)
     gps_count += 1
@@ -139,21 +141,22 @@ model = Model.from_function(dt, state, input, state_update_func=ekf_step)
 simobj = SimObject(model)
 simobj.init_state(X)
 simobj.plot.set_config({
-    "pos-x": {
-        "xaxis": 'pos_n',
-        "yaxis": 'pos_d',
+    "E": {
+        "xaxis": 'time',
+        "yaxis": 'pos_e',
         "marker": 'o',
         },
-    # "pos-z": {
-    #     "xaxis": 'time',
-    #     "yaxis": 'pos_d'
-    #     }
+    "D": {
+        "xaxis": 'time',
+        "yaxis": 'pos_d',
+        "marker": 'o',
+        }
     })
 
 print("Starting Sim...")
 sim = Sim([0, 200], 0.1, [simobj])
-sim.run()
-# plotter.animate(sim)
+# sim.run()
+plotter.animate(sim)
 plotter.plot(sim.T, simobj.Y[:, 12])
 plotter.show()
 # quit()
