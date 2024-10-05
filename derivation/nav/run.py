@@ -16,7 +16,7 @@ from japl import JAPL_HOME_DIR
 ##################################################
 
 np.set_printoptions(precision=5, formatter={'float_kind': lambda x: f"{x:5.4f}"})
-# np.random.seed(123)
+np.random.seed(123)
 rand = lambda mag: np.random.uniform(-1, 1) * mag
 NSTATE = 16
 
@@ -81,9 +81,11 @@ def ekf_step(t, X, U, S, dt):
     variance = np.array(list(var_subs.values()))
     noise = np.array(list(noise_subs.values()))
 
-    Racc = 1e-3
-    Rgps_pos = .001
-    Rgps_vel = .001
+    Hz = 100
+    accel_noise_density = 10e-6 * 9.81  # (ug / sqrt(Hz))
+    Racc = accel_noise_density**2 * Hz
+    Rgps_pos = 0.5**2
+    Rgps_vel = 0.5**2
     accel_meas = [rand(Racc) for i in range(3)]
     gps_pos_meas = [rand(Rgps_pos) for i in range(3)]
     gps_vel_meas = [rand(Rgps_vel) for i in range(3)]
@@ -121,7 +123,7 @@ def ekf_step(t, X, U, S, dt):
     #         if i > j:
     #             P[i, j] = P[j, i]
 
-    if gps_count % 1 == 0:
+    if gps_count % 20 == 0:
         X, P = gps_meas_update(X, U, get_mat_upper(P), variance, noise, meas, dt)
 
         # for i in range(P.shape[0]):
@@ -154,16 +156,16 @@ model = Model.from_function(dt, state, input, state_update_func=ekf_step)
 simobj = SimObject(model)
 simobj.init_state(X)
 simobj.plot.set_config({
-    "E": {
-        "xaxis": 'time',
-        "yaxis": 'pos_d',
-        "marker": 'o',
-        },
     # "E": {
-    #     "xaxis": 'pos_e',
+    #     "xaxis": 'time',
     #     "yaxis": 'pos_d',
     #     "marker": 'o',
     #     },
+    "E-U": {
+        "xaxis": 't',
+        "yaxis": 'pos_d',
+        "marker": 'o',
+        },
     # "D": {
     #     "xaxis": 'time',
     #     "yaxis": 'pos_d',
@@ -175,9 +177,10 @@ simobj.plot.set_config({
     })
 
 print("Starting Sim...")
-sim = Sim([0, 150], 0.1, [simobj])
+sim = Sim([0, 500], 0.1, [simobj])
 sim.run()
 # plotter.animate(sim)
+
 ipos_e = simobj.model.get_state_id("pos_e")
 ipos_d = simobj.model.get_state_id("pos_d")
 T = sim.T

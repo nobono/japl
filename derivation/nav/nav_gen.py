@@ -418,13 +418,14 @@ input_subs = {
         }
 
 # process noise
+accel_noise_density = 10e-6 / np.sqrt(100)  # 10 ug / sqrt(Hz)
 var_subs = {
-        gyro_x_var: .001,
-        gyro_y_var: .001,
-        gyro_z_var: .001,
-        accel_x_var: .001,
-        accel_y_var: .001,
-        accel_z_var: .001,
+        gyro_x_var: .01,
+        gyro_y_var: .01,
+        gyro_z_var: .01,
+        accel_x_var: accel_noise_density * 9.81,
+        accel_y_var: accel_noise_density * 9.81,
+        accel_z_var: accel_noise_density * 9.81,
         }
 
 # measurement noise
