@@ -1,10 +1,9 @@
 import dill as pickle
 import numpy as np
 from nav_gen import dt, state, input
-from nav_gen import dt_
-from nav_gen import state_subs, input_subs, var_subs, noise_subs, meas_subs
+from nav_gen import state_info, input_info
+from nav_gen import variance_info, noise_info, meas_info
 from nav_gen import get_mat_upper
-from nav_gen import array_print
 from japl import Sim
 from japl import Model
 from japl import SimObject
@@ -17,7 +16,8 @@ from japl import JAPL_HOME_DIR
 
 np.set_printoptions(precision=5, formatter={'float_kind': lambda x: f"{x:5.4f}"})
 np.random.seed(123)
-rand = lambda mag: np.random.uniform(-1, 1) * mag
+rand = np.random.normal
+
 NSTATE = 16
 
 # load
@@ -67,48 +67,50 @@ def gps_meas_update(X, U, P, variance, noise, meas, *args):
 ##################################################
 
 # init
-X_init = np.array(list(state_subs.values()))
+X_init = np.array(list(state_info.values()))
 P_init = np.eye(NSTATE) * 0.3
 X = X_init
 P = P_init
 
-gps_count = 0
+count = 0
+
+accel_Hz = 100
+accel_noise_density = 10e-6 * 9.81  # (ug / sqrt(Hz))
+Racc = accel_noise_density**2 * accel_Hz
+Racc_std = np.sqrt(Racc)
+
+gyro_Hz = 100
+gyro_noise_density = 3.5e-6  # ((udeg / s) / sqrt(Hz))
+Rgyr = gyro_noise_density**2 * gyro_Hz
+Rgyr_std = np.sqrt(Rgyr)
+
+Rgps_pos = 0.1**2
+Rgps_pos_std = np.sqrt(Rgps_pos)
+
+Rgps_vel = 0.2**2
+Rgps_vel_std = np.sqrt(Rgps_vel)
 
 
 def ekf_step(t, X, U, S, dt):
-    global gps_count
+    global count
     global P
-    variance = np.array(list(var_subs.values()))
-    noise = np.array(list(noise_subs.values()))
+    global Racc, Rgyr
 
-    Hz = 100
-    accel_noise_density = 10e-6 * 9.81  # (ug / sqrt(Hz))
-    Racc = accel_noise_density**2 * Hz
-    Rgps_pos = 0.5**2
-    Rgps_vel = 0.5**2
-    accel_meas = [rand(Racc) for i in range(3)]
-    gps_pos_meas = [rand(Rgps_pos) for i in range(3)]
-    gps_vel_meas = [rand(Rgps_vel) for i in range(3)]
+    variance = np.array(list(variance_info.values()))
+    noise = np.array(list(noise_info.values()))
+
+    accel_meas = rand([0, 0, 0], Racc_std)
+    gps_pos_meas = rand([0, 0, 0], Rgps_pos_std)
+    gps_vel_meas = rand([0, 0, 0], Rgps_vel_std)
+
     # if t > 10 and t < 15:
     #     gps_vel_meas = np.array(gps_vel_meas) + np.array([0, 0, 10])
+
     meas = np.concatenate([accel_meas, gps_pos_meas, gps_vel_meas])
-
-    # meas = np.array(list(meas_subs.values()))
-    # meas = np.array([rand(-.02, .02),
-    #                  rand(-.02, .02),
-    #                  rand(-.02, .02),
-    #                  0, 0, 0,
-    #                  0, 0, 0])
-
     U_gyro = np.array([0, 0, 0], dtype=float)
-    # U_accel = np.array([0, 0, 0], dtype=float)
     U_accel = accel_meas
-    # U_accel = np.array([rand(-.01, .01),
-    #                     rand(-.01, .01),
-    #                     rand(-.01, .01) - 1.0,
-    #                     ])
 
-    U = np.concatenate([U_gyro, U_accel])
+    U[:] = np.concatenate([U_gyro, U_accel])
 
     X = state_predict(X, U, get_mat_upper(P), variance, noise, meas, dt)
     q = X[:4].copy()
@@ -118,20 +120,13 @@ def ekf_step(t, X, U, S, dt):
 
     X, P = accel_meas_update(X, U, get_mat_upper(P), variance, noise, meas, dt)
 
-    # for i in range(P.shape[0]):
-    #     for j in range(P.shape[0]):
-    #         if i > j:
-    #             P[i, j] = P[j, i]
+    sim_hz = (1 / dt)
+    gps_hz = 2
+    ratio = int(sim_hz / gps_hz)
+    # if count % ratio == 0:
+    #     X, P = gps_meas_update(X, U, get_mat_upper(P), variance, noise, meas, dt)
 
-    if gps_count % 20 == 0:
-        X, P = gps_meas_update(X, U, get_mat_upper(P), variance, noise, meas, dt)
-
-        # for i in range(P.shape[0]):
-        #     for j in range(P.shape[0]):
-        #         if i > j:
-        #             P[i, j] = P[j, i]
-
-    # print(np.linalg.norm(P))
+    # print(t, np.linalg.norm(P))
 
     # q = X[:4]
     # p = X[4:7]
@@ -145,11 +140,11 @@ def ekf_step(t, X, U, S, dt):
     #       f"b_gyr:{b_gyr}")
     # print(P)
     # array_print(X)
-    gps_count += 1
+    count += 1
     return X
 
 
-plotter = PyQtGraphPlotter(frame_rate=30, figsize=[10, 6], aspect="auto")
+plotter = PyQtGraphPlotter(frame_rate=30, figsize=[10, 8], aspect="auto")
 
 print("Building Model...")
 model = Model.from_function(dt, state, input, state_update_func=ekf_step)
@@ -161,31 +156,36 @@ simobj.plot.set_config({
     #     "yaxis": 'pos_d',
     #     "marker": 'o',
     #     },
-    "E-U": {
+    # "EU": {
+    #     "xaxis": 't',
+    #     "yaxis": 'pos_d',
+    #     "marker": 'o',
+    #     },
+    "accel-z": {
         "xaxis": 't',
-        "yaxis": 'pos_d',
+        "yaxis": 'z_accel_z',
         "marker": 'o',
         },
     # "D": {
     #     "xaxis": 'time',
     #     "yaxis": 'pos_d',
     #     "marker": 'o',
-        # "xlim": [0, 100],
-        # "ylim": [-5, 5]
-        # "color": "red",
-        # }
+    #     "color": "red",
+    #     }
     })
 
 print("Starting Sim...")
-sim = Sim([0, 500], 0.1, [simobj])
-sim.run()
-# plotter.animate(sim)
+sim = Sim([0, 25], 0.01, [simobj])
+# sim.run()
+plotter.animate(sim)
 
+iaccel_z = simobj.model.get_input_id("z_accel_z")
 ipos_e = simobj.model.get_state_id("pos_e")
 ipos_d = simobj.model.get_state_id("pos_d")
 T = sim.T
+accel_z = simobj.U[:, iaccel_z]
 pos_e = simobj.Y[:, ipos_e]
 pos_d = simobj.Y[:, ipos_d]
-plotter.plot(T, pos_d)
+
+# plotter.plot(T, pos_d)
 plotter.show()
-# quit()

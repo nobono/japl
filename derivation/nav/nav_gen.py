@@ -108,14 +108,14 @@ def sort_recursive_subs(replace):
     return replace_subs
 
 
-def cse_subs(cse, state_subs, input_subs, cov_subs, var_subs):
-    replace, expr = cse
-    expr = expr[0]
-    replace_subs = sort_recursive_subs(replace)
-    for (var, sub) in tqdm(replace_subs):
-        expr = expr.subs(var, sub)
-    expr = expr.subs(state_subs).subs(input_subs).subs(cov_subs).subs(var_subs).subs(dt, dt_)
-    return expr
+# def cse_subs(cse, state_subs, input_subs, cov_subs, var_subs):
+#     replace, expr = cse
+#     expr = expr[0]
+#     replace_subs = sort_recursive_subs(replace)
+#     for (var, sub) in tqdm(replace_subs):
+#         expr = expr.subs(var, sub)
+#     expr = expr.subs(state_subs).subs(input_subs).subs(cov_subs).subs(var_subs).subs(dt, dt_)
+#     return expr
 
 
 ################################################################
@@ -198,18 +198,21 @@ state = Matrix([quat, pos, vel, acc_bias, angvel_bias])
 ##################################################
 # Measurements
 ##################################################
-gyro_x, gyro_y, gyro_z = symbols("gyro_x, gyro_y, gyro_z", real=True)
-accel_x, accel_y, accel_z = symbols("accel_x, accel_y, accel_z", real=True)
-gps_pos_x, gps_pos_y, gps_pos_z = symbols("gps_pos_x, gps_pos_y, gps_pos_z", real=True)
-gps_vel_x, gps_vel_y, gps_vel_z = symbols("gps_vel_x, gps_vel_y, gps_vel_z", real=True)
 
-gyro = Matrix([gyro_x, gyro_y, gyro_z])
-accel = Matrix([accel_x, accel_y, accel_z])
-gps_pos = Matrix([gps_pos_x, gps_pos_y, gps_pos_z])
-gps_vel = Matrix([gps_vel_x, gps_vel_y, gps_vel_z])
+z_gyro_x, z_gyro_y, z_gyro_z = symbols("z_gyro_x, z_gyro_y, z_gyro_z", real=True)
+z_accel_x, z_accel_y, z_accel_z = symbols("z_accel_x, z_accel_y, z_accel_z", real=True)
+z_gps_pos_x, z_gps_pos_y, z_gps_pos_z = symbols("z_gps_pos_x, z_gps_pos_y, z_gps_pos_z", real=True)
+z_gps_vel_x, z_gps_vel_y, z_gps_vel_z = symbols("z_gps_vel_x, z_gps_vel_y, z_gps_vel_z", real=True)
 
-angvel_true = gyro - angvel_bias
-acc_true = accel - acc_bias
+z_gyro = Matrix([z_gyro_x, z_gyro_y, z_gyro_z])
+z_accel = Matrix([z_accel_x, z_accel_y, z_accel_z])
+z_gps_pos = Matrix([z_gps_pos_x, z_gps_pos_y, z_gps_pos_z])
+z_gps_vel = Matrix([z_gps_vel_x, z_gps_vel_y, z_gps_vel_z])
+z_gps = Matrix([z_gps_pos_x, z_gps_pos_y, z_gps_pos_z,
+                z_gps_vel_x, z_gps_vel_y, z_gps_vel_z])
+
+angvel_true = z_gyro - angvel_bias
+acc_true = z_accel - acc_bias
 
 dcm_to_earth = quat_to_dcm(quat)
 dcm_to_body = dcm_to_earth.T
@@ -245,6 +248,7 @@ gyro_x_var, gyro_y_var, gyro_z_var = symbols('gyro_x_var gyro_y_var gyro_z_var')
 accel_x_var, accel_y_var, accel_z_var = symbols('accel_x_var accel_y_var accel_z_var')
 # gps_pos_x_var, gps_pos_y_var, gps_pos_z_var = symbols('gps_pos_x_var, gps_pos_y_var, gps_pos_z_var')
 
+# input variance
 input_var = Matrix.diag([gyro_x_var, gyro_y_var, gyro_z_var,
                          accel_x_var, accel_y_var, accel_z_var])
 
@@ -253,7 +257,7 @@ input_var = Matrix.diag([gyro_x_var, gyro_y_var, gyro_z_var,
 ##################################################
 
 state_new = Matrix([quat_new, pos_new, vel_new, accel_bias_new, gyro_bias_new])
-input = Matrix([gyro, accel])
+input = Matrix([z_gyro, z_accel])
 F = state_new.jacobian(state)
 G = state_new.jacobian(input)
 
@@ -280,18 +284,15 @@ for index in range(P.shape[0]):
             P_new[index, j] = 0
 
 ##################################################
-# Observation Noise
+# Observations
 ##################################################
+print("Building Observations...")
 
+# Observation Noise
 R_accel_x, R_accel_y, R_accel_z = symbols('R_accel_x R_accel_y R_accel_z')
 R_mag_world_x, R_mag_world_y, R_mag_world_z = symbols('R_mag_world_x R_mag_world_y R_mag_world_z')
 R_gps_pos_x, R_gps_pos_y, R_gps_pos_z = symbols('R_gps_pos_x R_gps_pos_y R_gps_pos_z')
 R_gps_vel_x, R_gps_vel_y, R_gps_vel_z = symbols('R_gps_vel_x R_gps_vel_y R_gps_vel_z')
-
-##################################################
-# Observations
-##################################################
-print("Building Observations...")
 
 # Body Frame Accelerometer Observation
 # obs_accel = (dcm_to_earth * gravity_bf) - acc_bias
@@ -349,19 +350,6 @@ K_gps_vel_y = P * H_gps_vel_y.T / innov_var_gps_vel_y[0, 0]
 K_gps_vel_z = P * H_gps_vel_z.T / innov_var_gps_vel_z[0, 0]
 
 ##################################################
-# Measurements
-##################################################
-
-z_accel_x, z_accel_y, z_accel_z = symbols("z_accel_x, z_accel_y, z_accel_z", real=True)
-z_gps_pos_x, z_gps_pos_y, z_gps_pos_z = symbols("z_gps_pos_x, z_gps_pos_y, z_gps_pos_z", real=True)
-z_gps_vel_x, z_gps_vel_y, z_gps_vel_z = symbols("z_gps_vel_x, z_gps_vel_y, z_gps_vel_z", real=True)
-
-z_accel = Matrix([z_accel_x, z_accel_y, z_accel_z])
-# z_gps_pos = Matrix([z_gps_pos_x, z_gps_pos_y, z_gps_pos_z])
-# z_gps_vel = Matrix([z_gps_vel_x, z_gps_vel_y, z_gps_vel_z])
-z_gps = Matrix([z_gps_pos_x, z_gps_pos_y, z_gps_pos_z,
-                z_gps_vel_x, z_gps_vel_y, z_gps_vel_z])
-##################################################
 # Updates
 ##################################################
 print("Building Updates...")
@@ -388,9 +376,7 @@ P_accel_update = P - (K_accel * H_accel * P)
 X_gps_update = state + K_gps * (z_gps - H_gps * state)
 P_gps_update = P - (K_gps * H_gps * P)
 
-dt_ = 0.1
-
-state_subs = {
+state_info = {
         q0: 1,
         q1: 0,
         q2: 0,
@@ -409,28 +395,30 @@ state_subs = {
         angvel_bias_z: 0,
         }
 
-input_subs = {
-        gyro[0, 0]: 0.0,        # type:ignore
-        gyro[1, 0]: 0.0,        # type:ignore
-        gyro[2, 0]: 0.0,        # type:ignore
-        accel[0, 0]: 0.0,        # type:ignore
-        accel[1, 0]: 0.0,        # type:ignore
-        accel[2, 0]: 0.0,        # type:ignore
+input_info = {
+        z_gyro[0, 0]: 0.0,        # type:ignore
+        z_gyro[1, 0]: 0.0,        # type:ignore
+        z_gyro[2, 0]: 0.0,        # type:ignore
+        z_accel[0, 0]: 0.0,        # type:ignore
+        z_accel[1, 0]: 0.0,        # type:ignore
+        z_accel[2, 0]: 0.0,        # type:ignore
         }
 
 # process noise
-accel_noise_density = 10e-6 / np.sqrt(100)  # 10 ug / sqrt(Hz)
-var_subs = {
-        gyro_x_var: .01,
-        gyro_y_var: .01,
-        gyro_z_var: .01,
-        accel_x_var: accel_noise_density * 9.81,
-        accel_y_var: accel_noise_density * 9.81,
-        accel_z_var: accel_noise_density * 9.81,
+accel_Hz = 100
+accel_noise_density = 10e-6  # 10 ug / sqrt(Hz)
+accel_var = (accel_noise_density * 9.81)**2 * accel_Hz
+variance_info = {
+        gyro_x_var: 1e-6,
+        gyro_y_var: 1e-6,
+        gyro_z_var: 1e-6,
+        accel_x_var: accel_var,
+        accel_y_var: accel_var,
+        accel_z_var: accel_var,
         }
 
 # measurement noise
-noise_subs = {
+noise_info = {
         R_accel_x: 1.e-3,
         R_accel_y: 1.e-3,
         R_accel_z: 1.e-3,
@@ -443,7 +431,7 @@ noise_subs = {
         }
 
 # sensor measurements
-meas_subs = {
+meas_info = {
         z_accel_x: 0,
         z_accel_y: 0,
         z_accel_z: 0,
@@ -465,37 +453,13 @@ meas_subs = {
 # Sympy lambdify funcs
 #################################################
 
-vars_X = [
-        list(state_subs.keys()),
-        list(input_subs.keys()),
+vars = [
+        list(state_info.keys()),
+        list(input_info.keys()),
         list(get_mat_upper(P)),
-        dt,
-        ]
-
-vars_P = [
-        list(state_subs.keys()),
-        list(input_subs.keys()),
-        list(get_mat_upper(P)),
-        list(var_subs.keys()),
-        dt,
-        ]
-
-# vars_all = [
-#         list(state_subs.keys()),
-#         list(input_subs.keys()),
-#         list(get_mat_upper(P)),
-#         list(var_subs.keys()),
-#         list(noise_subs.keys()),
-#         dt,
-#         ]
-
-vars_all = [
-        list(state_subs.keys()),
-        list(input_subs.keys()),
-        list(get_mat_upper(P)),
-        list(var_subs.keys()),
-        list(noise_subs.keys()),
-        list(meas_subs.keys()),
+        list(variance_info.keys()),
+        list(noise_info.keys()),
+        list(meas_info.keys()),
         dt,
         ]
 
@@ -601,18 +565,18 @@ if __name__ == "__main__":
     print("Lambdify-ing Symbolic Expressions...")
 
     # state predict
-    X_new_func = profile(sp.lambdify)(vars_all, X_new, cse=True)
+    X_new_func = profile(sp.lambdify)(vars, X_new, cse=True)
 
     # covariance predict
-    P_new_func = profile(sp.lambdify)(vars_all, P_new, cse=True)
+    P_new_func = profile(sp.lambdify)(vars, P_new, cse=True)
 
     # update from accel
-    X_accel_update_func = profile(sp.lambdify)(vars_all, X_accel_update, cse=True)
-    P_accel_update_func = profile(sp.lambdify)(vars_all, P_accel_update, cse=True)
+    X_accel_update_func = profile(sp.lambdify)(vars, X_accel_update, cse=True)
+    P_accel_update_func = profile(sp.lambdify)(vars, P_accel_update, cse=True)
 
     # update from gps-position
-    X_gps_update_func = profile(sp.lambdify)(vars_all, X_gps_update, cse=True)
-    P_gps_update_func = profile(sp.lambdify)(vars_all, P_gps_update, cse=True)
+    X_gps_update_func = profile(sp.lambdify)(vars, X_gps_update, cse=True)
+    P_gps_update_func = profile(sp.lambdify)(vars, P_gps_update, cse=True)
 
     out = [("X_new_func", X_new_func),
            ("P_new_func", P_new_func),
