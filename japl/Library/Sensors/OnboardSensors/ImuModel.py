@@ -48,10 +48,10 @@ class SensorBase:
         return self.buffer.qsize()
 
 
-    def get_noise(self):
+    def get_noise(self) -> np.ndarray:
         """returns random uniform noise array reflective
         of the self.noise parameter."""
-        return np.array([np.random.uniform(-i, i) for i in self.noise])
+        return np.random.normal([0, 0, 0], self.noise)
 
 
     def calc_measurement(self, time: float, true_val: np.ndarray):
