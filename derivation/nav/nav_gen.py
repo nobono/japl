@@ -228,8 +228,9 @@ Sw = Matrix([
     ])
 
 quat_new = quat + (-0.5 * Sw * quat) * dt
-pos_new = pos + vel * dt
-vel_new = vel + (dcm_to_earth * (acc_true - gravity_bf)) * dt
+acc_world_measured = (dcm_to_earth * (acc_true - gravity_bf))
+pos_new = pos + vel * dt + 0.5 * acc_world_measured * dt**2
+vel_new = vel + acc_world_measured * dt
 gyro_bias_new = angvel_bias
 accel_bias_new = acc_bias
 
