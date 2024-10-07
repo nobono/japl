@@ -1,13 +1,13 @@
 import dill as pickle
 import numpy as np
-from nav_gen import dt, state, input
-from nav_gen import state_info, input_info
-from nav_gen import variance_info, noise_info, meas_info
-from nav_gen import get_mat_upper
 from japl import Sim
 from japl import Model
 from japl import SimObject
 from japl import PyQtGraphPlotter
+from japl.Library.Nav.Nav import dt, state, input
+from japl.Library.Nav.Nav import state_info, input_info
+from japl.Library.Nav.Nav import variance_info, noise_info, meas_info
+from japl.Library.Nav.Nav import get_mat_upper
 from japl import JAPL_HOME_DIR
 
 ##################################################
@@ -21,7 +21,7 @@ rand = np.random.normal
 NSTATE = 16
 
 # load
-path = f"{JAPL_HOME_DIR}/derivation/nav/"
+path = f"{JAPL_HOME_DIR}/data/"
 with open(path + "X_new_func.pickle", "rb") as f:
     X_new_func = pickle.load(f)
 with open(path + "P_new_func.pickle", "rb") as f:

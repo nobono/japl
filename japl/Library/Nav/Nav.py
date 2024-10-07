@@ -1,10 +1,10 @@
 import dill as pickle
 import numpy as np
 import sympy as sp
-from itertools import permutations
+# from itertools import permutations
 from sympy import Matrix, Symbol, symbols, cse
 from sympy import MatrixSymbol
-from sympy import default_sort_key, topological_sort
+# from sympy import default_sort_key, topological_sort
 from japl.BuildTools.DirectUpdate import DirectUpdate
 from japl import JAPL_HOME_DIR
 from japl.Util.Util import profile
@@ -27,76 +27,76 @@ def get_mat_upper(mat):
     return np.array(ret)
 
 
-def zero_mat_lower(mat):
-    ret = mat.copy()
-    for index in range(mat.shape[0]):
-        for j in range(mat.shape[0]):
-            if index > j:
-                ret[index, j] = 0
-    return ret
+# def zero_mat_lower(mat):
+#     ret = mat.copy()
+#     for index in range(mat.shape[0]):
+#         for j in range(mat.shape[0]):
+#             if index > j:
+#                 ret[index, j] = 0
+#     return ret
 
 
-def mat_print(mat):
-    if isinstance(mat, Matrix):
-        mat = np.array(mat)
-    for row in mat:
-        print('[', end="")
-        for item in row:
-            if item == 0:
-                print("%s, " % (' ' * 8), end="")
-            else:
-                print("%.6f, " % item, end="")
-        print(']')
-    print()
+# def mat_print(mat):
+#     if isinstance(mat, Matrix):
+#         mat = np.array(mat)
+#     for row in mat:
+#         print('[', end="")
+#         for item in row:
+#             if item == 0:
+#                 print("%s, " % (' ' * 8), end="")
+#             else:
+#                 print("%.6f, " % item, end="")
+#         print(']')
+#     print()
 
 
-def mat_print_sparse(mat):
-    for i in range(mat.shape[0]):
-        print('[', end="")
-        for j in range(mat.shape[1]):
-            item = mat[i, j]
-            try:
-                item = float(item)
-                if item == 0:
-                    print("%s, " % " ", end="")
-                else:
-                    print("%d, " % 1, end="")
-            except:  # noqa
-                if isinstance(item, sp.Expr):
-                    print("%d, " % 1, end="")
-        print(']')
-    print()
+# def mat_print_sparse(mat):
+#     for i in range(mat.shape[0]):
+#         print('[', end="")
+#         for j in range(mat.shape[1]):
+#             item = mat[i, j]
+#             try:
+#                 item = float(item)
+#                 if item == 0:
+#                     print("%s, " % " ", end="")
+#                 else:
+#                     print("%d, " % 1, end="")
+#             except:  # noqa
+#                 if isinstance(item, sp.Expr):
+#                     print("%d, " % 1, end="")
+#         print(']')
+#     print()
 
 
-def array_print(mat):
-    print('[', end="")
-    for item in mat:
-        if item == 0:
-            print("%s, " % (' ' * 8), end="")
-        else:
-            print("%.6f, " % item, end="")
-    print(']')
+# def array_print(mat):
+#     print('[', end="")
+#     for item in mat:
+#         if item == 0:
+#             print("%s, " % (' ' * 8), end="")
+#         else:
+#             print("%.6f, " % item, end="")
+#     print(']')
 
 
-def update_subs(subs, arr):
-    for i, (k, v) in enumerate(subs.items()):
-        subs[k] = arr[i]
+# def update_subs(subs, arr):
+#     for i, (k, v) in enumerate(subs.items()):
+#         subs[k] = arr[i]
 
 
-def sort_recursive_subs(replace):
-    """
-    For recursive substitutions, the order of variable subs
-    must be sorted.
+# def sort_recursive_subs(replace):
+#     """
+#     For recursive substitutions, the order of variable subs
+#     must be sorted.
 
-    Arguments:
-        - replace: the first return of sympy.cse (list[tuple])
+#     Arguments:
+#         - replace: the first return of sympy.cse (list[tuple])
 
-    Returns:
-        - replace_subs: dict of substitutions
-    """
-    edges = [(i, j) for i, j in permutations(replace, 2) if i[1].has(j[0])]
-    replace_subs = topological_sort([replace, edges], default_sort_key)
-    return replace_subs
+#     Returns:
+#         - replace_subs: dict of substitutions
+#     """
+#     edges = [(i, j) for i, j in permutations(replace, 2) if i[1].has(j[0])]
+#     replace_subs = topological_sort([replace, edges], default_sort_key)
+#     return replace_subs
 
 
 # def cse_subs(cse, state_subs, input_subs, cov_subs, var_subs):
@@ -123,41 +123,41 @@ def quat_to_dcm(q):
     return Rot
 
 
-def quat_mult(p, q):
-    r = Matrix([p[0] * q[0] - p[1] * q[1] - p[2] * q[2] - p[3] * q[3],
-                p[0] * q[1] + p[1] * q[0] + p[2] * q[3] - p[3] * q[2],
-                p[0] * q[2] - p[1] * q[3] + p[2] * q[0] + p[3] * q[1],
-                p[0] * q[3] + p[1] * q[2] - p[2] * q[1] + p[3] * q[0]])
-    return r
+# def quat_mult(p, q):
+#     r = Matrix([p[0] * q[0] - p[1] * q[1] - p[2] * q[2] - p[3] * q[3],
+#                 p[0] * q[1] + p[1] * q[0] + p[2] * q[3] - p[3] * q[2],
+#                 p[0] * q[2] - p[1] * q[3] + p[2] * q[0] + p[3] * q[1],
+#                 p[0] * q[3] + p[1] * q[2] - p[2] * q[1] + p[3] * q[0]])
+#     return r
 
 
-def create_cov_matrix(i, j):
-    if j >= i:
-        # return Symbol("P(" + str(i) + "," + str(j) + ")", real=True)
-        # legacy array format
-        return Symbol("P[" + str(i) + "][" + str(j) + "]", real=True)
-    else:
-        return 0
+# def create_cov_matrix(i, j):
+#     if j >= i:
+#         # return Symbol("P(" + str(i) + "," + str(j) + ")", real=True)
+#         # legacy array format
+#         return Symbol("P[" + str(i) + "][" + str(j) + "]", real=True)
+#     else:
+#         return 0
 
 
-def create_symmetric_cov_matrix(n):
-    # define a symbolic covariance matrix
-    P = Matrix(n, n, create_cov_matrix)
-    for index in range(n):
-        for j in range(n):
-            if index > j:
-                P[index, j] = P[j, index]
-    return P
+# def create_symmetric_cov_matrix(n):
+#     # define a symbolic covariance matrix
+#     P = Matrix(n, n, create_cov_matrix)
+#     for index in range(n):
+#         for j in range(n):
+#             if index > j:
+#                 P[index, j] = P[j, index]
+#     return P
 
 
-def generate_kalman_gain_equations(P, state, observation, variance, varname: str = "K"):
-    H = Matrix([observation]).jacobian(state)
-    innov_var = H * P * H.T + Matrix([variance])
-    assert (innov_var.shape[0] == 1)
-    assert (innov_var.shape[1] == 1)
-    K = (P * H.T) / innov_var[0, 0]
-    K_simple = cse(K, symbols(f"{varname}0:1000"), optimizations="basic")
-    return K_simple
+# def generate_kalman_gain_equations(P, state, observation, variance, varname: str = "K"):
+#     H = Matrix([observation]).jacobian(state)
+#     innov_var = H * P * H.T + Matrix([variance])
+#     assert (innov_var.shape[0] == 1)
+#     assert (innov_var.shape[1] == 1)
+#     K = (P * H.T) / innov_var[0, 0]
+#     K_simple = cse(K, symbols(f"{varname}0:1000"), optimizations="basic")
+#     return K_simple
 
 
 ################################################################
@@ -578,5 +578,5 @@ if __name__ == "__main__":
 
     for (name, func) in out:
         print(f"saving {name}...")
-        with open(f"{JAPL_HOME_DIR}/derivation/nav/{name}.pickle", "wb") as f:
+        with open(f"{JAPL_HOME_DIR}/data/{name}.pickle", "wb") as f:
             pickle.dump(func, f)
