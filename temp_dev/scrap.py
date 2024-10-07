@@ -2,9 +2,46 @@ import numpy as np
 import japl
 from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
 from japl import Model
-from derivation.nav.code_gen import CCodeGenerator
-from sympy import cse, symbols, Matrix
+# from derivation.nav.code_gen import CCodeGenerator
+from sympy import cse, symbols, Matrix, MatrixSymbol
+from japl.Util.Desym import Desym
+from time import perf_counter
+from sympy.utilities.autowrap import autowrap
 
+
+"""simple setup"""
+from sympy.abc import x, y, z, a, b, c
+import sympy as sp
+
+expr = sp.sqrt(x)**4 + sp.sqrt(y)**2 + sp.sin(z)**3 + sp.cos(a + b + c)
+
+# desym_wrap = autowrap(expr=expr, args=(a,b,c, x,y,z), language="C", backend="cython")
+
+
+def desym_py(a, b, c, x, y, z):
+    return np.sqrt(x)**4 + np.sqrt(y)**2 + np.sin(z)**3 + np.cos(a + b + c)
+
+
+desym_wrap = Desym((a, b, c, x, y, z), expr, wrap_type="autowrap")
+desym_lamb = Desym((a, b, c, x, y, z), expr, wrap_type="lambdify")
+
+N = 1_000_000
+st = perf_counter()
+for i in range(N):
+    ret = desym_lamb(1, 2, 3, 4, 5, 6)
+print("exec:", perf_counter() - st)
+
+st = perf_counter()
+for i in range(N):
+    ret = desym_wrap(1, 2, 3, 4, 5, 6)
+print("exec:", perf_counter() - st)
+
+st = perf_counter()
+for i in range(N):
+    ret = desym_py(1, 2, 3, 4, 5, 6)
+print("exec:", perf_counter() - st)
+
+quit()
 
 model = japl.Model.from_file(f"{japl.JAPL_HOME_DIR}/data/mmd.japl")
 d, s, i = model.dump_code()
