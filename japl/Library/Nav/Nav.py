@@ -237,18 +237,21 @@ gyro_bias_new[2] = sp.Float(0)
 
 gyro_x_var, gyro_y_var, gyro_z_var = symbols('gyro_x_var gyro_y_var gyro_z_var')
 accel_x_var, accel_y_var, accel_z_var = symbols('accel_x_var accel_y_var accel_z_var')
-# gps_pos_x_var, gps_pos_y_var, gps_pos_z_var = symbols('gps_pos_x_var, gps_pos_y_var, gps_pos_z_var')
+gps_pos_x_var, gps_pos_y_var, gps_pos_z_var = symbols('gps_pos_x_var, gps_pos_y_var, gps_pos_z_var')
+gps_vel_x_var, gps_vel_y_var, gps_vel_z_var = symbols('gps_vel_x_var, gps_vel_y_var, gps_vel_z_var')
 
 # input variance
 input_var = Matrix.diag([gyro_x_var, gyro_y_var, gyro_z_var,
-                         accel_x_var, accel_y_var, accel_z_var])
+                         accel_x_var, accel_y_var, accel_z_var,
+                         gps_pos_x_var, gps_pos_y_var, gps_pos_z_var,
+                         gps_vel_x_var, gps_vel_y_var, gps_vel_z_var])
 
 ##################################################
 # State Prediction
 ##################################################
 
 state_new = Matrix([quat_new, pos_new, vel_new, accel_bias_new, gyro_bias_new])
-input = Matrix([z_gyro, z_accel])
+input = Matrix([z_gyro, z_accel, z_gps_pos, z_gps_vel])
 F = state_new.jacobian(state)
 G = state_new.jacobian(input)
 
@@ -386,14 +389,14 @@ state_info = {
         angvel_bias_z: 0,
         }
 
-input_info = {
-        z_gyro[0, 0]: 0.0,        # type:ignore
-        z_gyro[1, 0]: 0.0,        # type:ignore
-        z_gyro[2, 0]: 0.0,        # type:ignore
-        z_accel[0, 0]: 0.0,        # type:ignore
-        z_accel[1, 0]: 0.0,        # type:ignore
-        z_accel[2, 0]: 0.0,        # type:ignore
-        }
+# input_info = {
+#         z_gyro[0, 0]: 0.0,        # type:ignore
+#         z_gyro[1, 0]: 0.0,        # type:ignore
+#         z_gyro[2, 0]: 0.0,        # type:ignore
+#         z_accel[0, 0]: 0.0,        # type:ignore
+#         z_accel[1, 0]: 0.0,        # type:ignore
+#         z_accel[2, 0]: 0.0,        # type:ignore
+#         }
 
 # process noise
 accel_Hz = 100
@@ -422,7 +425,10 @@ noise_info = {
         }
 
 # sensor measurements
-meas_info = {
+input_info = {
+        z_gyro_x: 0,
+        z_gyro_y: 0,
+        z_gyro_z: 0,
         z_accel_x: 0,
         z_accel_y: 0,
         z_accel_z: 0,
@@ -450,7 +456,7 @@ vars = [
         list(get_mat_upper(P)),
         list(variance_info.keys()),
         list(noise_info.keys()),
-        list(meas_info.keys()),
+        # list(meas_info.keys()),
         dt,
         ]
 

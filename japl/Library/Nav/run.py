@@ -6,7 +6,7 @@ from japl import SimObject
 from japl import PyQtGraphPlotter
 from japl.Library.Nav.Nav import dt, state, input
 from japl.Library.Nav.Nav import state_info, input_info
-from japl.Library.Nav.Nav import variance_info, noise_info, meas_info
+from japl.Library.Nav.Nav import variance_info, noise_info
 from japl.Library.Nav.Nav import get_mat_upper
 from japl.Library.Sensors.OnboardSensors.ImuModel import ImuSensor
 from japl.Library.Sensors.OnboardSensors.ImuModel import SensorBase
@@ -41,32 +41,32 @@ with open(path + "P_gps_update_func.pickle", "rb") as f:
 ##################################################
 
 
-def state_predict(X, U, P, variance, noise, meas, *args):
-    X_new = X_new_func(X, U, P.flatten(), variance, noise, meas, *args)
+def state_predict(X, U, P, variance, noise, *args):
+    X_new = X_new_func(X, U, P.flatten(), variance, noise, *args)
     return X_new.flatten()
 
 
-def cov_predict(X, U, P, variance, noise, meas, *args):
-    P_new = P_new_func(X, U, P.flatten(), variance, noise, meas, *args)
+def cov_predict(X, U, P, variance, noise, *args):
+    P_new = P_new_func(X, U, P.flatten(), variance, noise, *args)
     return P_new
 
 
-def accel_meas_update(X, U, P, variance, noise, meas, *args):
-    X_accel_update_new = X_accel_update_func(X, U, P.flatten(), variance, noise, meas, *args)
-    P_accel_update_new = P_accel_update_func(X, U, P.flatten(), variance, noise, meas, *args)
+def accel_meas_update(X, U, P, variance, noise, *args):
+    X_accel_update_new = X_accel_update_func(X, U, P.flatten(), variance, noise, *args)
+    P_accel_update_new = P_accel_update_func(X, U, P.flatten(), variance, noise, *args)
     return X_accel_update_new.flatten(), P_accel_update_new
 
 
-def gps_meas_update(X, U, P, variance, noise, meas, *args):
-    X_gps_update_new = X_gps_update_func(X, U, P.flatten(), variance, noise, meas, *args)
-    P_gps_update_new = P_gps_update_func(X, U, P.flatten(), variance, noise, meas, *args)
+def gps_meas_update(X, U, P, variance, noise, *args):
+    X_gps_update_new = X_gps_update_func(X, U, P.flatten(), variance, noise, *args)
+    P_gps_update_new = P_gps_update_func(X, U, P.flatten(), variance, noise, *args)
     return X_gps_update_new.flatten(), P_gps_update_new
 
 
 ##################################################
 # Sim
 ##################################################
-np.random.seed(123)
+# np.random.seed(123)
 
 # init
 X_init = np.array(list(state_info.values()))
@@ -102,7 +102,9 @@ def ekf_input_update(t, X, U, S, dt):
     imu.update(t, [0, 0, 0], [0, 0, 0], [0, 0, 0])
     U_accel = imu.accelerometer.get_latest_measurement()
     U_gyro = imu.gyroscope.get_latest_measurement()
-    U = np.concatenate([U_gyro.value, U_accel.value])
+    U_gps_pos = np.array([0, 0, 0])
+    U_gps_vel = np.array([0, 0, 0])
+    U = np.concatenate([U_gyro.value, U_accel.value, U_gps_pos, U_gps_vel])
     return U
 
 
@@ -115,28 +117,26 @@ def ekf_step(t, X, U, S, dt):
     variance = np.array(list(variance_info.values()))
     noise = np.array(list(noise_info.values()))
 
-    accel_meas = rand([0, 0, 0], Racc_std)
-    gps_pos_meas = rand([0, 0, 0], Rgps_pos_std)
-    gps_vel_meas = rand([0, 0, 0], Rgps_vel_std)
+    # gyro_meas = simobj.get_input_array(U, ["z_gyro_x", "z_gyro_y", "z_gyro_y"])
+    # accel_meas = simobj.get_input_array(U, ["z_accel_x", "z_accel_y", "z_accel_y"])
+    # gps_pos_meas = simobj.get_input_array(U, ["z_gps_pos_x", "z_gps_pos_y", "z_gps_pos_z"])
+    # gps_vel_meas = simobj.get_input_array(U, ["z_gps_vel_x", "z_gps_vel_y", "z_gps_vel_z"])
 
-    # if t > 10 and t < 15:
-    #     gps_vel_meas = np.array(gps_vel_meas) + np.array([0, 0, 10])
+    # meas = np.concatenate([gyro_meas, accel_meas, gps_pos_meas, gps_vel_meas])
 
-    meas = np.concatenate([accel_meas, gps_pos_meas, gps_vel_meas])
-
-    X = state_predict(X, U, get_mat_upper(P), variance, noise, meas, dt)
+    X = state_predict(X, U, get_mat_upper(P), variance, noise, dt)
     q = X[:4].copy()
     X[:4] = q / np.linalg.norm(q)
 
-    P = cov_predict(X, U, get_mat_upper(P), variance, noise, meas, dt)
+    P = cov_predict(X, U, get_mat_upper(P), variance, noise, dt)
 
-    X, P = accel_meas_update(X, U, get_mat_upper(P), variance, noise, meas, dt)
+    X, P = accel_meas_update(X, U, get_mat_upper(P), variance, noise, dt)
 
     sim_hz = (1 / dt)
-    gps_hz = 2
+    gps_hz = 1
     gps_ratio = int(sim_hz / gps_hz)
-    # if count % gps_ratio == 0:
-    #     X, P = gps_meas_update(X, U, get_mat_upper(P), variance, noise, meas, dt)
+    if count % gps_ratio == 0:
+        X, P = gps_meas_update(X, U, get_mat_upper(P), variance, noise, dt)
 
     # print(t, np.linalg.norm(P))
 
@@ -159,7 +159,9 @@ def ekf_step(t, X, U, S, dt):
 plotter = PyQtGraphPlotter(frame_rate=30, figsize=[10, 8], aspect="auto")
 
 print("Building Model...")
-model = Model.from_function(dt, state, input, state_update_func=ekf_step, input_update_func=ekf_input_update)
+model = Model.from_function(dt, state, input,
+                            state_update_func=ekf_step,
+                            input_update_func=ekf_input_update)
 simobj = SimObject(model)
 simobj.init_state(X)
 simobj.plot.set_config({
@@ -168,16 +170,16 @@ simobj.plot.set_config({
     #     "yaxis": 'pos_d',
     #     "marker": 'o',
     #     },
-    # "EU": {
-    #     "xaxis": 't',
-    #     "yaxis": 'pos_d',
-    #     "marker": 'o',
-    #     },
-    "accel-z": {
+    "U": {
         "xaxis": 't',
-        "yaxis": 'z_accel_z',
+        "yaxis": 'pos_d',
         "marker": 'o',
         },
+    # "accel-z": {
+    #     "xaxis": 't',
+    #     "yaxis": 'z_accel_z',
+    #     "marker": 'o',
+    #     },
     # "D": {
     #     "xaxis": 'time',
     #     "yaxis": 'pos_d',
@@ -187,9 +189,10 @@ simobj.plot.set_config({
     })
 
 print("Starting Sim...")
-sim = Sim([0, 25], 0.01, [simobj])
-# sim.run()
-plotter.animate(sim)
+sim = Sim([0, 200], 0.01, [simobj])
+sim.run()
+sim.profiler.print_info()
+# plotter.animate(sim)
 
 iaccel_z = simobj.model.get_input_id("z_accel_z")
 ipos_e = simobj.model.get_state_id("pos_e")
@@ -199,5 +202,5 @@ accel_z = simobj.U[:, iaccel_z]
 pos_e = simobj.Y[:, ipos_e]
 pos_d = simobj.Y[:, ipos_d]
 
-# plotter.plot(T, pos_d)
+plotter.plot(T, pos_d)
 plotter.show()
