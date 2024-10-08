@@ -52,8 +52,11 @@ class CodeGeneratorBase:
         pass
 
 
-    def convert_parameter(self, param: Expr) -> str:
-        return self.get_expr_name(param)
+    def declare_parameter(self, param: Expr, name: str = "", *args, **kwargs) -> str:
+        if name:
+            return name
+        else:
+            return self.get_expr_name(param)
 
 
     def close(self):
@@ -98,6 +101,13 @@ class CodeGeneratorBase:
         self.close()
 
 
+    def is_array_type(self, param: Expr) -> bool:
+        if hasattr(param, "__len__") or hasattr(param, "shape"):
+            return True
+        else:
+            return False
+
+
     def get_function_parameters(self, params: list[Expr]) -> tuple[str, str]:
         """returns names of paramters as a string. If Matrix or list of
         parameters provided as one of the parameters, return the string
@@ -106,17 +116,17 @@ class CodeGeneratorBase:
         arg_names = []
         arg_unpack_str = ""
         for i, param in enumerate(params):
-            if hasattr(param, "__len__"):
+            if self.is_array_type(param):
                 # unpack iterable param
-                param_str = dummy_prefix + str(i)
+                dummy_name = dummy_prefix + str(i)
                 for ip, p in enumerate(param):  # type:ignore
-                    unpack_var = self.convert_parameter(p)
+                    unpack_var = self.declare_parameter(p)
                     accessor_str = self.pre_bracket + str(ip) + self.post_bracket
-                    arg_unpack_str += f"{unpack_var} = {param_str}{accessor_str}" + self.endl
+                    arg_unpack_str += f"{unpack_var} = {dummy_name}{accessor_str}" + self.endl
                 # store dummy var in arg_names
-                arg_names += [param_str]
+                arg_names += [self.declare_parameter(param, name=dummy_name)]
             else:
-                param_str = self.convert_parameter(param)
+                param_str = self.declare_parameter(param)
                 arg_names += [param_str]
         arg_names_str = ", ".join(arg_names)
         return (arg_names_str, arg_unpack_str)
@@ -260,7 +270,7 @@ class CCodeGenerator(CodeGeneratorBase):
 
     def write_subexpressions(self, subexpressions):
         for (lvalue, rvalue) in subexpressions:
-            assign_str = ("const " + self.convert_parameter(lvalue)
+            assign_str = (self.declare_parameter(lvalue, const=True)
                           + " = " + self.get_code(rvalue) + self.endl)  # type:ignore
             self.write_lines(assign_str, prefix="\t")
 
@@ -271,9 +281,6 @@ class CCodeGenerator(CodeGeneratorBase):
                      is_symmetric=False):
         write_string = ""
         variable_name = self.get_expr_name(variable)
-
-        # declare return var
-        self.instantiate_return_array(variable)
 
         ############################
         # L-value / R-value assign
@@ -302,6 +309,9 @@ class CCodeGenerator(CodeGeneratorBase):
 
         self.write_lines(write_string, prefix="\t")
 
+        # declare return var
+        self.instantiate_return_array(variable)
+
 
     def write_function_definition(self, name, params, **kwargs):
         func_return_type = "py::array_t<double>"
@@ -321,13 +331,19 @@ class CCodeGenerator(CodeGeneratorBase):
         self.write_lines("}")
 
 
-    def convert_parameter(self, param: Expr) -> str:
-        param_name = self.get_expr_name(param)
+    def declare_parameter(self, param: Expr, name: str = "", const: bool = False) -> str:
+        if name:
+            param_name = name
+        else:
+            param_name = self.get_expr_name(param)
+
         # handle argument being an array
-        if hasattr(param, "__len__") or hasattr(param, "shape"):
+        if self.is_array_type(param):
             param_str = f"py::array_t<double> {param_name}"
-            for i in param.shape:  # type:ignore
-                param_str += f"[{i}]"
+            if const:
+                param_str += "const " + param_str
+            # for i in param.shape:  # type:ignore
+            #     param_str += f"[{i}]"
         else:
             param_str = f"double {param_name}"
         return param_str
@@ -338,20 +354,28 @@ class CCodeGenerator(CodeGeneratorBase):
         param_name = self.get_expr_name(param)
 
         # handle argument being an array
-        if hasattr(param, "__len__") or hasattr(param, "shape"):
+        if self.is_array_type(param):
             shape_str = ", ".join([str(i) for i in param.shape])  # type:ignore
             constructor_str = "({" + shape_str + "})"
-            param_str = f"py::array_t<double> {return_name}" + constructor_str
+            param_str = f"vector<double> {return_name}" + constructor_str
         else:
             param_str = f"double {return_name}"
         self.write_lines(param_str + ';', prefix="\t")
 
         # write code to get pointer from pybind11 buffer info
-        request_str = f"py::buffer_info buf_info = {return_name}.request();"
-        cast_str = f"double* {param_name} = static_cast<double*>(buf_info.ptr);"
-        self.write_lines(request_str, prefix="\t")
-        self.write_lines(cast_str, prefix="\t")
-        self.write_lines("")
+        # request_str = f"py::buffer_info buf_info = {return_name}.request();"
+        # cast_str = f"double* {param_name} = static_cast<double*>(buf_info.ptr);"
+        # self.write_lines(request_str, prefix="\t")
+        # self.write_lines(cast_str, prefix="\t")
+        # self.write_lines("")
+
+        # declare py::array_t and convert return var (vector) to array_t
+        if self.is_array_type(param):
+            constructor_str = f"({param_name}.size(), {param_name}.data())"
+            return_array = f"py::array_t<double> {return_name}{constructor_str}"
+            self.write_lines(return_array, prefix="\t")
+        else:
+            pass
 
 
     def register_pybind(self, module_name: str, function_names: list[str]):
