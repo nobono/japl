@@ -66,7 +66,7 @@ def gps_meas_update(X, U, P, variance, noise, *args):
 ##################################################
 # Sim
 ##################################################
-# np.random.seed(123)
+np.random.seed(1234)
 
 # init
 X_init = np.array(list(state_info.values()))
@@ -86,10 +86,10 @@ gyro_noise_density = 3.5e-6  # ((udeg / s) / sqrt(Hz))
 Rgyr = gyro_noise_density**2 * gyro_Hz
 Rgyr_std = np.sqrt(Rgyr)
 
-Rgps_pos = 0.1**2
+Rgps_pos = 0.001**2
 Rgps_pos_std = np.sqrt(Rgps_pos)
 
-Rgps_vel = 0.2**2
+Rgps_vel = 0.002**2
 Rgps_vel_std = np.sqrt(Rgps_vel)
 
 gyro = SensorBase(noise=[Rgyr_std] * 3)
@@ -133,7 +133,7 @@ def ekf_step(t, X, U, S, dt):
     X, P = accel_meas_update(X, U, get_mat_upper(P), variance, noise, dt)
 
     sim_hz = (1 / dt)
-    gps_hz = 1
+    gps_hz = 2
     gps_ratio = int(sim_hz / gps_hz)
     if count % gps_ratio == 0:
         X, P = gps_meas_update(X, U, get_mat_upper(P), variance, noise, dt)
@@ -165,42 +165,60 @@ model = Model.from_function(dt, state, input,
 simobj = SimObject(model)
 simobj.init_state(X)
 simobj.plot.set_config({
-    # "E": {
-    #     "xaxis": 'time',
-    #     "yaxis": 'pos_d',
-    #     "marker": 'o',
-    #     },
+
+    "E": {
+        "xaxis": 'time',
+        "yaxis": 'pos_e',
+        "marker": 'o',
+        },
     "U": {
         "xaxis": 't',
         "yaxis": 'pos_d',
         "marker": 'o',
         },
+    # "EU": {
+    #     "xaxis": 'pos_e',
+    #     "yaxis": 'pos_d',
+    #     "marker": 'o',
+    #     },
+
+    # "accel-x": {
+    #     "xaxis": 't',
+    #     "yaxis": 'z_accel_x',
+    #     "marker": 'o',
+    #     },
+    # "accel-y": {
+    #     "xaxis": 't',
+    #     "yaxis": 'z_accel_y',
+    #     "marker": 'o',
+    #     "color": "orange",
+    #     },
     # "accel-z": {
     #     "xaxis": 't',
     #     "yaxis": 'z_accel_z',
     #     "marker": 'o',
+    #     "color": "green",
     #     },
-    # "D": {
-    #     "xaxis": 'time',
-    #     "yaxis": 'pos_d',
-    #     "marker": 'o',
-    #     "color": "red",
-    #     }
+
     })
 
 print("Starting Sim...")
-sim = Sim([0, 200], 0.01, [simobj])
+sim = Sim([0, 50], 0.01, [simobj])
 sim.run()
 sim.profiler.print_info()
 # plotter.animate(sim)
 
 iaccel_z = simobj.model.get_input_id("z_accel_z")
+ipos_n = simobj.model.get_state_id("pos_n")
 ipos_e = simobj.model.get_state_id("pos_e")
 ipos_d = simobj.model.get_state_id("pos_d")
 T = sim.T
 accel_z = simobj.U[:, iaccel_z]
+pos_n = simobj.Y[:, ipos_n]
 pos_e = simobj.Y[:, ipos_e]
 pos_d = simobj.Y[:, ipos_d]
 
+plotter.plot(T, pos_n)
+plotter.plot(T, pos_e)
 plotter.plot(T, pos_d)
 plotter.show()

@@ -402,26 +402,31 @@ state_info = {
 accel_Hz = 100
 accel_noise_density = 10e-6  # 10 ug / sqrt(Hz)
 accel_var = (accel_noise_density * 9.81)**2 * accel_Hz
+
+gyro_Hz = 100
+gyro_noise_density = 3.5e-6  # ((udeg / s) / sqrt(Hz))
+gyro_var = gyro_noise_density**2 * gyro_Hz
+
 variance_info = {
-        gyro_x_var: 1e-6,
-        gyro_y_var: 1e-6,
-        gyro_z_var: 1e-6,
-        accel_x_var: accel_var,
-        accel_y_var: accel_var,
-        accel_z_var: accel_var,
+        gyro_x_var: 1,
+        gyro_y_var: 1,
+        gyro_z_var: 1,
+        accel_x_var: 1,
+        accel_y_var: 1,
+        accel_z_var: 1,
         }
 
 # measurement noise
 noise_info = {
-        R_accel_x: 1.e-3,
-        R_accel_y: 1.e-3,
-        R_accel_z: 1.e-3,
-        R_gps_pos_x: 1.,
-        R_gps_pos_y: 1.,
-        R_gps_pos_z: 1.,
-        R_gps_vel_x: 1.,
-        R_gps_vel_y: 1.,
-        R_gps_vel_z: 1.,
+        R_accel_x: 1e-3,
+        R_accel_y: 1e-3,
+        R_accel_z: 1e-3,
+        R_gps_pos_x: .1,
+        R_gps_pos_y: .1,
+        R_gps_pos_z: .1,
+        R_gps_vel_x: .2,
+        R_gps_vel_y: .2,
+        R_gps_vel_z: .2,
         }
 
 # sensor measurements
