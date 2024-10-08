@@ -10,6 +10,7 @@ from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
 from pprint import pformat
 from multiprocess import Pool  # type:ignore
 from multiprocess import cpu_count  # type:ignore
+from japl.Util.Util import flatten_list
 import dill as pickle
 from time import perf_counter
 
@@ -71,13 +72,33 @@ def build_model(state: Matrix,
     t = Symbol("t")
     dt = Symbol("dt")
 
+    ############################################################
     # give MatrixElement attr "name"
+    ############################################################
     for var in state:
         if isinstance(var, MatrixElement):
             setattr(var, "name", str(var))
         elif isinstance(var, DirectUpdateSymbol):
             if isinstance(var.state_expr, MatrixElement):
                 setattr(var.state_expr, "name", str(var))
+
+    for var in input:
+        if isinstance(var, MatrixElement):
+            setattr(var, "name", str(var))
+        elif isinstance(var, DirectUpdateSymbol):
+            if isinstance(var.state_expr, MatrixElement):
+                setattr(var.state_expr, "name", str(var))
+
+    for var in static:
+        if isinstance(var, MatrixElement):
+            setattr(var, "name", str(var))
+        elif isinstance(var, DirectUpdateSymbol):
+            if isinstance(var.state_expr, MatrixElement):
+                setattr(var.state_expr, "name", str(var))
+
+    ############################################################
+    # checks
+    ############################################################
 
     # state & input array checks
     _check_var_array_types(state, "state")
@@ -125,12 +146,22 @@ def build_model(state: Matrix,
     # 3: get state direct update array
     ############################################################
     print("building state direct updates array...")
+    definition_state_vars = flatten_list([state for (state, _) in definitions])
+    definition_subs = flatten_list([sub for (_, sub) in definitions])
     state_direct_updates = []
     for expr in state:
         if isinstance(expr, DirectUpdateSymbol):
             state_direct_updates += [expr.sub_expr]
             # ensure state_expr is not Function
             expr.state_expr = _name_to_symbolic(expr.state_expr)
+        # detect definition assignments that should
+        # be converted to DirectUpdates. These are
+        # definitions where the variable being assigned
+        # exists in the state array.
+        elif expr in definition_state_vars:
+            id = definition_state_vars.index(expr)
+            sub_expr = definition_subs[id]
+            state_direct_updates += [sub_expr]
         else:
             state_direct_updates += [nan]
     state_direct_updates = Matrix(state_direct_updates)
