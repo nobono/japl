@@ -402,7 +402,7 @@ state_info = {
 accel_Hz = 100
 accel_bandwidth = accel_Hz / 2  # Nyquist frequency
 accel_full_range = 100  # +-100 m/s^2
-accel_noise_density = 10e-3  # 10 ug / sqrt(Hz)
+accel_noise_density = 10e-6  # 10 ug / sqrt(Hz)
 # accel_var = (accel_noise_density * 9.81)**2 * accel_Hz
 accel_var = accel_noise_density * np.sqrt(accel_bandwidth)
 
