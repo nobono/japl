@@ -8,6 +8,7 @@ from japl.Library.Nav.Nav import dt, state, input
 from japl.Library.Nav.Nav import state_info, input_info
 from japl.Library.Nav.Nav import variance_info, noise_info
 from japl.Library.Nav.Nav import get_mat_upper
+from japl.Library.Nav.Nav import accel_var, gyro_var
 from japl.Library.Sensors.OnboardSensors.ImuModel import ImuSensor
 from japl.Library.Sensors.OnboardSensors.ImuModel import SensorBase
 from japl import JAPL_HOME_DIR
@@ -70,30 +71,52 @@ np.random.seed(1234)
 
 # init
 X_init = np.array(list(state_info.values()))
-P_init = np.eye(NSTATE) * 0.3
+# NOTE: init small as we are certain in inital bias values
+P_init = np.eye(NSTATE) * 1e-6
+
+# initialize bias uncertainties high
+# pos_x_id = 4
+# pos_y_id = 5
+# pos_z_id = 6
+# vel_x_id = 7
+# vel_y_id = 8
+# vel_z_id = 9
+# accel_bias_x_id = 10
+# accel_bias_y_id = 11
+# accel_bias_z_id = 12
+# gyro_bias_x_id = 13
+# gyro_bias_y_id = 14
+# gyro_bias_z_id = 15
+# P_init[pos_x_id][pos_x_id] = 1e-6
+# P_init[pos_y_id][pos_y_id] = 1e-6
+# P_init[pos_z_id][pos_z_id] = 1e-6
+# P_init[vel_x_id][vel_x_id] = 1e-6
+# P_init[vel_y_id][vel_y_id] = 1e-6
+# P_init[vel_z_id][vel_z_id] = 1e-6
+# P_init[accel_bias_x_id][accel_bias_x_id] = 1e-6
+# P_init[accel_bias_y_id][accel_bias_y_id] = 1e-6
+# P_init[accel_bias_z_id][accel_bias_z_id] = 1e-6
+# P_init[gyro_bias_x_id][gyro_bias_x_id] = 1e-6
+# P_init[gyro_bias_y_id][gyro_bias_y_id] = 1e-6
+# P_init[gyro_bias_z_id][gyro_bias_z_id] = 1e-6
+
 X = X_init
 P = P_init
 
 count = 0
 
-accel_Hz = 100
-accel_noise_density = 10e-6 * 9.81  # (ug / sqrt(Hz))
-Racc = accel_noise_density**2 * accel_Hz
-Racc_std = np.sqrt(Racc)
+# accel_Hz = 100
+# accel_noise_density = 10e-6 * 9.81  # (ug / sqrt(Hz))
+Racc = accel_var
 
-gyro_Hz = 100
-gyro_noise_density = 3.5e-6  # ((udeg / s) / sqrt(Hz))
-Rgyr = gyro_noise_density**2 * gyro_Hz
-Rgyr_std = np.sqrt(Rgyr)
+# gyro_Hz = 100
+# gyro_noise_density = 3.5e-6  # ((udeg / s) / sqrt(Hz))
+Rgyr = gyro_var
+Rgps_pos = 0.1**2
+Rgps_vel = 0.2**2
 
-Rgps_pos = 0.001**2
-Rgps_pos_std = np.sqrt(Rgps_pos)
-
-Rgps_vel = 0.002**2
-Rgps_vel_std = np.sqrt(Rgps_vel)
-
-gyro = SensorBase(noise=[Rgyr_std] * 3)
-accel = SensorBase(noise=[Racc_std] * 3)
+gyro = SensorBase(noise=[Rgyr] * 3)
+accel = SensorBase(noise=[Racc] * 3)
 imu = ImuSensor(gyro=gyro, accel=accel)
 
 
@@ -111,18 +134,10 @@ def ekf_input_update(t, X, U, S, dt):
 def ekf_step(t, X, U, S, dt):
     global count
     global P
-    global Racc, Rgyr
     global imu
 
     variance = np.array(list(variance_info.values()))
     noise = np.array(list(noise_info.values()))
-
-    # gyro_meas = simobj.get_input_array(U, ["z_gyro_x", "z_gyro_y", "z_gyro_y"])
-    # accel_meas = simobj.get_input_array(U, ["z_accel_x", "z_accel_y", "z_accel_y"])
-    # gps_pos_meas = simobj.get_input_array(U, ["z_gps_pos_x", "z_gps_pos_y", "z_gps_pos_z"])
-    # gps_vel_meas = simobj.get_input_array(U, ["z_gps_vel_x", "z_gps_vel_y", "z_gps_vel_z"])
-
-    # meas = np.concatenate([gyro_meas, accel_meas, gps_pos_meas, gps_vel_meas])
 
     X = state_predict(X, U, get_mat_upper(P), variance, noise, dt)
     q = X[:4].copy()
@@ -133,7 +148,7 @@ def ekf_step(t, X, U, S, dt):
     X, P = accel_meas_update(X, U, get_mat_upper(P), variance, noise, dt)
 
     sim_hz = (1 / dt)
-    gps_hz = 2
+    gps_hz = 1
     gps_ratio = int(sim_hz / gps_hz)
     if count % gps_ratio == 0:
         X, P = gps_meas_update(X, U, get_mat_upper(P), variance, noise, dt)
@@ -166,21 +181,31 @@ simobj = SimObject(model)
 simobj.init_state(X)
 simobj.plot.set_config({
 
-    "E": {
-        "xaxis": 'time',
-        "yaxis": 'pos_e',
-        "marker": 'o',
-        },
-    "U": {
-        "xaxis": 't',
-        "yaxis": 'pos_d',
-        "marker": 'o',
-        },
-    # "EU": {
-    #     "xaxis": 'pos_e',
-    #     "yaxis": 'pos_d',
+    # "E": {
+    #     "xaxis": 'time',
+    #     "yaxis": 'pos_e',
     #     "marker": 'o',
     #     },
+    # "N": {
+    #     "xaxis": 'time',
+    #     "yaxis": 'pos_n',
+    #     "marker": 'o',
+    #     "color": "orange",
+    #     },
+    # "U": {
+    #     "xaxis": 't',
+    #     "yaxis": 'pos_d',
+    #     "marker": 'o',
+    #     "color": "green",
+    #     },
+
+    "EU": {
+        "xaxis": 'pos_e',
+        "yaxis": 'pos_d',
+        "marker": 'o',
+        # "xlim": [-1, 1],
+        # "ylim": [-1, 1]
+        },
 
     # "accel-x": {
     #     "xaxis": 't',

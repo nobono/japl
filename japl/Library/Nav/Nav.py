@@ -400,33 +400,43 @@ state_info = {
 
 # process noise
 accel_Hz = 100
-accel_noise_density = 10e-6  # 10 ug / sqrt(Hz)
-accel_var = (accel_noise_density * 9.81)**2 * accel_Hz
+accel_bandwidth = accel_Hz / 2  # Nyquist frequency
+accel_full_range = 100  # +-100 m/s^2
+accel_noise_density = 10e-3  # 10 ug / sqrt(Hz)
+# accel_var = (accel_noise_density * 9.81)**2 * accel_Hz
+accel_var = accel_noise_density * np.sqrt(accel_bandwidth)
 
 gyro_Hz = 100
-gyro_noise_density = 3.5e-6  # ((udeg / s) / sqrt(Hz))
-gyro_var = gyro_noise_density**2 * gyro_Hz
+gyro_bandwidth = gyro_Hz / 2  # Nyquist frequency
+gyro_noise_density = 3.5e-3  # ((udeg / s) / sqrt(Hz))
+gyro_var = gyro_noise_density * np.sqrt(gyro_bandwidth)
 
 variance_info = {
-        gyro_x_var: 1,
-        gyro_y_var: 1,
-        gyro_z_var: 1,
-        accel_x_var: 1,
-        accel_y_var: 1,
-        accel_z_var: 1,
+        gyro_x_var: 10,
+        gyro_y_var: 10,
+        gyro_z_var: 10,
+        accel_x_var: 10,
+        accel_y_var: 10,
+        accel_z_var: 10,
+        gps_pos_x_var: .001,
+        gps_pos_y_var: .001,
+        gps_pos_z_var: .001,
+        gps_vel_x_var: .001,
+        gps_vel_y_var: .001,
+        gps_vel_z_var: .001,
         }
 
 # measurement noise
 noise_info = {
-        R_accel_x: 1e-3,
-        R_accel_y: 1e-3,
-        R_accel_z: 1e-3,
-        R_gps_pos_x: .1,
-        R_gps_pos_y: .1,
-        R_gps_pos_z: .1,
-        R_gps_vel_x: .2,
-        R_gps_vel_y: .2,
-        R_gps_vel_z: .2,
+        R_accel_x: accel_var,
+        R_accel_y: accel_var,
+        R_accel_z: accel_var,
+        R_gps_pos_x: .1**2,
+        R_gps_pos_y: .1**2,
+        R_gps_pos_z: .1**2,
+        R_gps_vel_x: .01**2,
+        R_gps_vel_y: .01**2,
+        R_gps_vel_z: .01**2,
         }
 
 # sensor measurements
