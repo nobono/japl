@@ -8,6 +8,8 @@ from japl.Library.Nav.Nav import dt, state, input
 from japl.Library.Nav.Nav import state_info, input_info
 from japl.Library.Nav.Nav import variance_info, noise_info, meas_info
 from japl.Library.Nav.Nav import get_mat_upper
+from japl.Library.Sensors.OnboardSensors.ImuModel import ImuSensor
+from japl.Library.Sensors.OnboardSensors.ImuModel import SensorBase
 from japl import JAPL_HOME_DIR
 
 ##################################################
@@ -15,7 +17,6 @@ from japl import JAPL_HOME_DIR
 ##################################################
 
 np.set_printoptions(precision=5, formatter={'float_kind': lambda x: f"{x:5.4f}"})
-np.random.seed(123)
 rand = np.random.normal
 
 NSTATE = 16
@@ -65,6 +66,7 @@ def gps_meas_update(X, U, P, variance, noise, meas, *args):
 ##################################################
 # Sim
 ##################################################
+np.random.seed(123)
 
 # init
 X_init = np.array(list(state_info.values()))
@@ -90,11 +92,25 @@ Rgps_pos_std = np.sqrt(Rgps_pos)
 Rgps_vel = 0.2**2
 Rgps_vel_std = np.sqrt(Rgps_vel)
 
+gyro = SensorBase(noise=[Rgyr_std] * 3)
+accel = SensorBase(noise=[Racc_std] * 3)
+imu = ImuSensor(gyro=gyro, accel=accel)
+
+
+def ekf_input_update(t, X, U, S, dt):
+    global imu
+    imu.update(t, [0, 0, 0], [0, 0, 0], [0, 0, 0])
+    U_accel = imu.accelerometer.get_latest_measurement()
+    U_gyro = imu.gyroscope.get_latest_measurement()
+    U = np.concatenate([U_gyro.value, U_accel.value])
+    return U
+
 
 def ekf_step(t, X, U, S, dt):
     global count
     global P
     global Racc, Rgyr
+    global imu
 
     variance = np.array(list(variance_info.values()))
     noise = np.array(list(noise_info.values()))
@@ -107,10 +123,6 @@ def ekf_step(t, X, U, S, dt):
     #     gps_vel_meas = np.array(gps_vel_meas) + np.array([0, 0, 10])
 
     meas = np.concatenate([accel_meas, gps_pos_meas, gps_vel_meas])
-    U_gyro = np.array([0, 0, 0], dtype=float)
-    U_accel = accel_meas
-
-    U[:] = np.concatenate([U_gyro, U_accel])
 
     X = state_predict(X, U, get_mat_upper(P), variance, noise, meas, dt)
     q = X[:4].copy()
@@ -122,8 +134,8 @@ def ekf_step(t, X, U, S, dt):
 
     sim_hz = (1 / dt)
     gps_hz = 2
-    ratio = int(sim_hz / gps_hz)
-    # if count % ratio == 0:
+    gps_ratio = int(sim_hz / gps_hz)
+    # if count % gps_ratio == 0:
     #     X, P = gps_meas_update(X, U, get_mat_upper(P), variance, noise, meas, dt)
 
     # print(t, np.linalg.norm(P))
@@ -147,7 +159,7 @@ def ekf_step(t, X, U, S, dt):
 plotter = PyQtGraphPlotter(frame_rate=30, figsize=[10, 8], aspect="auto")
 
 print("Building Model...")
-model = Model.from_function(dt, state, input, state_update_func=ekf_step)
+model = Model.from_function(dt, state, input, state_update_func=ekf_step, input_update_func=ekf_input_update)
 simobj = SimObject(model)
 simobj.init_state(X)
 simobj.plot.set_config({

@@ -11,6 +11,13 @@ from queue import Queue
 IterT = Union[np.ndarray, list]
 
 
+class Measurement:
+
+
+    def __init__(self, timestamp: float, value: np.ndarray) -> None:
+        self.timestamp = timestamp
+        self.value = value
+
 
 class SensorBase:
 
@@ -60,14 +67,18 @@ class SensorBase:
 
     def update(self, time: float, true_val: np.ndarray):
         meas = self.calc_measurement(time=time, true_val=true_val)
-        buf_info = (time, meas)
+        buf_info = Measurement(time, meas)
         self.buffer.put(buf_info)
 
 
-    def get_measurement(self, nget: int = -1):
+    def get_measurement(self, nget: int = -1) -> list[Measurement]:
         if nget < 0:
             nget = self.buffer.qsize()
         return [self.buffer.get() for i in range(nget)]
+
+
+    def get_latest_measurement(self) -> Measurement:
+        return self.get_measurement()[-1]  # type:ignore
 
 
 class ImuSensor:
@@ -104,9 +115,9 @@ class ImuSensor:
 
     def update(self,
                time: float,
-               acc_vec: np.ndarray,
-               ang_vel: np.ndarray,
-               mag_vec: np.ndarray) -> None:
+               acc_vec: np.ndarray|list,
+               ang_vel: np.ndarray|list,
+               mag_vec: np.ndarray|list) -> None:
         acc_vec = np.asarray(acc_vec)
         ang_vel = np.asarray(ang_vel)
         mag_vec = np.asarray(mag_vec)
