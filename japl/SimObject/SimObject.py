@@ -256,13 +256,21 @@ class SimObject:
             raise AssertionError(f"{msg_header} initial state \"X0\" ill-configured")
 
         # check state / output register
-        if len(self.model.state_register) != self.model.state_dim:
+        # NOTE: ignore states in register with size > 1
+        # (matrices / array) since those are there as
+        # only a reference.
+        state_register_num_var = len([v["var"] for v in self.model.state_register.values()
+                                      if v["size"] == 1])
+        input_register_num_var = len([v["var"] for v in self.model.input_register.values()
+                                      if v["size"] == 1])
+
+        if state_register_num_var != self.model.state_dim:
             raise AssertionError(f"{msg_header} state register ill-configured\n\
                                  register-dim:{len(self.model.state_register)}\n\
                                  model-state_dim:{self.model.state_dim}")
 
         # check inputs
-        if len(self.model.input_register) != self.model.input_dim:
+        if input_register_num_var != self.model.input_dim:
             raise AssertionError(f"{msg_header} input register ill-configured\n\
                                  register-dim:{len(self.model.input_register)}\n\
                                  model-input_dim:{self.model.input_dim}")
