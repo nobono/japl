@@ -156,12 +156,18 @@ def ekf_step(t, X, U, S, dt):
     v = X[7:10]
     b_acc = X[10:13]
     b_gyr = X[13:16]
+
+    gyro = U[:3]
+    accel = U[3:6]
     print(
           # f"q:{q}",
           f"p:{p}",
-          f"v:{v}",
-          f"b_acc:{b_acc}",
-          f"b_gyr:{b_gyr}")
+          # f"v:{v}",
+          # f"b_acc:{b_acc}",
+          # f"b_gyr:{b_gyr}"
+          # f"gyro:{gyro}",
+          # f"accel:{accel}",
+          )
     # print(P)
     # array_print(X)
     count += 1
@@ -225,7 +231,7 @@ simobj.plot.set_config({
     })
 
 print("Starting Sim...")
-sim = Sim([0, 50], 0.01, [simobj])
+sim = Sim([0, 25], 0.01, [simobj])
 sim.run()
 sim.profiler.print_info()
 # plotter.animate(sim)
