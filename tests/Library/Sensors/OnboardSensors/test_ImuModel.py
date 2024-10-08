@@ -122,9 +122,9 @@ class TestSensorBase3Dof(unittest.TestCase):
                             noise=[1, 0, 0],
                             delay=0)
 
-        true = np.array([[0.3929383711957233, 0., 1.],
-                         [0.10262953816578246, 0., 1.],
-                         [0.961528396769231, 0., 1.]])
+        true = np.array([[-1.0856306033005612, 0., 1.],
+                         [-1.506294713918092, 0., 1.],
+                         [-2.426679243393074, 0., 1.]])
 
         grav_vec0 = np.array([0, 0, 1])
         dt = 0.1
@@ -134,8 +134,7 @@ class TestSensorBase3Dof(unittest.TestCase):
         for istep, t in enumerate(np.arange(0, 0.3, dt)):
             grav_vec = self.model(grav_vec, quat, ang_vel, dt)
             ret = sensor.calc_measurement(t, grav_vec)
-            # self.assertListEqual(true[istep].tolist(), ret.tolist())
-            print(true[istep])
+            self.assertListEqual(true[istep].tolist(), ret.tolist())
 
 
     def test_base_get_measurement(self):
@@ -149,9 +148,9 @@ class TestSensorBase3Dof(unittest.TestCase):
         item1 = measurements[0]
         item2 = measurements[1]
         item3 = measurements[2]
-        t, meas = item1
-        t2, meas2 = item2
-        t3, meas3 = item3
+        t, meas = item1.items()
+        t2, meas2 = item2.items()
+        t3, meas3 = item3.items()
         self.assertEqual(t, 0.0)
         self.assertListEqual(meas.tolist(), [0, 0, 0])
         self.assertEqual(t2, 0.1)
@@ -183,9 +182,9 @@ class TestSensorBase3Dof(unittest.TestCase):
         acc = sensor.accelerometer.get_measurement(1)[0]
         gyr = sensor.gyroscope.get_measurement(1)[0]
         mag = sensor.magnetometer.get_measurement(1)[0]
-        self.assertEqual(acc[1].tolist(), [0, 0, 1])
-        self.assertEqual(gyr[1].tolist(), [0, 0, 0])
-        self.assertEqual(mag[1].tolist(), [1, 0, 0])
+        self.assertEqual(acc.value.tolist(), [0, 0, 1])
+        self.assertEqual(gyr.value.tolist(), [0, 0, 0])
+        self.assertEqual(mag.value.tolist(), [1, 0, 0])
 
 
 if __name__ == '__main__':

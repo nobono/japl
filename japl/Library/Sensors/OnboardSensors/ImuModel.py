@@ -19,6 +19,10 @@ class Measurement:
         self.value = value
 
 
+    def items(self) -> tuple[float, np.ndarray]:
+        return (self.timestamp, self.value)
+
+
 class SensorBase:
 
 
@@ -29,13 +33,35 @@ class SensorBase:
                  noise: IterT = np.zeros(3),
                  delay: float = 0,
                  dof: int = 3) -> None:
+        """
+        Arguments
+        ---------
+        scale_factor: np.ndarray
+            sensitivity multiplier for each sensor axis [x, y, z]
+
+        misalignment: np.ndarray
+            sensor axis misalignment values for each pair of axes [xy, xz, yz]
+
+        bias: np.ndarray
+            sensor axis bias
+
+        noise: np.ndarray
+            sensor noise (variance) for each axis
+
+        delay: float
+            sensors delay which affects when measurements are readily available
+
+        dof: int
+            the number of degrees-of-freedom for the sensor (default = 3)
+        """
         assert len(scale_factor) == len(misalignment) == len(bias)
         assert dof >= len(scale_factor)
         self.dof = dof
         self.scale_factor = np.asarray(scale_factor)
         self.misalignment = np.asarray(misalignment)
         self.bias = np.asarray(bias)
-        self.noise = np.asarray(noise)
+        self.noise = np.asarray(noise)  # variance
+        self.noise_std = np.sqrt(self.noise)  # standard deviation
         self.delay = delay
         self.last_measurement_time = 0
         self.buffer = Queue()
@@ -52,32 +78,61 @@ class SensorBase:
 
 
     def count(self) -> int:
+        """Returns the size of measurement buffer."""
         return self.buffer.qsize()
 
 
     def get_noise(self) -> np.ndarray:
-        """returns random uniform noise array reflective
+        """returns random-normal array reflective
         of the self.noise parameter."""
-        return np.random.normal([0, 0, 0], self.noise)
+        return np.random.normal([0, 0, 0], self.noise_std)
 
 
     def calc_measurement(self, time: float, true_val: np.ndarray):
+        """Calculates measurement by applying scale factor, misalignment,
+        bias, and noise."""
         return self.M @ self.S @ true_val + self.bias + self.get_noise()
 
 
     def update(self, time: float, true_val: np.ndarray):
+        """Updates sensor by calculating measurements and
+        storing in buffer.
+
+        Arguments
+        ---------
+        time: float
+            simulation time
+
+        true_val: np.ndarray
+            the true physical value being measured by the sensor
+        """
         meas = self.calc_measurement(time=time, true_val=true_val)
         buf_info = Measurement(time, meas)
         self.buffer.put(buf_info)
 
 
     def get_measurement(self, nget: int = -1) -> list[Measurement]:
+        """Returns measurements from the measurement buffer.
+
+        Arguments
+        ---------
+        nget: int
+            (optional) the number of measurements to get from the
+            buffer. (default = -1 returns all)
+
+        Returns
+        -------
+        list of Measurements()
+        """
         if nget < 0:
             nget = self.buffer.qsize()
         return [self.buffer.get() for i in range(nget)]
 
 
     def get_latest_measurement(self) -> Measurement:
+        """Returns only the latest measurements
+        NOTE: this will also empty the buffer.
+        """
         return self.get_measurement()[-1]  # type:ignore
 
 
