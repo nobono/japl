@@ -31,7 +31,7 @@ class TestExample(unittest.TestCase):
             X_new, T_new = runge_kutta_4(f=self.func,
                                          t=time,
                                          X=X,
-                                         h=dt,
+                                         dt=dt,
                                          args=(U, dt))
             X = X_new
             T += [T_new]

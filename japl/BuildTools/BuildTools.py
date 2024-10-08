@@ -3,6 +3,8 @@ from typing import Any
 from sympy import Matrix, Symbol, Function, Expr, Number, nan
 from sympy import Float
 from sympy import Derivative
+from sympy.matrices import MatrixSymbol
+from sympy.matrices.expressions.matexpr import MatrixElement
 from japl.Model.StateRegister import StateRegister
 from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
 from pprint import pformat
@@ -14,6 +16,8 @@ from time import perf_counter
 
 
 def dict_subs_func(key_expr: tuple[str, Any], subs: list) -> bytes:
+    """used for making substitions into a dict.
+    e.g. when subbing expressions of the definitions dict."""
     key, expr = pickle.loads(key_expr)
     for sub in subs:
         sub = pickle.loads(sub)
@@ -22,6 +26,8 @@ def dict_subs_func(key_expr: tuple[str, Any], subs: list) -> bytes:
 
 
 def array_subs_func(expr, subs: list[dict]) -> bytes:
+    """used for making substitions to expressions of a
+    Matrix."""
     expr = pickle.loads(expr)
     for sub in subs:
         sub = pickle.loads(sub)
@@ -33,6 +39,15 @@ def create_error_header(msg: str, char: str = "-", char_len: int = 40) -> str:
     seg = char * char_len
     header = "\n\n" + seg + f"\n{msg}:\n" + seg + "\n"
     return header
+
+
+def parallel_subs(matrix: Matrix, subs: list):
+    with Pool(processes=cpu_count()) as pool:
+        subs = [pickle.dumps(sub) for sub in subs]
+        args = [(pickle.dumps(expr), subs) for expr in matrix]
+        results = [pool.apply_async(array_subs_func, arg) for arg in args]
+        results = [pickle.loads(ret.get()) for ret in results]
+    return Matrix(results)
 
 
 def build_model(state: Matrix,
@@ -55,6 +70,14 @@ def build_model(state: Matrix,
     # default symbols imposed by Sim
     t = Symbol("t")
     dt = Symbol("dt")
+
+    # give MatrixElement attr "name"
+    for var in state:
+        if isinstance(var, MatrixElement):
+            setattr(var, "name", str(var))
+        elif isinstance(var, DirectUpdateSymbol):
+            if isinstance(var.state_expr, MatrixElement):
+                setattr(var.state_expr, "name", str(var))
 
     # state & input array checks
     _check_var_array_types(state, "state")
@@ -79,12 +102,22 @@ def build_model(state: Matrix,
     # also gather direct update (state_var (Function), state_var (Symbol))
     # for substition into defs
     ############################################################
+    def _name_to_symbolic(var):
+        """this function ensures correct symbolic
+        type is returned. This is to allow MatrixElements
+        to be used."""
+        if isinstance(var, MatrixElement):
+            return var
+        else:
+            name = getattr(var, "name")
+            return Symbol(name)
+
     print("resolving state & input to Symbols...")
     state_subs = {i: Symbol(i.name) for i in state.atoms(Function)}
-    state_subs.update({i.state_expr: Symbol(i.state_expr.name) for i in state.atoms(DirectUpdateSymbol)})
+    state_subs.update({i.state_expr: _name_to_symbolic(i.state_expr) for i in state.atoms(DirectUpdateSymbol)})
 
     input_subs = {i: Symbol(i.name) for i in input.atoms(Function)}
-    input_subs.update({i.state_expr: Symbol(i.state_expr.name) for i in input.atoms(DirectUpdateSymbol)})
+    input_subs.update({i.state_expr: _name_to_symbolic(i.state_expr) for i in input.atoms(DirectUpdateSymbol)})
 
     static_subs = {i: Symbol(i.name) for i in static.atoms(Function)}
 
@@ -97,7 +130,7 @@ def build_model(state: Matrix,
         if isinstance(expr, DirectUpdateSymbol):
             state_direct_updates += [expr.sub_expr]
             # ensure state_expr is not Function
-            expr.state_expr = Symbol(expr.state_expr.name)  # type:ignore
+            expr.state_expr = _name_to_symbolic(expr.state_expr)
         else:
             state_direct_updates += [nan]
     state_direct_updates = Matrix(state_direct_updates)
@@ -111,7 +144,7 @@ def build_model(state: Matrix,
         if isinstance(expr, DirectUpdateSymbol):
             input_direct_updates += [expr.sub_expr]
             # ensure state_expr is not Function
-            expr.state_expr = Symbol(expr.state_expr.name)  # type:ignore
+            expr.state_expr = _name_to_symbolic(expr.state_expr)
         else:
             input_direct_updates += [nan]
     input_direct_updates = Matrix(input_direct_updates)
@@ -358,9 +391,13 @@ def _check_var_array_types(array, array_name: str = "array"):
     for i, elem in enumerate(array):
         if isinstance(elem, Symbol):
             continue
-        if isinstance(elem, Function):
+        elif isinstance(elem, Function):
             continue
-        if isinstance(elem, DirectUpdateSymbol):
+        elif isinstance(elem, DirectUpdateSymbol):
+            continue
+        elif isinstance(elem, MatrixSymbol):
+            continue
+        elif isinstance(elem, MatrixElement):
             continue
         else:
             raise Exception(f"\n\n{array_name}-id[{i}]: cannot register a variable for "

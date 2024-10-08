@@ -176,16 +176,23 @@ class Sim:
         # back into X_new.
         ##################################################################
 
+        # TODO: (working) expanding for matrix
+        # state_mat_reshape_info = []
+        # for name, info in simobj.model.state_register.matrix_info.items():
+        #     state_mat_reshape_info += [(info["id"], info["size"], info["var"].shape)]
+
+
         # apply any user-defined input functions
         if simobj.model.user_input_function:
             simobj.model.user_input_function(tstep, X, U, S, dt, simobj)
 
         # apply direct updates to input
         if simobj.model.direct_input_update_func:
+            # TODO: (working) expanding for matrix
+            # for info in state_mat_reshape_info:
+            #     id, size, shape = info
             U_temp = simobj.model.direct_input_update_func(tstep, X, U, S, dt).flatten()
-            for i in range(len(U_temp)):
-                if not np.isnan(U_temp[i]):
-                    U[i] = U_temp[i]
+            U[~np.isnan(U_temp)] = U_temp[~np.isnan(U_temp)]  # ignore nan values
 
         # apply direct updates to state
         if simobj.model.direct_state_update_func:
@@ -193,9 +200,7 @@ class Sim:
             if X_temp is None:
                 raise Exception("Model direct_state_update_func returns None."
                                 f"(in SimObject \"{simobj.name})\"")
-            for i in range(len(X_temp)):
-                if not np.isnan(X_temp[i]):
-                    X[i] = X_temp[i]
+            X[~np.isnan(X_temp)] = X_temp[~np.isnan(X_temp)]  # ignore nan values
 
         if not simobj.model.dynamics_func:
             self.T[istep] = tstep + dt
@@ -219,7 +224,7 @@ class Sim:
                             f=dynamics_func,
                             t=tstep,
                             X=X,
-                            h=dt,
+                            dt=dt,
                             args=(U, S, dt, simobj,),
                             )
                 case "odeint":
@@ -241,7 +246,13 @@ class Sim:
 
             # store results
             self.T[istep] = T_new
-            simobj.Y[istep] = X_new
+
+            # ignore any X_new that is nan
+            mask = ~np.isnan(X_new)
+            simobj.Y[istep][mask] = X_new[mask]
+            simobj.Y[istep][~mask] = X[~mask]
+
+            # simobj.Y[istep] = X_new
             simobj.U[istep] = U
             self.istep += 1
 
