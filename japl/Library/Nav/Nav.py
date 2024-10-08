@@ -411,6 +411,9 @@ gyro_bandwidth = gyro_Hz / 2  # Nyquist frequency
 gyro_noise_density = 3.5e-3  # ((udeg / s) / sqrt(Hz))
 gyro_var = gyro_noise_density * np.sqrt(gyro_bandwidth)
 
+gps_pos_var = .1**2
+gps_vel_var = .01**2
+
 variance_info = {
         gyro_x_var: 10,
         gyro_y_var: 10,
@@ -431,12 +434,12 @@ noise_info = {
         R_accel_x: accel_var,
         R_accel_y: accel_var,
         R_accel_z: accel_var,
-        R_gps_pos_x: .1**2,
-        R_gps_pos_y: .1**2,
-        R_gps_pos_z: .1**2,
-        R_gps_vel_x: .01**2,
-        R_gps_vel_y: .01**2,
-        R_gps_vel_z: .01**2,
+        R_gps_pos_x: gps_pos_var,
+        R_gps_pos_y: gps_pos_var,
+        R_gps_pos_z: gps_pos_var,
+        R_gps_vel_x: gps_vel_var,
+        R_gps_vel_y: gps_vel_var,
+        R_gps_vel_z: gps_vel_var,
         }
 
 # sensor measurements

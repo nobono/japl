@@ -9,6 +9,7 @@ from japl.Library.Nav.Nav import state_info, input_info
 from japl.Library.Nav.Nav import variance_info, noise_info
 from japl.Library.Nav.Nav import get_mat_upper
 from japl.Library.Nav.Nav import accel_var, gyro_var
+from japl.Library.Nav.Nav import gps_pos_var, gps_vel_var
 from japl.Library.Sensors.OnboardSensors.ImuModel import ImuSensor
 from japl.Library.Sensors.OnboardSensors.ImuModel import SensorBase
 from japl import JAPL_HOME_DIR
@@ -95,7 +96,7 @@ P_init = np.eye(NSTATE) * 1e-6
 # P_init[vel_z_id][vel_z_id] = 1e-6
 # P_init[accel_bias_x_id][accel_bias_x_id] = 1e-6
 # P_init[accel_bias_y_id][accel_bias_y_id] = 1e-6
-# P_init[accel_bias_z_id][accel_bias_z_id] = 1e-6
+# P_init[accel_bias_z_id][accel_bias_z_id] = 1e-1
 # P_init[gyro_bias_x_id][gyro_bias_x_id] = 1e-6
 # P_init[gyro_bias_y_id][gyro_bias_y_id] = 1e-6
 # P_init[gyro_bias_z_id][gyro_bias_z_id] = 1e-6
@@ -105,18 +106,13 @@ P = P_init
 
 count = 0
 
-# accel_Hz = 100
-# accel_noise_density = 10e-6 * 9.81  # (ug / sqrt(Hz))
-Racc = accel_var
+Racc_noise = [accel_var] * 3
+Rgyr_noise = [gyro_var] * 3
+Rgps_pos_noise = [gps_pos_var] * 3
+Rgps_vel_noise = [gps_vel_var] * 3
 
-# gyro_Hz = 100
-# gyro_noise_density = 3.5e-6  # ((udeg / s) / sqrt(Hz))
-Rgyr = gyro_var
-Rgps_pos = 0.1**2
-Rgps_vel = 0.2**2
-
-gyro = SensorBase(noise=[Rgyr] * 3)
-accel = SensorBase(noise=[Racc] * 3)
+gyro = SensorBase(noise=gyro_var)
+accel = SensorBase(noise=accel_var)
 imu = ImuSensor(gyro=gyro, accel=accel)
 
 
@@ -155,23 +151,24 @@ def ekf_step(t, X, U, S, dt):
 
     # print(t, np.linalg.norm(P))
 
-    # q = X[:4]
-    # p = X[4:7]
-    # v = X[7:10]
-    # b_acc = X[10:13]
-    # b_gyr = X[13:16]
-    # print(f"q:{q}",
-    #       f"p:{p}",
-    #       f"v:{v}",
-    #       f"b_acc:{b_acc}",
-    #       f"b_gyr:{b_gyr}")
+    q = X[:4]
+    p = X[4:7]
+    v = X[7:10]
+    b_acc = X[10:13]
+    b_gyr = X[13:16]
+    print(
+          # f"q:{q}",
+          f"p:{p}",
+          f"v:{v}",
+          f"b_acc:{b_acc}",
+          f"b_gyr:{b_gyr}")
     # print(P)
     # array_print(X)
     count += 1
     return X
 
 
-plotter = PyQtGraphPlotter(frame_rate=30, figsize=[10, 8], aspect="auto")
+# plotter = PyQtGraphPlotter(frame_rate=30, figsize=[10, 8], aspect="auto")
 
 print("Building Model...")
 model = Model.from_function(dt, state, input,
@@ -243,7 +240,7 @@ pos_n = simobj.Y[:, ipos_n]
 pos_e = simobj.Y[:, ipos_e]
 pos_d = simobj.Y[:, ipos_d]
 
-plotter.plot(T, pos_n)
-plotter.plot(T, pos_e)
-plotter.plot(T, pos_d)
-plotter.show()
+# plotter.plot(T, pos_n)
+# plotter.plot(T, pos_e)
+# plotter.plot(T, pos_d)
+# plotter.show()
