@@ -4,10 +4,13 @@ import sympy as sp
 # from itertools import permutations
 from sympy import Matrix, Symbol, symbols, cse
 from sympy import MatrixSymbol
+from sympy import Piecewise
+from sympy import Eq, Gt, Ge, Lt, Le, Mod
 # from sympy import default_sort_key, topological_sort
 from japl.BuildTools.DirectUpdate import DirectUpdate
 from japl import JAPL_HOME_DIR
 from japl.Util.Util import profile
+from japl import Model
 
 
 ################################################################
@@ -16,15 +19,18 @@ from japl.Util.Util import profile
 
 
 def get_mat_upper(mat):
-    ret = []
-    n = mat.shape[0]
-    for i in range(n):
-        for j in range(n):
-            if i > j:
-                pass
-            else:
-                ret += [mat[j, i]]
-    return np.array(ret)
+    # ret = []
+    # n = mat.shape[0]
+    # for i in range(n):
+    #     for j in range(n):
+    #         if i > j:
+    #             pass
+    #         else:
+    #             ret += [mat[j, i]]
+    # return np.array(ret)
+    ncols = mat.shape[1]
+    ids = np.triu_indices(ncols)
+    return np.asarray(mat)[ids]
 
 
 # def zero_mat_lower(mat):
@@ -229,7 +235,7 @@ gyro_bias_new = angvel_bias
 accel_bias_new = acc_bias
 
 # NOTE: since no magnetometer yet, zero-out gyro_z bias
-gyro_bias_new[2] = sp.Float(0)
+# gyro_bias_new[2] = sp.Float(0)
 
 ##################################################
 # Process Noise
@@ -478,64 +484,6 @@ vars = [
         dt,
         ]
 
-######################################################
-# NOTE: trying to create model from_expression
-######################################################
-# state_update = Matrix([
-#     DirectUpdate(state, X_new),
-#     DirectUpdate(P, P_new),
-#     ])
-
-# static = Matrix([
-#     gyro_x_var,
-#     gyro_y_var,
-#     gyro_z_var,
-#     accel_x_var,
-#     accel_y_var,
-#     accel_z_var,
-#     ])
-
-# # X_new
-# # P_new
-# # X_accel_update
-# # P_accel_update
-# # X_gps_update
-# # P_gps_update
-
-
-# # model = Model.from_expression(dt_var=dt,
-# #                               state_vars=state_update,
-# #                               input_vars=input,
-# #                               static_vars=static,
-# #                               dynamics_expr=Matrix([np.nan] * len(state)),
-# #                               use_multiprocess_build=True)
-# # model.save("./data", "ekf")
-
-# model = Model.from_file("./data/ekf.japl")
-# # pp = np.eye(P.shape[0])
-# # ret = model.direct_state_update_func(0, [1,0,0,0, 0,0,0, 0,1,0, 0,0,0, 0,0,0, pp],
-# #                                          [0,0,0, 0,0,0], [1,1,1, 1,1,1], 0.1)
-# # print(ret)
-
-# simobj = SimObject(model)
-# quat0 = [1, 0, 0, 0]
-# p0 = [0, 0, 0]
-# v0 = [0, 0, 0]
-# ab0 = [0, 0, 0]
-# gb0 = [0, 0, 0]
-# P0 = np.eye(P.shape[0])
-# simobj.init_state([quat0, p0, v0, ab0, gb0, P0])
-
-# sim = Sim(t_span=[0, 10],
-#           dt=0.01,
-#           simobjs=[simobj])
-# sim.run()
-
-# Y = simobj.Y[-1]
-# print(Y)
-# quit()
-######################################################
-
 if __name__ == "__main__":
 
     ##################################################
@@ -576,6 +524,118 @@ if __name__ == "__main__":
     ##################################################
     # Sim
     ##################################################
+
+    ######################################################
+    # NOTE: trying to create model from_expression
+    ######################################################
+    # state_update = Matrix([
+    #     DirectUpdate(state, X_new),
+    #     DirectUpdate(P, P_new),
+    #     ])
+
+    static = Matrix([
+        gyro_x_var,
+        gyro_y_var,
+        gyro_z_var,
+        accel_x_var,
+        accel_y_var,
+        accel_z_var,
+        gps_pos_x_var,
+        gps_pos_y_var,
+        gps_pos_z_var,
+        gps_vel_x_var,
+        gps_vel_y_var,
+        gps_vel_z_var,
+        ])
+
+    # # X_new
+    # # P_new
+    # # X_accel_update
+    # # P_accel_update
+    # # X_gps_update
+    # # P_gps_update
+
+    # defs = (
+    #         (quat, quat_new),
+    #         (pos, pos_new),
+    #         (vel, vel_new),
+    #         (acc_bias, accel_bias_new),
+    #         (angvel_bias, gyro_bias_new)
+    #         )
+
+    # nstate = len(state)
+    # nP = np.prod(P.shape)
+
+    # X_new = Matrix([
+    #     Piecewise(
+    #         (X_accel_update[i], Eq(Mod(t, 1), 0)),
+    #         (state_new[i], True)
+    #         )
+    #     for i in range(nstate)
+    #     ])
+
+    # P_new = Matrix([
+    #     Piecewise(
+    #         (P_accel_update[i], Eq(Mod(t, 1), 0)),
+    #         (P_new[i], True)
+    #         )
+    #     for i in range(nP)
+    #     ]).reshape(*P.shape)
+
+
+    definitions = (
+            (state, X_new),
+            (get_mat_upper(P), get_mat_upper(P_new)),
+            )
+
+    ekf_state = Matrix([
+        state,
+        *get_mat_upper(P),
+        ])
+
+    model = Model.from_expression(dt_var=dt,
+                                  state_vars=ekf_state,
+                                  input_vars=input,
+                                  static_vars=static,
+                                  definitions=definitions,
+                                  dynamics_expr=Matrix([np.nan] * len(ekf_state)),
+                                  use_multiprocess_build=True)
+    model.save(f"{JAPL_HOME_DIR}/data", "ekf_expr")
+
+    # t = 0
+    # X = np.array([*state_info.values()])
+    # U = np.array([*input_info.values()])
+    # S = []
+    # dt = 0.1
+    # ret = model.direct_state_update_func(t, X, U, S, dt)
+    # print(ret)
+
+    # model = Model.from_file("./data/ekf.japl")
+    # # pp = np.eye(P.shape[0])
+    # # ret = model.direct_state_update_func(0, [1,0,0,0, 0,0,0, 0,1,0, 0,0,0, 0,0,0, pp],
+    # #                                          [0,0,0, 0,0,0], [1,1,1, 1,1,1], 0.1)
+    # # print(ret)
+
+    # simobj = SimObject(model)
+    # quat0 = [1, 0, 0, 0]
+    # p0 = [0, 0, 0]
+    # v0 = [0, 0, 0]
+    # ab0 = [0, 0, 0]
+    # gb0 = [0, 0, 0]
+    # P0 = np.eye(P.shape[0])
+    # simobj.init_state([quat0, p0, v0, ab0, gb0, P0])
+
+    # sim = Sim(t_span=[0, 10],
+    #           dt=0.01,
+    #           simobjs=[simobj])
+    # sim.run()
+
+    # Y = simobj.Y[-1]
+    # print(Y)
+    # quit()
+    ######################################################
+
+    quit()
 
     print("Lambdify-ing Symbolic Expressions...")
 

@@ -175,13 +175,23 @@ def ekf_step(t, X, U, S, dt):
 
 
 # plotter = PyQtGraphPlotter(frame_rate=30, figsize=[10, 8], aspect="auto")
-
-print("Building Model...")
-model = Model.from_function(dt, state, input,
-                            state_update_func=ekf_step,
-                            input_update_func=ekf_input_update)
+######
+# model = Model.from_file(f"{JAPL_HOME_DIR}/data/ekf_expr.japl")
+model = Model.from_file(f"{JAPL_HOME_DIR}/data/ekf_expr.japl")
 simobj = SimObject(model)
-simobj.init_state(X)
+simobj.init_state([X, get_mat_upper(P)])
+# Y = simobj.X0
+# ret = simobj.get_state_array(Y, "P")
+# print(ret)
+# quit()
+######
+
+# print("Building Model...")
+# model = Model.from_function(dt, state, input,
+#                             state_update_func=ekf_step,
+#                             input_update_func=ekf_input_update)
+# simobj = SimObject(model)
+# simobj.init_state(X)
 simobj.plot.set_config({
 
     # "E": {
@@ -231,7 +241,7 @@ simobj.plot.set_config({
     })
 
 print("Starting Sim...")
-sim = Sim([0, 25], 0.01, [simobj])
+sim = Sim([0, 1], 0.01, [simobj])
 sim.run()
 sim.profiler.print_info()
 # plotter.animate(sim)
@@ -250,3 +260,7 @@ pos_d = simobj.Y[:, ipos_d]
 # plotter.plot(T, pos_e)
 # plotter.plot(T, pos_d)
 # plotter.show()
+
+Y = simobj.Y[-1]
+print(simobj.get_state_array(Y, "P"))
+# quit()
