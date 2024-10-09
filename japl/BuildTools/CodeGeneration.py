@@ -271,7 +271,7 @@ class CCodeGenerator(CodeGeneratorBase):
     def write_subexpressions(self, subexpressions):
         for (lvalue, rvalue) in subexpressions:
             assign_str = (self.declare_parameter(lvalue, const=True)
-                          + " = " + self.get_code(rvalue) + self.endl)  # type:ignore
+                          + " = " + self.get_code(rvalue) + ";")  # type:ignore
             self.write_lines(assign_str, prefix="\t")
 
 
