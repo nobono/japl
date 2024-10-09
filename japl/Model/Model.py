@@ -224,7 +224,7 @@ class Model:
                         dt_var: Symbol,
                         state_vars: list|tuple|Matrix,
                         input_vars: list|tuple|Matrix,
-                        dynamics_expr: Expr|Matrix|MatrixSymbol,
+                        dynamics_expr: Expr|Matrix|MatrixSymbol = Matrix([]),
                         static_vars: list|tuple|Matrix = [],
                         definitions: tuple = (),
                         modules: dict|list[dict] = {},

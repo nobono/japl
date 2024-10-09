@@ -13,6 +13,7 @@ from multiprocess import cpu_count  # type:ignore
 from japl.Util.Util import flatten_list
 import dill as pickle
 from time import perf_counter
+import numpy as np
 
 
 
@@ -53,7 +54,7 @@ def parallel_subs(matrix: Matrix, subs: list):
 
 def build_model(state: Matrix,
                 input: Matrix,
-                dynamics: Matrix,
+                dynamics: Matrix = Matrix([]),
                 definitions: tuple = (),
                 static: Matrix = Matrix([]),
                 use_multiprocess_build: bool = True) -> tuple:
@@ -221,20 +222,23 @@ def build_model(state: Matrix,
     # - poly.terms() # list[(exps, coeffs), (exps, coeffs)]
     # - poly.gens # generator which provides order of terms
     ##################
-    print("applying substitions to dynamics...")
-    if use_multiprocess_build:
-        with Pool(processes=cpu_count()) as pool:
-            subs = [pickle.dumps(def_subs),
-                    pickle.dumps(state_subs),
-                    pickle.dumps(input_subs),
-                    pickle.dumps(static_subs)]
-            args = [(pickle.dumps(expr), subs) for expr in dynamics]
-            results = [pool.apply_async(array_subs_func, arg) for arg in args]
-            results = [pickle.loads(ret.get()) for ret in results]
-        dynamics = Matrix(results)
+    if dynamics:
+        print("applying substitions to dynamics...")
+        if use_multiprocess_build:
+            with Pool(processes=cpu_count()) as pool:
+                subs = [pickle.dumps(def_subs),
+                        pickle.dumps(state_subs),
+                        pickle.dumps(input_subs),
+                        pickle.dumps(static_subs)]
+                args = [(pickle.dumps(expr), subs) for expr in dynamics]
+                results = [pool.apply_async(array_subs_func, arg) for arg in args]
+                results = [pickle.loads(ret.get()) for ret in results]
+            dynamics = Matrix(results)
+        else:
+            dynamics = dynamics.subs(def_subs)
+            dynamics = dynamics.subs(state_subs).subs(input_subs)
     else:
-        dynamics = dynamics.subs(def_subs)
-        dynamics = dynamics.subs(state_subs).subs(input_subs)
+        dynamics = Matrix([np.nan] * len(state))
 
     ############################################################
     # 8: apply subs to direct updates
