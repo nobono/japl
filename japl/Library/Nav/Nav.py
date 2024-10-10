@@ -567,9 +567,10 @@ if __name__ == "__main__":
     # # X_gps_update
     # # P_gps_update
 
+    noise = list(noise_info.keys())
     variance = list(variance_info.keys())
     input = list(input_info.keys())
-    params = [t, state, input, get_mat_upper(P), variance, dt]
+    params = [t, state, input, get_mat_upper(P), variance, noise, dt]
 
     gen = CCodeGenerator()
     gen.add_function(expr=X_new,
@@ -594,7 +595,7 @@ if __name__ == "__main__":
                      return_name="P_accel_new",
                      is_symmetric=True)
 
-    gen.create_module("ekf")
+    gen.create_module(module_name="ekf", path="./")
     quit()
 
     definitions = (

@@ -1,3 +1,6 @@
+import os
+import sys
+import numpy as np
 from japl.BuildTools.CodeGeneratorBase import CodeGeneratorBase
 from sympy import ccode
 from sympy import Expr
@@ -5,6 +8,7 @@ from sympy import Matrix
 from sympy import symbols
 from sympy import cse
 from sympy.codegen.ast import float32, real
+from textwrap import dedent
 
 
 
@@ -183,10 +187,16 @@ class CCodeGenerator(CodeGeneratorBase):
         self.register_function(name=function_name, writes=writes)
 
 
-    def create_module(self, module_name: str):
-        file_ext = ".cpp"
-        self.file_name = module_name + file_ext
-        self.file = open(self.file_name, "w")
+    def create_module(self, module_name: str, path: str):
+        # create extension module directory
+        module_dir_name = module_name + "_model"
+        module_dir_path = os.path.join(path, module_dir_name)
+        os.mkdir(module_dir_path)
+
+        self.path = path
+        self.file_name = module_name + ".cpp"
+        file_path = os.path.join(module_dir_path, self.file_name)
+        self.file = open(file_path, "w")
 
         header = self.write_header()
         self.write_lines(header)
@@ -206,18 +216,45 @@ class CCodeGenerator(CodeGeneratorBase):
         for line in pybind_writes:
             self.write_lines(line)
 
+        self.create_build_file(path=module_dir_path,
+                               module_name=module_name,
+                               source=self.file_name)
+
         self.close()
 
 
-    def create_setup_file(self, path: str, extension_name: str):
-
+    def create_build_file(self, module_name: str, path: str, source: str):
         # from pybind11.setup_helpers import Pybind11Extension
-        string = f"""\
-        ext = Extension(name="{extension_name}",
-                        sources=[os.path.join("japl", "Sim", "OdeInt.cpp")],
-                        include_dirs=[numpy_include_dir],
-                        extra_compile_args=["-std=c++14"])
-        """
+        # numpy_includes = ", ".join(np.get_include())
+
+        build_str = (f"""\
+        import os
+        from setuptools import setup
+        from setuptools.command.build_ext import build_ext
+        from pybind11.setup_helpers import Pybind11Extension
+
+
+
+        dir = os.path.dirname(__file__)
+        sources = [os.path.join(dir, "{source}")]
+
+        # Define extension module
+        ext_module = Pybind11Extension(name="{module_name}",
+                                       sources=sources,
+                                       extra_compile_args=['-std=c++11'],
+                                       extra_link_args=['-std=c++11'])
+        """"""
+        # Build the extension
+        setup(
+            ext_modules=[ext_module],
+            cmdclass={'build_ext': build_ext}
+        )
+        """)
+
+        build_file_name = "build.py"
+        build_file_path = os.path.join(path, build_file_name)
+        with open(build_file_path, "a+") as f:
+            f.write(dedent(build_str))
 
 
     def close(self):
