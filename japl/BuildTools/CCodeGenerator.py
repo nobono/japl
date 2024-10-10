@@ -232,15 +232,49 @@ class CCodeGenerator(CodeGeneratorBase):
 
         file_name = source.split('.')[0]
 
-        build_str = (f"""\
+        build_str = ("""\
         import os
+        import sys
+        import glob
+        import shutil
         from setuptools import setup
         from setuptools.command.build_ext import build_ext
+        from setuptools import Command
         from pybind11.setup_helpers import Pybind11Extension
 
 
 
         dir = os.path.dirname(__file__)
+
+        # Default build ops
+        if len(sys.argv) == 1:
+            sys.argv.append("build_ext")
+            sys.argv.append(f"--build-lib")
+            sys.argv.append(dir)
+
+
+        class CleanCommand(Command):
+            \"\"\"Custom clean command to tidy up the project root.\"\"\"
+            user_options = []
+
+            def initialize_options(self):
+                pass
+
+            def finalize_options(self):
+                pass
+
+            def run(self):
+                shutil.rmtree('./build', ignore_errors=True)
+                shutil.rmtree('./dist', ignore_errors=True)
+                root_path = os.path.dirname(__file__)
+                file_patterns = ["*.so", "*.dll"]
+                for pattern in file_patterns:
+                    for file in glob.iglob(os.path.join(root_path, "**", pattern), recursive=True):
+                        print("removing:", file)
+                        os.remove(file)
+
+
+        """f"""
         sources = [os.path.join(dir, "{source}")]
 
         # Define extension module
@@ -250,15 +284,16 @@ class CCodeGenerator(CodeGeneratorBase):
                                        extra_link_args=['-std=c++14'])
         """"""
 
-        cmdClass = {'build_ext': build_ext}
+        cmdclass = {'build_ext': build_ext,
+                    'clean': CleanCommand}
 
         """f"""
         # Build the extension
         setup(
             name="{file_name}",
             ext_modules=[ext_module],
-            cmdclass=cmdClass,
-            script_args=["build_ext", "--build-lib", dir]
+            cmdclass=cmdclass,
+            # script_args=["build_ext", "--build-lib", dir]
         )
         """)
 
@@ -268,8 +303,8 @@ class CCodeGenerator(CodeGeneratorBase):
             f.write(dedent(build_str))
 
         # attempt to build
-        print(f"EXECUTING: python {build_file_path}")
-        os.system(f"python {build_file_path}")
+        # print(f"EXECUTING: python {build_file_path}")
+        # os.system(f"python {build_file_path}")
 
 
     def close(self):
