@@ -133,7 +133,7 @@ class Model:
         model.input_vars = model.input_register.get_vars()
         model.static_vars = model.static_register.get_vars()
         model.dt_var = dt_var
-        model.vars = (model.state_vars, model.input_vars, model.static_vars, dt_var)
+        model.vars = (Symbol("t"), model.state_vars, model.input_vars, model.static_vars, dt_var)
         model.state_dim = len(model.state_vars)
         model.input_dim = len(model.input_vars)
         model.static_dim = len(model.static_vars)
@@ -187,7 +187,7 @@ class Model:
         model.state_vars = model.state_register.get_vars()
         model.input_vars = model.input_register.get_vars()
         model.dt_var = dt_var
-        model.vars = (model.state_vars, input_vars, dt_var)
+        model.vars = (Symbol("t"), model.state_vars, input_vars, dt_var)
         model.dynamics_expr = A * model.state_vars + B * model.input_vars
         if isinstance(model.dynamics_expr, Expr) or isinstance(model.dynamics_expr, Matrix):
             model.dynamics_expr = simplify(model.dynamics_expr)
@@ -273,7 +273,7 @@ class Model:
         model.input_vars = model.input_register.get_vars()
         model.static_vars = model.static_register.get_vars()
         model.dt_var = dt_var
-        model.vars = (model.state_vars, model.input_vars, model.static_vars, dt_var)
+        model.vars = (Symbol("t"), model.state_vars, model.input_vars, model.static_vars, dt_var)
         model.dynamics_expr = dynamics_expr
         model.state_direct_updates = state_direct_updates
         model.input_direct_updates = input_direct_updates
@@ -544,8 +544,7 @@ class Model:
         -- (Callable) - lambdified sympy expression
         -------------------------------------------------------------------
         """
-        t = Symbol('t')  # 't' variable needed to adhear to func argument format
-        update_func = Desym((t, *self.vars), Matrix(direct_updates), modules=self.modules)
+        update_func = Desym(self.vars, Matrix(direct_updates), modules=self.modules)
         return update_func
 
 
