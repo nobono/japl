@@ -1,9 +1,33 @@
+import os
 import sys
+import shutil
+import glob
 from setuptools import setup
 from setuptools import find_packages
-from setuptools import Extension
+from setuptools import Command
 import platform
 
+
+
+class CleanCommand(Command):
+    """Custom clean command to tidy up the project root."""
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        shutil.rmtree('./build', ignore_errors=True)
+        shutil.rmtree('./dist', ignore_errors=True)
+        root_path = os.path.dirname(__file__)
+        file_patterns = ["*.so", "*.dll"]
+        for pattern in file_patterns:
+            for file in glob.iglob(os.path.join(root_path, "**", pattern), recursive=True):
+                print("removing:", file)
+                os.remove(file)
 
 
 if platform.system().lower() == "windows":
@@ -61,5 +85,8 @@ setup(
         classifiers=[
             "Intended Audience :: Developers",
             "Programming Language :: Python :: 3.11",
-            ]
+            ],
+        cmdclass={
+            "clean": CleanCommand,
+            }
         )
