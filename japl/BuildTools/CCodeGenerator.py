@@ -189,7 +189,7 @@ class CCodeGenerator(CodeGeneratorBase):
 
     def create_module(self, module_name: str, path: str):
         # create extension module directory
-        module_dir_name = module_name + "_model"
+        module_dir_name = module_name
         module_dir_path = os.path.join(path, module_dir_name)
         os.mkdir(module_dir_path)
 
@@ -210,6 +210,9 @@ class CCodeGenerator(CodeGeneratorBase):
             pybind_writes += [f"\tm.def(\"{func_name}\", &{func_name}, \"{description}\");"]
             for line in writes:
                 self.write_lines(line)
+            # create __init__.py file
+            with open(os.path.join(module_dir_path, "__init__.py"), "a+") as f:
+                f.write(f"from {module_dir_name}.{module_dir_name} import {func_name}\n")
 
         pybind_writes += ["}"]
 
@@ -226,6 +229,8 @@ class CCodeGenerator(CodeGeneratorBase):
     def create_build_file(self, module_name: str, path: str, source: str):
         # from pybind11.setup_helpers import Pybind11Extension
         # numpy_includes = ", ".join(np.get_include())
+
+        file_name = source.split('.')[0]
 
         build_str = (f"""\
         import os
@@ -244,10 +249,16 @@ class CCodeGenerator(CodeGeneratorBase):
                                        extra_compile_args=['-std=c++11'],
                                        extra_link_args=['-std=c++11'])
         """"""
+
+        cmdClass = {'build_ext': build_ext}
+
+        """f"""
         # Build the extension
         setup(
+            name="{file_name}",
             ext_modules=[ext_module],
-            cmdclass={'build_ext': build_ext}
+            cmdclass=cmdClass,
+            script_args=["build_ext", "--build-lib", dir]
         )
         """)
 
@@ -255,6 +266,9 @@ class CCodeGenerator(CodeGeneratorBase):
         build_file_path = os.path.join(path, build_file_name)
         with open(build_file_path, "a+") as f:
             f.write(dedent(build_str))
+
+        # attempt to build
+        # os.system(f"python {build_file_path}")
 
 
     def close(self):
