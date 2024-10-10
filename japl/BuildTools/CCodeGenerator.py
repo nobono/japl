@@ -7,7 +7,7 @@ from sympy import Expr
 from sympy import Matrix
 from sympy import symbols
 from sympy import cse
-from sympy.codegen.ast import float32, real
+from sympy.codegen.ast import float64, real
 from textwrap import dedent
 
 
@@ -33,7 +33,7 @@ class CCodeGenerator(CodeGeneratorBase):
 
 
     def get_code(self, expression):
-        return ccode(expression, type_aliases={real: float32}, strict=self.strict)
+        return ccode(expression, type_aliases={real: float64}, strict=self.strict)
 
 
     def write_subexpressions(self, subexpressions):
