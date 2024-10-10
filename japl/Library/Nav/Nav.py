@@ -560,6 +560,11 @@ if __name__ == "__main__":
         gps_vel_z_var,
         ])
 
+    X_new[0] = X_new[0] / quat_new.norm()
+    X_new[1] = X_new[1] / quat_new.norm()
+    X_new[2] = X_new[2] / quat_new.norm()
+    X_new[3] = X_new[3] / quat_new.norm()
+
     # # X_new
     # # P_new
     # # X_accel_update
