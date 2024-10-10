@@ -249,7 +249,7 @@ class CCodeGenerator(CodeGeneratorBase):
         # Default build ops
         if len(sys.argv) == 1:
             sys.argv.append("build_ext")
-            sys.argv.append(f"--build-lib")
+            sys.argv.append("--build-lib")
             sys.argv.append(dir)
 
 
