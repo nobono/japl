@@ -9,6 +9,7 @@ from sympy import Function
 from sympy import symbols
 from sympy import cse
 from sympy.codegen.ast import float32, real
+from sympy.matrices.expressions.matexpr import MatrixElement
 from japl.Util.Util import flatten_list
 
 
@@ -31,25 +32,33 @@ class CodeGeneratorBase:
         self.file.write(f"{self.comment_prefix} " + string + "\n")
 
 
+    @staticmethod
+    def indent_lines(string: str) -> str:
+        ret = ""
+        for line in string.split("\n"):
+            ret += "\t" + line + "\n"
+        return ret
+
+
     def write_lines(self, string, prefix: str = "", postfix: str = "\n"):
         for line in string.split('\n'):
             self.file.write(prefix + line + postfix)
 
 
-    def write_function_definition(self, *args, **kwargs):
-        pass
+    def write_function_definition(self, *args, **kwargs) -> str:
+        return ""
 
 
-    def write_function_returns(self, returns):
-        pass
+    def write_function_returns(self, expr: Expr, return_names: list[str]) -> str:
+        return ""
 
 
-    def write_subexpressions(self, *args, **kwargs):
-        pass
+    def write_subexpressions(self, *args, **kwargs) -> str:
+        return ""
 
 
-    def write_matrix(self, *args, **kwargs):
-        pass
+    def write_matrix(self, *args, **kwargs) -> str:
+        return ""
 
 
     def declare_parameter(self, param: Expr, name: str = "", *args, **kwargs) -> str:
@@ -63,14 +72,16 @@ class CodeGeneratorBase:
         pass
 
 
-    def write_header(self):
-        for line in self.header:
-            self.write_lines(line)
+    def write_header(self) -> str:
+        # for line in self.header:
+        #     self.write_lines(line)
+        return "\n".join(self.header)
 
 
-    def write_footer(self):
-        for line in self.footer:
-            self.write_lines(line)
+    def write_footer(self) -> str:
+        # for line in self.footer:
+        #     self.write_lines(line)
+        return "\n".join(self.footer)
 
 
     def write_function_to_file(self, path: str, function_name: str, expr: Expr,
@@ -95,13 +106,13 @@ class CodeGeneratorBase:
         self.write_matrix(matrix=Matrix(expr_simple),
                           variable=return_var,
                           is_symmetric=is_symmetric)
-        self.write_function_returns(returns=[return_var])
+        self.write_function_returns(expr=expr, return_names=[return_var])
         self.write_lines("")
         self.write_footer()
         self.close()
 
 
-    def is_array_type(self, param: Expr) -> bool:
+    def is_array_type(self, param: Expr|Matrix) -> bool:
         if hasattr(param, "__len__") or hasattr(param, "shape"):
             return True
         else:
@@ -120,12 +131,19 @@ class CodeGeneratorBase:
                 # unpack iterable param
                 dummy_name = dummy_prefix + str(i)
                 for ip, p in enumerate(param):  # type:ignore
-                    unpack_var = self.declare_parameter(p)
-                    accessor_str = self.pre_bracket + str(ip) + self.post_bracket
-                    arg_unpack_str += f"{unpack_var} = {dummy_name}{accessor_str}" + self.endl
+                    # if p is MatrixElement no need to use
+                    # a dummy var, allow accessing parameter
+                    # directly
+                    if isinstance(p, MatrixElement):
+                        dummy_name = p.parent.name
+                    else:
+                        unpack_var = self.declare_parameter(p)
+                        accessor_str = self.pre_bracket + str(ip) + self.post_bracket
+                        arg_unpack_str += f"{unpack_var} = {dummy_name}{accessor_str}" + self.endl
                 # store dummy var in arg_names
                 arg_names += [self.declare_parameter(param, name=dummy_name)]
             else:
+                # if single symbol
                 param_str = self.declare_parameter(param)
                 arg_names += [param_str]
         arg_names_str = ", ".join(arg_names)
@@ -239,156 +257,6 @@ class OctaveCodeGenerator(CodeGeneratorBase):
     def close(self):
         self.file.write("end\n")
         self.file.close()
-
-
-class CCodeGenerator(CodeGeneratorBase):
-
-    comment_prefix: str = "//"
-    pre_bracket: str = "["
-    post_bracket: str = "]"
-    bracket_separator: str = "]["  # ]
-    endl: str = ";\n"
-
-    return_name: str = "ret_array"
-
-    header: list[str] = ["#include <pybind11/pybind11.h>",
-                         "#include <pybind11/numpy.h>",
-                         "#include <pybind11/stl.h>  // Enables automatic conversion",
-                         "",
-                         "namespace py = pybind11;",
-                         ""]
-
-    def __init__(self, strict: bool = False):
-        self.strict = strict
-        # self.file_name = file_name
-        # self.file = open(self.file_name, 'w')
-
-
-    def get_code(self, expression):
-        return ccode(expression, type_aliases={real: float32}, strict=self.strict)
-
-
-    def write_subexpressions(self, subexpressions):
-        for (lvalue, rvalue) in subexpressions:
-            assign_str = (self.declare_parameter(lvalue, const=True)
-                          + " = " + self.get_code(rvalue) + ";")  # type:ignore
-            self.write_lines(assign_str, prefix="\t")
-
-
-    def write_matrix(self,
-                     matrix,
-                     variable,
-                     is_symmetric=False):
-        write_string = ""
-        variable_name = self.get_expr_name(variable)
-
-        ############################
-        # L-value / R-value assign
-        ############################
-        # if Matrix of single expression
-        if matrix.shape[0] * matrix.shape[1] == 1:
-            write_string = write_string + variable_name + " = " + self.get_code(matrix[0]) + self.endl  # type:ignore
-        # if row or column Matrix
-        elif matrix.shape[0] == 1 or matrix.shape[1] == 1:
-            for i in range(0, len(matrix)):
-                write_string = write_string + variable_name +\
-                               self.pre_bracket +\
-                               str(i + 1) +\
-                               self.post_bracket + " = " +\
-                               self.get_code(matrix[i]) + self.endl  # type:ignore
-        # if any other shape
-        else:
-            for j in range(0, matrix.shape[1]):
-                for i in range(0, matrix.shape[0]):
-                    if j >= i or not is_symmetric:
-                        write_string = write_string + variable_name +\
-                                       self.pre_bracket +\
-                                       str(i + 1) + self.bracket_separator + str(j + 1) +\
-                                       self.post_bracket + " = " +\
-                                       self.get_code(matrix[i, j]) + self.endl  # type:ignore
-
-        self.write_lines(write_string, prefix="\t")
-
-        # declare return var
-        self.instantiate_return_array(variable)
-
-
-    def write_function_definition(self, name, params, **kwargs):
-        func_return_type = "py::array_t<double>"
-        params_list, params_unpack = self.get_function_parameters(params)
-        string = f"{func_return_type} {name}({params_list})" + " {\n\n"  # }
-        self.file.write(string)
-        # write unpacked paramters
-        self.write_lines(params_unpack, prefix="\t")
-
-
-    def write_function_returns(self, returns):
-        if len(returns) > 1:
-            raise Exception("CCodeGenerator currently only supports returns of a"
-                            "single object.")
-        return_name = self.return_name
-        self.file.write(f"\treturn {return_name}" + self.endl)
-        self.write_lines("}")
-
-
-    def declare_parameter(self, param: Expr, name: str = "", const: bool = False) -> str:
-        if name:
-            param_name = name
-        else:
-            param_name = self.get_expr_name(param)
-
-        # handle argument being an array
-        if self.is_array_type(param):
-            param_str = f"py::array_t<double> {param_name}"
-            if const:
-                param_str += "const " + param_str
-            # for i in param.shape:  # type:ignore
-            #     param_str += f"[{i}]"
-        else:
-            param_str = f"double {param_name}"
-        return param_str
-
-
-    def instantiate_return_array(self, param: Expr):
-        return_name = self.return_name
-        param_name = self.get_expr_name(param)
-
-        # handle argument being an array
-        if self.is_array_type(param):
-            shape_str = ", ".join([str(i) for i in param.shape])  # type:ignore
-            constructor_str = "({" + shape_str + "})"
-            param_str = f"vector<double> {return_name}" + constructor_str
-        else:
-            param_str = f"double {return_name}"
-        self.write_lines(param_str + ';', prefix="\t")
-
-        # write code to get pointer from pybind11 buffer info
-        # request_str = f"py::buffer_info buf_info = {return_name}.request();"
-        # cast_str = f"double* {param_name} = static_cast<double*>(buf_info.ptr);"
-        # self.write_lines(request_str, prefix="\t")
-        # self.write_lines(cast_str, prefix="\t")
-        # self.write_lines("")
-
-        # declare py::array_t and convert return var (vector) to array_t
-        if self.is_array_type(param):
-            constructor_str = f"({param_name}.size(), {param_name}.data())"
-            return_array = f"py::array_t<double> {return_name}{constructor_str}"
-            self.write_lines(return_array, prefix="\t")
-        else:
-            pass
-
-
-    def register_pybind(self, module_name: str, function_names: list[str]):
-        pybind = ["", "", f"PYBIND11_MODULE({module_name}, m) " + "{"]  # }
-        for func in function_names:
-            pybind += [f"\tm.def({func}, &{func}, \"\")"]
-        pybind[-1] += ";"
-        self.footer += pybind
-
-
-    def close(self):
-        self.file.close()
-
 
 
 class PyCodeGenerator(CodeGeneratorBase):
