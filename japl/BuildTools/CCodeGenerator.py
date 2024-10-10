@@ -246,8 +246,8 @@ class CCodeGenerator(CodeGeneratorBase):
         # Define extension module
         ext_module = Pybind11Extension(name="{module_name}",
                                        sources=sources,
-                                       extra_compile_args=['-std=c++11'],
-                                       extra_link_args=['-std=c++11'])
+                                       extra_compile_args=['-std=c++14'],
+                                       extra_link_args=['-std=c++14'])
         """"""
 
         cmdClass = {'build_ext': build_ext}
@@ -268,7 +268,8 @@ class CCodeGenerator(CodeGeneratorBase):
             f.write(dedent(build_str))
 
         # attempt to build
-        # os.system(f"python {build_file_path}")
+        print(f"EXECUTING: python {build_file_path}")
+        os.system(f"python {build_file_path}")
 
 
     def close(self):
