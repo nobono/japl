@@ -4,13 +4,17 @@ import sympy as sp
 # from itertools import permutations
 from sympy import Matrix, Symbol, symbols, cse
 from sympy import MatrixSymbol
+from sympy import Function
 from sympy import Piecewise
 from sympy import Eq, Gt, Ge, Lt, Le, Mod
+from sympy import sqrt
+from sympy import simplify
 # from sympy import default_sort_key, topological_sort
 from japl.BuildTools.DirectUpdate import DirectUpdate
 from japl import JAPL_HOME_DIR
 from japl.Util.Util import profile
 from japl import Model
+from japl.BuildTools.CCodeGenerator import CCodeGenerator
 
 
 ################################################################
@@ -178,9 +182,17 @@ dt = Symbol('dt', real=True)
 # States
 ##################################################
 
-q0, q1, q2, q3 = symbols("q0, q1, q2, q3", real=True)
-pos_n, pos_e, pos_d = symbols("pos_n, pos_e, pos_d", real=True)
-vel_n, vel_e, vel_d = symbols("vel_n, vel_e, vel_d", real=True)
+q0 = Symbol("q0", real=True)  # (t)
+q1 = Symbol("q1", real=True)  # (t)
+q2 = Symbol("q2", real=True)  # (t)
+q3 = Symbol("q3", real=True)  # (t)
+pos_n = Symbol("pos_n", real=True)  # (t)
+pos_e = Symbol("pos_e", real=True)  # (t)
+pos_d = Symbol("pos_d", real=True)  # (t)
+vel_n = Symbol("vel_n", real=True)  # (t)
+vel_e = Symbol("vel_e", real=True)  # (t)
+vel_d = Symbol("vel_d", real=True)  # (t)
+
 acc_bias_x, acc_bias_y, acc_bias_z = symbols("acc_bias_x, acc_bias_y, acc_bias_z", real=True)
 angvel_bias_x, angvel_bias_y, angvel_bias_z = symbols("angvel_bias_x, angvel_bias_y, angvel_bias_z", real=True)
 
@@ -213,7 +225,7 @@ acc_true = z_accel - acc_bias
 
 dcm_to_earth = quat_to_dcm(quat)
 dcm_to_body = dcm_to_earth.T
-gravity_ef = Matrix([0, 0, -1])  # gravity earth-frame
+gravity_ef = Matrix([0, 0, -9.81])  # gravity earth-frame
 gravity_bf = dcm_to_body * gravity_ef
 
 ##################################################
@@ -555,33 +567,35 @@ if __name__ == "__main__":
     # # X_gps_update
     # # P_gps_update
 
-    # defs = (
-    #         (quat, quat_new),
-    #         (pos, pos_new),
-    #         (vel, vel_new),
-    #         (acc_bias, accel_bias_new),
-    #         (angvel_bias, gyro_bias_new)
-    #         )
+    variance = list(variance_info.keys())
+    input = list(input_info.keys())
+    params = [t, state, input, get_mat_upper(P), variance, dt]
 
-    # nstate = len(state)
-    # nP = np.prod(P.shape)
+    gen = CCodeGenerator()
+    gen.add_function(expr=X_new,
+                     params=params,
+                     function_name="x_update",
+                     return_name="X_new")
 
-    # X_new = Matrix([
-    #     Piecewise(
-    #         (X_accel_update[i], Eq(Mod(t, 1), 0)),
-    #         (state_new[i], True)
-    #         )
-    #     for i in range(nstate)
-    #     ])
+    gen.add_function(expr=Matrix(get_mat_upper(P_new)),
+                     params=params,
+                     function_name="p_update",
+                     return_name="P_new",
+                     is_symmetric=True)
 
-    # P_new = Matrix([
-    #     Piecewise(
-    #         (P_accel_update[i], Eq(Mod(t, 1), 0)),
-    #         (P_new[i], True)
-    #         )
-    #     for i in range(nP)
-    #     ]).reshape(*P.shape)
+    gen.add_function(expr=X_accel_update,
+                     params=params,
+                     function_name="x_accel_update",
+                     return_name="X_accel_new")
 
+    gen.add_function(expr=Matrix(get_mat_upper(P_accel_update)),
+                     params=params,
+                     function_name="p_accel_update",
+                     return_name="P_accel_new",
+                     is_symmetric=True)
+
+    gen.create_module("ekf")
+    quit()
 
     definitions = (
             (state, X_new),
