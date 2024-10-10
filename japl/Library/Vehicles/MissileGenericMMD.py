@@ -14,6 +14,7 @@ from japl.BuildTools.DirectUpdate import DirectUpdate
 from japl.Aero.AeroTableSymbolic import AeroTableSymbolic
 from japl.Math.RotationSymbolic import ecef_to_lla_sym
 from japl.Library.Earth.Earth import Earth
+from japl.BuildTools.CCodeGenerator import CCodeGenerator
 from japl import JAPL_HOME_DIR
 
 DIR = os.path.dirname(__file__)
@@ -644,3 +645,19 @@ if __name__ == "__main__":
                                               use_multiprocess_build=True)
 
     model.save(path=JAPL_HOME_DIR + "/data/", name="mmd")
+
+    gen = CCodeGenerator()
+    params = [t, state, input, static, dt]
+    gen.add_function(expr=model.dynamics_expr,
+                     params=params,
+                     function_name="dynamics",
+                     return_name="Xdot")
+    gen.add_function(expr=model.state_direct_updates,
+                     params=params,
+                     function_name="state_updates",
+                     return_name="Xnew")
+    gen.add_function(expr=model.input_direct_updates,
+                     params=params,
+                     function_name="input_updaates",
+                     return_name="Unew")
+    gen.create_module(module_name="mmd", path="./")
