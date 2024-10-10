@@ -209,5 +209,16 @@ class CCodeGenerator(CodeGeneratorBase):
         self.close()
 
 
+    def create_setup_file(self, path: str, extension_name: str):
+
+        # from pybind11.setup_helpers import Pybind11Extension
+        string = f"""\
+        ext = Extension(name="{extension_name}",
+                        sources=[os.path.join("japl", "Sim", "OdeInt.cpp")],
+                        include_dirs=[numpy_include_dir],
+                        extra_compile_args=["-std=c++14"])
+        """
+
+
     def close(self):
         self.file.close()
