@@ -290,10 +290,10 @@ for index in range(P.shape[0]):
 
 P_new = F * P * F.T + Q
 
-for index in range(P.shape[0]):
-    for j in range(P.shape[0]):
-        if index > j:
-            P_new[index, j] = 0
+# for index in range(P.shape[0]):
+#     for j in range(P.shape[0]):
+#         if index > j:
+#             P_new[index, j] = 0
 
 ##################################################
 # Observations
@@ -575,30 +575,47 @@ if __name__ == "__main__":
     noise = list(noise_info.keys())
     variance = list(variance_info.keys())
     input = list(input_info.keys())
-    params = [t, state, input, get_mat_upper(P), variance, noise, dt]
+
+    # upper_ids = np.triu_indices(P.shape[0])
+    # upper_ncols = len(upper_ids[0])
+    # P_upper = MatrixSymbol("P", upper_ncols, 1).as_mutable()
+    # P_new_upper = Matrix([P_new[i, j] for i, j in zip(*upper_ids)])
+
+    params = [t, state, input, P, variance, noise, dt]
 
     gen = CCodeGenerator()
-    gen.add_function(expr=X_new,
-                     params=params,
-                     function_name="x_update",
-                     return_name="X_new")
+    # gen.add_function(expr=X_new,
+    #                  params=params,
+    #                  function_name="x_predict",
+    #                  return_name="X_new")
 
-    gen.add_function(expr=Matrix(get_mat_upper(P_new)),
-                     params=params,
-                     function_name="p_update",
-                     return_name="P_new",
-                     is_symmetric=True)
+    # gen.add_function(expr=P_new,
+    #                  params=params,
+    #                  function_name="p_predict",
+    #                  return_name="P_new",
+    #                  is_symmetric=False)
 
-    gen.add_function(expr=X_accel_update,
-                     params=params,
-                     function_name="x_accel_update",
-                     return_name="X_accel_new")
+    # gen.add_function(expr=X_accel_update,
+    #                  params=params,
+    #                  function_name="x_accel_update",
+    #                  return_name="X_accel_new")
 
-    gen.add_function(expr=Matrix(get_mat_upper(P_accel_update)),
+    # gen.add_function(expr=P_accel_update,
+    #                  params=params,
+    #                  function_name="p_accel_update",
+    #                  return_name="P_accel_new",
+    #                  is_symmetric=False)
+
+    # gen.add_function(expr=X_gps_update,
+    #                  params=params,
+    #                  function_name="x_gps_update",
+    #                  return_name="X_gps_new")
+
+    gen.add_function(expr=P_gps_update,
                      params=params,
-                     function_name="p_accel_update",
-                     return_name="P_accel_new",
-                     is_symmetric=True)
+                     function_name="p_gps_update",
+                     return_name="P_gps_new",
+                     is_symmetric=False)
 
     gen.create_module(module_name="ekf", path="./")
     quit()
