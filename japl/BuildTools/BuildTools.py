@@ -3,6 +3,8 @@ from typing import Any
 from sympy import Matrix, Symbol, Function, Expr, Number, nan
 from sympy import Float
 from sympy import Derivative
+from sympy import cse
+from sympy import symbols
 from sympy.matrices import MatrixSymbol
 from sympy.matrices.expressions.matexpr import MatrixElement
 from japl.Model.StateRegister import StateRegister
@@ -43,13 +45,46 @@ def create_error_header(msg: str, char: str = "-", char_len: int = 40) -> str:
     return header
 
 
-def parallel_subs(matrix: Matrix, subs: list):
+def parallel_subs(target_expr: Matrix|dict, subs: list):
+    if isinstance(target_expr, dict):
+        subs_func = dict_subs_func
+        with Pool(processes=cpu_count()) as pool:
+            subs = [pickle.dumps(sub) for sub in subs]
+            args = [(pickle.dumps((key, expr)), subs) for key, expr in target_expr.items()]
+            results = [pool.apply_async(subs_func, arg) for arg in args]
+            results = [pickle.loads(ret.get()) for ret in results]
+        for ret in results:
+            target_expr.update(ret)
+        return target_expr
+    else:
+        subs_func = array_subs_func
+        with Pool(processes=cpu_count()) as pool:
+            subs = [pickle.dumps(sub) for sub in subs]
+            args = [(pickle.dumps(expr), subs) for expr in target_expr]
+            results = [pool.apply_async(subs_func, arg) for arg in args]
+            results = [pickle.loads(ret.get()) for ret in results]
+        return Matrix(results)
+
+
+def cse_async(expr, id, *args, **kwargs):
+    expr = pickle.loads(expr)
+    temp_vars = symbols(f"X{id}_temp0:1000")
+    return pickle.dumps(cse(expr, temp_vars))
+
+
+def parallel_cse(matrix: Matrix) -> tuple[list, Matrix]:
     with Pool(processes=cpu_count()) as pool:
-        subs = [pickle.dumps(sub) for sub in subs]
-        args = [(pickle.dumps(expr), subs) for expr in matrix]
-        results = [pool.apply_async(array_subs_func, arg) for arg in args]
+        args = [(pickle.dumps(expr), id) for id, expr in enumerate(matrix)]
+        results = [pool.apply_async(cse_async, arg) for arg in args]
         results = [pickle.loads(ret.get()) for ret in results]
-    return Matrix(results)
+    # replacements_iter = [i[0] for i in results]
+    # replacements = []
+    # for res in replacements_iter:
+    #     for pair in res:
+    #         replacements += [pair]
+    replacements = [i[0] for i in results]
+    expr_simples = Matrix([i[1] for i in results])
+    return (replacements, expr_simples)
 
 
 def build_model(state: Matrix,

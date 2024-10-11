@@ -1,5 +1,7 @@
 import os
 import sys
+import shutil
+from tqdm import tqdm
 import numpy as np
 from japl.BuildTools.CodeGeneratorBase import CodeGeneratorBase
 from sympy import ccode
@@ -7,8 +9,17 @@ from sympy import Expr
 from sympy import Matrix
 from sympy import symbols
 from sympy import cse
+from sympy import simplify
 from sympy.codegen.ast import float64, real
 from textwrap import dedent
+from multiprocess import Pool  # type:ignore
+from multiprocess import cpu_count  # type:ignore
+import dill as pickle
+from japl.BuildTools.BuildTools import parallel_subs
+from japl.BuildTools.BuildTools import dict_subs_func
+from japl.BuildTools.BuildTools import parallel_cse
+from multiprocess import Pool  # type:ignore
+from multiprocess import cpu_count  # type:ignore
 
 
 
@@ -68,14 +79,28 @@ class CCodeGenerator(CodeGeneratorBase):
                                self.get_code(matrix[i]) + self.endl  # type:ignore
         # if any other shape
         else:
-            for j in range(0, matrix.shape[1]):
-                for i in range(0, matrix.shape[0]):
-                    if j >= i or not is_symmetric:
-                        write_string = write_string + variable_name +\
-                                       self.pre_bracket +\
-                                       str(i) + self.bracket_separator + str(j) +\
-                                       self.post_bracket + " = " +\
-                                       self.get_code(matrix[i, j]) + self.endl  # type:ignore
+            # for j in range(0, matrix.shape[1]):
+            #     for i in range(0, matrix.shape[0]):
+            #         if j >= i or not is_symmetric:
+            #             write_string = write_string + variable_name +\
+            #                            self.pre_bracket +\
+            #                            str(i) + self.bracket_separator + str(j) +\
+            #                            self.post_bracket + " = " +\
+            #                            self.get_code(matrix[i, j]) + self.endl  # type:ignore
+            ###################################################
+            for i in range(0, matrix.shape[0]):
+                for j in range(0, matrix.shape[1]):
+                    # flatten the array
+                    if is_symmetric and (i < j):
+                        index = j + i * matrix.shape[0]
+                    else:
+                        index = i + j * matrix.shape[1]
+
+                    write_string = (write_string + variable_name
+                                    + self.pre_bracket
+                                    + str(index)
+                                    + self.post_bracket + " = "
+                                    + self.get_code(matrix[i, j]) + self.endl)  # type:ignore
 
         return self.indent_lines(write_string)
 
@@ -119,15 +144,18 @@ class CCodeGenerator(CodeGeneratorBase):
     def instantiate_return_array(self, param: Expr|Matrix, name: str) -> str:
         ret = ""
 
+        # TODO: this currently assumed flattened arrays
+
         # handle argument being an array
         if self.is_array_type(param):
             shape = param.shape  # type:ignore
-            shape_str = ", ".join([str(i) for i in shape])
+            # shape_str = ", ".join([str(i) for i in shape])
             if len(shape) > 1:
+                size = np.prod(shape)  # type:ignore
                 if shape[1] == 1:
-                    constructor_str = "(" + str(shape[0]) + ")"
+                    constructor_str = "(" + str(size) + ")"
                 else:
-                    constructor_str = "({" + shape_str + "})"
+                    constructor_str = "(" + str(size) + ")"
             else:
                 constructor_str = "(" + str(shape[0]) + ")"
             param_str = f"std::vector<double> {name}" + constructor_str
@@ -154,17 +182,143 @@ class CCodeGenerator(CodeGeneratorBase):
         return ret
 
 
-    def register_function(self, name: str, writes: list[str], description: str = ""):
-        self.function_register.update({name: {"writes": writes, "description": description}})
-
-
     def add_function(self,
                      expr: Expr|Matrix,
                      params: list,
                      function_name: str,
                      return_name: str,
-                     is_symmetric: bool = False):
-        expr_replacements, expr_simple = cse(expr, symbols("X_temp0:1000"), optimizations='basic')
+                     use_cse: bool = True,
+                     is_symmetric: bool = False,
+                     description: str = ""):
+        self.function_register.update({
+            function_name: dict(
+                expr=expr,
+                params=params,
+                return_name=return_name,
+                use_cse=use_cse,
+                is_symmetric=is_symmetric,
+                description=description
+                )
+            })
+
+
+    def _build_function(self, function_name: str, **func_register_info) -> list[str]:
+
+        expr = func_register_info.get("expr")
+        params = func_register_info.get("params")
+        return_name = func_register_info.get("return_name")
+        use_cse = func_register_info.get("use_cse")
+        is_symmetric = func_register_info.get("is_symmetric")
+        assert expr
+        assert params
+        assert return_name
+        assert isinstance(use_cse, bool)
+        assert isinstance(is_symmetric, bool)
+
+        if use_cse:
+            # expr_replacements, expr_simple = cse(expr, symbols("X_temp0:1000"), optimizations='basic')
+
+            replacements, expr_simples = parallel_cse(expr)
+
+
+            # def redundancy(pair, rexpr):
+            #     sub, expr = pickle.loads(pair)
+            #     rexpr = pickle.loads(rexpr)
+            #     return pickle.dumps(sub if expr == rexpr else None)
+
+
+            def redundancy(sub, rexpr, dreps):
+                sub = pickle.loads(sub)
+                rexpr = pickle.loads(rexpr)
+                dreps = pickle.loads(dreps)
+
+                dreps_pops = []
+                new_subs = {}  # new subs for expression to take out redundant variables
+                # for (sub, rexpr) in tqdm(dreps.items()):
+                    # print("redundancy iter:", i, "of", dreps_len)
+                    # dreps_exprs = list(dreps.values())
+                    # dreps_keys = list(dreps.keys())
+
+                if rexpr in dreps.values():
+                    # get keys with this expression
+                    redundant_vars = [key for key, value in dreps.items() if value == rexpr]
+
+                    # replace redundant vars with first found var
+                    if redundant_vars:
+                        keep_var = redundant_vars[0]
+                        for rvar in redundant_vars[1:]:
+                            new_subs.update({rvar: keep_var})
+                            dreps_pops += [rvar]
+                return pickle.dumps((dreps_pops, new_subs))
+
+
+            def subs_prune(replacements, expr_simples) -> tuple[dict, Matrix, int]:
+                # unpack to single iterable
+                reps = []
+                for rep in replacements:
+                    if isinstance(rep, tuple) and (len(rep) == 2):
+                        reps += [rep]
+                    else:
+                        for r in rep:
+                            reps += [r]
+
+                # condense redundant replacements
+                dreps = {sub: rexpr for sub, rexpr in reps}
+                dreps_pops = []
+                new_subs = {}  # new subs for expression to take out redundant variables
+
+                # dreps_len = len(dreps)
+                for (sub, rexpr) in tqdm(dreps.items()):
+                    # print("redundancy iter:", i, "of", dreps_len)
+                    # dreps_exprs = list(dreps.values())
+                    # dreps_keys = list(dreps.keys())
+
+                    if rexpr in dreps.values():
+                        # get keys with this expression
+                        redundant_vars = [key for key, value in dreps.items() if value == rexpr]
+
+                        # replace redundant vars with first found var
+                        if redundant_vars:
+                            keep_var = redundant_vars[0]
+                            for rvar in redundant_vars[1:]:
+                                new_subs.update({rvar: keep_var})
+                                dreps_pops += [rvar]
+
+                ##################
+                # with Pool(processes=cpu_count()) as pool:
+                #     args = [(pickle.dumps(sub), pickle.dumps(rexpr), pickle.dumps(dreps)) for sub, rexpr in dreps.items()]
+                #     results = [pool.apply_async(redundancy, arg) for arg in args]
+                #     results = [pickle.loads(ret.get()) for ret in results]
+                # dreps_pops = [r for ret in results for r in ret[0]]
+                # new_subs_res = [r[1] for r in results]
+                # for d in new_subs_res:
+                #     new_subs.update(d)
+                ##################
+
+                dreps = parallel_subs(dreps, [new_subs])
+                for var in dreps_pops:
+                    if var in dreps:
+                        dreps.pop(var)  # type:ignore
+                expr_simples = parallel_subs(expr_simples, [new_subs])
+                return (dreps, expr_simples, len(dreps_pops))  # type:ignore
+
+
+            dreps, expr_simple, nredundant = subs_prune(replacements, expr_simples)
+
+            for i in range(1, 10):
+                replacements = tuple([(k, v) for k, v in dreps.items()])
+                dreps, expr_simple, nredundant = subs_prune(replacements, expr_simple)
+                print("num redundant:", nredundant)
+                if nredundant == 0:
+                    break
+                print("prune iter:", i)
+
+            expr_replacements = tuple([(sub, repl) for sub, repl in dreps.items()])  # type:ignore
+
+        else:
+            expr_replacements = ()
+            expr_simple = expr
+
         func_def = self.write_function_definition(name=function_name,
                                                   params=params,
                                                   returns=[return_name])
@@ -184,10 +338,10 @@ class CCodeGenerator(CodeGeneratorBase):
                   "",
                   ]
 
-        self.register_function(name=function_name, writes=writes)
+        return writes
 
 
-    def create_module(self, module_name: str, path: str):
+    def create_module(self, module_name: str, path: str, parallel: bool = False):
         # create extension module directory
         module_dir_name = module_name
         module_dir_path = os.path.join(path, module_dir_name)
@@ -203,27 +357,40 @@ class CCodeGenerator(CodeGeneratorBase):
 
         pybind_writes = ["", "", f"PYBIND11_MODULE({module_name}, m) " + "{"]  # }
 
-        # get functions from register
-        for func_name, info in self.function_register.items():
-            writes = info["writes"]
-            description = info["description"]
-            pybind_writes += [f"\tm.def(\"{func_name}\", &{func_name}, \"{description}\");"]
-            for line in writes:
-                self.write_lines(line)
-            # create __init__.py file
-            with open(os.path.join(module_dir_path, "__init__.py"), "a+") as f:
-                f.write(f"from {module_dir_name}.{module_dir_name} import {func_name}\n")
+        try:
+            if parallel:
+                # with Pool(processes=cpu_count()) as pool:
+                #     pool_args = [(func_name, info) for func_name, info in self.function_register.items()]
+                #     results = [pool.apply_async(self._build_function, arg) for arg in pool_args]
+                #     results = [ret.get() for ret in results]
+                pass
+            else:
+                # get functions from register
+                for func_name, info in self.function_register.items():
+                    # build the function
+                    writes = self._build_function(function_name=func_name, **info)
+                    description = info["description"]
+                    pybind_writes += [f"\tm.def(\"{func_name}\", &{func_name}, \"{description}\");"]
+                    for line in writes:
+                        self.write_lines(line)
 
-        pybind_writes += ["}"]
+                    # create __init__.py file
+                    with open(os.path.join(module_dir_path, "__init__.py"), "a+") as f:
+                        f.write(f"from {module_dir_name}.{module_dir_name} import {func_name}\n")
 
-        for line in pybind_writes:
-            self.write_lines(line)
+                pybind_writes += ["}"]
 
-        self.create_build_file(path=module_dir_path,
-                               module_name=module_name,
-                               source=self.file_name)
+                for line in pybind_writes:
+                    self.write_lines(line)
 
-        self.close()
+                self.create_build_file(path=module_dir_path,
+                                       module_name=module_name,
+                                       source=self.file_name)
+
+                self.close()
+        except Exception as e:
+            shutil.rmtree(module_dir_path, ignore_errors=True)
+            raise Exception(e)
 
 
     def create_build_file(self, module_name: str, path: str, source: str):
