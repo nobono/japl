@@ -646,18 +646,18 @@ if __name__ == "__main__":
 
     model.save(path=JAPL_HOME_DIR + "/data/", name="mmd")
 
-    # gen = CCodeGenerator()
-    # params = [t, state, input, static, dt]
-    # gen.add_function(expr=model.dynamics_expr,
-    #                  params=params,
-    #                  function_name="dynamics",
-    #                  return_name="Xdot")
-    # gen.add_function(expr=model.state_direct_updates,
-    #                  params=params,
-    #                  function_name="state_updates",
-    #                  return_name="Xnew")
-    # gen.add_function(expr=model.input_direct_updates,
-    #                  params=params,
-    #                  function_name="input_updaates",
-    #                  return_name="Unew")
-    # gen.create_module(module_name="mmd", path="./")
+    gen = CCodeGenerator()
+    params = [t, state, input, static, dt]
+    gen.add_function(expr=model.dynamics_expr,
+                     params=params,
+                     function_name="dynamics",
+                     return_name="Xdot")
+    gen.add_function(expr=model.state_direct_updates,
+                     params=params,
+                     function_name="state_updates",
+                     return_name="Xnew")
+    gen.add_function(expr=model.input_direct_updates,
+                     params=params,
+                     function_name="input_updaates",
+                     return_name="Unew")
+    gen.create_module(module_name="mmd", path="./")
