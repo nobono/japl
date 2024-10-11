@@ -642,7 +642,7 @@ class Model:
             model.input_vars = model.input_register.get_vars()
             model.static_vars = model.static_register.get_vars()
             model.dt_var = obj.dt_var
-            model.vars = (model.state_vars, model.input_vars, model.static_vars, obj.dt_var)
+            model.vars = (Symbol("t"), model.state_vars, model.input_vars, model.static_vars, obj.dt_var)
             model.dynamics_expr = obj.dynamics_expr
             model.state_direct_updates = obj.state_direct_updates
             model.input_direct_updates = obj.input_direct_updates
