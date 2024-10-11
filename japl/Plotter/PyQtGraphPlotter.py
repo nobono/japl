@@ -377,7 +377,7 @@ class PyQtGraphPlotter:
                 input_text = input_text.replace(" ", "_")
                 for pitem in items:
                     export = ImageExporter(pitem)
-                    export.export(f"{JAPL_HOME_DIR}/output/{input_text}.png")
+                    export.export(f"{input_text}.png")
 
 
     def open_text_input_gui(self, win: QWidget) -> Generator:
