@@ -74,7 +74,7 @@ def cse_async(expr, id, *args, **kwargs):
 
 def parallel_cse(matrix: Matrix) -> tuple[list, Matrix]:
     with Pool(processes=cpu_count()) as pool:
-        args = [(pickle.dumps(expr), id) for id, expr in enumerate(matrix)]
+        args = [(pickle.dumps(expr), id) for id, expr in enumerate(matrix)]  # type:ignore
         results = [pool.apply_async(cse_async, arg) for arg in args]
         results = [pickle.loads(ret.get()) for ret in results]
     # replacements_iter = [i[0] for i in results]
