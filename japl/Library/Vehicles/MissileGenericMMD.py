@@ -658,6 +658,6 @@ if __name__ == "__main__":
                      return_name="Xnew")
     gen.add_function(expr=model.input_direct_updates,
                      params=params,
-                     function_name="input_updaates",
+                     function_name="input_updates",
                      return_name="Unew")
     gen.create_module(module_name="mmd", path="./")
