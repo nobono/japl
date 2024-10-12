@@ -462,11 +462,11 @@ noise_info = {
 
 # sensor measurements
 input_info = {
-        z_gyro_x: 0,
-        z_gyro_y: 0,
+        z_gyro_x: 1,
+        z_gyro_y: 2,
         z_gyro_z: 0,
-        z_accel_x: 0,
-        z_accel_y: 0,
+        z_accel_x: 3,
+        z_accel_y: 4,
         z_accel_z: 0,
         z_gps_pos_x: 0,
         z_gps_pos_y: 0,
@@ -560,10 +560,10 @@ if __name__ == "__main__":
         gps_vel_z_var,
         ])
 
-    X_new[0] = X_new[0] / quat_new.norm()
-    X_new[1] = X_new[1] / quat_new.norm()
-    X_new[2] = X_new[2] / quat_new.norm()
-    X_new[3] = X_new[3] / quat_new.norm()
+    # X_new[0] = X_new[0] / quat_new.norm()
+    # X_new[1] = X_new[1] / quat_new.norm()
+    # X_new[2] = X_new[2] / quat_new.norm()
+    # X_new[3] = X_new[3] / quat_new.norm()
 
     # # X_new
     # # P_new
@@ -584,32 +584,32 @@ if __name__ == "__main__":
     params = [t, state, input, P, variance, noise, dt]
 
     gen = CCodeGenerator()
-    # gen.add_function(expr=X_new,
-    #                  params=params,
-    #                  function_name="x_predict",
-    #                  return_name="X_new")
+    gen.add_function(expr=X_new,
+                     params=params,
+                     function_name="x_predict",
+                     return_name="X_new")
 
-    # gen.add_function(expr=P_new,
-    #                  params=params,
-    #                  function_name="p_predict",
-    #                  return_name="P_new",
-    #                  is_symmetric=False)
+    gen.add_function(expr=P_new,
+                     params=params,
+                     function_name="p_predict",
+                     return_name="P_new",
+                     is_symmetric=False)
 
-    # gen.add_function(expr=X_accel_update,
-    #                  params=params,
-    #                  function_name="x_accel_update",
-    #                  return_name="X_accel_new")
+    gen.add_function(expr=X_accel_update,
+                     params=params,
+                     function_name="x_accel_update",
+                     return_name="X_accel_new")
 
-    # gen.add_function(expr=P_accel_update,
-    #                  params=params,
-    #                  function_name="p_accel_update",
-    #                  return_name="P_accel_new",
-    #                  is_symmetric=False)
+    gen.add_function(expr=P_accel_update,
+                     params=params,
+                     function_name="p_accel_update",
+                     return_name="P_accel_new",
+                     is_symmetric=False)
 
-    # gen.add_function(expr=X_gps_update,
-    #                  params=params,
-    #                  function_name="x_gps_update",
-    #                  return_name="X_gps_new")
+    gen.add_function(expr=X_gps_update,
+                     params=params,
+                     function_name="x_gps_update",
+                     return_name="X_gps_new")
 
     gen.add_function(expr=P_gps_update,
                      params=params,
@@ -617,7 +617,7 @@ if __name__ == "__main__":
                      return_name="P_gps_new",
                      is_symmetric=False)
 
-    gen.create_module(module_name="ekf", path="./")
+    profile(gen.create_module)(module_name="ekf", path="./")
     quit()
 
     definitions = (
