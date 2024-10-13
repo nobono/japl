@@ -45,7 +45,7 @@ def create_error_header(msg: str, char: str = "-", char_len: int = 40) -> str:
     return header
 
 
-def parallel_subs(target_expr: Matrix|dict, subs: list):
+def parallel_subs(target_expr: Matrix|dict, subs: list) -> Matrix|dict:
     if isinstance(target_expr, dict):
         subs_func = dict_subs_func
         with Pool(processes=cpu_count()) as pool:

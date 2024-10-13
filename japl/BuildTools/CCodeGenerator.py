@@ -277,7 +277,7 @@ class CCodeGenerator(CodeGeneratorBase):
                     repl_to_subs[rexpr].append(sub)
 
                 # iterate over grouped expressions
-                for sub, rexpr in tqdm(reps, ncols=80, desc="Pruning"):
+                for sub, rexpr in tqdm(reps, ncols=100, desc="Pruning"):
                     # if rexpr appears more than once in dict, its redundant
                     if len(repl_to_subs[rexpr]) > 1:
                         redundant_vars = repl_to_subs[rexpr]
@@ -338,11 +338,8 @@ class CCodeGenerator(CodeGeneratorBase):
 
                     # remaining_chunk = dict(remaining_chunk[nchunk:])
                     inter_reps = {}
-                    for chunk in tqdm(chunked_dicts, ncols=50):
+                    for chunk in tqdm(chunked_dicts, ncols=70, colour="yellow", desc="\tdict subs"):
                         inter_reps.update(parallel_subs(chunk, chunked_new_subs))
-                        # remaining_chunk.update(inter_reps)
-                        # remaining_chunk = [*remaining_chunk.items()]
-                        # print("remaining_chunk:", len(remaining_chunk))
                     dreps = inter_reps
                 else:
                     dreps = parallel_subs(dict(remaining_chunk), [new_subs])
@@ -434,7 +431,7 @@ class CCodeGenerator(CodeGeneratorBase):
                 pass
             else:
                 # get functions from register
-                for func_name, info in tqdm(self.function_register.items()):
+                for func_name, info in tqdm(self.function_register.items(), ncols=80, desc="Build"):
                     # build the function
                     writes = self._build_function(function_name=func_name, **info)
                     description = info["description"]
