@@ -33,8 +33,7 @@ class TestCCodeGenerator(unittest.TestCase):
 
         gen = CCodeGenerator()
         ret = gen.write_subexpressions(replacements)
-        print(ret)
-        self.assertEqual(ret, "\tdouble x0 = 0.5*pow(dt, 2);\n")
+        self.assertEqual(ret, "double x0 = 0.5*pow(dt, 2);\n")
 
 
 if __name__ == '__main__':
