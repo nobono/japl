@@ -1,28 +1,21 @@
 import os
 import sys
 import shutil
+from sympy.matrices.expressions.matexpr import MatrixSymbol
 from tqdm import tqdm
 import numpy as np
 from japl.BuildTools.CodeGeneratorBase import CodeGeneratorBase
 from sympy import ccode
 from sympy import Expr
 from sympy import Matrix
+from sympy import Symbol
 from sympy import symbols
-from sympy import cse
-from sympy import simplify
-from sympy import count_ops
 from sympy.codegen.ast import float64, real
 from textwrap import dedent
-from multiprocess import Pool  # type:ignore
-from multiprocess import cpu_count  # type:ignore
-import dill as pickle
 from japl.BuildTools.BuildTools import parallel_subs
 from japl.BuildTools.BuildTools import dict_subs_func
 from japl.BuildTools.BuildTools import parallel_cse
-from multiprocess import Pool  # type:ignore
-from multiprocess import cpu_count  # type:ignore
 from collections import defaultdict
-from time import perf_counter
 
 
 
@@ -50,11 +43,12 @@ class CCodeGenerator(CodeGeneratorBase):
         return ccode(expression, type_aliases={real: float64}, strict=self.strict)
 
 
-    def write_subexpressions(self, subexpressions):
+    def write_subexpressions(self, subexpressions: tuple|list) -> str:
         ret = ""
         for (lvalue, rvalue) in subexpressions:
-            assign_str = (self.declare_parameter(lvalue, const=True)
-                          + " = " + self.get_code(rvalue) + self.endl)  # type:ignore
+            # assign_str = (self.declare_variable(lvalue, prefix="const")
+            #               + " = " + self.get_code(rvalue) + self.endl)  # type:ignore
+            assign_str = self._declare_variable(lvalue, prefix="const", assign=self.get_code(rvalue))  # type:ignore
             ret += assign_str
         return ret
 
@@ -108,10 +102,24 @@ class CCodeGenerator(CodeGeneratorBase):
         return write_string
 
 
-    def write_function_definition(self, name: str, params: list[Expr], **kwargs):
-        func_return_type = "py::array_t<double>"
+    @staticmethod
+    def _get_return_type(expr) -> str:
+        # determine return shape
+        return_shape = Matrix([expr]).shape
+
+        if np.prod(return_shape) == 1:
+            primitive_type = CCodeGenerator._get_primitive_type(expr)  # type:ignore
+            type_str = primitive_type
+        else:
+            primitive_type = "double"
+            type_str = f"py::array_t<{primitive_type}>"
+        return type_str
+
+
+    def write_function_definition(self, name: str, expr: Expr|Matrix, params: list[Expr|Symbol|Matrix]):
+        return_type_str = self._get_return_type(expr)
         params_list, params_unpack = self.get_function_parameters(params)
-        func_proto = f"{func_return_type} {name}({params_list})" + " {\n\n"  # }
+        func_proto = f"{return_type_str} {name}({params_list})" + " {\n"  # }
         return func_proto + self.indent_lines(params_unpack)
 
 
@@ -128,43 +136,102 @@ class CCodeGenerator(CodeGeneratorBase):
             return f"return {return_name}" + self.endl
 
 
-    def declare_parameter(self, param: Expr, name: str = "", const: bool = False) -> str:
-        if name:
-            param_name = name
+    @staticmethod
+    def _get_primitive_type(param: Expr) -> str:
+        if param.assumptions0.get("integer", False) or getattr(param, "is_integer"):
+            primitive_type = "int"
+        elif param.assumptions0.get("boolean", False):
+            primitive_type = "bool"
         else:
-            param_name = self.get_expr_name(param)
+            primitive_type = "double"
+        return primitive_type
 
-        # handle argument being an array
-        if self.is_array_type(param):
-            param_str = f"std::vector<double> {param_name}"
-            if const:
-                param_str += "const " + param_str
+
+    @staticmethod
+    def _get_type(param: Expr|Matrix, prefix: str = "") -> str:
+        # handle argument being an array or not
+        if CodeGeneratorBase.is_array_type(param):
+            primitive_type = "double"  # NOTE: currently default for arrays is double
+            type_str = f"{prefix} std::vector<{primitive_type}>"
         else:
-            param_str = f"double {param_name}"
+            primitive_type = CCodeGenerator._get_primitive_type(param)  # type:ignore
+            type_str = f"{prefix} {primitive_type}"
+        return type_str.strip(" ")
+
+
+    @staticmethod
+    def _assign_variable(lvalue: str, rvalue: str, op: str = "=") -> str:
+        return f"{lvalue} {op} {rvalue}" + CCodeGenerator.endl
+
+
+    @staticmethod
+    def _declare_variable(param: Expr|Matrix, force_name: str = "", assign: str = "", prefix: str = "") -> str:
+        if not force_name:
+            CodeGeneratorBase._raise_exception_non_variable(param)
+
+        type_str = CCodeGenerator._get_type(param)
+
+        if CodeGeneratorBase.is_array_type(param):
+            if not force_name:
+                raise Exception("declaration of Matrix requires \"force_name\" parameter")
+            size = np.prod(param.shape)  # type:ignore
+            constructor_str = f"({size})"
+            if assign:
+                param_str = CCodeGenerator._assign_variable(f"{prefix} {type_str} {force_name}{constructor_str}",
+                                                            assign, op="=")
+            else:
+                param_str = f"{prefix} {type_str} {force_name}{constructor_str}" + CCodeGenerator.endl
+        else:
+            if force_name:
+                param_name = force_name
+            else:
+                param_name = CodeGeneratorBase.get_expr_name(param)  # type:ignore
+            if assign:
+                param_str = CCodeGenerator._assign_variable(f"{prefix} {type_str} {param_name}", assign, op="=")
+            else:
+                param_str = f"{prefix} {type_str} {param_name}" + CCodeGenerator.endl
+        return param_str.strip(" ")
+
+
+    @staticmethod
+    def _declare_parameter(param: Expr|Matrix, force_name: str = "", prefix: str = "") -> str:
+        CodeGeneratorBase._raise_exception_non_variable(param)
+        if force_name:
+            param_name = force_name
+        else:
+            param_name = CodeGeneratorBase.get_expr_name(param)
+        type_str = CCodeGenerator._get_type(param)
+        param_str = f"{type_str} {param_name}"
         return param_str
 
 
-    def instantiate_return_array(self, param: Expr|Matrix, name: str) -> str:
+    def instantiate_return_variable(self, expr: Expr|Matrix, name: str) -> str:
         ret = ""
 
         # TODO: this currently assumed flattened arrays
 
-        # handle argument being an array
-        if self.is_array_type(param):
-            shape = param.shape  # type:ignore
-            # shape_str = ", ".join([str(i) for i in shape])
-            if len(shape) > 1:
-                size = np.prod(shape)  # type:ignore
-                if shape[1] == 1:
-                    constructor_str = "(" + str(size) + ")"
-                else:
-                    constructor_str = "(" + str(size) + ")"
-            else:
-                constructor_str = "(" + str(shape[0]) + ")"
-            param_str = f"std::vector<double> {name}" + constructor_str
-        else:
-            param_str = f"double {name}"
-        ret += param_str + ";"
+        ret = self._declare_variable(param=expr, force_name=name)
+
+        # ret = return_type_str
+
+        # # handle argument being an array
+        # if self.is_array_type(expr):
+        #     shape = param.shape  # type:ignore
+        #     # shape_str = ", ".join([str(i) for i in shape])
+        #     if len(shape) > 1:
+        #         size = np.prod(shape)  # type:ignore
+        #         if shape[1] == 1:
+        #             constructor_str = "(" + str(size) + ")"
+        #         else:
+        #             constructor_str = "(" + str(size) + ")"
+        #     else:
+        #         constructor_str = "(" + str(shape[0]) + ")"
+        #     param_str = f"std::vector<double> {name}" + constructor_str
+        # else:
+        #     param_str = f"double {name}"
+        # ret += param_str + ";"
+
+        #########################################
 
         # write code to get pointer from pybind11 buffer info
         # request_str = f"py::buffer_info buf_info = {return_name}.request();"
@@ -305,6 +372,12 @@ class CCodeGenerator(CodeGeneratorBase):
             # old method
             # expr_replacements, expr_simple = cse(expr, symbols("X_temp0:1000"), optimizations='basic')
 
+            # NOTE: handles MatrixSymbols in expression.
+            # wrapping in Matrix() simplifies the form of
+            # any matrix operation expressions.
+            if expr.is_Matrix:
+                expr = Matrix(expr)
+
             replacements, expr_simples = parallel_cse(expr)
 
             replacements, expr_simple, nredundant = self.subs_prune(replacements, expr_simples)
@@ -322,9 +395,9 @@ class CCodeGenerator(CodeGeneratorBase):
             expr_simple = expr
 
         func_def = self.write_function_definition(name=function_name,
-                                                  params=params,
-                                                  returns=[return_name])
-        return_array = self.instantiate_return_array(param=expr, name=return_name)
+                                                  expr=expr_simple,
+                                                  params=params)
+        return_array = self.instantiate_return_variable(expr=expr, name=return_name)
         sub_expr = self.write_subexpressions(expr_replacements)
         func_body = self.write_matrix(matrix=Matrix(expr_simple),
                                       variable=return_name,
@@ -338,14 +411,12 @@ class CCodeGenerator(CodeGeneratorBase):
                   self.indent_lines(func_body),
                   self.indent_lines(func_ret),
                   "}"
-                  "",
-
                   ]
 
         return writes
 
 
-    def create_module(self, module_name: str, path: str, parallel: bool = False):
+    def create_module(self, module_name: str, path: str = ".", parallel: bool = False):
         # create extension module directory
         module_dir_name = module_name
         module_dir_path = os.path.join(path, module_dir_name)

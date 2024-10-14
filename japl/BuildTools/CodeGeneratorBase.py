@@ -1,4 +1,3 @@
-import re
 from io import TextIOWrapper
 from sympy import ccode, octave_code, pycode
 from sympy import Expr
@@ -8,7 +7,8 @@ from sympy import Symbol
 from sympy import Function
 from sympy import symbols
 from sympy import cse
-from sympy.codegen.ast import float32, real
+from sympy import Add, Mul
+from sympy.codegen.ast import Any, float32, real
 from sympy.matrices.expressions.matexpr import MatrixElement
 from japl.Util.Util import flatten_list
 
@@ -34,10 +34,9 @@ class CodeGeneratorBase:
 
     @staticmethod
     def indent_lines(string: str) -> str:
-        ret = ""
-        for line in string.split("\n"):
-            ret += "\t" + line + "\n"
-        return ret
+        ret = "".join(["\t" + line + "\n" for line in string.split("\n")])
+        ret = ret.rstrip("\t\n")
+        return ret + "\n"
 
 
     def write_lines(self, string, prefix: str = "", postfix: str = "\n"):
@@ -61,11 +60,20 @@ class CodeGeneratorBase:
         return ""
 
 
-    def declare_parameter(self, param: Expr, name: str = "", *args, **kwargs) -> str:
-        if name:
-            return name
+    @staticmethod
+    def _declare_variable(param: Expr, force_name: str = "", *args, **kwargs) -> str:
+        if force_name:
+            return force_name
         else:
-            return self.get_expr_name(param)
+            return CodeGeneratorBase.get_expr_name(param)
+
+
+    @staticmethod
+    def _declare_parameter(param: Expr|Matrix, force_name: str = "", *args, **kwargs) -> str:
+        if force_name:
+            return force_name
+        else:
+            return CodeGeneratorBase.get_expr_name(param)
 
 
     def close(self):
@@ -112,14 +120,24 @@ class CodeGeneratorBase:
         self.close()
 
 
-    def is_array_type(self, param: Expr|Matrix) -> bool:
+    @staticmethod
+    def _raise_exception_non_variable(param: Any):
+        """raises Exception on expression that cannot be variable
+        declarations. (e.g. Add, Sub, Mult, ..etc)"""
+        reject_types = [Add, Mul]
+        if param.__class__ in reject_types:
+            raise Exception(f"cannot generate variable from types {reject_types}")
+
+
+    @staticmethod
+    def is_array_type(param: Expr|Matrix) -> bool:
         if hasattr(param, "__len__") or hasattr(param, "shape"):
             return True
         else:
             return False
 
 
-    def get_function_parameters(self, params: list[Expr]) -> tuple[str, str]:
+    def get_function_parameters(self, params: list[Any]) -> tuple[str, str]:
         """returns names of paramters as a string. If Matrix or list of
         parameters provided as one of the parameters, return the string
         which unpacks the dummy variables."""
@@ -137,14 +155,14 @@ class CodeGeneratorBase:
                     if isinstance(p, MatrixElement):
                         dummy_name = p.parent.name
                     else:
-                        unpack_var = self.declare_parameter(p)
+                        unpack_var = self._declare_parameter(p)
                         accessor_str = self.pre_bracket + str(ip) + self.post_bracket
                         arg_unpack_str += f"{unpack_var} = {dummy_name}{accessor_str}" + self.endl
                 # store dummy var in arg_names
-                arg_names += [self.declare_parameter(param, name=dummy_name)]
+                arg_names += [self._declare_parameter(param, force_name=dummy_name)]
             else:
                 # if single symbol
-                param_str = self.declare_parameter(param)
+                param_str = self._declare_parameter(param)
                 arg_names += [param_str]
         arg_names_str = ", ".join(arg_names)
         return (arg_names_str, arg_unpack_str)
@@ -158,196 +176,196 @@ class CodeGeneratorBase:
             return str(expr)
 
 
-class OctaveCodeGenerator(CodeGeneratorBase):
+# class OctaveCodeGenerator(CodeGeneratorBase):
 
-    comment_prefix: str = "%"
-    pre_bracket: str = "("
-    post_bracket: str = ")"
-    bracket_separator: str = ", "
-    endl: str = ";\n"
+#     comment_prefix: str = "%"
+#     pre_bracket: str = "("
+#     post_bracket: str = ")"
+#     bracket_separator: str = ", "
+#     endl: str = ";\n"
 
-    def __init__(self):
-        # self.file_name = file_name
-        # self.file = open(self.file_name, 'w')
-        pass
-
-
-    def get_code(self, expression):
-        # return ccode(expression, type_aliases={real:float32})
-        return octave_code(expression)
+#     def __init__(self):
+#         # self.file_name = file_name
+#         # self.file = open(self.file_name, 'w')
+#         pass
 
 
-    def write_subexpressions(self, subexpressions):
-        write_string = ""
-        for (lvalue, rvalue) in subexpressions:
-            write_string = write_string + str(lvalue) + " = " + self.get_code(rvalue) + self.endl  # type:ignore
-
-        write_string = self.transform_to_octave_style(write_string)
-        self.write_lines(write_string, prefix="\t")
+#     def get_code(self, expression):
+#         # return ccode(expression, type_aliases={real:float32})
+#         return octave_code(expression)
 
 
-    def write_matrix(self,
-                     matrix,
-                     variable,
-                     is_symmetric=False):
-        write_string = ""
-        variable_name = self.get_expr_name(variable)
+#     def write_subexpressions(self, subexpressions):
+#         write_string = ""
+#         for (lvalue, rvalue) in subexpressions:
+#             write_string = write_string + str(lvalue) + " = " + self.get_code(rvalue) + self.endl  # type:ignore
 
-        ############################
-        # L-value / R-value assign
-        ############################
-        # if Matrix of single expression
-        if matrix.shape[0] * matrix.shape[1] == 1:
-            write_string = write_string + variable_name + " = " + self.get_code(matrix[0]) + self.endl  # type:ignore
-        # if row or column Matrix
-        elif matrix.shape[0] == 1 or matrix.shape[1] == 1:
-            for i in range(0, len(matrix)):
-                write_string = write_string + variable_name +\
-                               self.pre_bracket + str(i + 1) +\
-                               self.post_bracket + " = " +\
-                               self.get_code(matrix[i]) + self.endl  # type:ignore
-                write_string = self.transform_to_octave_style(write_string)
-        # if any other shape
-        else:
-            for j in range(0, matrix.shape[1]):
-                for i in range(0, matrix.shape[0]):
-                    if j >= i or not is_symmetric:
-                        write_string = write_string + variable_name +\
-                                self.pre_bracket +\
-                                str(i + 1) + self.bracket_separator + str(j + 1) +\
-                                self.post_bracket + " = " +\
-                                self.get_code(matrix[i, j]) + self.endl  # type:ignore
-                        write_string = self.transform_to_octave_style(write_string)
-
-        self.write_lines(write_string, prefix="\t")
+#         write_string = self.transform_to_octave_style(write_string)
+#         self.write_lines(write_string, prefix="\t")
 
 
-    def transform_to_octave_style(self, input_string):
-        # Define the pattern to match: word[index][index]
-        pattern = r'(\w+)\[(\w+)\]\[(\w+)\]'
+#     def write_matrix(self,
+#                      matrix,
+#                      variable,
+#                      is_symmetric=False):
+#         write_string = ""
+#         variable_name = self.get_expr_name(variable)
 
-        # Define the replacement function
-        def replacer(match):
-            var_name = match.group(1)  # The variable name (e.g., var)
-            try:
-                i = int(match.group(2)) + 1  # First index, converted to integer and incremented by 1
-            except Exception as _:  # noqa
-                i = str(match.group(2)) + '+1'
+#         ############################
+#         # L-value / R-value assign
+#         ############################
+#         # if Matrix of single expression
+#         if matrix.shape[0] * matrix.shape[1] == 1:
+#             write_string = write_string + variable_name + " = " + self.get_code(matrix[0]) + self.endl  # type:ignore
+#         # if row or column Matrix
+#         elif matrix.shape[0] == 1 or matrix.shape[1] == 1:
+#             for i in range(0, len(matrix)):
+#                 write_string = write_string + variable_name +\
+#                                self.pre_bracket + str(i + 1) +\
+#                                self.post_bracket + " = " +\
+#                                self.get_code(matrix[i]) + self.endl  # type:ignore
+#                 write_string = self.transform_to_octave_style(write_string)
+#         # if any other shape
+#         else:
+#             for j in range(0, matrix.shape[1]):
+#                 for i in range(0, matrix.shape[0]):
+#                     if j >= i or not is_symmetric:
+#                         write_string = write_string + variable_name +\
+#                                 self.pre_bracket +\
+#                                 str(i + 1) + self.bracket_separator + str(j + 1) +\
+#                                 self.post_bracket + " = " +\
+#                                 self.get_code(matrix[i, j]) + self.endl  # type:ignore
+#                         write_string = self.transform_to_octave_style(write_string)
 
-            try:
-                j = int(match.group(3)) + 1  # Second index, converted to integer and incremented by 1
-            except Exception as _:  # noqa
-                j = str(match.group(3)) + '+1'
-            return f"{var_name}({i}, {j})"
-
-        # Apply the substitution
-        result = re.sub(pattern, replacer, input_string)
-        return result
-
-
-    def write_function_definition(self, name, params, returns):
-        params_list, params_unpack = self.get_function_parameters(params)
-        return_names = ", ".join(str(i) for i in returns)
-        string = f"function [{return_names}] = {name}({params_list})\n\n"
-        self.file.write(string)
-        # write unpacked paramters
-        self.write_lines(params_unpack, prefix="\t")
-
-
-    def close(self):
-        self.file.write("end\n")
-        self.file.close()
-
-
-class PyCodeGenerator(CodeGeneratorBase):
-
-    comment_prefix: str = "#"
-    pre_bracket: str = "["
-    post_bracket: str = "]"
-    bracket_separator: str = ']['  # ]
-    endl: str = "\n"
-
-    header: list[str] = ["import numpy as np", "", "", ""]
-
-    def __init__(self):
-        # self.file_name = file_name
-        # self.file = open(self.file_name, 'w')
-        pass
+#         self.write_lines(write_string, prefix="\t")
 
 
-    def get_code(self, expression):
-        return pycode(expression)
+#     def transform_to_octave_style(self, input_string):
+#         # Define the pattern to match: word[index][index]
+#         pattern = r'(\w+)\[(\w+)\]\[(\w+)\]'
+
+#         # Define the replacement function
+#         def replacer(match):
+#             var_name = match.group(1)  # The variable name (e.g., var)
+#             try:
+#                 i = int(match.group(2)) + 1  # First index, converted to integer and incremented by 1
+#             except Exception as _:  # noqa
+#                 i = str(match.group(2)) + '+1'
+
+#             try:
+#                 j = int(match.group(3)) + 1  # Second index, converted to integer and incremented by 1
+#             except Exception as _:  # noqa
+#                 j = str(match.group(3)) + '+1'
+#             return f"{var_name}({i}, {j})"
+
+#         # Apply the substitution
+#         result = re.sub(pattern, replacer, input_string)
+#         return result
 
 
-    def write_subexpressions(self, subexpressions):
-        write_string = ""
-        for (lvalue, rvalue) in subexpressions:
-            write_string = write_string + str(lvalue) + " = " + self.get_code(rvalue) + self.endl  # type:ignore
-        self.write_lines(write_string, prefix="\t")
+#     def write_function_definition(self, name, params, returns):
+#         params_list, params_unpack = self.get_function_parameters(params)
+#         return_names = ", ".join(str(i) for i in returns)
+#         string = f"function [{return_names}] = {name}({params_list})\n\n"
+#         self.file.write(string)
+#         # write unpacked paramters
+#         self.write_lines(params_unpack, prefix="\t")
 
 
-    def write_matrix(self,
-                     matrix,
-                     variable,
-                     is_symmetric=False):
-        write_string = ""
-        variable_name = self.get_expr_name(variable)
-
-        # declare return var
-        self.instantiate_return_array(variable)
-
-        ############################
-        # L-value / R-value assign
-        ############################
-        # if Matrix of single expression
-        if matrix.shape[0] * matrix.shape[1] == 1:
-            write_string = write_string + variable_name + " = " + self.get_code(matrix[0]) + self.endl  # type:ignore
-        # if row or column Matrix
-        elif matrix.shape[0] == 1 or matrix.shape[1] == 1:
-            for i in range(0, len(matrix)):
-                write_string = write_string + variable_name +\
-                               self.pre_bracket +\
-                               str(i + 1) +\
-                               self.post_bracket + " = " +\
-                               self.get_code(matrix[i]) + self.endl  # type:ignore
-        # if any other shape
-        else:
-            for j in range(0, matrix.shape[1]):
-                for i in range(0, matrix.shape[0]):
-                    if j >= i or not is_symmetric:
-                        write_string = write_string + variable_name +\
-                                       self.pre_bracket +\
-                                       str(i + 1) + self.bracket_separator + str(j + 1) +\
-                                       self.post_bracket + " = " +\
-                                       self.get_code(matrix[i, j]) + self.endl  # type:ignore
-
-        self.write_lines(write_string, prefix="\t")
+#     def close(self):
+#         self.file.write("end\n")
+#         self.file.close()
 
 
-    def write_function_definition(self, name, params, **kwargs):
-        params_list, params_unpack = self.get_function_parameters(params)
-        string = f"def {name}({params_list}):\n\n"
-        self.file.write(string)
-        # write unpacked paramters
-        self.write_lines(params_unpack, prefix="\t")
+# class PyCodeGenerator(CodeGeneratorBase):
+
+#     comment_prefix: str = "#"
+#     pre_bracket: str = "["
+#     post_bracket: str = "]"
+#     bracket_separator: str = ']['  # ]
+#     endl: str = "\n"
+
+#     header: list[str] = ["import numpy as np", "", "", ""]
+
+#     def __init__(self):
+#         # self.file_name = file_name
+#         # self.file = open(self.file_name, 'w')
+#         pass
 
 
-    def write_function_returns(self, returns):
-        return_names, params_unpack = self.get_function_parameters(returns)
-        self.file.write(f"\treturn ({return_names})")
+#     def get_code(self, expression):
+#         return pycode(expression)
 
 
-    def instantiate_return_array(self, param: Expr):
-        return_name = self.get_expr_name(param)
-
-        # handle argument being an array
-        if hasattr(param, "__len__") or hasattr(param, "shape"):
-            shape_str = ", ".join([str(i) for i in param.shape])  # type:ignore
-            param_str = f"{return_name} = np.zeros(({shape_str}))"
-        else:
-            param_str = f"double {return_name}"
-        self.write_lines(param_str, prefix="\t")
+#     def write_subexpressions(self, subexpressions):
+#         write_string = ""
+#         for (lvalue, rvalue) in subexpressions:
+#             write_string = write_string + str(lvalue) + " = " + self.get_code(rvalue) + self.endl  # type:ignore
+#         self.write_lines(write_string, prefix="\t")
 
 
-    def close(self):
-        self.file.close()
+#     def write_matrix(self,
+#                      matrix,
+#                      variable,
+#                      is_symmetric=False):
+#         write_string = ""
+#         variable_name = self.get_expr_name(variable)
+
+#         # declare return var
+#         self.instantiate_return_array(variable)
+
+#         ############################
+#         # L-value / R-value assign
+#         ############################
+#         # if Matrix of single expression
+#         if matrix.shape[0] * matrix.shape[1] == 1:
+#             write_string = write_string + variable_name + " = " + self.get_code(matrix[0]) + self.endl  # type:ignore
+#         # if row or column Matrix
+#         elif matrix.shape[0] == 1 or matrix.shape[1] == 1:
+#             for i in range(0, len(matrix)):
+#                 write_string = write_string + variable_name +\
+#                                self.pre_bracket +\
+#                                str(i + 1) +\
+#                                self.post_bracket + " = " +\
+#                                self.get_code(matrix[i]) + self.endl  # type:ignore
+#         # if any other shape
+#         else:
+#             for j in range(0, matrix.shape[1]):
+#                 for i in range(0, matrix.shape[0]):
+#                     if j >= i or not is_symmetric:
+#                         write_string = write_string + variable_name +\
+#                                        self.pre_bracket +\
+#                                        str(i + 1) + self.bracket_separator + str(j + 1) +\
+#                                        self.post_bracket + " = " +\
+#                                        self.get_code(matrix[i, j]) + self.endl  # type:ignore
+
+#         self.write_lines(write_string, prefix="\t")
+
+
+#     def write_function_definition(self, name, params, **kwargs):
+#         params_list, params_unpack = self.get_function_parameters(params)
+#         string = f"def {name}({params_list}):\n\n"
+#         self.file.write(string)
+#         # write unpacked paramters
+#         self.write_lines(params_unpack, prefix="\t")
+
+
+#     def write_function_returns(self, returns):
+#         return_names, params_unpack = self.get_function_parameters(returns)
+#         self.file.write(f"\treturn ({return_names})")
+
+
+#     def instantiate_return_array(self, param: Expr):
+#         return_name = self.get_expr_name(param)
+
+#         # handle argument being an array
+#         if hasattr(param, "__len__") or hasattr(param, "shape"):
+#             shape_str = ", ".join([str(i) for i in param.shape])  # type:ignore
+#             param_str = f"{return_name} = np.zeros(({shape_str}))"
+#         else:
+#             param_str = f"double {return_name}"
+#         self.write_lines(param_str, prefix="\t")
+
+
+#     def close(self):
+#         self.file.close()
