@@ -54,8 +54,8 @@ class CCodeGenerator(CodeGeneratorBase):
         ret = ""
         for (lvalue, rvalue) in subexpressions:
             assign_str = (self.declare_parameter(lvalue, const=True)
-                          + " = " + self.get_code(rvalue) + ";")  # type:ignore
-            ret += self.indent_lines(assign_str)
+                          + " = " + self.get_code(rvalue) + self.endl)  # type:ignore
+            ret += assign_str
         return ret
 
 
@@ -105,7 +105,7 @@ class CCodeGenerator(CodeGeneratorBase):
                                     + self.post_bracket + " = "
                                     + self.get_code(matrix[i, j]) + self.endl)  # type:ignore
 
-        return self.indent_lines(write_string)
+        return write_string
 
 
     def write_function_definition(self, name: str, params: list[Expr], **kwargs):
@@ -123,9 +123,9 @@ class CCodeGenerator(CodeGeneratorBase):
         if self.is_array_type(expr):
             # convert vector to array_t
             return_str = "py::array_t<double>(" + return_name + ".size(), " + return_name + ".data())"
-            return self.indent_lines(f"return {return_str}" + self.endl) + "}"
+            return f"return {return_str}" + self.endl
         else:
-            return self.indent_lines(f"return {return_name}" + self.endl) + "}"
+            return f"return {return_name}" + self.endl
 
 
     def declare_parameter(self, param: Expr, name: str = "", const: bool = False) -> str:
@@ -164,7 +164,7 @@ class CCodeGenerator(CodeGeneratorBase):
             param_str = f"std::vector<double> {name}" + constructor_str
         else:
             param_str = f"double {name}"
-        ret += self.indent_lines(param_str + ";")
+        ret += param_str + ";"
 
         # write code to get pointer from pybind11 buffer info
         # request_str = f"py::buffer_info buf_info = {return_name}.request();"
@@ -205,6 +205,89 @@ class CCodeGenerator(CodeGeneratorBase):
             })
 
 
+    def subs_prune(self, replacements, expr_simples) -> tuple[dict, Matrix, int]:
+        # unpack to single iterable
+        reps = []
+        for rep in replacements:
+            if isinstance(rep, tuple) and (len(rep) == 2):
+                reps += [rep]
+            else:
+                for r in rep:
+                    reps += [r]
+
+        # condense redundant replacements
+        dreps = {sub: rexpr for sub, rexpr in reps}
+        dreps_pops = []
+        new_subs = {}  # new subs for expression to take out redundant variables
+
+        # precompute and group subs by replacement expression
+        repl_to_subs = defaultdict(list)
+        # for sub, rexpr in dreps.items():
+        for sub, rexpr in reps:
+            repl_to_subs[rexpr].append(sub)
+
+        # iterate over grouped expressions
+        for sub, rexpr in tqdm(reps, ncols=100, desc="Pruning"):
+            # if rexpr appears more than once in dict, its redundant
+            if len(repl_to_subs[rexpr]) > 1:
+                redundant_vars = repl_to_subs[rexpr]
+                # replace redundant vars with first found var
+                if redundant_vars:
+                    keep_var = redundant_vars[0]
+                    for rvar in redundant_vars[1:]:
+                        new_subs.update({rvar: keep_var})
+                        dreps_pops += [rvar]
+
+        # original
+        # for (sub, rexpr) in tqdm(dreps.items()):
+        #     if rexpr in dreps.values():
+        #         # get keys with this expression
+        #         redundant_vars = [key for key, value in dreps.items() if value == rexpr]
+        #         # replace redundant vars with first found var
+        #         if redundant_vars:
+        #             keep_var = redundant_vars[0]
+        #             for rvar in redundant_vars[1:]:
+        #                 new_subs.update({rvar: keep_var})
+        #                 dreps_pops += [rvar]
+
+        for var in dreps_pops:
+            if var in dreps:
+                dreps.pop(var)  # type:ignore
+
+        #########################
+        nchunk = 2_000
+        remaining_chunk = [*dreps.items()]
+
+        if len(remaining_chunk) > nchunk:
+            chunked_dicts = []
+            for i in range(0, len(remaining_chunk), nchunk):
+                chunk = dict(remaining_chunk[i:i + nchunk])
+                chunked_dicts += [chunk]
+
+            chunked_new_subs = []
+            nchunk_subs = 500
+            new_subs_list = [*new_subs.items()]
+            for i in range(0, len(new_subs), nchunk_subs):
+                chunk_new_subs = dict(new_subs_list[i:i + nchunk_subs])
+                chunked_new_subs += [chunk_new_subs]
+
+            # remaining_chunk = dict(remaining_chunk[nchunk:])
+            inter_reps = {}
+            for chunk in tqdm(chunked_dicts, ncols=70, colour="yellow", desc="\tdict subs"):
+                inter_reps.update(parallel_subs(chunk, chunked_new_subs))
+            dreps = inter_reps
+        else:
+            dreps = parallel_subs(dict(remaining_chunk), [new_subs])
+        # breakpoint()
+        #########################
+
+        # dreps = parallel_subs(dreps, [new_subs])
+        replacements = [*dreps.items()]  # type:ignore
+
+        expr_simples = parallel_subs(expr_simples, [new_subs])
+        return (replacements, expr_simples, len(dreps_pops))  # type:ignore
+
+
     def _build_function(self, function_name: str, **func_register_info) -> list[str]:
 
         expr = func_register_info.get("expr")
@@ -219,161 +302,15 @@ class CCodeGenerator(CodeGeneratorBase):
         assert isinstance(is_symmetric, bool)
 
         if use_cse:
+            # old method
             # expr_replacements, expr_simple = cse(expr, symbols("X_temp0:1000"), optimizations='basic')
 
             replacements, expr_simples = parallel_cse(expr)
 
-
-            # def redundancy(pair, rexpr):
-            #     sub, expr = pickle.loads(pair)
-            #     rexpr = pickle.loads(rexpr)
-            #     return pickle.dumps(sub if expr == rexpr else None)
-
-
-            def redundancy(sub, rexpr, dreps):
-                sub = pickle.loads(sub)
-                rexpr = pickle.loads(rexpr)
-                dreps = pickle.loads(dreps)
-
-                dreps_pops = []
-                new_subs = {}  # new subs for expression to take out redundant variables
-                # for (sub, rexpr) in tqdm(dreps.items()):
-                    # print("redundancy iter:", i, "of", dreps_len)
-                    # dreps_exprs = list(dreps.values())
-                    # dreps_keys = list(dreps.keys())
-
-                if rexpr in dreps.values():
-                    # get keys with this expression
-                    redundant_vars = [key for key, value in dreps.items() if value == rexpr]
-
-                    # replace redundant vars with first found var
-                    if redundant_vars:
-                        keep_var = redundant_vars[0]
-                        for rvar in redundant_vars[1:]:
-                            new_subs.update({rvar: keep_var})
-                            dreps_pops += [rvar]
-                return pickle.dumps((dreps_pops, new_subs))
-
-
-            def subs_prune(replacements, expr_simples) -> tuple[dict, Matrix, int]:
-                # unpack to single iterable
-                reps = []
-                for rep in replacements:
-                    if isinstance(rep, tuple) and (len(rep) == 2):
-                        reps += [rep]
-                    else:
-                        for r in rep:
-                            reps += [r]
-
-                # condense redundant replacements
-                dreps = {sub: rexpr for sub, rexpr in reps}
-                dreps_pops = []
-                new_subs = {}  # new subs for expression to take out redundant variables
-
-                # precompute and group subs by replacement expression
-                repl_to_subs = defaultdict(list)
-                # for sub, rexpr in dreps.items():
-                for sub, rexpr in reps:
-                    repl_to_subs[rexpr].append(sub)
-
-                # iterate over grouped expressions
-                for sub, rexpr in tqdm(reps, ncols=100, desc="Pruning"):
-                    # if rexpr appears more than once in dict, its redundant
-                    if len(repl_to_subs[rexpr]) > 1:
-                        redundant_vars = repl_to_subs[rexpr]
-                        # replace redundant vars with first found var
-                        if redundant_vars:
-                            keep_var = redundant_vars[0]
-                            for rvar in redundant_vars[1:]:
-                                new_subs.update({rvar: keep_var})
-                                dreps_pops += [rvar]
-
-                # original
-                # for (sub, rexpr) in tqdm(dreps.items()):
-                #     if rexpr in dreps.values():
-                #         # get keys with this expression
-                #         redundant_vars = [key for key, value in dreps.items() if value == rexpr]
-                #         # replace redundant vars with first found var
-                #         if redundant_vars:
-                #             keep_var = redundant_vars[0]
-                #             for rvar in redundant_vars[1:]:
-                #                 new_subs.update({rvar: keep_var})
-                #                 dreps_pops += [rvar]
-
-                ##################
-                # with Pool(processes=cpu_count()) as pool:
-                #     args = [(pickle.dumps(sub), pickle.dumps(rexpr), pickle.dumps(dreps)) for sub, rexpr in dreps.items()]
-                #     results = [pool.apply_async(redundancy, arg) for arg in args]
-                #     results = [pickle.loads(ret.get()) for ret in results]
-                # dreps_pops = [r for ret in results for r in ret[0]]
-                # new_subs_res = [r[1] for r in results]
-                # for d in new_subs_res:
-                #     new_subs.update(d)
-                ##################
-
-                # st = perf_counter()
-                # print("exec:", perf_counter() - st)
-
-                for var in dreps_pops:
-                    if var in dreps:
-                        dreps.pop(var)  # type:ignore
-
-                #########################
-                nchunk = 2_000
-                remaining_chunk = [*dreps.items()]
-                # breakpoint()
-                # for i in tqdm(range(1, 10), ncols=30, nrows=2):
-                if len(remaining_chunk) > nchunk:
-                    chunked_dicts = []
-                    for i in range(0, len(remaining_chunk), nchunk):
-                        chunk = dict(remaining_chunk[i:i + nchunk])
-                        chunked_dicts += [chunk]
-
-                    chunked_new_subs = []
-                    nchunk_subs = 500
-                    new_subs_list = [*new_subs.items()]
-                    for i in range(0, len(new_subs), nchunk_subs):
-                        chunk_new_subs = dict(new_subs_list[i:i + nchunk_subs])
-                        chunked_new_subs += [chunk_new_subs]
-
-                    # remaining_chunk = dict(remaining_chunk[nchunk:])
-                    inter_reps = {}
-                    for chunk in tqdm(chunked_dicts, ncols=70, colour="yellow", desc="\tdict subs"):
-                        inter_reps.update(parallel_subs(chunk, chunked_new_subs))
-                    dreps = inter_reps
-                else:
-                    dreps = parallel_subs(dict(remaining_chunk), [new_subs])
-                # breakpoint()
-                #########################
-
-                # dreps = parallel_subs(dreps, [new_subs])
-                replacements = [*dreps.items()]  # type:ignore
-
-                expr_simples = parallel_subs(expr_simples, [new_subs])
-                return (replacements, expr_simples, len(dreps_pops))  # type:ignore
-
-
-            replacements, expr_simple, nredundant = subs_prune(replacements, expr_simples)
-
-            # chunk #
-            # breakpoint()
-            # nchunk = 4_000
-            # remaining_chunk = replacements
-            # if len(remaining_chunk) > nchunk:
-            #     for i in tqdm(range(1, 10), ncols=30, nrows=2):
-            #         print("chunk:", i)
-            #         chunk = dict(remaining_chunk[:nchunk])
-            #         remaining_chunk = dict(remaining_chunk[nchunk:])
-            #         replacements, expr_simple, nredundant = subs_prune(chunk, expr_simple)
-            #         remaining_chunk.update(dict(replacements))
-            # else:
-            #     replacements, expr_simple, nredundant = subs_prune(replacements, expr_simple)
-            #########
+            replacements, expr_simple, nredundant = self.subs_prune(replacements, expr_simples)
 
             for i in range(1, 10):
-                # replacements = tuple([(k, v) for k, v in dreps.items()])
-                replacements, expr_simple, nredundant = subs_prune(replacements, expr_simple)
-                # print("num redundant:", nredundant)
+                replacements, expr_simple, nredundant = self.subs_prune(replacements, expr_simple)
                 if nredundant == 0:
                     break
 
@@ -396,11 +333,13 @@ class CCodeGenerator(CodeGeneratorBase):
 
         writes = [
                   func_def,
-                  return_array,
-                  sub_expr,
-                  func_body,
-                  func_ret,
+                  self.indent_lines(return_array),
+                  self.indent_lines(sub_expr),
+                  self.indent_lines(func_body),
+                  self.indent_lines(func_ret),
+                  "}"
                   "",
+
                   ]
 
         return writes
