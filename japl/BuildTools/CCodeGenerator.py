@@ -1,5 +1,4 @@
 import os
-import sys
 import shutil
 from tqdm import tqdm
 import numpy as np
@@ -48,9 +47,9 @@ class CCodeGenerator(CodeGeneratorBase):
 
 
     def _write_matrix(self,
-                     matrix,
-                     variable,
-                     is_symmetric=False):
+                      matrix,
+                      variable,
+                      is_symmetric=False):
         write_string = ""
         variable_name = self._get_expr_name(variable)
 
@@ -179,7 +178,7 @@ class CCodeGenerator(CodeGeneratorBase):
 
 
     @staticmethod
-    def _declare_parameter(param: Expr|Matrix, force_name: str = "", prefix: str = "") -> str:
+    def _declare_parameter(param: Expr|Matrix, force_name: str = "") -> str:
         CodeGeneratorBase._raise_exception_non_variable(param)
         if force_name:
             param_name = force_name
@@ -314,7 +313,7 @@ class CCodeGenerator(CodeGeneratorBase):
 
             replacements, expr_simple = parallel_cse(expr)
 
-            for i in range(MAX_PRUNE_ITER):
+            for _ in range(MAX_PRUNE_ITER):
                 replacements, expr_simple, nredundant = self._subs_prune(replacements, expr_simple)
                 if nredundant == 0:
                     break
@@ -324,13 +323,13 @@ class CCodeGenerator(CodeGeneratorBase):
             expr_simple = expr
 
         func_def = self._write_function_definition(name=function_name,
-                                                  expr=expr_simple,
-                                                  params=params)
+                                                   expr=expr_simple,
+                                                   params=params)
         return_array = self._instantiate_return_variable(expr=expr, name=return_name)
         sub_expr = self._write_subexpressions(replacements)
         func_body = self._write_matrix(matrix=Matrix(expr_simple),
-                                      variable=return_name,
-                                      is_symmetric=is_symmetric)
+                                       variable=return_name,
+                                       is_symmetric=is_symmetric)
         func_ret = self._write_function_returns(expr=expr, return_names=[return_name])
 
         writes = [
