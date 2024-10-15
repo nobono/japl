@@ -277,9 +277,7 @@ class CCodeGenerator(CodeGeneratorBase):
             dreps = inter_reps
         else:
             dreps = parallel_subs(dict(remaining_chunk), [new_subs])
-        #########################
 
-        # dreps = parallel_subs(dreps, [new_subs])
         replacements = [*dreps.items()]  # type:ignore
 
         expr_simple = parallel_subs(expr_simple, [new_subs])
