@@ -292,6 +292,28 @@ class TestCCodeGenerator(unittest.TestCase):
         ret = gen._write_subexpressions(replacements)
         self.assertEqual(ret, "const double x0 = 0.5*pow(dt, 2);\n")
 
+
+    def test_add_function(self):
+        a = Symbol("a")
+        b = Symbol("b")
+        expr, params = self.get_small_model()
+        function_name = "func"
+        return_name = "ret"
+        gen = CCodeGenerator()
+        gen.add_function(expr=expr,
+                         params=params,
+                         function_name=function_name,
+                         return_name=return_name)
+        reg_func = gen.function_register[function_name]
+        truth = {'expr': a + b,  # type:ignore
+                 'params': [a, b],
+                 'return_name': 'ret',
+                 'use_cse': True,
+                 'is_symmetric': False,
+                 'description': ''}
+        self.assertTrue(truth, reg_func)
+
+
     #########################################
     # Integration Test
     #########################################
