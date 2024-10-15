@@ -331,7 +331,8 @@ class TestCCodeGenerator(unittest.TestCase):
     #     res = subprocess.run(["python", f"{DEV_DIR}/DevModel.py"], check=True, capture_output=True, text=True)
 
     #     # build extension module
-    #     res = subprocess.run(["python", f"{ext_model_dir}/build.py", "build_ext", "--inplace"], check=True, capture_output=True)
+    #     res = subprocess.run(["python", f"{ext_model_dir}/build.py", "build_ext", "--inplace"],
+    #                           check=True, capture_output=True)
 
     #     # import extension module and run tests
     #     import _dev_model  # type:ignore
