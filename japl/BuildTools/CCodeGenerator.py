@@ -422,6 +422,10 @@ class CCodeGenerator(CodeGeneratorBase):
         module_dir_path = os.path.join(path, module_dir_name)
         os.mkdir(module_dir_path)
 
+        # output directory warning
+        # if os.path.isdir(module_dir_path):
+        #     raise Exception(f"output directory {module_dir_name} already exists")
+
         self.path = path
         self.file_name = module_name + ".cpp"
         file_path = os.path.join(module_dir_path, self.file_name)

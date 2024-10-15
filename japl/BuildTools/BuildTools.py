@@ -25,7 +25,7 @@ def dict_subs_func(key_expr: tuple[str, Any], subs: list) -> bytes:
     key, expr = pickle.loads(key_expr)
     for sub in subs:
         sub = pickle.loads(sub)
-        expr = expr.xreplace(sub).doit()
+        expr = expr.xreplace(sub)  # .doit()
     return pickle.dumps({key: expr})
 
 
@@ -35,7 +35,7 @@ def array_subs_func(expr, subs: list[dict]) -> bytes:
     expr = pickle.loads(expr)
     for sub in subs:
         sub = pickle.loads(sub)
-        expr = expr.xreplace(sub).doit()
+        expr = expr.xreplace(sub)  # .doit()
     return pickle.dumps(expr)
 
 
@@ -45,7 +45,12 @@ def create_error_header(msg: str, char: str = "-", char_len: int = 40) -> str:
     return header
 
 
-def parallel_subs(target_expr: Matrix|dict, subs: list) -> Matrix|dict:
+def parallel_subs(target_expr: Matrix|dict, subs: list[dict]|dict) -> Matrix|dict:
+    if isinstance(subs, dict):
+        subs = [subs]
+    elif isinstance(subs, list):
+        pass
+
     if isinstance(target_expr, dict):
         subs_func = dict_subs_func
         with Pool(processes=cpu_count()) as pool:
