@@ -169,7 +169,7 @@ class CodeGeneratorBase:
 
 
     @staticmethod
-    def get_expr_name(expr: Expr) -> str:
+    def get_expr_name(expr) -> str:
         if hasattr(expr, "name"):
             return getattr(expr, "name")
         else:

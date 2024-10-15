@@ -1,19 +1,15 @@
 import os
 import sys
 import shutil
-from sympy.matrices.expressions.matexpr import MatrixSymbol
 from tqdm import tqdm
 import numpy as np
 from japl.BuildTools.CodeGeneratorBase import CodeGeneratorBase
 from sympy import ccode
 from sympy import Expr
 from sympy import Matrix
-from sympy import Symbol
-from sympy import symbols
 from sympy.codegen.ast import float64, real
 from textwrap import dedent
 from japl.BuildTools.BuildTools import parallel_subs
-from japl.BuildTools.BuildTools import dict_subs_func
 from japl.BuildTools.BuildTools import parallel_cse
 from collections import defaultdict
 
@@ -46,8 +42,6 @@ class CCodeGenerator(CodeGeneratorBase):
     def write_subexpressions(self, subexpressions: tuple|list) -> str:
         ret = ""
         for (lvalue, rvalue) in subexpressions:
-            # assign_str = (self.declare_variable(lvalue, prefix="const")
-            #               + " = " + self.get_code(rvalue) + self.endl)  # type:ignore
             assign_str = self._declare_variable(lvalue, prefix="const", assign=self.get_code(rvalue))  # type:ignore
             ret += assign_str
         return ret
@@ -76,15 +70,6 @@ class CCodeGenerator(CodeGeneratorBase):
                                self.get_code(matrix[i]) + self.endl  # type:ignore
         # if any other shape
         else:
-            # for j in range(0, matrix.shape[1]):
-            #     for i in range(0, matrix.shape[0]):
-            #         if j >= i or not is_symmetric:
-            #             write_string = write_string + variable_name +\
-            #                            self.pre_bracket +\
-            #                            str(i) + self.bracket_separator + str(j) +\
-            #                            self.post_bracket + " = " +\
-            #                            self.get_code(matrix[i, j]) + self.endl  # type:ignore
-            ###################################################
             for i in range(0, matrix.shape[0]):
                 for j in range(0, matrix.shape[1]):
                     # flatten the array
@@ -116,7 +101,7 @@ class CCodeGenerator(CodeGeneratorBase):
         return type_str
 
 
-    def write_function_definition(self, name: str, expr: Expr|Matrix, params: list[Expr|Symbol|Matrix]):
+    def write_function_definition(self, name: str, expr: Expr|Matrix, params: list):
         return_type_str = self._get_return_type(expr)
         params_list, params_unpack = self.get_function_parameters(params)
         func_proto = f"{return_type_str} {name}({params_list})" + " {\n"  # }
@@ -206,49 +191,8 @@ class CCodeGenerator(CodeGeneratorBase):
 
 
     def instantiate_return_variable(self, expr: Expr|Matrix, name: str) -> str:
-        ret = ""
-
         # TODO: this currently assumed flattened arrays
-
         ret = self._declare_variable(param=expr, force_name=name)
-
-        # ret = return_type_str
-
-        # # handle argument being an array
-        # if self.is_array_type(expr):
-        #     shape = param.shape  # type:ignore
-        #     # shape_str = ", ".join([str(i) for i in shape])
-        #     if len(shape) > 1:
-        #         size = np.prod(shape)  # type:ignore
-        #         if shape[1] == 1:
-        #             constructor_str = "(" + str(size) + ")"
-        #         else:
-        #             constructor_str = "(" + str(size) + ")"
-        #     else:
-        #         constructor_str = "(" + str(shape[0]) + ")"
-        #     param_str = f"std::vector<double> {name}" + constructor_str
-        # else:
-        #     param_str = f"double {name}"
-        # ret += param_str + ";"
-
-        #########################################
-
-        # write code to get pointer from pybind11 buffer info
-        # request_str = f"py::buffer_info buf_info = {return_name}.request();"
-        # cast_str = f"double* {param_name} = static_cast<double*>(buf_info.ptr);"
-        # self.write_lines(request_str, prefix="\t")
-        # self.write_lines(cast_str, prefix="\t")
-        # self.write_lines("")
-
-        # declare py::array_t and convert return var (vector) to array_t
-        # if self.is_array_type(param):
-        #     constructor_str = f"({param_name}.size(), {param_name}.data())"
-        #     return_array = f"py::array_t<double> {name}{constructor_str}"
-        #     # self.write_lines(return_array, prefix="\t")
-        #     ret += self.indent_lines(return_array)
-        # else:
-        #     pass
-
         return ret
 
 
@@ -272,7 +216,7 @@ class CCodeGenerator(CodeGeneratorBase):
             })
 
 
-    def subs_prune(self, replacements, expr_simples) -> tuple[dict, Matrix, int]:
+    def subs_prune(self, replacements, expr_simple) -> tuple[dict, Matrix, int]:
         # unpack to single iterable
         reps = []
         for rep in replacements:
@@ -305,18 +249,6 @@ class CCodeGenerator(CodeGeneratorBase):
                         new_subs.update({rvar: keep_var})
                         dreps_pops += [rvar]
 
-        # original
-        # for (sub, rexpr) in tqdm(dreps.items()):
-        #     if rexpr in dreps.values():
-        #         # get keys with this expression
-        #         redundant_vars = [key for key, value in dreps.items() if value == rexpr]
-        #         # replace redundant vars with first found var
-        #         if redundant_vars:
-        #             keep_var = redundant_vars[0]
-        #             for rvar in redundant_vars[1:]:
-        #                 new_subs.update({rvar: keep_var})
-        #                 dreps_pops += [rvar]
-
         for var in dreps_pops:
             if var in dreps:
                 dreps.pop(var)  # type:ignore
@@ -340,22 +272,24 @@ class CCodeGenerator(CodeGeneratorBase):
 
             # remaining_chunk = dict(remaining_chunk[nchunk:])
             inter_reps = {}
-            for chunk in tqdm(chunked_dicts, ncols=70, colour="yellow", desc="\tdict subs"):
-                inter_reps.update(parallel_subs(chunk, chunked_new_subs))
+            for chunk in tqdm(chunked_dicts, ncols=70, desc="\tdict subs",
+                              ascii=" ="):
+                inter_reps.update(parallel_subs(chunk, chunked_new_subs))  # type:ignore
             dreps = inter_reps
         else:
             dreps = parallel_subs(dict(remaining_chunk), [new_subs])
-        # breakpoint()
         #########################
 
         # dreps = parallel_subs(dreps, [new_subs])
         replacements = [*dreps.items()]  # type:ignore
 
-        expr_simples = parallel_subs(expr_simples, [new_subs])
-        return (replacements, expr_simples, len(dreps_pops))  # type:ignore
+        expr_simple = parallel_subs(expr_simple, [new_subs])
+        return (replacements, expr_simple, len(dreps_pops))  # type:ignore
 
 
     def _build_function(self, function_name: str, **func_register_info) -> list[str]:
+
+        MAX_PRUNE_ITER = 10
 
         expr = func_register_info.get("expr")
         params = func_register_info.get("params")
@@ -378,27 +312,22 @@ class CCodeGenerator(CodeGeneratorBase):
             if expr.is_Matrix:
                 expr = Matrix(expr)
 
-            replacements, expr_simples = parallel_cse(expr)
+            replacements, expr_simple = parallel_cse(expr)
 
-            replacements, expr_simple, nredundant = self.subs_prune(replacements, expr_simples)
-
-            for i in range(1, 10):
+            for i in range(MAX_PRUNE_ITER):
                 replacements, expr_simple, nredundant = self.subs_prune(replacements, expr_simple)
                 if nredundant == 0:
                     break
 
-            # expr_replacements = tuple([(sub, repl) for sub, repl in dreps.items()])  # type:ignore
-            expr_replacements = replacements
-
         else:
-            expr_replacements = ()
+            replacements = ()
             expr_simple = expr
 
         func_def = self.write_function_definition(name=function_name,
                                                   expr=expr_simple,
                                                   params=params)
         return_array = self.instantiate_return_variable(expr=expr, name=return_name)
-        sub_expr = self.write_subexpressions(expr_replacements)
+        sub_expr = self.write_subexpressions(replacements)
         func_body = self.write_matrix(matrix=Matrix(expr_simple),
                                       variable=return_name,
                                       is_symmetric=is_symmetric)
@@ -416,7 +345,7 @@ class CCodeGenerator(CodeGeneratorBase):
         return writes
 
 
-    def create_module(self, module_name: str, path: str = ".", parallel: bool = False):
+    def create_module(self, module_name: str, path: str = "."):
         # create extension module directory
         module_dir_name = module_name
         module_dir_path = os.path.join(path, module_dir_name)
@@ -433,45 +362,35 @@ class CCodeGenerator(CodeGeneratorBase):
         pybind_writes = ["", "", f"PYBIND11_MODULE({module_name}, m) " + "{"]  # }
 
         try:
-            if parallel:
-                # with Pool(processes=cpu_count()) as pool:
-                #     pool_args = [(func_name, info) for func_name, info in self.function_register.items()]
-                #     results = [pool.apply_async(self._build_function, arg) for arg in pool_args]
-                #     results = [ret.get() for ret in results]
-                pass
-            else:
-                # get functions from register
-                for func_name, info in tqdm(self.function_register.items(), ncols=80, desc="Build"):
-                    # build the function
-                    writes = self._build_function(function_name=func_name, **info)
-                    description = info["description"]
-                    pybind_writes += [f"\tm.def(\"{func_name}\", &{func_name}, \"{description}\");"]
-                    for line in writes:
-                        self.write_lines(line)
-
-                    # create __init__.py file
-                    with open(os.path.join(module_dir_path, "__init__.py"), "a+") as f:
-                        f.write(f"from {module_dir_name}.{module_dir_name} import {func_name}\n")
-
-                pybind_writes += ["}"]
-
-                for line in pybind_writes:
+            # get functions from register
+            for func_name, info in tqdm(self.function_register.items(), ncols=80, desc="Build"):
+                # build the function
+                writes = self._build_function(function_name=func_name, **info)
+                description = info["description"]
+                pybind_writes += [f"\tm.def(\"{func_name}\", &{func_name}, \"{description}\");"]
+                for line in writes:
                     self.write_lines(line)
 
-                self.create_build_file(path=module_dir_path,
-                                       module_name=module_name,
-                                       source=self.file_name)
+                # create __init__.py file
+                with open(os.path.join(module_dir_path, "__init__.py"), "a+") as f:
+                    f.write(f"from {module_dir_name}.{module_dir_name} import {func_name}\n")
 
-                self.close()
+            pybind_writes += ["}"]
+
+            for line in pybind_writes:
+                self.write_lines(line)
+
+            self.create_build_file(path=module_dir_path,
+                                   module_name=module_name,
+                                   source=self.file_name)
+
+            self.close()
         except Exception as e:
             shutil.rmtree(module_dir_path, ignore_errors=True)
             raise Exception(e)
 
 
     def create_build_file(self, module_name: str, path: str, source: str):
-        # from pybind11.setup_helpers import Pybind11Extension
-        # numpy_includes = ", ".join(np.get_include())
-
         file_name = source.split('.')[0]
 
         build_str = ("""\
