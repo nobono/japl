@@ -35,31 +35,31 @@ class CCodeGenerator(CodeGeneratorBase):
         self.function_register = {}
 
 
-    def get_code(self, expression):
+    def _get_code(self, expression):
         return ccode(expression, type_aliases={real: float64}, strict=self.strict)
 
 
-    def write_subexpressions(self, subexpressions: tuple|list) -> str:
+    def _write_subexpressions(self, subexpressions) -> str:
         ret = ""
         for (lvalue, rvalue) in subexpressions:
-            assign_str = self._declare_variable(lvalue, prefix="const", assign=self.get_code(rvalue))  # type:ignore
+            assign_str = self._declare_variable(lvalue, prefix="const", assign=self._get_code(rvalue))  # type:ignore
             ret += assign_str
         return ret
 
 
-    def write_matrix(self,
+    def _write_matrix(self,
                      matrix,
                      variable,
                      is_symmetric=False):
         write_string = ""
-        variable_name = self.get_expr_name(variable)
+        variable_name = self._get_expr_name(variable)
 
         ############################
         # L-value / R-value assign
         ############################
         # if Matrix of single expression
         if matrix.shape[0] * matrix.shape[1] == 1:
-            write_string = write_string + variable_name + " = " + self.get_code(matrix[0]) + self.endl  # type:ignore
+            write_string = write_string + variable_name + " = " + self._get_code(matrix[0]) + self.endl  # type:ignore
         # if row or column Matrix
         elif matrix.shape[0] == 1 or matrix.shape[1] == 1:
             for i in range(0, len(matrix)):
@@ -67,7 +67,7 @@ class CCodeGenerator(CodeGeneratorBase):
                                self.pre_bracket +\
                                str(i) +\
                                self.post_bracket + " = " +\
-                               self.get_code(matrix[i]) + self.endl  # type:ignore
+                               self._get_code(matrix[i]) + self.endl  # type:ignore
         # if any other shape
         else:
             for i in range(0, matrix.shape[0]):
@@ -82,7 +82,7 @@ class CCodeGenerator(CodeGeneratorBase):
                                     + self.pre_bracket
                                     + str(index)
                                     + self.post_bracket + " = "
-                                    + self.get_code(matrix[i, j]) + self.endl)  # type:ignore
+                                    + self._get_code(matrix[i, j]) + self.endl)  # type:ignore
 
         return write_string
 
@@ -101,19 +101,19 @@ class CCodeGenerator(CodeGeneratorBase):
         return type_str
 
 
-    def write_function_definition(self, name: str, expr: Expr|Matrix, params: list):
+    def _write_function_definition(self, name: str, expr: Expr|Matrix, params: list):
         return_type_str = self._get_return_type(expr)
-        params_list, params_unpack = self.get_function_parameters(params)
+        params_list, params_unpack = self._get_function_parameters(params)
         func_proto = f"{return_type_str} {name}({params_list})" + " {\n"  # }
-        return func_proto + self.indent_lines(params_unpack)
+        return func_proto + self._indent_lines(params_unpack)
 
 
-    def write_function_returns(self, expr: Expr|Matrix, return_names: list[str]):
+    def _write_function_returns(self, expr: Expr|Matrix, return_names: list[str]):
         if len(return_names) > 1:
             raise Exception("CCodeGenerator currently only supports returns of a"
                             "single object.")
         return_name = return_names[0]
-        if self.is_array_type(expr):
+        if self._is_array_type(expr):
             # convert vector to array_t
             return_str = "py::array_t<double>(" + return_name + ".size(), " + return_name + ".data())"
             return f"return {return_str}" + self.endl
@@ -135,7 +135,7 @@ class CCodeGenerator(CodeGeneratorBase):
     @staticmethod
     def _get_type(param: Expr|Matrix, prefix: str = "") -> str:
         # handle argument being an array or not
-        if CodeGeneratorBase.is_array_type(param):
+        if CodeGeneratorBase._is_array_type(param):
             primitive_type = "double"  # NOTE: currently default for arrays is double
             type_str = f"{prefix} std::vector<{primitive_type}>"
         else:
@@ -156,7 +156,7 @@ class CCodeGenerator(CodeGeneratorBase):
 
         type_str = CCodeGenerator._get_type(param)
 
-        if CodeGeneratorBase.is_array_type(param):
+        if CodeGeneratorBase._is_array_type(param):
             if not force_name:
                 raise Exception("declaration of Matrix requires \"force_name\" parameter")
             size = np.prod(param.shape)  # type:ignore
@@ -170,7 +170,7 @@ class CCodeGenerator(CodeGeneratorBase):
             if force_name:
                 param_name = force_name
             else:
-                param_name = CodeGeneratorBase.get_expr_name(param)  # type:ignore
+                param_name = CodeGeneratorBase._get_expr_name(param)
             if assign:
                 param_str = CCodeGenerator._assign_variable(f"{prefix} {type_str} {param_name}", assign, op="=")
             else:
@@ -184,13 +184,13 @@ class CCodeGenerator(CodeGeneratorBase):
         if force_name:
             param_name = force_name
         else:
-            param_name = CodeGeneratorBase.get_expr_name(param)
+            param_name = CodeGeneratorBase._get_expr_name(param)
         type_str = CCodeGenerator._get_type(param)
         param_str = f"{type_str} {param_name}"
         return param_str
 
 
-    def instantiate_return_variable(self, expr: Expr|Matrix, name: str) -> str:
+    def _instantiate_return_variable(self, expr: Expr|Matrix, name: str) -> str:
         # TODO: this currently assumed flattened arrays
         ret = self._declare_variable(param=expr, force_name=name)
         return ret
@@ -216,7 +216,7 @@ class CCodeGenerator(CodeGeneratorBase):
             })
 
 
-    def subs_prune(self, replacements, expr_simple) -> tuple[dict, Matrix, int]:
+    def _subs_prune(self, replacements, expr_simple) -> tuple[dict, Matrix, int]:
         # unpack to single iterable
         reps = []
         for rep in replacements:
@@ -315,7 +315,7 @@ class CCodeGenerator(CodeGeneratorBase):
             replacements, expr_simple = parallel_cse(expr)
 
             for i in range(MAX_PRUNE_ITER):
-                replacements, expr_simple, nredundant = self.subs_prune(replacements, expr_simple)
+                replacements, expr_simple, nredundant = self._subs_prune(replacements, expr_simple)
                 if nredundant == 0:
                     break
 
@@ -323,22 +323,22 @@ class CCodeGenerator(CodeGeneratorBase):
             replacements = ()
             expr_simple = expr
 
-        func_def = self.write_function_definition(name=function_name,
+        func_def = self._write_function_definition(name=function_name,
                                                   expr=expr_simple,
                                                   params=params)
-        return_array = self.instantiate_return_variable(expr=expr, name=return_name)
-        sub_expr = self.write_subexpressions(replacements)
-        func_body = self.write_matrix(matrix=Matrix(expr_simple),
+        return_array = self._instantiate_return_variable(expr=expr, name=return_name)
+        sub_expr = self._write_subexpressions(replacements)
+        func_body = self._write_matrix(matrix=Matrix(expr_simple),
                                       variable=return_name,
                                       is_symmetric=is_symmetric)
-        func_ret = self.write_function_returns(expr=expr, return_names=[return_name])
+        func_ret = self._write_function_returns(expr=expr, return_names=[return_name])
 
         writes = [
                   func_def,
-                  self.indent_lines(return_array),
-                  self.indent_lines(sub_expr),
-                  self.indent_lines(func_body),
-                  self.indent_lines(func_ret),
+                  self._indent_lines(return_array),
+                  self._indent_lines(sub_expr),
+                  self._indent_lines(func_body),
+                  self._indent_lines(func_ret),
                   "}"
                   ]
 
@@ -356,8 +356,8 @@ class CCodeGenerator(CodeGeneratorBase):
         file_path = os.path.join(module_dir_path, self.file_name)
         self.file = open(file_path, "w")
 
-        header = self.write_header()
-        self.write_lines(header)
+        header = self._write_header()
+        self._write_lines(header)
 
         pybind_writes = ["", "", f"PYBIND11_MODULE({module_name}, m) " + "{"]  # }
 
@@ -369,7 +369,7 @@ class CCodeGenerator(CodeGeneratorBase):
                 description = info["description"]
                 pybind_writes += [f"\tm.def(\"{func_name}\", &{func_name}, \"{description}\");"]
                 for line in writes:
-                    self.write_lines(line)
+                    self._write_lines(line)
 
                 # create __init__.py file
                 with open(os.path.join(module_dir_path, "__init__.py"), "a+") as f:
@@ -378,13 +378,13 @@ class CCodeGenerator(CodeGeneratorBase):
             pybind_writes += ["}"]
 
             for line in pybind_writes:
-                self.write_lines(line)
+                self._write_lines(line)
 
             self.create_build_file(path=module_dir_path,
                                    module_name=module_name,
                                    source=self.file_name)
 
-            self.close()
+            self._close()
         except Exception as e:
             shutil.rmtree(module_dir_path, ignore_errors=True)
             raise Exception(e)
@@ -468,5 +468,5 @@ class CCodeGenerator(CodeGeneratorBase):
         # os.system(f"python {build_file_path}")
 
 
-    def close(self):
+    def _close(self):
         self.file.close()

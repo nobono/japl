@@ -1,9 +1,12 @@
+import os
+import shutil
 import unittest
 import sympy as sp
 from textwrap import dedent
 from sympy import symbols, Matrix, Function, Symbol, MatrixSymbol
 from sympy import cse
 from japl.BuildTools.CCodeGenerator import CCodeGenerator
+from japl import JAPL_HOME_DIR
 
 
 
@@ -35,7 +38,7 @@ class TestCCodeGenerator(unittest.TestCase):
 
     def test_indent_lines(self):
         string = "double a = 1;\ndouble b = 2;\n"
-        ret = CCodeGenerator.indent_lines(string)
+        ret = CCodeGenerator._indent_lines(string)
         self.assertEqual(ret, "\tdouble a = 1;\n\tdouble b = 2;\n")
 
     #########################################
@@ -129,103 +132,140 @@ class TestCCodeGenerator(unittest.TestCase):
     # Subexpression
     #########################################
 
-    def test_subexpression_case1(self):
+    def test_function_parameters_case1(self):
         x, y = sp.symbols("x, y")
         params = [x, y]
         gen = CCodeGenerator()
-        arg_names, arg_unpack_str = gen.get_function_parameters(params=params)
+        arg_names, arg_unpack_str = gen._get_function_parameters(params=params)
         self.assertEqual(arg_names, "double x, double y")
         self.assertEqual(arg_unpack_str, "")
 
 
-    def test_subexpression_case2(self):
+    def test_function_parameters_case2(self):
         A = MatrixSymbol("A", 3, 1).as_mutable()
         x, y = sp.symbols("x, y")
         params = [x, y, A]
         gen = CCodeGenerator()
-        arg_names, arg_unpack_str = gen.get_function_parameters(params=params)
+        arg_names, arg_unpack_str = gen._get_function_parameters(params=params)
         self.assertEqual(arg_names, "double x, double y, std::vector<double> A")
         self.assertEqual(arg_unpack_str, "")
 
 
-    def test_subexpression_case3(self):
+    def test_function_parameters_case3(self):
         A = Matrix(symbols("a1, a2, a3"))
         x = Symbol("x")
         y = Symbol("y")
         params = [x, y, *A]
         gen = CCodeGenerator()
-        arg_names, arg_unpack_str = gen.get_function_parameters(params=params)
+        arg_names, arg_unpack_str = gen._get_function_parameters(params=params)
         self.assertEqual(arg_names, "double x, double y, double a1, double a2, double a3")
         self.assertEqual(arg_unpack_str, "")
         # print(arg_names)
         # print(arg_unpack_str)
+
+
+    # TODO: handle MatrixSymbol
+    # def test_function_parameters_case4(self):
+    #     A = MatrixSymbol("A", 3, 1)
+    #     x = Symbol("x")
+    #     y = Symbol("y")
+    #     params = [x, y, *A]
+    #     gen = CCodeGenerator()
+    #     arg_names, arg_unpack_str = gen.get_function_parameters(params=params)
+    #     # self.assertEqual(arg_names, "double x, double y, double a1, double a2, double a3")
+    #     # self.assertEqual(arg_unpack_str, "")
+    #     # print(arg_unpack_str)
 
     #########################################
     # Function Return
     #########################################
 
     def test_write_function_returns_case1(self):
+        """single var"""
         expr, _ = self.get_small_model()
         gen = CCodeGenerator()
-        ret = gen.write_function_returns(expr=expr, return_names=["Ret"])
+        ret = gen._write_function_returns(expr=expr, return_names=["Ret"])
         self.assertEqual(ret, "return Ret;\n")  # }
 
 
     def test_write_function_returns_case2(self):
+        """array"""
         expr, _ = self.get_model()
         gen = CCodeGenerator()
-        ret = gen.write_function_returns(expr=expr, return_names=["Ret"])
+        ret = gen._write_function_returns(expr=expr, return_names=["Ret"])
         self.assertEqual(ret, "return py::array_t<double>(Ret.size(), Ret.data());\n")
 
 
-    def test_write_function_returns_case3(self):
-        expr, _ = self.get_model()
-        gen = CCodeGenerator()
-        ret = gen.write_function_returns(expr=expr, return_names=["Ret"])
-        self.assertEqual(ret, "return py::array_t<double>(Ret.size(), Ret.data());\n")
+    # def test_write_function_returns_case3(self):
+    #     """matrix"""
+    #     A = MatrixSymbol("A", 3, 3).as_mutable()
+    #     b = Symbol("b")
+    #     expr = A * b
+    #     gen = CCodeGenerator()
+    #     ret = gen._write_function_returns(expr=expr, return_names=["Ret"])
+    #     # self.assertEqual(ret, "return py::array_t<double>(Ret.size(), Ret.data());\n")
+    #     print(expr)
+    #     print(ret)
 
     #########################################
     # Instantiate return array
     #########################################
 
     def test_instantiate_return_variable_case1(self):
+        """single var"""
         expr, params = self.get_small_model()
         gen = CCodeGenerator()
-        ret = gen.instantiate_return_variable(expr=expr, name="Ret")
+        ret = gen._instantiate_return_variable(expr=expr, name="Ret")
         self.assertEqual(ret, "double Ret;\n")
 
 
     def test_instantiate_return_variable_case2(self):
+        """array"""
         expr, params = self.get_model()
         gen = CCodeGenerator()
-        ret = gen.instantiate_return_variable(expr=expr, name="Ret")
+        ret = gen._instantiate_return_variable(expr=expr, name="Ret")
         self.assertEqual(ret, "std::vector<double> Ret(3);\n")
+
+
+    # def test_instantiate_return_variable_case3(self):
+    #     """matrix"""
+    #     A = MatrixSymbol("A", 3, 3).as_mutable()
+    #     b = Symbol("b")
+    #     expr = A * b
+    #     gen = CCodeGenerator()
+    #     ret = gen._instantiate_return_variable(expr=expr, name="Ret")
+    #     # self.assertEqual(ret, "std::vector<double> Ret(3);\n")
+    #     print(expr)
+    #     print(ret)
 
     #########################################
     # Function Building
     #########################################
 
     def test_write_function_definition_case1(self):
+        """single vars - type double"""
         expr, params = self.get_small_model()
         gen = CCodeGenerator()
-        ret = gen.write_function_definition(name="func", expr=expr, params=params)
+        ret = gen._write_function_definition(name="func", expr=expr, params=params)
         self.assertEqual(ret, "double func(double a, double b) {\n\n")  # }
 
 
     def test_write_function_definition_case2(self):
+        """single vars - type int"""
         a = Symbol("a", integer=True)
         b = Symbol("b", integer=True)
         expr = a + b  # type:ignore
         params = [a, b]
         gen = CCodeGenerator()
-        ret = gen.write_function_definition(name="func", expr=expr, params=params)
+        ret = gen._write_function_definition(name="func", expr=expr, params=params)
         self.assertEqual(ret, "int func(int a, int b) {\n\n")  # }
 
 
     def test_write_function_definition_case3(self):
+        """arrays and single vars"""
         expr, params = self.get_model()
         gen = CCodeGenerator()
-        ret = gen.write_function_definition(name="func", expr=expr, params=params)
+        ret = gen._write_function_definition(name="func", expr=expr, params=params)
         truth = """\
         py::array_t<double> func(std::vector<double> _Dummy_var0, std::vector<double> _Dummy_var1, std::vector<double> _Dummy_var2, double dt) {
         \tdouble pos_x = _Dummy_var0[0];
@@ -241,7 +281,7 @@ class TestCCodeGenerator(unittest.TestCase):
         self.assertEqual(ret, dedent(truth))
 
 
-    def test_get_function_parameters(self):
+    def test_write_subexpressions_case1(self):
         dt = symbols("dt")
         pos = Matrix(symbols("pos_x, pos_y, pos_z"))
         vel = Matrix(symbols("vel_x, vel_y, vel_z"))
@@ -251,8 +291,35 @@ class TestCCodeGenerator(unittest.TestCase):
         replacements, _ = cse(pos_new)
 
         gen = CCodeGenerator()
-        ret = gen.write_subexpressions(replacements)
+        ret = gen._write_subexpressions(replacements)
         self.assertEqual(ret, "const double x0 = 0.5*pow(dt, 2);\n")
+
+    #########################################
+    # Integration Test
+    #########################################
+
+    def test_build_dev_model(self):
+        DEV_DIR = f"{JAPL_HOME_DIR}/japl/Library/_dev"
+
+        ext_model_dir = f"{DEV_DIR}/simple_model"
+        if os.path.isdir(ext_model_dir):
+            shutil.rmtree(ext_model_dir, ignore_errors=True)
+
+        build_model_exec = os.system(f"python {DEV_DIR}/SimpleModel.py")
+        self.assertEqual(build_model_exec, 0)
+        # os.chdir(ext_model_dir)
+        build_exec = os.system(f"python {ext_model_dir}/build.py build_ext --inplace")
+        self.assertEqual(build_exec, 0)
+
+        import simple_model
+        from japl.Library._dev.SimpleModel import truth
+        args = (1, 1,2,3, [1,2,3], [1,2,3,4,5,6,7,8,9])
+        ret = simple_model.func(*args)
+        self.assertListEqual(truth, ret.tolist())
+
+        os.system(f"{ext_model_dir}/build.py clean")
+        if os.path.isdir(ext_model_dir):
+            shutil.rmtree(ext_model_dir, ignore_errors=True)
 
 
 if __name__ == '__main__':
