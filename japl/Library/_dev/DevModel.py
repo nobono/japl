@@ -36,4 +36,4 @@ if __name__ == "__main__":
                      params=params,
                      function_name="func",
                      return_name="y")
-    gen.create_module("simple_model", f"{JAPL_HOME_DIR}/japl/Library/_dev")
+    gen.create_module("_dev_model", f"{JAPL_HOME_DIR}/japl/Library/_dev")
