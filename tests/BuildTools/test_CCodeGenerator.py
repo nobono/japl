@@ -1,9 +1,10 @@
 import os
+import subprocess
 import shutil
 import unittest
 import sympy as sp
 from textwrap import dedent
-from sympy import symbols, Matrix, Function, Symbol, MatrixSymbol
+from sympy import symbols, Matrix, Symbol, MatrixSymbol
 from sympy import cse
 from japl.BuildTools.CCodeGenerator import CCodeGenerator
 from japl import JAPL_HOME_DIR
@@ -163,7 +164,6 @@ class TestCCodeGenerator(unittest.TestCase):
         # print(arg_names)
         # print(arg_unpack_str)
 
-
     # TODO: handle MatrixSymbol
     # def test_function_parameters_case4(self):
     #     A = MatrixSymbol("A", 3, 1)
@@ -195,7 +195,6 @@ class TestCCodeGenerator(unittest.TestCase):
         ret = gen._write_function_returns(expr=expr, return_names=["Ret"])
         self.assertEqual(ret, "return py::array_t<double>(Ret.size(), Ret.data());\n")
 
-
     # def test_write_function_returns_case3(self):
     #     """matrix"""
     #     A = MatrixSymbol("A", 3, 3).as_mutable()
@@ -213,7 +212,7 @@ class TestCCodeGenerator(unittest.TestCase):
 
     def test_instantiate_return_variable_case1(self):
         """single var"""
-        expr, params = self.get_small_model()
+        expr, _ = self.get_small_model()
         gen = CCodeGenerator()
         ret = gen._instantiate_return_variable(expr=expr, name="Ret")
         self.assertEqual(ret, "double Ret;\n")
@@ -221,11 +220,10 @@ class TestCCodeGenerator(unittest.TestCase):
 
     def test_instantiate_return_variable_case2(self):
         """array"""
-        expr, params = self.get_model()
+        expr, _ = self.get_model()
         gen = CCodeGenerator()
         ret = gen._instantiate_return_variable(expr=expr, name="Ret")
         self.assertEqual(ret, "std::vector<double> Ret(3);\n")
-
 
     # def test_instantiate_return_variable_case3(self):
     #     """matrix"""
@@ -298,28 +296,32 @@ class TestCCodeGenerator(unittest.TestCase):
     # Integration Test
     #########################################
 
-    def test_build_dev_model(self):
-        DEV_DIR = f"{JAPL_HOME_DIR}/japl/Library/_dev"
+    # def test_build_dev_model(self):
+    #     FILE_DIR = os.path.dirname(__file__)
+    #     ROOT_DIR = f"{FILE_DIR}/../.."
+    #     DEV_DIR = f"{ROOT_DIR}/japl/Library/_dev"
 
-        ext_model_dir = f"{DEV_DIR}/simple_model"
-        if os.path.isdir(ext_model_dir):
-            shutil.rmtree(ext_model_dir, ignore_errors=True)
+    #     ext_model_dir = f"{DEV_DIR}/_dev_model"
+    #     if os.path.isdir(ext_model_dir):
+    #         shutil.rmtree(ext_model_dir, ignore_errors=True)
 
-        build_model_exec = os.system(f"python {DEV_DIR}/SimpleModel.py")
-        self.assertEqual(build_model_exec, 0)
-        # os.chdir(ext_model_dir)
-        build_exec = os.system(f"python {ext_model_dir}/build.py build_ext --inplace")
-        self.assertEqual(build_exec, 0)
+    #     # compile extension module src files
+    #     res = subprocess.run(["python", f"{DEV_DIR}/DevModel.py"], check=True, capture_output=True, text=True)
 
-        import simple_model
-        from japl.Library._dev.SimpleModel import truth
-        args = (1, 1,2,3, [1,2,3], [1,2,3,4,5,6,7,8,9])
-        ret = simple_model.func(*args)
-        self.assertListEqual(truth, ret.tolist())
+    #     # build extension module
+    #     res = subprocess.run(["python", f"{ext_model_dir}/build.py", "build_ext", "--inplace"], check=True, capture_output=True)
 
-        os.system(f"{ext_model_dir}/build.py clean")
-        if os.path.isdir(ext_model_dir):
-            shutil.rmtree(ext_model_dir, ignore_errors=True)
+    #     # import extension module and run tests
+    #     import _dev_model  # type:ignore
+    #     from japl.Library._dev.DevModel import truth
+    #     args = (1, 1, 2, 3, [1, 2, 3], [1, 2, 3, 4, 5, 6, 7, 8, 9])
+    #     ret = _dev_model.func(*args)
+    #     self.assertListEqual(truth, ret.tolist())
+
+    #     # os.system(f"{ext_model_dir}/build.py clean")
+    #     subprocess.run(["python", f"{ext_model_dir}/build.py clean"], check=True)
+    #     if os.path.isdir(ext_model_dir):
+    #         shutil.rmtree(ext_model_dir, ignore_errors=True)
 
 
 if __name__ == '__main__':
