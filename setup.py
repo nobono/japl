@@ -88,5 +88,10 @@ setup(
             ],
         cmdclass={
             "clean": CleanCommand,
+            },
+        entry_points={
+            "console_scripts": [
+                "japl = japl.__main__:main"  # make 'japl' callable
+                ]
             }
         )
