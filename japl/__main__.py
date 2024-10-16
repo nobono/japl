@@ -1,6 +1,6 @@
 import os
 import subprocess
-import curses
+# import curses
 import argparse
 from textwrap import dedent
 
