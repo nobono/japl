@@ -28,35 +28,35 @@ class CodeGeneratorBase:
     header: list[str] = []
     footer: list[str] = []
 
-    def print_string(self, string: str) -> None:
+    def _print_string(self, string: str) -> None:
         self.file.write(f"{self.comment_prefix} " + string + "\n")
 
 
     @staticmethod
-    def indent_lines(string: str) -> str:
+    def _indent_lines(string: str) -> str:
         ret = "".join(["\t" + line + "\n" for line in string.split("\n")])
         ret = ret.rstrip("\t\n")
         return ret + "\n"
 
 
-    def write_lines(self, string, prefix: str = "", postfix: str = "\n"):
+    def _write_lines(self, string, prefix: str = "", postfix: str = "\n"):
         for line in string.split('\n'):
             self.file.write(prefix + line + postfix)
 
 
-    def write_function_definition(self, *args, **kwargs) -> str:
+    def _write_function_definition(self, *args, **kwargs) -> str:
         return ""
 
 
-    def write_function_returns(self, expr: Expr, return_names: list[str]) -> str:
+    def _write_function_returns(self, expr: Expr, return_names: list) -> str:
         return ""
 
 
-    def write_subexpressions(self, *args, **kwargs) -> str:
+    def _write_subexpressions(self, *args, **kwargs) -> str:
         return ""
 
 
-    def write_matrix(self, *args, **kwargs) -> str:
+    def _write_matrix(self, *args, **kwargs) -> str:
         return ""
 
 
@@ -65,7 +65,7 @@ class CodeGeneratorBase:
         if force_name:
             return force_name
         else:
-            return CodeGeneratorBase.get_expr_name(param)
+            return CodeGeneratorBase._get_expr_name(param)
 
 
     @staticmethod
@@ -73,26 +73,26 @@ class CodeGeneratorBase:
         if force_name:
             return force_name
         else:
-            return CodeGeneratorBase.get_expr_name(param)
+            return CodeGeneratorBase._get_expr_name(param)
 
 
-    def close(self):
+    def _close(self):
         pass
 
 
-    def write_header(self) -> str:
+    def _write_header(self) -> str:
         # for line in self.header:
         #     self.write_lines(line)
         return "\n".join(self.header)
 
 
-    def write_footer(self) -> str:
+    def _write_footer(self) -> str:
         # for line in self.footer:
         #     self.write_lines(line)
         return "\n".join(self.footer)
 
 
-    def write_function_to_file(self, path: str, function_name: str, expr: Expr,
+    def _write_function_to_file(self, path: str, function_name: str, expr: Expr,
                                input_vars: list|tuple, return_var: Expr|str,
                                is_symmetric: bool = False):
         self.file_name = path
@@ -105,19 +105,19 @@ class CodeGeneratorBase:
             else:
                 return_var = Symbol(return_var)
 
-        self.write_header()
-        self.print_string("Equations for state matrix prediction")
-        self.write_function_definition(name=function_name,
+        self._write_header()
+        self._print_string("Equations for state matrix prediction")
+        self._write_function_definition(name=function_name,
                                        params=input_vars,
                                        returns=[return_var])
-        self.write_subexpressions(expr_replacements)
-        self.write_matrix(matrix=Matrix(expr_simple),
+        self._write_subexpressions(expr_replacements)
+        self._write_matrix(matrix=Matrix(expr_simple),
                           variable=return_var,
                           is_symmetric=is_symmetric)
-        self.write_function_returns(expr=expr, return_names=[return_var])
-        self.write_lines("")
-        self.write_footer()
-        self.close()
+        self._write_function_returns(expr=expr, return_names=[return_var])
+        self._write_lines("")
+        self._write_footer()
+        self._close()
 
 
     @staticmethod
@@ -130,14 +130,14 @@ class CodeGeneratorBase:
 
 
     @staticmethod
-    def is_array_type(param: Expr|Matrix) -> bool:
+    def _is_array_type(param: Expr|Matrix) -> bool:
         if hasattr(param, "__len__") or hasattr(param, "shape"):
             return True
         else:
             return False
 
 
-    def get_function_parameters(self, params: list[Any]) -> tuple[str, str]:
+    def _get_function_parameters(self, params: list[Any]) -> tuple[str, str]:
         """returns names of paramters as a string. If Matrix or list of
         parameters provided as one of the parameters, return the string
         which unpacks the dummy variables."""
@@ -145,7 +145,7 @@ class CodeGeneratorBase:
         arg_names = []
         arg_unpack_str = ""
         for i, param in enumerate(params):
-            if self.is_array_type(param):
+            if self._is_array_type(param):
                 # unpack iterable param
                 dummy_name = dummy_prefix + str(i)
                 for ip, p in enumerate(param):  # type:ignore
@@ -169,7 +169,7 @@ class CodeGeneratorBase:
 
 
     @staticmethod
-    def get_expr_name(expr: Expr) -> str:
+    def _get_expr_name(expr) -> str:
         if hasattr(expr, "name"):
             return getattr(expr, "name")
         else:
