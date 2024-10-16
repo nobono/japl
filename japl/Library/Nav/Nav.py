@@ -283,17 +283,21 @@ Q = G * input_var * G.T
 
 P = MatrixSymbol("P", len(state), len(state)).as_mutable()
 # make P symmetric
-for index in range(P.shape[0]):
-    for j in range(P.shape[0]):
-        if index > j:
-            P[index, j] = P[j, index]
+for i in range(1, P.shape[0]):
+    for j in range(i):
+        P[i, j] = P[j, i]
 
 P_new = F * P * F.T + Q
 
-# for index in range(P.shape[0]):
-#     for j in range(P.shape[0]):
-#         if index > j:
-#             P_new[index, j] = 0
+# clamp uncertainty growth
+max_uncertainty = 1e3
+for i in range(P_new.shape[0]):
+    P_new[i, i] = sp.Min(P_new[i, i], max_uncertainty)
+
+# make symmetric
+for i in range(1, P_new.shape[0]):
+    for j in range(i):
+        P_new[i, j] = P_new[j, i]
 
 ##################################################
 # Observations
@@ -307,8 +311,8 @@ R_gps_pos_x, R_gps_pos_y, R_gps_pos_z = symbols('R_gps_pos_x R_gps_pos_y R_gps_p
 R_gps_vel_x, R_gps_vel_y, R_gps_vel_z = symbols('R_gps_vel_x R_gps_vel_y R_gps_vel_z')
 
 # Body Frame Accelerometer Observation
-# obs_accel = (dcm_to_earth * gravity_bf) - acc_bias
-obs_accel = (dcm_to_body * gravity_ef) + acc_bias
+obs_accel = (dcm_to_earth * gravity_bf) - acc_bias
+# obs_accel = (dcm_to_body * gravity_ef) + acc_bias
 # obs_accel = gravity_bf + acc_bias
 H_accel_x = obs_accel[0, :].jacobian(state)
 H_accel_y = obs_accel[1, :].jacobian(state)
