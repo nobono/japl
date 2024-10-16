@@ -127,9 +127,9 @@ def quat_to_dcm(q):
     q1 = q[1]
     q2 = q[2]
     q3 = q[3]
-    Rot = Matrix([[1 - 2*(q2**2 + q3**2), 2*(q1*q2 - q0*q3)    , 2*(q1*q3 + q0*q2)    ],    # noqa
-                 [2*(q1*q2 + q0*q3)     , 1 - 2*(q1**2 + q3**2), 2*(q2*q3 - q0*q1)    ],    # noqa
-                 [2*(q1*q3-q0*q2)       , 2*(q2*q3 + q0*q1)    , 1 - 2*(q1**2 + q2**2)]])   # noqa
+    Rot = Matrix([[1. - 2.*(q2**2. + q3**2.), 2.*(q1*q2 - q0*q3)    , 2.*(q1*q3 + q0*q2)    ],    # noqa
+                 [2.*(q1*q2 + q0*q3)     , 1. - 2.*(q1**2. + q3**2.), 2.*(q2*q3 - q0*q1)    ],    # noqa
+                 [2.*(q1*q3-q0*q2)       , 2.*(q2*q3 + q0*q1)    , 1. - 2.*(q1**2. + q2**2.)]])   # noqa
     return Rot
 
 
@@ -462,11 +462,11 @@ noise_info = {
 
 # sensor measurements
 input_info = {
-        z_gyro_x: 1,
-        z_gyro_y: 2,
+        z_gyro_x: 0,
+        z_gyro_y: 0,
         z_gyro_z: 0,
-        z_accel_x: 3,
-        z_accel_y: 4,
+        z_accel_x: 0,
+        z_accel_y: 0,
         z_accel_z: 0,
         z_gps_pos_x: 0,
         z_gps_pos_y: 0,
@@ -622,12 +622,12 @@ if __name__ == "__main__":
 
     definitions = (
             (state, X_new),
-            (get_mat_upper(P), get_mat_upper(P_new)),
+            (P, P_new),
             )
 
     ekf_state = Matrix([
         state,
-        *get_mat_upper(P),
+        *P,
         ])
 
     model = Model.from_expression(dt_var=dt,
@@ -637,7 +637,7 @@ if __name__ == "__main__":
                                   definitions=definitions,
                                   dynamics_expr=Matrix([np.nan] * len(ekf_state)),
                                   use_multiprocess_build=True)
-    model.save(f"{JAPL_HOME_DIR}/data", "ekf_expr")
+    model.save(f"{JAPL_HOME_DIR}/data", "ekf")
 
     # t = 0
     # X = np.array([*state_info.values()])
