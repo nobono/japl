@@ -290,9 +290,9 @@ for i in range(1, P.shape[0]):
 P_new = F * P * F.T + Q
 
 # clamp uncertainty growth
-max_uncertainty = 1e3
-for i in range(P_new.shape[0]):
-    P_new[i, i] = sp.Min(P_new[i, i], max_uncertainty)
+# max_uncertainty = 1e3
+# for i in range(P_new.shape[0]):
+#     P_new[i, i] = sp.Min(P_new[i, i], max_uncertainty)
 
 # make symmetric
 for i in range(1, P_new.shape[0]):
@@ -579,13 +579,31 @@ if __name__ == "__main__":
     noise = list(noise_info.keys())
     variance = list(variance_info.keys())
     input = list(input_info.keys())
+    innov = {"innov_var_accel_x": innov_var_accel_x[0, 0],
+             "innov_var_accel_y": innov_var_accel_y[0, 0],
+             "innov_var_accel_z": innov_var_accel_z[0, 0],
+             "innov_var_gps_pos_x": innov_var_gps_pos_x[0, 0],
+             "innov_var_gps_pos_y": innov_var_gps_pos_y[0, 0],
+             "innov_var_gps_pos_z": innov_var_gps_pos_z[0, 0],
+             "innov_var_gps_vel_x": innov_var_gps_vel_x[0, 0],
+             "innov_var_gps_vel_y": innov_var_gps_vel_y[0, 0],
+             "innov_var_gps_vel_z": innov_var_gps_vel_z[0, 0]}
+    # innov = {"innov_var_accel_x": 1,
+    #          "innov_var_accel_y": 2,
+    #          "innov_var_accel_z": 3,
+    #          "innov_var_gps_pos_x": 4,
+    #          "innov_var_gps_pos_y": 5,
+    #          "innov_var_gps_pos_z": 6,
+    #          "innov_var_gps_vel_x": 7,
+    #          "innov_var_gps_vel_y": 8,
+    #          "innov_var_gps_vel_z": 9}
 
     # upper_ids = np.triu_indices(P.shape[0])
     # upper_ncols = len(upper_ids[0])
     # P_upper = MatrixSymbol("P", upper_ncols, 1).as_mutable()
     # P_new_upper = Matrix([P_new[i, j] for i, j in zip(*upper_ids)])
 
-    params = [t, state, input, P, variance, noise, dt]
+    params = [t, state, input, P, variance, noise, Matrix([*innov.keys()]), dt]
 
     gen = CCodeGenerator()
     gen.add_function(expr=X_new,
@@ -597,7 +615,8 @@ if __name__ == "__main__":
                      params=params,
                      function_name="p_predict",
                      return_name="P_new",
-                     is_symmetric=False)
+                     is_symmetric=False,
+                     by_reference=innov)
 
     gen.add_function(expr=X_accel_update,
                      params=params,
@@ -608,7 +627,8 @@ if __name__ == "__main__":
                      params=params,
                      function_name="p_accel_update",
                      return_name="P_accel_new",
-                     is_symmetric=False)
+                     is_symmetric=False,
+                     by_reference=innov)
 
     gen.add_function(expr=X_gps_update,
                      params=params,

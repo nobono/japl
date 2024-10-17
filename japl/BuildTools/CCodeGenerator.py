@@ -6,6 +6,7 @@ from japl.BuildTools.CodeGeneratorBase import CodeGeneratorBase
 from sympy import ccode
 from sympy import Expr
 from sympy import Matrix
+from sympy import Symbol
 from sympy.codegen.ast import float64, real
 from textwrap import dedent
 from japl.BuildTools.BuildTools import parallel_subs
@@ -38,7 +39,9 @@ class CCodeGenerator(CodeGeneratorBase):
         return ccode(expression, type_aliases={real: float64}, strict=self.strict)
 
 
-    def _write_subexpressions(self, subexpressions) -> str:
+    def _write_subexpressions(self, subexpressions: list|dict) -> str:
+        if isinstance(subexpressions, dict):
+            subexpressions = list(subexpressions.items())
         ret = ""
         for (lvalue, rvalue) in subexpressions:
             assign_str = self._declare_variable(lvalue, prefix="const", assign=self._get_code(rvalue))  # type:ignore
@@ -100,9 +103,11 @@ class CCodeGenerator(CodeGeneratorBase):
         return type_str
 
 
-    def _write_function_definition(self, name: str, expr: Expr|Matrix, params: list):
+    def _write_function_definition(self, name: str, expr: Expr|Matrix, params: list,
+                                   by_reference: dict = {}):
         return_type_str = self._get_return_type(expr)
-        params_list, params_unpack = self._get_function_parameters(params)
+        params_list, params_unpack = self._get_function_parameters(params=params,
+                                                                   by_reference=by_reference)
         func_proto = f"{return_type_str} {name}({params_list})" + " {\n"  # }
         return func_proto + self._indent_lines(params_unpack)
 
@@ -178,14 +183,34 @@ class CCodeGenerator(CodeGeneratorBase):
 
 
     @staticmethod
-    def _declare_parameter(param: Expr|Matrix, force_name: str = "") -> str:
+    def _declare_parameter(param: Expr|Matrix, force_name: str = "", by_reference: dict = {}) -> str:
         CodeGeneratorBase._raise_exception_non_variable(param)
         if force_name:
             param_name = force_name
         else:
             param_name = CodeGeneratorBase._get_expr_name(param)
         type_str = CCodeGenerator._get_type(param)
-        param_str = f"{type_str} {param_name}"
+
+        # TODO: probably move this to _get_type
+        # handle pass-by-reference
+        # NOTE: currently does not work for array types
+        ref_char = ''
+        if CodeGeneratorBase._is_array_type(param):
+            pass
+        #     # check if all items in param are defined
+        #     # in by_reference. if so, this param can be
+        #     # passed by reference.
+        #     array_check = [p in by_reference for p in param]  # type:ignore
+        #     if np.asarray(array_check).all():
+        #         # ref_char = '&'
+        #         # use this type when passing array type by
+        #         # reference
+        #         type_str = "py::array"
+        else:
+            if param in by_reference:
+                ref_char = '&'
+
+        param_str = f"{type_str} {ref_char}{param_name}"
         return param_str
 
 
@@ -202,7 +227,22 @@ class CCodeGenerator(CodeGeneratorBase):
                      return_name: str,
                      use_cse: bool = True,
                      is_symmetric: bool = False,
-                     description: str = ""):
+                     description: str = "",
+                     by_reference: dict = {}):
+        # convert keys of type string in reference info
+        # to Symbols
+        pops = []
+        adds = []
+        for key, val in by_reference.items():
+            if isinstance(key, str):
+                adds += [(Symbol(key), val)]
+                pops += [key]
+        for param, val in adds:
+            by_reference[param] = val
+        for key in pops:
+            by_reference.pop(key)
+
+        # register function info
         self.function_register.update({
             function_name: dict(
                 expr=expr,
@@ -210,7 +250,8 @@ class CCodeGenerator(CodeGeneratorBase):
                 return_name=return_name,
                 use_cse=use_cse,
                 is_symmetric=is_symmetric,
-                description=description
+                description=description,
+                by_reference=by_reference,
                 )
             })
 
@@ -293,6 +334,7 @@ class CCodeGenerator(CodeGeneratorBase):
         return_name = func_register_info.get("return_name")
         use_cse = func_register_info.get("use_cse")
         is_symmetric = func_register_info.get("is_symmetric")
+        by_reference = func_register_info.get("by_reference", {})
         assert expr
         assert params
         assert return_name
@@ -309,22 +351,54 @@ class CCodeGenerator(CodeGeneratorBase):
             if expr.is_Matrix:
                 expr = Matrix(expr)
 
+            ######################################################
+            # optimize pass-by-reference exprs
+            ######################################################
+            # add by_reference expressions to expr and
+            # do cse optimization to get substitutions.
+            # then split main expr & pass-by-reference
+            # expression again for individual processing
+            by_ref_nadds = len(by_reference)
+            if by_ref_nadds > 0:
+                by_ref_expr = Matrix([*by_reference.values()])
+                expr = Matrix([*expr, *by_ref_expr])
+            ######################################################
+
             replacements, expr_simple = parallel_cse(expr)
 
+            # must further optimize and make substitutions
+            # between indices of expr
             for _ in range(MAX_PRUNE_ITER):
                 replacements, expr_simple, nredundant = self._subs_prune(replacements, expr_simple)
                 if nredundant == 0:
                     break
 
+            ######################################################
+            # optimize pass-by-reference exprs
+            ######################################################
+            if by_ref_nadds > 0:
+                expr_simple = expr_simple[:-by_ref_nadds]
+                for i, (k, v) in enumerate(by_reference.items()):
+                    by_reference[k] = expr_simple[-by_ref_nadds:][i]
+            ######################################################
+
         else:
-            replacements = ()
+            replacements = []
             expr_simple = expr
 
-        func_def = self._write_function_definition(name=function_name,
-                                                   expr=expr_simple,
-                                                   params=params)
+        return_type_str = self._get_return_type(expr_simple)
+        params_list, params_unpack = self._get_function_parameters(params=params,
+                                                                   by_reference=by_reference)
+        func_proto = f"{return_type_str} {function_name}({params_list})" + " {\n"  # }
+        func_def = func_proto + self._indent_lines(params_unpack)
+        # old
+        # func_def = self._write_function_definition(name=function_name,
+        #                                            expr=expr_simple,
+        #                                            params=params,
+        #                                            by_reference=by_reference)
+
         return_array = self._instantiate_return_variable(expr=expr, name=return_name)
-        sub_expr = self._write_subexpressions(replacements)
+        sub_expr = self._write_subexpressions(replacements)  # type:ignore
         func_body = self._write_matrix(matrix=Matrix(expr_simple),
                                        variable=return_name,
                                        is_symmetric=is_symmetric)
@@ -335,9 +409,84 @@ class CCodeGenerator(CodeGeneratorBase):
                   self._indent_lines(return_array),
                   self._indent_lines(sub_expr),
                   self._indent_lines(func_body),
-                  self._indent_lines(func_ret),
-                  "}"
                   ]
+
+        #######################################
+        # write other defined subexpressions
+        #######################################
+        # find '&' (pass-by-reference) params in parameter name list
+        by_ref_params_list = [i for i in params_list.split(",") if ('&' in i) or ("py::array" in i)]
+        for ref_param in by_ref_params_list:
+            if '&' in ref_param:
+                ref_param_type, ref_param_name = ref_param.split('&')
+                # TODO this does nothing
+            elif "py::array" in ref_param:
+                ref_param_type, ref_param_name = ref_param.split('py::array')
+
+                #####
+                ref_param_type = ref_param_type.strip()
+                ref_param_name = ref_param_name.strip()
+
+                # add line which gets pointer to data from py::array type
+                by_ref_param_name = ref_param_name
+
+                by_ref_buf_name = f"{by_ref_param_name}_buf"
+                by_ref_buf_str = f"py::buffer_info {by_ref_buf_name} = {by_ref_param_name}.request()" + self.endl
+
+                by_ref_ptr_name = f"{by_ref_param_name}_ptr"
+                by_ref_ptr_str = (f"double* {by_ref_ptr_name} = static_cast<double*>"
+                                  f"({by_ref_buf_name}.ptr)" + self.endl)
+                by_ref_dtype = f"{by_ref_buf_name}.format"
+
+                by_ref_check_dtype_str = (f"if ({by_ref_dtype} != \"d\") "
+                                          "{\n"
+                                          f"\tthrow py::type_error(\"attempting to pass argument "  # )
+                                          f"{by_ref_param_name}, but "
+                                          f"must be of type double\"){self.endl}"
+                                          "}\n")
+                by_ref_ptr_str = by_ref_buf_str + by_ref_ptr_str + by_ref_check_dtype_str
+                #####
+                # NOTE: this is an augmented _write_subexpressions()
+                # allowing the specification of:
+                #   - lvalue variable name
+                #   - lvalue variable being array-type and accessed
+                #   - type being pointer
+                by_ref_subexpr_str = ""
+                for i, (lvalue, rvalue) in enumerate(by_reference.items()):  # type:ignore
+                    # type_str = self._get_type(lvalue)
+                    accessor_str = self.pre_bracket + str(i) + self.post_bracket
+                    lvalue_str = f"{by_ref_ptr_name}{accessor_str}"
+                    assign_str = self._assign_variable(lvalue_str, self._get_code(rvalue))  # type:ignore
+                    by_ref_subexpr_str += assign_str
+
+                # usr_sub_expr_simple = parallel_subs(by_reference, replacements)
+                writes += [self._indent_lines(by_ref_ptr_str),
+                           self._indent_lines(by_ref_subexpr_str)]
+
+            else:
+                raise Exception("unhandled case, but also make this code better.")
+
+            ###################################################
+            # by_ref_param_name = ref_param_name
+            # by_ref_ptr_name = f"{by_ref_param_name}_ptr"
+            # by_ref_ptr_str = (f"double* {by_ref_ptr_name} = static_cast<double*>"
+            #                   f"({by_ref_param_name}.mutable_data())" + self.endl)
+            ###################################################
+
+            # apply subs from previous code to subexpressions
+            # breakpoint()
+            # by_ref_replacements, by_ref_expr_simple = parallel_cse(Matrix([*by_reference.values()]))
+            # breakpoint()
+            # by_reference = parallel_subs(by_reference, [replacements])  # type:ignore
+            # for _ in range(MAX_PRUNE_ITER):
+            #     replacements, expr_simple, nredundant = self._subs_prune(replacements, Matrix([*by_reference.values()]))
+            #     if nredundant == 0:
+            #         break
+
+
+        # close function
+        writes += [self._indent_lines(func_ret),
+                   "}"]
 
         return writes
 

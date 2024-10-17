@@ -137,7 +137,7 @@ class CodeGeneratorBase:
             return False
 
 
-    def _get_function_parameters(self, params: list[Any]) -> tuple[str, str]:
+    def _get_function_parameters(self, params: list[Any], by_reference: dict = {}) -> tuple[str, str]:
         """returns names of paramters as a string. If Matrix or list of
         parameters provided as one of the parameters, return the string
         which unpacks the dummy variables."""
@@ -148,21 +148,34 @@ class CodeGeneratorBase:
             if self._is_array_type(param):
                 # unpack iterable param
                 dummy_name = dummy_prefix + str(i)
-                for ip, p in enumerate(param):  # type:ignore
-                    # if p is MatrixElement no need to use
-                    # a dummy var, allow accessing parameter
-                    # directly
-                    if isinstance(p, MatrixElement):
-                        dummy_name = p.parent.name
-                    else:
-                        unpack_var = self._declare_parameter(p)
-                        accessor_str = self.pre_bracket + str(ip) + self.post_bracket
-                        arg_unpack_str += f"{unpack_var} = {dummy_name}{accessor_str}" + self.endl
-                # store dummy var in arg_names
-                arg_names += [self._declare_parameter(param, force_name=dummy_name)]
+
+                # check if array of params should be
+                # pass-by-reference
+                if (len(param) == len(by_reference)
+                        and [*param] == [*by_reference.keys()]):
+                    arg_names += [f"py::array {dummy_name}"]
+                # otherwise, step through each item
+                else:
+                    for ip, p in enumerate(param):  # type:ignore
+                        # if p is MatrixElement no need to use
+                        # a dummy var, allow accessing parameter
+                        # directly
+                        if isinstance(p, MatrixElement):
+                            dummy_name = p.parent.name
+                        else:
+                            unpack_var = self._declare_parameter(param=p,
+                                                                 by_reference=by_reference)
+                            accessor_str = self.pre_bracket + str(ip) + self.post_bracket
+                            arg_unpack_str += f"{unpack_var} = {dummy_name}{accessor_str}" + self.endl
+
+                    # store dummy var in arg_names
+                    arg_names += [self._declare_parameter(param,
+                                                          force_name=dummy_name,
+                                                          by_reference=by_reference)]
             else:
                 # if single symbol
-                param_str = self._declare_parameter(param)
+                param_str = self._declare_parameter(param=param,
+                                                    by_reference=by_reference)
                 arg_names += [param_str]
         arg_names_str = ", ".join(arg_names)
         return (arg_names_str, arg_unpack_str)
