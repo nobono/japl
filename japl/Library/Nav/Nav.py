@@ -399,17 +399,17 @@ X_gps_update = state + K_gps * res_gps
 P_gps_update = P - (K_gps * H_gps * P)
 
 # normalized innovation variance
-norm_innov_var_accel_x = res_accel[0]**2 / innov_var_accel_x
-norm_innov_var_accel_y = res_accel[1]**2 / innov_var_accel_y
-norm_innov_var_accel_z = res_accel[2]**2 / innov_var_accel_z
+norm_innov_var_accel_x = res_accel[0]**2 / innov_var_accel_x[0]
+norm_innov_var_accel_y = res_accel[1]**2 / innov_var_accel_y[0]
+norm_innov_var_accel_z = res_accel[2]**2 / innov_var_accel_z[0]
 
-norm_innov_var_gps_pos_x = res_gps[0]**2 / innov_var_gps_pos_x
-norm_innov_var_gps_pos_y = res_gps[1]**2 / innov_var_gps_pos_y
-norm_innov_var_gps_pos_z = res_gps[2]**2 / innov_var_gps_pos_z
+norm_innov_var_gps_pos_x = res_gps[0]**2 / innov_var_gps_pos_x[0]
+norm_innov_var_gps_pos_y = res_gps[1]**2 / innov_var_gps_pos_y[0]
+norm_innov_var_gps_pos_z = res_gps[2]**2 / innov_var_gps_pos_z[0]
 
-norm_innov_var_gps_vel_x = res_gps[3]**2 / innov_var_gps_vel_x
-norm_innov_var_gps_vel_y = res_gps[4]**2 / innov_var_gps_vel_y
-norm_innov_var_gps_vel_z = res_gps[5]**2 / innov_var_gps_vel_z
+norm_innov_var_gps_vel_x = res_gps[3]**2 / innov_var_gps_vel_x[0]
+norm_innov_var_gps_vel_y = res_gps[4]**2 / innov_var_gps_vel_y[0]
+norm_innov_var_gps_vel_z = res_gps[5]**2 / innov_var_gps_vel_z[0]
 
 
 state_info = {
