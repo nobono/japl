@@ -23,7 +23,8 @@ class CCodeGenerator(CodeGeneratorBase):
     bracket_separator: str = "]["  # ]
     endl: str = ";\n"
 
-    header: list[str] = ["#include <pybind11/pybind11.h>",
+    header: list[str] = ["#include <iostream>",
+                         "#include <pybind11/pybind11.h>",
                          "#include <pybind11/numpy.h>",
                          "#include <pybind11/stl.h>  // Enables automatic conversion",
                          "",
@@ -430,6 +431,15 @@ class CCodeGenerator(CodeGeneratorBase):
                 # add line which gets pointer to data from py::array type
                 by_ref_param_name = ref_param_name
 
+                by_ref_size_check_str = (f"if ({by_ref_param_name}.size() != {len(by_reference)})"
+                                         " {\n"  # }
+                                         f"\tthrow std::length_error(\""  # )
+                                         f"expected length of {len(by_reference)} for argument"
+                                         f"{by_ref_param_name} but instead got length \" "
+                                         f"+ std::to_string({by_ref_param_name}.size())){self.endl}"
+                                         "}\n"
+                                         )
+
                 by_ref_buf_name = f"{by_ref_param_name}_buf"
                 by_ref_buf_str = f"py::buffer_info {by_ref_buf_name} = {by_ref_param_name}.request()" + self.endl
 
@@ -444,7 +454,7 @@ class CCodeGenerator(CodeGeneratorBase):
                                           f"{by_ref_param_name}, but "
                                           f"must be of type double\"){self.endl}"
                                           "}\n")
-                by_ref_ptr_str = by_ref_buf_str + by_ref_ptr_str + by_ref_check_dtype_str
+                by_ref_ptr_str = by_ref_size_check_str + by_ref_buf_str + by_ref_ptr_str + by_ref_check_dtype_str
                 #####
                 # NOTE: this is an augmented _write_subexpressions()
                 # allowing the specification of:
