@@ -11,3 +11,4 @@ from japl.Plotter.PyQtGraphPlotter import PyQtGraphPlotter
 from japl.Aero.AeroTable import AeroTable
 from japl.Model.StateRegister import StateRegister
 from japl.Aero.Atmosphere import Atmosphere
+from japl.MassProp.MassPropTable import MassPropTable
