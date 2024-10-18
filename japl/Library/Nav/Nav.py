@@ -384,13 +384,33 @@ K_gps = K_gps.col_insert(3, K_gps_vel_x)
 K_gps = K_gps.col_insert(4, K_gps_vel_y)
 K_gps = K_gps.col_insert(5, K_gps_vel_z)
 
+# accelerometer residual
+res_accel = z_accel - H_accel * state
+
 # accelerometer
-X_accel_update = state + K_accel * (z_accel - H_accel * state)
+X_accel_update = state + K_accel * res_accel
 P_accel_update = P - (K_accel * H_accel * P)
 
+# gps residual
+res_gps = z_gps - H_gps * state
+
 # gps
-X_gps_update = state + K_gps * (z_gps - H_gps * state)
+X_gps_update = state + K_gps * res_gps
 P_gps_update = P - (K_gps * H_gps * P)
+
+# normalized innovation variance
+norm_innov_var_accel_x = res_accel[0]**2 / innov_var_accel_x
+norm_innov_var_accel_y = res_accel[1]**2 / innov_var_accel_y
+norm_innov_var_accel_z = res_accel[2]**2 / innov_var_accel_z
+
+norm_innov_var_gps_pos_x = res_gps[0]**2 / innov_var_gps_pos_x
+norm_innov_var_gps_pos_y = res_gps[1]**2 / innov_var_gps_pos_y
+norm_innov_var_gps_pos_z = res_gps[2]**2 / innov_var_gps_pos_z
+
+norm_innov_var_gps_vel_x = res_gps[3]**2 / innov_var_gps_vel_x
+norm_innov_var_gps_vel_y = res_gps[4]**2 / innov_var_gps_vel_y
+norm_innov_var_gps_vel_z = res_gps[5]**2 / innov_var_gps_vel_z
+
 
 state_info = {
         q0: 1,
@@ -579,15 +599,22 @@ if __name__ == "__main__":
     noise = list(noise_info.keys())
     variance = list(variance_info.keys())
     input = list(input_info.keys())
-    innov = {"innov_var_accel_x": innov_var_accel_x[0, 0],
-             "innov_var_accel_y": innov_var_accel_y[0, 0],
-             "innov_var_accel_z": innov_var_accel_z[0, 0],
-             "innov_var_gps_pos_x": innov_var_gps_pos_x[0, 0],
-             "innov_var_gps_pos_y": innov_var_gps_pos_y[0, 0],
-             "innov_var_gps_pos_z": innov_var_gps_pos_z[0, 0],
-             "innov_var_gps_vel_x": innov_var_gps_vel_x[0, 0],
-             "innov_var_gps_vel_y": innov_var_gps_vel_y[0, 0],
-             "innov_var_gps_vel_z": innov_var_gps_vel_z[0, 0]}
+    innov = {"innov_var_accel_x": norm_innov_var_accel_x[0, 0],
+             "innov_var_accel_y": norm_innov_var_accel_y[0, 0],
+             "innov_var_accel_z": norm_innov_var_accel_z[0, 0],
+             "innov_var_gps_pos_x": norm_innov_var_gps_pos_x[0, 0],
+             "innov_var_gps_pos_y": norm_innov_var_gps_pos_y[0, 0],
+             "innov_var_gps_pos_z": norm_innov_var_gps_pos_z[0, 0],
+             "innov_var_gps_vel_x": norm_innov_var_gps_vel_x[0, 0],
+             "innov_var_gps_vel_y": norm_innov_var_gps_vel_y[0, 0],
+             "innov_var_gps_vel_z": norm_innov_var_gps_vel_z[0, 0],
+             "res_accel_x": res_accel[0],
+             "res_accel_y": res_accel[1],
+             "res_accel_z": res_accel[2],
+             "res_gps_x": res_accel[0],
+             "res_gps_y": res_accel[1],
+             "res_gps_z": res_accel[2],
+             }
     # innov = {"innov_var_accel_x": 1,
     #          "innov_var_accel_y": 2,
     #          "innov_var_accel_z": 3,
