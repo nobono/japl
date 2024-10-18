@@ -295,9 +295,12 @@ P_new = F * P * F.T + Q
 #     P_new[i, i] = sp.Min(P_new[i, i], max_uncertainty)
 
 # make symmetric
+# for i in range(1, P_new.shape[0]):
+#     for j in range(i):
+#         P_new[i, j] = P_new[j, i]
 for i in range(1, P_new.shape[0]):
     for j in range(i):
-        P_new[i, j] = P_new[j, i]
+        P_new[i, j] = 0
 
 ##################################################
 # Observations
@@ -608,12 +611,12 @@ if __name__ == "__main__":
              "innov_var_gps_vel_x": norm_innov_var_gps_vel_x,
              "innov_var_gps_vel_y": norm_innov_var_gps_vel_y,
              "innov_var_gps_vel_z": norm_innov_var_gps_vel_z,
-             "res_accel_x": res_accel[0],
-             "res_accel_y": res_accel[1],
-             "res_accel_z": res_accel[2],
-             "res_gps_x": res_accel[0],
-             "res_gps_y": res_accel[1],
-             "res_gps_z": res_accel[2],
+             # "res_accel_x": res_accel[0],
+             # "res_accel_y": res_accel[1],
+             # "res_accel_z": res_accel[2],
+             # "res_gps_x": res_accel[0],
+             # "res_gps_y": res_accel[1],
+             # "res_gps_z": res_accel[2],
              }
     # innov = {"innov_var_accel_x": 1,
     #          "innov_var_accel_y": 2,
