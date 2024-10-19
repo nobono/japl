@@ -9,12 +9,16 @@ from sympy import Piecewise
 from sympy import Eq, Gt, Ge, Lt, Le, Mod
 from sympy import sqrt
 from sympy import simplify
+from sympy import sin, cos
 # from sympy import default_sort_key, topological_sort
 from japl.BuildTools.DirectUpdate import DirectUpdate
 from japl import JAPL_HOME_DIR
 from japl.Util.Util import profile
 from japl import Model
 from japl.BuildTools.CCodeGenerator import CCodeGenerator
+
+from japl.Library.Earth.Earth import Earth
+from japl.Math.RotationSymbolic import ecef_to_lla_sym
 
 
 ################################################################
@@ -122,7 +126,7 @@ def get_mat_upper(mat):
 ################################################################
 
 
-def quat_to_dcm(q):
+def body_to_eci_dcm(q):
     q0 = q[0]
     q1 = q[1]
     q2 = q[2]
@@ -202,7 +206,7 @@ vel = Matrix([vel_n, vel_e, vel_d])
 acc_bias = Matrix([acc_bias_x, acc_bias_y, acc_bias_z])
 angvel_bias = Matrix([angvel_bias_x, angvel_bias_y, angvel_bias_z])
 
-state = Matrix([quat, pos, vel, acc_bias, angvel_bias])
+X = Matrix([quat, pos, vel, acc_bias, angvel_bias])
 
 ##################################################
 # Measurements
@@ -220,27 +224,81 @@ z_gps_vel = Matrix([z_gps_vel_x, z_gps_vel_y, z_gps_vel_z])
 z_gps = Matrix([z_gps_pos_x, z_gps_pos_y, z_gps_pos_z,
                 z_gps_vel_x, z_gps_vel_y, z_gps_vel_z])
 
+U = Matrix([z_gyro, z_accel, z_gps_pos, z_gps_vel])
+
+##################################################
+# State Prediction Model
+##################################################
+
 angvel_true = z_gyro - angvel_bias
 acc_true = z_accel - acc_bias
 
-dcm_to_earth = quat_to_dcm(quat)
-dcm_to_body = dcm_to_earth.T
-gravity_ef = Matrix([0, 0, -9.81])  # gravity earth-frame
-gravity_bf = dcm_to_body * gravity_ef
+omega_e = Earth.omega
+C_eci_to_ecef = Matrix([
+    [cos(omega_e * t), sin(omega_e * t), 0],   # type:ignore
+    [-sin(omega_e * t), cos(omega_e * t), 0],  # type:ignore
+    [0, 0, 1]])
 
-##################################################
-# State Update Equations
-##################################################
+# C_body_to_eci = body_to_eci_dcm(quat)
+C_body_to_eci = Matrix([
+    [1 - 2*(q2**2 + q3**2), 2*(q1*q2 + q0*q3) , 2*(q1*q3 - q0*q2)],   # type:ignore # noqa
+    [2*(q1*q2 - q0*q3) , 1 - 2*(q1**2 + q3**2), 2*(q2*q3 + q0*q1)],   # type:ignore # noqa
+    [2*(q1*q3 + q0*q2) , 2*(q2*q3 - q0*q1), 1 - 2*(q1**2 + q2**2)]]).T  # type:ignore # noqa
+
+C_body_to_ecef = C_eci_to_ecef * C_body_to_eci
+C_eci_to_body = C_body_to_eci.T
+C_ecef_to_body = C_body_to_ecef.T
+
+dcm_to_body = C_body_to_eci.T
+gravity_ef = Matrix([-9.81, 0, 0])  # gravity earth-frame
+# gravity_bf = dcm_to_body * gravity_ef
+gravity_ecef = C_eci_to_ecef * gravity_ef
+gravity_bf = C_ecef_to_body * gravity_ecef
+
+################################################################
+# ECI to ENU convesion
+
+# # eci0 = Matrix([Earth.radius_equatorial, 0, 0])
+# ecef0 = Matrix([Earth.radius_equatorial, 0, 0])
+# # ecef0 = C_eci_to_ecef * eci0
+# lla0 = ecef_to_lla_sym(ecef0)
+# lat0, lon0, alt0 = lla0
+# C_ecef_to_enu = Matrix([
+#     [-sin(lon0), cos(lon0), 0],  # type:ignore
+#     [-sin(lat0) * cos(lon0), -sin(lat0) * sin(lon0), cos(lat0)],  # type:ignore
+#     [cos(lat0) * cos(lon0), cos(lat0) * sin(lon0), sin(lat0)]  # type:ignore
+#     ])
+# r_enu_e_new = C_ecef_to_enu * (r_e_m - ecef0)
+
+# # NOTE: non-position vectors should use the current vehicle
+# # position as the reference point
+# lla0 = ecef_to_lla_sym(r_e_m)
+# lat0, lon0, alt0 = lla0
+# C_ecef_to_enu = Matrix([
+#     [-sin(lon0), cos(lon0), 0],  # type:ignore
+#     [-sin(lat0) * cos(lon0), -sin(lat0) * sin(lon0), cos(lat0)],  # type:ignore
+#     [cos(lat0) * cos(lon0), cos(lat0) * sin(lon0), sin(lat0)]  # type:ignore
+#     ])
+# v_enu_e_new = C_ecef_to_enu * v_e_m
+# a_enu_e_new = C_ecef_to_enu * a_e_m
+################################################################
+
 wx, wy, wz = angvel_true
-Sw = Matrix([
-    [0, wx, wy, wz],    # type:ignore
-    [-wx, 0, -wz, wy],  # type:ignore
-    [-wy, wz, 0, -wx],  # type:ignore
-    [-wz, -wy, wx, 0],  # type:ignore
-    ])
+# Sw = Matrix([
+#     [0, wx, wy, wz],    # type:ignore
+#     [-wx, 0, -wz, wy],  # type:ignore
+#     [-wy, wz, 0, -wx],  # type:ignore
+#     [-wz, -wy, wx, 0],  # type:ignore
+#     ])
+Sq = np.array([[-q1, -q2, -q3],    # type:ignore
+               [q0, -q3, q2],      # type:ignore
+               [q3, q0, -q1],      # type:ignore
+               [-q2, q1, q0]])     # type:ignore
 
-quat_new = quat + (-0.5 * Sw * quat) * dt
-acc_world_measured = (dcm_to_earth * (acc_true - gravity_bf))
+# quat_new = quat + (-0.5 * Sw * quat) * dt
+quat_new = quat + (0.5 * Sq * angvel_true) * dt
+acc_world_measured = (C_body_to_eci * (acc_true + gravity_bf))
+
 pos_new = pos + vel * dt + 0.5 * acc_world_measured * dt**2
 vel_new = vel + acc_world_measured * dt
 gyro_bias_new = angvel_bias
@@ -259,35 +317,45 @@ gps_pos_x_var, gps_pos_y_var, gps_pos_z_var = symbols('gps_pos_x_var, gps_pos_y_
 gps_vel_x_var, gps_vel_y_var, gps_vel_z_var = symbols('gps_vel_x_var, gps_vel_y_var, gps_vel_z_var')
 
 # input variance
-input_var = Matrix.diag([gyro_x_var, gyro_y_var, gyro_z_var,
-                         accel_x_var, accel_y_var, accel_z_var,
-                         gps_pos_x_var, gps_pos_y_var, gps_pos_z_var,
-                         gps_vel_x_var, gps_vel_y_var, gps_vel_z_var])
+variance = Matrix([gyro_x_var, gyro_y_var, gyro_z_var,
+                   accel_x_var, accel_y_var, accel_z_var,
+                   gps_pos_x_var, gps_pos_y_var, gps_pos_z_var,
+                   gps_vel_x_var, gps_vel_y_var, gps_vel_z_var])
+
+Q = Matrix.diag(*variance)
+
+##################################################
+# Observation Noise
+##################################################
+
+R_accel_x, R_accel_y, R_accel_z = symbols('R_accel_x R_accel_y R_accel_z')
+R_mag_world_x, R_mag_world_y, R_mag_world_z = symbols('R_mag_world_x R_mag_world_y R_mag_world_z')
+R_gps_pos_x, R_gps_pos_y, R_gps_pos_z = symbols('R_gps_pos_x R_gps_pos_y R_gps_pos_z')
+R_gps_vel_x, R_gps_vel_y, R_gps_vel_z = symbols('R_gps_vel_x R_gps_vel_y R_gps_vel_z')
+
+R = Matrix([R_accel_x, R_accel_y, R_accel_z,
+            R_gps_pos_x, R_gps_pos_y, R_gps_pos_z,
+            R_gps_vel_x, R_gps_vel_y, R_gps_vel_z])
 
 ##################################################
 # State Prediction
 ##################################################
 
-state_new = Matrix([quat_new, pos_new, vel_new, accel_bias_new, gyro_bias_new])
-input = Matrix([z_gyro, z_accel, z_gps_pos, z_gps_vel])
-F = state_new.jacobian(state)
-G = state_new.jacobian(input)
-
-X_new = F * state + G * input
-
-Q = G * input_var * G.T
+X_new = Matrix([quat_new, pos_new, vel_new, accel_bias_new, gyro_bias_new])
+F = X_new.jacobian(X)
+G = X_new.jacobian(U)
 
 ##################################################
 # Covariance Prediction
 ##################################################
 
-P = MatrixSymbol("P", len(state), len(state)).as_mutable()
+P = MatrixSymbol("P", len(X), len(X)).as_mutable()
 # make P symmetric
 for i in range(1, P.shape[0]):
     for j in range(i):
         P[i, j] = P[j, i]
 
-P_new = F * P * F.T + Q
+P_new = F * P * F.T + G * Q * G.T
 
 # clamp uncertainty growth
 # max_uncertainty = 1e3
@@ -307,33 +375,27 @@ for i in range(1, P_new.shape[0]):
 ##################################################
 print("Building Observations...")
 
-# Observation Noise
-R_accel_x, R_accel_y, R_accel_z = symbols('R_accel_x R_accel_y R_accel_z')
-R_mag_world_x, R_mag_world_y, R_mag_world_z = symbols('R_mag_world_x R_mag_world_y R_mag_world_z')
-R_gps_pos_x, R_gps_pos_y, R_gps_pos_z = symbols('R_gps_pos_x R_gps_pos_y R_gps_pos_z')
-R_gps_vel_x, R_gps_vel_y, R_gps_vel_z = symbols('R_gps_vel_x R_gps_vel_y R_gps_vel_z')
-
 # Body Frame Accelerometer Observation
-obs_accel = (dcm_to_earth * gravity_bf) - acc_bias
+obs_accel = (C_body_to_eci * gravity_bf) + acc_bias
 # obs_accel = (dcm_to_body * gravity_ef) + acc_bias
 # obs_accel = gravity_bf + acc_bias
-H_accel_x = obs_accel[0, :].jacobian(state)
-H_accel_y = obs_accel[1, :].jacobian(state)
-H_accel_z = obs_accel[2, :].jacobian(state)
+H_accel_x = obs_accel[0, :].jacobian(X)
+H_accel_y = obs_accel[1, :].jacobian(X)
+H_accel_z = obs_accel[2, :].jacobian(X)
 H_accel = Matrix([H_accel_x, H_accel_y, H_accel_z])
 
 # Gps-position Observation (NED frame)
 obs_gps_pos = pos_new
-H_gps_pos_x = obs_gps_pos[0, :].jacobian(state)  # type:ignore
-H_gps_pos_y = obs_gps_pos[1, :].jacobian(state)  # type:ignore
-H_gps_pos_z = obs_gps_pos[2, :].jacobian(state)  # type:ignore
+H_gps_pos_x = obs_gps_pos[0, :].jacobian(X)  # type:ignore
+H_gps_pos_y = obs_gps_pos[1, :].jacobian(X)  # type:ignore
+H_gps_pos_z = obs_gps_pos[2, :].jacobian(X)  # type:ignore
 # H_gps_pos = Matrix([H_gps_pos_x, H_gps_pos_y, H_gps_pos_z])
 
 # Gps-velocity Observation (NED frame)
 obs_gps_vel = vel_new
-H_gps_vel_x = obs_gps_vel[0, :].jacobian(state)  # type:ignore
-H_gps_vel_y = obs_gps_vel[1, :].jacobian(state)  # type:ignore
-H_gps_vel_z = obs_gps_vel[2, :].jacobian(state)  # type:ignore
+H_gps_vel_x = obs_gps_vel[0, :].jacobian(X)  # type:ignore
+H_gps_vel_y = obs_gps_vel[1, :].jacobian(X)  # type:ignore
+H_gps_vel_z = obs_gps_vel[2, :].jacobian(X)  # type:ignore
 # H_gps_vel = Matrix([H_gps_vel_x, H_gps_vel_y, H_gps_vel_z])
 
 H_gps = Matrix([H_gps_pos_x, H_gps_pos_y, H_gps_pos_z,
@@ -388,20 +450,26 @@ K_gps = K_gps.col_insert(4, K_gps_vel_y)
 K_gps = K_gps.col_insert(5, K_gps_vel_z)
 
 # accelerometer residual
-res_accel = z_accel - H_accel * state
+res_accel = z_accel - H_accel * X
 
 # accelerometer
-X_accel_update = state + K_accel * res_accel
+X_accel_update = X + K_accel * res_accel
 P_accel_update = P - (K_accel * H_accel * P)
 
 # gps residual
-res_gps = z_gps - H_gps * state
+res_gps = z_gps - H_gps * X
 
 # gps
-X_gps_update = state + K_gps * res_gps
+X_gps_update = X + K_gps * res_gps
 P_gps_update = P - (K_gps * H_gps * P)
 
-# normalized innovation variance
+##################################################
+# NIV: normalized innovation variance
+##################################################
+# normalizes the innovation by its corresponding
+# innovation variance, providing a per-component
+# view of the filter's performance.
+
 norm_innov_var_accel_x = res_accel[0]**2 / innov_var_accel_x[0]
 norm_innov_var_accel_y = res_accel[1]**2 / innov_var_accel_y[0]
 norm_innov_var_accel_z = res_accel[2]**2 / innov_var_accel_z[0]
@@ -592,16 +660,9 @@ if __name__ == "__main__":
     # X_new[2] = X_new[2] / quat_new.norm()
     # X_new[3] = X_new[3] / quat_new.norm()
 
-    # # X_new
-    # # P_new
-    # # X_accel_update
-    # # P_accel_update
-    # # X_gps_update
-    # # P_gps_update
-
-    noise = list(noise_info.keys())
-    variance = list(variance_info.keys())
-    input = list(input_info.keys())
+    # noise = list(noise_info.keys())
+    # variance = list(variance_info.keys())
+    # input = list(input_info.keys())
     innov = {"innov_var_accel_x": norm_innov_var_accel_x,
              "innov_var_accel_y": norm_innov_var_accel_y,
              "innov_var_accel_z": norm_innov_var_accel_z,
@@ -611,29 +672,14 @@ if __name__ == "__main__":
              "innov_var_gps_vel_x": norm_innov_var_gps_vel_x,
              "innov_var_gps_vel_y": norm_innov_var_gps_vel_y,
              "innov_var_gps_vel_z": norm_innov_var_gps_vel_z,
-             # "res_accel_x": res_accel[0],
-             # "res_accel_y": res_accel[1],
-             # "res_accel_z": res_accel[2],
-             # "res_gps_x": res_accel[0],
-             # "res_gps_y": res_accel[1],
-             # "res_gps_z": res_accel[2],
              }
-    # innov = {"innov_var_accel_x": 1,
-    #          "innov_var_accel_y": 2,
-    #          "innov_var_accel_z": 3,
-    #          "innov_var_gps_pos_x": 4,
-    #          "innov_var_gps_pos_y": 5,
-    #          "innov_var_gps_pos_z": 6,
-    #          "innov_var_gps_vel_x": 7,
-    #          "innov_var_gps_vel_y": 8,
-    #          "innov_var_gps_vel_z": 9}
 
     # upper_ids = np.triu_indices(P.shape[0])
     # upper_ncols = len(upper_ids[0])
     # P_upper = MatrixSymbol("P", upper_ncols, 1).as_mutable()
     # P_new_upper = Matrix([P_new[i, j] for i, j in zip(*upper_ids)])
 
-    params = [t, state, input, P, variance, noise, Matrix([*innov.keys()]), dt]
+    params = [t, X, U, P, variance, R, Matrix([*innov.keys()]), dt]
 
     gen = CCodeGenerator()
     gen.add_function(expr=X_new,
@@ -641,35 +687,35 @@ if __name__ == "__main__":
                      function_name="x_predict",
                      return_name="X_new")
 
-    gen.add_function(expr=P_new,
-                     params=params,
-                     function_name="p_predict",
-                     return_name="P_new",
-                     is_symmetric=False,
-                     by_reference=innov)
+    # gen.add_function(expr=P_new,
+    #                  params=params,
+    #                  function_name="p_predict",
+    #                  return_name="P_new",
+    #                  is_symmetric=False,
+    #                  by_reference=innov)
 
-    gen.add_function(expr=X_accel_update,
-                     params=params,
-                     function_name="x_accel_update",
-                     return_name="X_accel_new")
+    # gen.add_function(expr=X_accel_update,
+    #                  params=params,
+    #                  function_name="x_accel_update",
+    #                  return_name="X_accel_new")
 
-    gen.add_function(expr=P_accel_update,
-                     params=params,
-                     function_name="p_accel_update",
-                     return_name="P_accel_new",
-                     is_symmetric=False,
-                     by_reference=innov)
+    # gen.add_function(expr=P_accel_update,
+    #                  params=params,
+    #                  function_name="p_accel_update",
+    #                  return_name="P_accel_new",
+    #                  is_symmetric=False,
+    #                  by_reference=innov)
 
-    gen.add_function(expr=X_gps_update,
-                     params=params,
-                     function_name="x_gps_update",
-                     return_name="X_gps_new")
+    # gen.add_function(expr=X_gps_update,
+    #                  params=params,
+    #                  function_name="x_gps_update",
+    #                  return_name="X_gps_new")
 
-    gen.add_function(expr=P_gps_update,
-                     params=params,
-                     function_name="p_gps_update",
-                     return_name="P_gps_new",
-                     is_symmetric=False)
+    # gen.add_function(expr=P_gps_update,
+    #                  params=params,
+    #                  function_name="p_gps_update",
+    #                  return_name="P_gps_new",
+    #                  is_symmetric=False)
 
     profile(gen.create_module)(module_name="ekf", path="./")
     quit()
