@@ -184,6 +184,7 @@ Sref = Symbol("Sref", real=True)                # area reference
 mach = Function("mach", real=True)(t)           # mach number
 C_s = Symbol("C_s", real=True)                  # speed of sound
 rho = Symbol("rho", real=True)                  # air density
+gacc = Symbol("gacc", real=True)
 
 # autopilot acceleration commands
 a_c_x = Symbol("a_c_x", real=True)              # acc-x command (body-frame)
@@ -255,7 +256,6 @@ f_b_A_z = CNB * q_bar * Sref
 f_b_A = Matrix([-f_b_A_x, 0, -f_b_A_z])
 
 # (6)
-gacc = -9.81
 g_i_m = Matrix([gacc, 0, 0])
 g_e_m = C_eci_to_ecef * g_i_m
 g_b_e = C_ecef_to_body * g_e_m
@@ -609,6 +609,7 @@ input = Matrix([
     a_c_z,
     thrust,
     mass_dot,
+    gacc,
     ])
 
 static = Matrix([
@@ -644,20 +645,22 @@ if __name__ == "__main__":
                                               definitions=defs,
                                               use_multiprocess_build=True)
 
-    model.save(path=JAPL_HOME_DIR + "/data/", name="mmd")
+    model.save(path=JAPL_HOME_DIR + "/../mmd/", name="mmd")
 
-    gen = CCodeGenerator()
-    params = [t, state, input, static, dt]
-    gen.add_function(expr=model.dynamics_expr,
-                     params=params,
-                     function_name="dynamics",
-                     return_name="Xdot")
-    gen.add_function(expr=model.state_direct_updates,
-                     params=params,
-                     function_name="state_updates",
-                     return_name="Xnew")
-    gen.add_function(expr=model.input_direct_updates,
-                     params=params,
-                     function_name="input_updates",
-                     return_name="Unew")
-    gen.create_module(module_name="mmd", path="./")
+    # model.dynamics_func.to_pycode("dynamics", model.dynamics_expr, "dynamics.py")
+
+    # gen = CCodeGenerator()
+    # params = [t, state, input, static, dt]
+    # gen.add_function(expr=model.dynamics_expr,
+    #                  params=params,
+    #                  function_name="dynamics",
+    #                  return_name="Xdot")
+    # gen.add_function(expr=model.state_direct_updates,
+    #                  params=params,
+    #                  function_name="state_updates",
+    #                  return_name="Xnew")
+    # gen.add_function(expr=model.input_direct_updates,
+    #                  params=params,
+    #                  function_name="input_updates",
+    #                  return_name="Unew")
+    # gen.create_module(module_name="mmd", path="./")
