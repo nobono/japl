@@ -610,3 +610,67 @@ def _apply_definitions_to_array(array: Matrix, subs: dict):
                     array[ielem] = DirectUpdateSymbol(f"{str(elem.name)}", state_expr=elem, sub_expr=sub)  # type:ignore
                 else:
                     raise Exception("unhandled case.")
+
+
+
+def to_pycode(func_name, expr, vars, filepath):
+    # NOTE: in development
+    from sympy.codegen.ast import Assignment, Variable, Return
+    from sympy.codegen.ast import FunctionPrototype
+    from sympy.codegen.ast import FunctionDefinition
+    from sympy.printing.pycode import PythonCodePrinter
+    from sympy.codegen.ast import real, float64
+    from sympy import IndexedBase
+    from sympy import pycode
+    from sympy import cse
+    from japl.BuildTools.CodeGeneratorBase import CodeGeneratorBase
+    from textwrap import dedent
+
+    replacements, expr_simple = cse(expr)
+
+    # Model uses standardized arg format: (t, X, U, S, dt)
+    standard_args = ["t", "_X_stdarg", "_U_stdarg", "_S_stdarg", "dt"]
+    assert len(vars) == len(standard_args)
+    parameters = [Symbol(i, real=True) for i in standard_args]
+
+    # unpack array-type parameters
+    unpack_assignments = []
+    for param, param_name in zip(vars, standard_args):
+        if hasattr(param, "__len__") or hasattr(param, "shape"):
+            for i, item in enumerate(flatten_list(param)):
+                item_name = CodeGeneratorBase._get_expr_name(item)
+                iter_param = IndexedBase(param_name, shape=(len(param),))
+                unpack_assignments += [Assignment(Symbol(item_name, real=True), iter_param[i])]
+
+    # Build the assignments for common subexpressions
+    assignments = [Assignment(var, rep) for var, rep in replacements]
+    mat_body = [Return(expr_simple[0])]  # type:ignore
+    body = unpack_assignments + assignments + mat_body
+
+    # Define the full Python function
+    func_def = FunctionDefinition(
+        return_type=real,
+        name=func_name,
+        parameters=parameters,  # parameters for the function
+        body=body
+    )
+
+    code_str = pycode(func_def, strict=False)
+    # replace sympy Matrix types with numpy types
+    code_str = code_str.replace("ImmutableDenseMatrix", "np.array")
+    code_str = code_str.replace("MutableDenseMatrix", "np.array")
+    code_str = code_str.replace("math.sin", "np.sin")
+    code_str = code_str.replace("math.cos", "np.cos")
+    code_str = code_str.replace("math.tan", "np.tan")
+    code_str = code_str.replace("math.sqrt", "np.sqrt")
+
+    import_header = """\
+            import numpy as np
+            import math
+            """
+
+    with open(filepath, "a+") as f:
+        f.write(dedent(import_header))
+        f.write(str(code_str))
+
+
