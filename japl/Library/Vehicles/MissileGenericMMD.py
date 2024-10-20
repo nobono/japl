@@ -15,6 +15,7 @@ from japl.Aero.AeroTableSymbolic import AeroTableSymbolic
 from japl.Math.RotationSymbolic import ecef_to_lla_sym
 from japl.Library.Earth.Earth import Earth
 from japl.BuildTools.CCodeGenerator import CCodeGenerator
+from japl.Util.Util import flatten_list
 from japl import JAPL_HOME_DIR
 
 DIR = os.path.dirname(__file__)
@@ -627,6 +628,53 @@ static = Matrix([
 ##################################################
 
 dynamics = state.diff(t)
+
+##################################################
+# Auto-Detect DirectUpdates
+##################################################
+
+# # quat = np.array([.7, 0, .7, 0])
+# # n = np.linalg.norm(quat)
+# # nquat = quat / n
+
+# ####
+# p, q, r = symbols("p, q, r")
+# omega = Matrix([p, q, r])
+# Sq = Matrix([[-q_1, -q_2, -q_3],    # type:ignore
+#              [q_0, -q_3, q_2],      # type:ignore
+#              [q_3, q_0, -q_1],      # type:ignore
+#              [-q_2, q_1, q_0]])     # type:ignore
+
+# subs = {dt: 0.1,
+#         p: 1,
+#         q: 0,
+#         r: 0,
+#         q_0: 1,
+#         q_1: 0,
+#         q_2: -1,
+#         q_3: 0,
+#         }
+# q_m_dot = 0.5 * Sq * omega
+# q_new = q_m + q_m_dot * dt
+# nq_new = Quaternion(*q_new, norm=1).normalize()
+
+# ssubs = {
+#         q_0.diff(t): q_m_dot.doit()[0],
+#         q_1.diff(t): q_m_dot.doit()[1],
+#         q_2.diff(t): q_m_dot.doit()[2],
+#         q_3.diff(t): q_m_dot.doit()[3],
+#         }
+# ####
+
+# # def_vars = flatten_list([var for (var, _) in defs])
+# # diff_defs = []
+# # direct_defs = []
+# # for var in def_vars:
+# #     if var.is_Derivative:
+# #         diff_defs += [var]
+# #     else:
+# #         direct_defs += [var]
+# quit()
 
 ##################################################
 # Build Model
