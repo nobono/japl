@@ -160,6 +160,39 @@ class SimObject:
         self.cg: float = kwargs.get("cg", 0)
 
 
+    def get(self, var_names: str|list[str]) -> np.ndarray:
+        """This method will get data from SimObject.Y array corresponding
+        to the state-name \"var_str\".
+
+        This method is more general, using extra checks, making is slower
+        than useing get_state_array, get_input_array, or get_static_array."""
+        if isinstance(var_names, list):
+            ret = []
+            for var_name in var_names:
+                if var_name in self.model.state_register:
+                    ret += [self.Y[:, self.model.get_state_id(var_name)]]
+                elif var_name in self.model.input_register:
+                    ret += [self.Y[:, self.model.get_input_id(var_name)]]
+                elif var_name in self.model.static_register:
+                    ret += [self.Y[:, self.model.get_static_id(var_name)]]
+                else:
+                    raise Exception(f"SimObject: {self.name} cannot get model variable "
+                                    "\"{var_str}\". variable not found.")
+            return np.asarray(ret).T
+        elif isinstance(var_names, str):  # type:ignore
+            if var_names in self.model.state_register:
+                return self.Y[:, self.model.get_state_id(var_names)]
+            elif var_names in self.model.input_register:
+                return self.Y[:, self.model.get_input_id(var_names)]
+            elif var_names in self.model.static_register:
+                return self.Y[:, self.model.get_static_id(var_names)]
+            else:
+                raise Exception(f"SimObject: {self.name} cannot get model variable "
+                                "\"{var_str}\". variable not found.")
+        else:
+            raise Exception("unhandled case.")
+
+
     def get_state_array(self, state: np.ndarray, names: str|list[str]) -> np.ndarray:
         """This method gets values from the state array given the state
         names."""
