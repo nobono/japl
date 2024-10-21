@@ -18,6 +18,7 @@ from pyqtgraph.Qt.QtWidgets import QInputDialog
 from pyqtgraph.Qt.QtCore import QCoreApplication
 from pyqtgraph.Qt.QtCore import QTimer
 from pyqtgraph.Qt.QtWidgets import QInputDialog
+from pyqtgraph.Qt import QtCore
 from pyqtgraph.exporters import ImageExporter
 from functools import partial
 from japl import JAPL_HOME_DIR
@@ -795,6 +796,7 @@ class PyQtGraphPlotter:
              title: str = "",
              xlabel: str = "",
              ylabel: str = "",
+             linestyle: str = "-",
              legend_name: str = "",
              **kwargs) -> PlotItem:
 
@@ -804,8 +806,19 @@ class PyQtGraphPlotter:
         else:
             color_code = next(self.color_cycle)
 
-        # data = {'x': x, 'y': y}
+        # create QPen info for plot draw
         pen = {"color": color_code, "width": size}
+        # add linestyle to QPen
+        match linestyle:
+            case "--":
+                pen["style"] = QtCore.Qt.DashLine  # type:ignore
+            case "-.":
+                pen["style"] = QtCore.Qt.DashDotLine  # type:ignore
+            case ".":
+                pen["style"] = QtCore.Qt.DotLine  # type:ignore
+            case _:
+                pass
+        # create QPen info for markers
         symbol_pen = {"color": color_code, "width": marker_size}
 
         # old
