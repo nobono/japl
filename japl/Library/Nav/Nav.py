@@ -255,6 +255,19 @@ gravity_ef = Matrix([-9.81, 0, 0])  # gravity earth-frame
 gravity_ecef = C_eci_to_ecef * gravity_ef
 gravity_bf = C_ecef_to_body * gravity_ecef
 
+wx, wy, wz = angvel_true
+Sq = np.array([[-q1, -q2, -q3],    # type:ignore
+               [q0, -q3, q2],      # type:ignore
+               [q3, q0, -q1],      # type:ignore
+               [-q2, q1, q0]])     # type:ignore
+
+quat_new = quat + (0.5 * Sq * angvel_true) * dt
+acc_world_measured = (C_body_to_eci * (acc_true + gravity_bf))
+pos_new = pos + vel * dt + 0.5 * acc_world_measured * dt**2
+vel_new = vel + acc_world_measured * dt
+gyro_bias_new = angvel_bias
+accel_bias_new = acc_bias
+
 ################################################################
 # ECI to ENU convesion
 
@@ -282,27 +295,6 @@ gravity_bf = C_ecef_to_body * gravity_ecef
 # v_enu_e_new = C_ecef_to_enu * v_e_m
 # a_enu_e_new = C_ecef_to_enu * a_e_m
 ################################################################
-
-wx, wy, wz = angvel_true
-# Sw = Matrix([
-#     [0, wx, wy, wz],    # type:ignore
-#     [-wx, 0, -wz, wy],  # type:ignore
-#     [-wy, wz, 0, -wx],  # type:ignore
-#     [-wz, -wy, wx, 0],  # type:ignore
-#     ])
-Sq = np.array([[-q1, -q2, -q3],    # type:ignore
-               [q0, -q3, q2],      # type:ignore
-               [q3, q0, -q1],      # type:ignore
-               [-q2, q1, q0]])     # type:ignore
-
-# quat_new = quat + (-0.5 * Sw * quat) * dt
-quat_new = quat + (0.5 * Sq * angvel_true) * dt
-acc_world_measured = (C_body_to_eci * (acc_true + gravity_bf))
-
-pos_new = pos + vel * dt + 0.5 * acc_world_measured * dt**2
-vel_new = vel + acc_world_measured * dt
-gyro_bias_new = angvel_bias
-accel_bias_new = acc_bias
 
 # NOTE: since no magnetometer yet, zero-out gyro_z bias
 # gyro_bias_new[2] = sp.Float(0)
@@ -342,6 +334,7 @@ R = Matrix([R_accel_x, R_accel_y, R_accel_z,
 ##################################################
 
 X_new = Matrix([quat_new, pos_new, vel_new, accel_bias_new, gyro_bias_new])
+X_dot = X.diff(dt)
 F = X_new.jacobian(X)
 G = X_new.jacobian(U)
 
@@ -687,12 +680,12 @@ if __name__ == "__main__":
                      function_name="x_predict",
                      return_name="X_new")
 
-    # gen.add_function(expr=P_new,
-    #                  params=params,
-    #                  function_name="p_predict",
-    #                  return_name="P_new",
-    #                  is_symmetric=False,
-    #                  by_reference=innov)
+    gen.add_function(expr=P_new,
+                     params=params,
+                     function_name="p_predict",
+                     return_name="P_new",
+                     is_symmetric=False,
+                     by_reference=innov)
 
     # gen.add_function(expr=X_accel_update,
     #                  params=params,
