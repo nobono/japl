@@ -46,15 +46,30 @@ def create_error_header(msg: str, char: str = "-", char_len: int = 40) -> str:
 
 
 def parallel_subs(target_expr: Matrix|dict, subs: list[dict]|dict) -> Matrix|dict:
+    """A parallel sympy subs using multiprocess.
+
+    Arguments
+    ---------
+    target_expr:
+        sympy Matrix or dict which is the target for substitutions
+
+    subs:
+        dict of substitutions (e.g. {expr: replacement_expr}) or list of
+        substition dicts.
+
+    Returns
+    -------
+    returns the Matrix or dict which was passed.
+    """
     if isinstance(subs, dict):
         subs = [subs]
-    elif isinstance(subs, list):
+    elif isinstance(subs, list):  # type:ignore
         pass
 
     if isinstance(target_expr, dict):
         subs_func = dict_subs_func
         with Pool(processes=cpu_count()) as pool:
-            subs = [pickle.dumps(sub) for sub in subs]
+            subs = [pickle.dumps(sub) for sub in subs]  # type:ignore
             args = [(pickle.dumps((key, expr)), subs) for key, expr in target_expr.items()]
             results = [pool.apply_async(subs_func, arg) for arg in args]
             results = [pickle.loads(ret.get()) for ret in results]
@@ -64,7 +79,7 @@ def parallel_subs(target_expr: Matrix|dict, subs: list[dict]|dict) -> Matrix|dic
     else:
         subs_func = array_subs_func
         with Pool(processes=cpu_count()) as pool:
-            subs = [pickle.dumps(sub) for sub in subs]
+            subs = [pickle.dumps(sub) for sub in subs]  # type:ignore
             args = [(pickle.dumps(expr), subs) for expr in target_expr]
             results = [pool.apply_async(subs_func, arg) for arg in args]
             results = [pickle.loads(ret.get()) for ret in results]
