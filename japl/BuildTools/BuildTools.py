@@ -1,5 +1,5 @@
 import os
-from typing import Any
+from typing import Any, Iterable
 from sympy import Matrix, Symbol, Function, Expr, Number, nan
 from sympy import Float
 from sympy import Derivative
@@ -9,6 +9,7 @@ from sympy.matrices import MatrixSymbol
 from sympy.matrices.expressions.matexpr import MatrixElement
 from japl.Model.StateRegister import StateRegister
 from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
+from japl.Util.Util import iter_type_check
 from pprint import pformat
 from multiprocess import Pool  # type:ignore
 from multiprocess import cpu_count  # type:ignore
@@ -45,7 +46,7 @@ def create_error_header(msg: str, char: str = "-", char_len: int = 40) -> str:
     return header
 
 
-def parallel_subs(target_expr: Matrix|dict, subs: list[dict]|dict) -> Matrix|dict:
+def parallel_subs(target_expr: Matrix|dict, subs: tuple[tuple, ...]|list[dict]|dict) -> Matrix|dict:
     """A parallel sympy subs using multiprocess.
 
     Arguments
@@ -61,10 +62,16 @@ def parallel_subs(target_expr: Matrix|dict, subs: list[dict]|dict) -> Matrix|dic
     -------
     returns the Matrix or dict which was passed.
     """
+    # convert any subs paramters to list[dict]
     if isinstance(subs, dict):
         subs = [subs]
-    elif isinstance(subs, list):  # type:ignore
-        pass
+    elif isinstance(subs, Iterable):  # type:ignore
+        if iter_type_check(subs, list[tuple]):
+            subs = [dict(subs)]  # type:ignore
+        elif iter_type_check(subs, list[dict]):
+            pass
+        else:
+            raise Exception("unhandled case. subs TypeError")
 
     if isinstance(target_expr, dict):
         subs_func = dict_subs_func
@@ -76,7 +83,7 @@ def parallel_subs(target_expr: Matrix|dict, subs: list[dict]|dict) -> Matrix|dic
         for ret in results:
             target_expr.update(ret)
         return target_expr
-    else:
+    elif isinstance(target_expr, Matrix):  # type:ignore
         subs_func = array_subs_func
         with Pool(processes=cpu_count()) as pool:
             subs = [pickle.dumps(sub) for sub in subs]  # type:ignore
@@ -84,6 +91,8 @@ def parallel_subs(target_expr: Matrix|dict, subs: list[dict]|dict) -> Matrix|dic
             results = [pool.apply_async(subs_func, arg) for arg in args]
             results = [pickle.loads(ret.get()) for ret in results]
         return Matrix(results)
+    else:
+        raise Exception("unhandled case. target_expr TypeError")
 
 
 def cse_async(expr, id, *args, **kwargs):

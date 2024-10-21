@@ -1,7 +1,7 @@
 import numpy as np
-from sympy import Expr, Symbol, Matrix
-import sympy as sp
+from sympy import Symbol, Matrix
 from collections.abc import Callable
+from japl.BuildTools.BuildTools import parallel_subs
 
 
 
@@ -37,7 +37,7 @@ def runge_kutta_4(f: Callable, t: float, X: np.ndarray, dt: float, args: tuple =
     return (X_new, T_new)
 
 
-def runge_kutta_4_symbolic(f: Expr|Matrix, t: Symbol, X: Matrix, dt: Symbol, args: tuple = ()) -> tuple:
+def runge_kutta_4_symbolic(f: Matrix, t: Symbol, X: Matrix, dt: Symbol, args: tuple = ()) -> Matrix:
     """
         This method integrates state dynamics using Runge Kutta 4 method.
     and returns the value of the state 'X' for the next time step.
@@ -55,8 +55,7 @@ def runge_kutta_4_symbolic(f: Expr|Matrix, t: Symbol, X: Matrix, dt: Symbol, arg
     -------------------------------------------------------------------
     -- Returns:
     -------------------------------------------------------------------
-    --- Xnew - state array for the next time step
-    --- Tnew - the next time step after integration
+    --- X_new - next state array expresion for the next time step
     -------------------------------------------------------------------
     """
 
@@ -65,21 +64,20 @@ def runge_kutta_4_symbolic(f: Expr|Matrix, t: Symbol, X: Matrix, dt: Symbol, arg
     k2_subs = ((t, t + 0.5 * dt),)  # type:ignore
     for x, _k1 in zip(X, k1):  # type:ignore
         k2_subs += ((x, x + (0.5 * dt * _k1)),)  # type:ignore
-    k2 = f.subs(k2_subs).copy()
+    k2 = parallel_subs(f, k2_subs)
 
     k3_subs = ((t, t + 0.5 * dt),)  # type:ignore
     for x, _k2 in zip(X, k2):  # type:ignore
         k3_subs += ((x, x + (0.5 * dt * _k2)),)  # type:ignore
-    k3 = f.subs(k3_subs).copy()
+    k3 = parallel_subs(f, k3_subs)
 
     k4_subs = ((t, t + dt),)  # type:ignore
     for x, _k3 in zip(X, k3):  # type:ignore
         k4_subs += ((x, x + (dt * _k3)),)  # type:ignore
-    k4 = f.subs(k4_subs).copy()
+    k4 = parallel_subs(f, k4_subs)
 
     X_new = X + (dt / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4)  # type:ignore
-    T_new = t + dt  # type:ignore
-    return (X_new, T_new)
+    return X_new
 
     # ####################################
     # # TEST
