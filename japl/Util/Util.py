@@ -1,3 +1,5 @@
+from typing import Any, Iterable
+from typing import get_args
 import timeit
 
 
@@ -22,3 +24,14 @@ def flatten_list(_list: list|tuple) -> list:
         else:
             ret += flatten_list(item)
     return ret
+
+
+def iter_type_check(iter: Iterable, typehint) -> bool:
+    if isinstance(iter, Iterable):  # type:ignore
+        list_type = get_args(typehint)
+        if len(list_type):
+            return all(isinstance(i, list_type) for i in iter)
+        else:
+            return False
+    else:
+        return False
