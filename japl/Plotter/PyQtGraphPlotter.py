@@ -859,10 +859,10 @@ class PyQtGraphPlotter:
                 plot_item.setLabel("left", ylabel, color=self.text_color)
                 plot_item.getAxis("left").setPen({"color": text_color_code})
                 plot_item.getAxis("bottom").setPen({"color": text_color_code})
-        scatter = pg.PlotCurveItem(x=x, y=y, pen=pen, symbol=marker, symbolPen=symbol_pen)
+        curve = pg.PlotCurveItem(x=x, y=y, pen=pen, symbol=marker, symbolPen=symbol_pen)
         if plot_item.legend:
-            plot_item.legend.addItem(scatter, legend_name)  # type:ignore
-        plot_item.addItem(scatter)
+            plot_item.legend.addItem(curve, legend_name)  # type:ignore
+        plot_item.addItem(curve)
         self.__apply_style_settings_to_plot(plot_item)
         return plot_item
 
@@ -877,6 +877,7 @@ class PyQtGraphPlotter:
                 title: str = "",
                 xlabel: str = "",
                 ylabel: str = "",
+                legend_name: str = "",
                 **kwargs) -> PlotItem:
 
         # convert mpl color to rgb
@@ -897,6 +898,9 @@ class PyQtGraphPlotter:
         if len(self.wins) < 1:
             win = self.create_window()
             plot_item = win.addPlot(row=0, col=0, title=title, name=title)
+            legend = plot_item.addLegend()
+            legend.setBrush('k')
+            legend.setPen({"color": self.__get_color_code("black")})
             # style settings
             text_color_code = self.__get_color_code(self.text_color)
             plot_item.setTitle(title, color=self.text_color)
@@ -907,15 +911,21 @@ class PyQtGraphPlotter:
         else:
             win = self.wins[-1]
             plot_item = win.getItem(row=0, col=0)
-            # style settings
-            text_color_code = self.__get_color_code(self.text_color)
-            plot_item.setTitle(title, color=self.text_color)
-            plot_item.setLabel("bottom", xlabel, color=self.text_color)
-            plot_item.setLabel("left", ylabel, color=self.text_color)
-            plot_item.getAxis("left").setPen({"color": text_color_code})
-            plot_item.getAxis("bottom").setPen({"color": text_color_code})
-
+            if plot_item is None:
+                plot_item: PlotItem = win.addPlot(row=0, col=0, title=title, name=title)
+                legend = plot_item.addLegend()
+                legend.setBrush('k')
+                legend.setPen({"color": self.__get_color_code("black")})
+                # style settings
+                text_color_code = self.__get_color_code(self.text_color)
+                plot_item.setTitle(title, color=self.text_color)
+                plot_item.setLabel("bottom", xlabel, color=self.text_color)
+                plot_item.setLabel("left", ylabel, color=self.text_color)
+                plot_item.getAxis("left").setPen({"color": text_color_code})
+                plot_item.getAxis("bottom").setPen({"color": text_color_code})
         scatter = pg.ScatterPlotItem(x=x, y=y, pen=pen, symbol=marker, symbolPen=symbol_pen)
+        if plot_item.legend:
+            plot_item.legend.addItem(scatter, legend_name)  # type:ignore
         plot_item.addItem(scatter)
         self.__apply_style_settings_to_plot(plot_item)
         return plot_item
