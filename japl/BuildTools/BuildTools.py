@@ -2,7 +2,7 @@ import os
 from typing import Any, Iterable
 from sympy import Matrix, Symbol, Function, Expr, Number, nan
 from sympy import Float
-from sympy import Derivative
+from sympy import Derivative, Piecewise
 from sympy import cse
 from sympy import symbols
 from sympy.matrices import MatrixSymbol
@@ -637,10 +637,19 @@ def _apply_definitions_to_array(array: Matrix, subs: dict):
 
 
 
-def to_pycode(func_name, expr, vars, filepath):
+def to_pycode(func_name: str,
+              expr: Expr|Matrix,
+              state_vars: list|Matrix,
+              input_vars: list|Matrix,
+              static_vars: list|Matrix = [],
+              filepath: str = "",
+              use_cse: bool = True,
+              imports: list[str] = [],
+              header_insert: str = ""):
+    if not filepath:
+        filepath = func_name + ".py"
     # NOTE: in development
     from sympy.codegen.ast import Assignment, Variable, Return
-    from sympy.codegen.ast import FunctionPrototype
     from sympy.codegen.ast import FunctionDefinition
     from sympy.printing.pycode import PythonCodePrinter
     from sympy.codegen.ast import real, float64
@@ -650,9 +659,16 @@ def to_pycode(func_name, expr, vars, filepath):
     from japl.BuildTools.CodeGeneratorBase import CodeGeneratorBase
     from textwrap import dedent
 
-    replacements, expr_simple = cse(expr)
+    replacements = ()
+    if not use_cse:
+        expr_simple = [expr]
+    else:
+        # optimize expression
+        replacements, expr_simple = cse(expr)
 
+    ##########################################################################
     # Model uses standardized arg format: (t, X, U, S, dt)
+    vars: list = [Symbol("t"), state_vars, input_vars, static_vars, Symbol("dt")]
     standard_args = ["t", "_X_stdarg", "_U_stdarg", "_S_stdarg", "dt"]
     assert len(vars) == len(standard_args)
     parameters = [Symbol(i, real=True) for i in standard_args]
@@ -661,15 +677,31 @@ def to_pycode(func_name, expr, vars, filepath):
     unpack_assignments = []
     for param, param_name in zip(vars, standard_args):
         if hasattr(param, "__len__") or hasattr(param, "shape"):
-            for i, item in enumerate(flatten_list(param)):
+            for i, item in enumerate(flatten_list(param)):  # type:ignore
                 item_name = CodeGeneratorBase._get_expr_name(item)
                 iter_param = IndexedBase(param_name, shape=(len(param),))
                 unpack_assignments += [Assignment(Symbol(item_name, real=True), iter_param[i])]
+    ##########################################################################
 
-    # Build the assignments for common subexpressions
-    assignments = [Assignment(var, rep) for var, rep in replacements]
     mat_body = [Return(expr_simple[0])]  # type:ignore
-    body = unpack_assignments + assignments + mat_body
+
+    if not use_cse:
+        body = unpack_assignments + mat_body
+    else:
+
+        # Build the assignments for common subexpressions
+        # assignments = [Assignment(var, rep) for var, rep in replacements]
+        # body = unpack_assignments + assignments + mat_body
+
+        assignments = []
+        for var, rep in replacements:
+            if isinstance(rep, Piecewise):
+                # NOTE: Piecewise assignment needs augmentation
+                assignments += [Assignment(var, Symbol(str(pycode(rep))))]
+            else:
+                assignments += [Assignment(var, rep)]
+        body = unpack_assignments + assignments + mat_body
+
 
     # Define the full Python function
     func_def = FunctionDefinition(
@@ -685,16 +717,55 @@ def to_pycode(func_name, expr, vars, filepath):
     code_str = code_str.replace("MutableDenseMatrix", "np.array")
     code_str = code_str.replace("math.sin", "np.sin")
     code_str = code_str.replace("math.cos", "np.cos")
+    code_str = code_str.replace("math.asin", "np.arcsin")
+    code_str = code_str.replace("math.acos", "np.arccos")
     code_str = code_str.replace("math.tan", "np.tan")
+    code_str = code_str.replace("math.atan", "np.arctan")
+    code_str = code_str.replace("math.atan2", "np.arctan2")
     code_str = code_str.replace("math.sqrt", "np.sqrt")
+    code_str = code_str.replace("math.nan", "np.nan")
 
-    import_header = """\
+    state_vars_dict = {id: CodeGeneratorBase._get_expr_name(var)
+                       for id, var in enumerate(flatten_list(state_vars))}  # type:ignore
+    input_vars_dict = {id: CodeGeneratorBase._get_expr_name(var)
+                       for id, var in enumerate(flatten_list(input_vars))}  # type:ignore
+    static_vars_dict = {id: CodeGeneratorBase._get_expr_name(var)
+                        for id, var in enumerate(flatten_list(static_vars))}  # type:ignore
+
+    import_header = ""
+    for i in imports:
+        import_header += i + "\n"
+
+    code_header = (f"""\
             import numpy as np
+            from sympy import symbols
             import math
-            """
+
+            nan = np.nan
+            sqrt = np.sqrt
+
+            {header_insert}
+
+            def get_dt_var():
+                return symbols("dt")
+
+            def get_state_vars():
+                state_vars = {str(state_vars_dict)}
+                return symbols([*state_vars.values()])
+
+            def get_input_vars():
+                input_vars = {str(input_vars_dict)}
+                return symbols([*input_vars.values()])
+
+            def get_static_vars():
+                static_vars = {str(static_vars_dict)}
+                return symbols([*static_vars.values()])
+            """)
+
+    if os.path.isfile(filepath):
+        os.remove(filepath)
 
     with open(filepath, "a+") as f:
-        f.write(dedent(import_header))
+        f.write(import_header)
+        f.write(dedent(code_header))
         f.write(str(code_str))
-
-
