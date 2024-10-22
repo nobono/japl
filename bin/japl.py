@@ -64,7 +64,7 @@ def find_models(start_dir: str = '.', max_depth: int = 20) -> tuple:
         if (build_file in files) and (init_file in files):
             # look for JAPL ext_module header
             first_line = ""
-            with open(os.path.join(os.path.dirname(root), init_file)) as f:
+            with open(os.path.join(root, init_file)) as f:
                 first_line = f.readline()
                 first_line = first_line.lower().replace(" ", "").strip("\n")
             if first_line == __JAPL_EXT_MODULE_INIT_HEADER:
