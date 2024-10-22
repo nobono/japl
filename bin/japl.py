@@ -1,8 +1,12 @@
+#!/usr/bin/env python
+
 import os
 import subprocess
 # import curses
 import argparse
 from textwrap import dedent
+
+__JAPL_EXT_MODULE_INIT_HEADER = "#__japl_extension_module__"
 
 
 
@@ -39,14 +43,33 @@ from textwrap import dedent
 
 
 
-def find_models(dir: str = '.') -> tuple:
-    filename = "build.py"
+def find_models(start_dir: str = '.', max_depth: int = 20) -> tuple:
+    init_file = "__init__.py"
+    build_file = "build.py"
     model_paths = []
     model_names = []
-    for root, dirs, files in os.walk(dir):
-        if filename in files:
-            model_names += [os.path.dirname(root)]
-            model_paths += [os.path.join(root)]
+
+    # Get the length of the start directory path for depth calculation
+    start_depth = start_dir.rstrip(os.path.sep).count(os.path.sep)
+
+    for root, dirs, files in os.walk(start_dir):
+
+        # Calculate the current depth by counting the separators in the path
+        current_depth = root.count(os.path.sep) - start_depth
+        if current_depth >= max_depth:
+            # return early
+            return (model_names, model_paths)
+
+        # look for build.py & __init__.py in dir
+        if (build_file in files) and (init_file in files):
+            # look for JAPL ext_module header
+            first_line = ""
+            with open(os.path.join(os.path.dirname(root), init_file)) as f:
+                first_line = f.readline()
+                first_line = first_line.lower().replace(" ", "").strip("\n")
+            if first_line == __JAPL_EXT_MODULE_INIT_HEADER:
+                model_names += [os.path.dirname(root)]
+                model_paths += [os.path.join(root)]
     return (model_names, model_paths)
 
 

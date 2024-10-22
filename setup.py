@@ -91,7 +91,7 @@ setup(
             },
         entry_points={
             "console_scripts": [
-                "japl = japl.__main__:main"  # make 'japl' callable
+                "japl = bin.japl:main"  # make 'japl' callable
                 ]
             }
         )
