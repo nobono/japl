@@ -555,21 +555,21 @@ defs = (
 # ------------------------------------------------
 
 state = Matrix([
-    q_m,
-    r_i_m,
-    v_i_m,
+    q_m,  # 0 - 3
+    r_i_m,  # 4 - 6
+    v_i_m,  # 7 - 9
 
     alpha,      # 10
-    alpha_dot,
-    beta,
-    beta_dot,
-    phi_hat,
+    alpha_dot,  # 11
+    beta,       # 12
+    beta_dot,   # 13
+    phi_hat,    # 14
     DirectUpdate("phi_hat_dot", phi_hat_dot),  # 15
 
     # Angular rates
-    p,
-    DirectUpdate(q, q_new),
-    DirectUpdate(r, r_new),
+    p,  # 16
+    DirectUpdate(q, q_new),  # 17
+    DirectUpdate(r, r_new),  # 18
 
     # ENU
     DirectUpdate(r_enu_m, r_enu_e_new),         # 19 - 21
@@ -577,30 +577,30 @@ state = Matrix([
     DirectUpdate(a_enu_m, a_enu_e_new),         # 25 - 27
 
     # ECEF
-    r_e_m,
-    v_e_m,
-    DirectUpdate(a_e_m, a_e_e),
+    r_e_m,  # 28 -30
+    v_e_m,  # 31 - 33
+    DirectUpdate(a_e_m, a_e_e),  # 34 - 36
 
-    vel_mag_e,
-    DirectUpdate(vel_mag_e_dot, V_dot),
-    DirectUpdate(mach, M),
+    vel_mag_e,  # 37
+    DirectUpdate(vel_mag_e_dot, V_dot),  # 38
+    DirectUpdate(mach, M),  # 39
 
-    v_b_e_m,
-    v_b_e_m_hat,
+    v_b_e_m,  # 40 - 42
+    v_b_e_m_hat,  # 43 - 45
 
-    DirectUpdate(g_b_m, g_b_e),
+    DirectUpdate(g_b_m, g_b_e),  # 46 -48
     DirectUpdate(a_b_e_m, a_b_e),  # 49 - 51
 
     # Mass Properties
-    wet_mass,
-    dry_mass,
+    wet_mass,  # 52
+    dry_mass,  # 53
 
-    DirectUpdate("CA", CA),
-    DirectUpdate("CN", CNB),
-    DirectUpdate("q_bar", q_bar),
+    DirectUpdate("CA", CA),  # 54
+    DirectUpdate("CN", CNB),  # 55
+    DirectUpdate("q_bar", q_bar),  # 56
 
-    DirectUpdate(drag, f_b_A_x),
-    DirectUpdate(lift, f_b_A_z),
+    DirectUpdate(drag, f_b_A_x),  # 57 - 59
+    DirectUpdate(lift, f_b_A_z),  # 60 - 62
     ])
 
 input = Matrix([
