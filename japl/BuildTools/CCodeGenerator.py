@@ -17,6 +17,7 @@ from collections import defaultdict
 
 class CCodeGenerator(CodeGeneratorBase):
 
+    __JAPL_EXT_MODULE_INIT_HEADER = "# __JAPL_EXTENSION_MODULE__\n"
     comment_prefix: str = "//"
     pre_bracket: str = "["
     post_bracket: str = "]"
@@ -533,6 +534,7 @@ class CCodeGenerator(CodeGeneratorBase):
 
                 # create __init__.py file
                 with open(os.path.join(module_dir_path, "__init__.py"), "a+") as f:
+                    f.write(self.__JAPL_EXT_MODULE_INIT_HEADER)
                     f.write(f"from {module_dir_name}.{module_dir_name} import {func_name}\n")
 
             pybind_writes += ["}"]
