@@ -572,9 +572,9 @@ state = Matrix([
     DirectUpdate(r, r_new),
 
     # ENU
-    DirectUpdate(r_enu_m, r_enu_e_new),         # 19
-    DirectUpdate(v_enu_m, v_enu_e_new),         # 22
-    DirectUpdate(a_enu_m, a_enu_e_new),
+    DirectUpdate(r_enu_m, r_enu_e_new),         # 19 - 21
+    DirectUpdate(v_enu_m, v_enu_e_new),         # 22 - 24
+    DirectUpdate(a_enu_m, a_enu_e_new),         # 25 - 27
 
     # ECEF
     r_e_m,
@@ -589,7 +589,7 @@ state = Matrix([
     v_b_e_m_hat,
 
     DirectUpdate(g_b_m, g_b_e),
-    DirectUpdate(a_b_e_m, a_b_m),
+    DirectUpdate(a_b_e_m, a_b_e),  # 49 - 51
 
     # Mass Properties
     wet_mass,
