@@ -53,6 +53,7 @@ class Model:
         self.direct_state_update_func: Optional[Callable] = None
         self.direct_input_update_func: Optional[Callable] = None
         self.user_input_function: Optional[Callable] = None
+        self.user_insert_functions: list[Callable] = []
 
         self.A = np.array([])
         self.B = np.array([])
@@ -559,12 +560,33 @@ class Model:
         -------------------------------------------------------------------
         Arguments:
             - func: Callable function with the signature:
+                        func(t, X, U, S, dt, ...) -> U
+                    where X is the state array, U is the input array,
+                    S is the static variable array.
+
+                    this function must return the input array U
+                    to have any affect on the model.
+        -------------------------------------------------------------------
+        """
+        self.user_input_function = func
+
+
+    def set_insert_functions(self, funcs: list[Callable]|Callable) -> None:
+        """This method takes a function and inserts it after the
+        Model's update step.
+
+        -------------------------------------------------------------------
+        Arguments:
+            - funcs: list of Callable functions with the signature:
                         func(t, X, U, S, dt, ...)
                     where X is the state array, U is the input array,
                     S is the static variable array.
         -------------------------------------------------------------------
         """
-        self.user_input_function = func
+        if isinstance(funcs, list):
+            self.user_insert_functions += funcs
+        else:
+            self.user_insert_functions += [funcs]
 
 
     def save(self, path: str, name: str):
