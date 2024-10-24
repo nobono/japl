@@ -18,6 +18,8 @@ import dill as pickle
 from time import perf_counter
 import numpy as np
 
+from sympy.codegen.ast import Assignment, Variable, Return
+
 
 
 def dict_subs_func(key_expr: tuple[str, Any], subs: list) -> bytes:
@@ -645,11 +647,11 @@ def to_pycode(func_name: str,
               filepath: str = "",
               use_cse: bool = True,
               imports: list[str] = [],
-              header_insert: str = ""):
+              header_insert: str = "",
+              intermediates: list[tuple] = []):
     if not filepath:
         filepath = func_name + ".py"
     # NOTE: in development
-    from sympy.codegen.ast import Assignment, Variable, Return
     from sympy.codegen.ast import FunctionDefinition
     from sympy.printing.pycode import PythonCodePrinter
     from sympy.codegen.ast import real, float64
@@ -658,6 +660,7 @@ def to_pycode(func_name: str,
     from sympy import cse
     from japl.BuildTools.CodeGeneratorBase import CodeGeneratorBase
     from textwrap import dedent
+    import re
 
     replacements = ()
     if not use_cse:
@@ -697,11 +700,18 @@ def to_pycode(func_name: str,
         for var, rep in replacements:
             if isinstance(rep, Piecewise):
                 # NOTE: Piecewise assignment needs augmentation
-                assignments += [Assignment(var, Symbol(str(pycode(rep))))]
+                expr_str = re.sub(r"\#.*?\n", "", str(pycode(rep, strict=False)))
+                assignments += [Assignment(var, Symbol(expr_str))]
             else:
                 assignments += [Assignment(var, rep)]
-        body = unpack_assignments + assignments + mat_body
 
+        intermed_assigns = []
+        for name, expr in intermediates:
+            expr_str = re.sub(r"\#.*?\n", "", str(pycode(expr, strict=False)))
+            expr_str = expr_str.replace("(t)", "")
+            intermed_assigns += [Assignment(Symbol(name), Symbol(expr_str))]
+
+        body = unpack_assignments + intermed_assigns + assignments + mat_body
 
     # Define the full Python function
     func_def = FunctionDefinition(
@@ -724,6 +734,13 @@ def to_pycode(func_name: str,
     code_str = code_str.replace("math.atan2", "np.arctan2")
     code_str = code_str.replace("math.sqrt", "np.sqrt")
     code_str = code_str.replace("math.nan", "np.nan")
+    code_str = code_str.replace("Abs", "np.abs")
+
+    # handle Piecewise inside expression
+    # Regular expression to match arbitrary strings (allowing for different characters)
+    # NOTE: this only works for Piecewise with a condition and a default condition
+    pattern = r"Piecewise\(\(\s*([^,]+)\s*,\s*([^,]+)\s*\),\s*\(\s*([^,]+)\s*,\s*([^,]+)\s*\)\)"
+    code_str = re.sub(pattern, r"(\1) if (\2) else (\3)", code_str)
 
     state_vars_dict = {id: CodeGeneratorBase._get_expr_name(var)
                        for id, var in enumerate(flatten_list(state_vars))}  # type:ignore
@@ -743,6 +760,9 @@ def to_pycode(func_name: str,
 
             nan = np.nan
             sqrt = np.sqrt
+            sin = np.sin
+            cos = np.cos
+            tan = np.tan
 
             {header_insert}
 
