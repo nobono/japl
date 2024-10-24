@@ -1,16 +1,11 @@
 import dill as pickle
 import numpy as np
 import sympy as sp
-# from itertools import permutations
-from sympy import Matrix, Symbol, symbols, cse
+from sympy import Matrix, Symbol, symbols
 from sympy import MatrixSymbol
 from sympy import Function
 from sympy import Piecewise
-from sympy import Eq, Gt, Ge, Lt, Le, Mod
-from sympy import sqrt
-from sympy import simplify
 from sympy import sin, cos
-# from sympy import default_sort_key, topological_sort
 from japl.BuildTools.DirectUpdate import DirectUpdate
 from japl import JAPL_HOME_DIR
 from japl.Util.Util import profile
@@ -18,7 +13,7 @@ from japl import Model
 from japl.BuildTools.CCodeGenerator import CCodeGenerator
 
 from japl.Library.Earth.Earth import Earth
-from japl.Math.RotationSymbolic import ecef_to_lla_sym
+# from japl.Sim.Integrate import runge_kutta_4_symbolic, runge_kutta_4
 
 
 ################################################################
@@ -190,19 +185,19 @@ q0 = Symbol("q0", real=True)  # (t)
 q1 = Symbol("q1", real=True)  # (t)
 q2 = Symbol("q2", real=True)  # (t)
 q3 = Symbol("q3", real=True)  # (t)
-pos_n = Symbol("pos_n", real=True)  # (t)
 pos_e = Symbol("pos_e", real=True)  # (t)
-pos_d = Symbol("pos_d", real=True)  # (t)
-vel_n = Symbol("vel_n", real=True)  # (t)
+pos_n = Symbol("pos_n", real=True)  # (t)
+pos_u = Symbol("pos_u", real=True)  # (t)
 vel_e = Symbol("vel_e", real=True)  # (t)
-vel_d = Symbol("vel_d", real=True)  # (t)
+vel_n = Symbol("vel_n", real=True)  # (t)
+vel_u = Symbol("vel_u", real=True)  # (t)
 
 acc_bias_x, acc_bias_y, acc_bias_z = symbols("acc_bias_x, acc_bias_y, acc_bias_z", real=True)
 angvel_bias_x, angvel_bias_y, angvel_bias_z = symbols("angvel_bias_x, angvel_bias_y, angvel_bias_z", real=True)
 
 quat = Matrix([q0, q1, q2, q3])
-pos = Matrix([pos_n, pos_e, pos_d])
-vel = Matrix([vel_n, vel_e, vel_d])
+pos = Matrix([pos_e, pos_n, pos_u])
+vel = Matrix([vel_e, vel_n, vel_u])
 acc_bias = Matrix([acc_bias_x, acc_bias_y, acc_bias_z])
 angvel_bias = Matrix([angvel_bias_x, angvel_bias_y, angvel_bias_z])
 
@@ -249,7 +244,7 @@ C_body_to_ecef = C_eci_to_ecef * C_body_to_eci
 C_eci_to_body = C_body_to_eci.T
 C_ecef_to_body = C_body_to_ecef.T
 
-dcm_to_body = C_body_to_eci.T
+# dcm_to_body = C_body_to_eci.T
 gravity_ef = Matrix([-9.81, 0, 0])  # gravity earth-frame
 # gravity_bf = dcm_to_body * gravity_ef
 gravity_ecef = C_eci_to_ecef * gravity_ef
@@ -261,10 +256,12 @@ Sq = np.array([[-q1, -q2, -q3],    # type:ignore
                [q3, q0, -q1],      # type:ignore
                [-q2, q1, q0]])     # type:ignore
 
-quat_new = quat + (0.5 * Sq * angvel_true) * dt
-acc_world_measured = (C_body_to_eci * (acc_true + gravity_bf))
-pos_new = pos + vel * dt + 0.5 * acc_world_measured * dt**2
-vel_new = vel + acc_world_measured * dt
+quat_dot = (0.5 * Sq * angvel_true)
+quat_new = quat + quat_dot * dt
+acc_eci = (C_body_to_eci * acc_true)
+
+pos_new = pos + vel * dt + 0.5 * acc_eci * dt**2
+vel_new = vel + acc_eci * dt
 gyro_bias_new = angvel_bias
 accel_bias_new = acc_bias
 
@@ -334,9 +331,13 @@ R = Matrix([R_accel_x, R_accel_y, R_accel_z,
 ##################################################
 
 X_new = Matrix([quat_new, pos_new, vel_new, accel_bias_new, gyro_bias_new])
-X_dot = X.diff(dt)
 F = X_new.jacobian(X)
 G = X_new.jacobian(U)
+
+X_dot = X_new.diff(dt) + X_new.diff(t)  # type:ignore
+
+# TODO starting testing symbolic integration function
+# X_new = runge_kutta_4_symbolic(X_dot, t, X, dt)
 
 ##################################################
 # Covariance Prediction
@@ -481,12 +482,12 @@ state_info = {
         q1: 0,
         q2: 0,
         q3: 0,
-        pos_n: 0,
         pos_e: 0,
-        pos_d: 0,
-        vel_n: 0,
+        pos_n: 0,
+        pos_u: 0,
         vel_e: 0,
-        vel_d: 0,
+        vel_n: 0,
+        vel_u: 0,
         acc_bias_x: 0,
         acc_bias_y: 0,
         acc_bias_z: 0,
