@@ -384,6 +384,11 @@ class CCodeGenerator(CodeGeneratorBase):
                     by_reference[k] = expr_simple[-by_ref_nadds:][i]
             ######################################################
 
+            # remove added reference expr which were
+            # added for cse()
+            if by_ref_nadds > 0:
+                expr = Matrix(expr[:-by_ref_nadds])
+
         else:
             replacements = []
             expr_simple = expr
