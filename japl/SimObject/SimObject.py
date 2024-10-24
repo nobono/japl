@@ -133,6 +133,7 @@ class SimObject:
         self.Y = np.array([], dtype=self._dtype)
         self.U = np.array([], dtype=self._dtype)
         self.__T = np.array([])
+        self.__istep: int  # sim step counter set by Sim class
 
         self._setup_model(**kwargs)
 
@@ -144,6 +145,10 @@ class SimObject:
                 )
         if not self.color:
             self.color = self.plot.color
+
+
+    def _set_sim_step(self, istep: int):
+        self.__istep = istep
 
 
     def set_draw(self, size: float = 1, color: str = "black") -> None:
@@ -160,21 +165,48 @@ class SimObject:
         self.cg: float = kwargs.get("cg", 0)
 
 
+    def __getattr__(self, name) -> np.ndarray|float:
+        return self.get_current(name)
+
+
+    def get_current(self, var_names: str|list[str]) -> np.ndarray|float:
+        """This method will get data from SimObject.Y array corresponding
+        to the state-name \"var_str\". but returns the current time step
+        of specific variable name in the running simulation.
+        """
+        ret = self.get(var_names)
+        if hasattr(ret, "shape"):
+            if len(ret.shape) > 1:
+                return ret[self.__istep, :]
+            elif len(ret.shape) == 1:
+                return ret[self.__istep]
+            else:
+                return ret
+        else:
+            return ret
+
+
     def get(self, var_names: str|list[str]) -> np.ndarray:
         """This method will get data from SimObject.Y array corresponding
         to the state-name \"var_str\".
 
         This method is more general, using extra checks, making is slower
         than useing get_state_array, get_input_array, or get_static_array."""
+
+        # allow multiple names in a single string (e.g. "a, b, c")
+        if isinstance(var_names, str) and (',' in var_names)\
+                and ((names_list := var_names.split(',')).__len__() > 1):
+            var_names = [i.strip() for i in names_list]
+
         if isinstance(var_names, list):
             ret = []
             for var_name in var_names:
                 if var_name in self.model.state_register:
                     ret += [self.Y[:, self.model.get_state_id(var_name)]]
                 elif var_name in self.model.input_register:
-                    ret += [self.Y[:, self.model.get_input_id(var_name)]]
+                    ret += [self.U[:, self.model.get_input_id(var_name)]]
                 elif var_name in self.model.static_register:
-                    ret += [self.Y[:, self.model.get_static_id(var_name)]]
+                    ret += [self.S0[:, self.model.get_static_id(var_name)]]
                 else:
                     raise Exception(f"SimObject: {self.name} cannot get model variable "
                                     "\"{var_str}\". variable not found.")
@@ -183,9 +215,9 @@ class SimObject:
             if var_names in self.model.state_register:
                 return self.Y[:, self.model.get_state_id(var_names)]
             elif var_names in self.model.input_register:
-                return self.Y[:, self.model.get_input_id(var_names)]
+                return self.U[:, self.model.get_input_id(var_names)]
             elif var_names in self.model.static_register:
-                return self.Y[:, self.model.get_static_id(var_names)]
+                return self.S0[self.model.get_static_id(var_names)]
             else:
                 raise Exception(f"SimObject: {self.name} cannot get model variable "
                                 "\"{var_str}\". variable not found.")
