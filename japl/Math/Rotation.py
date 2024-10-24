@@ -43,7 +43,7 @@ def enu_to_body(t: float, quat: np.ndarray, r_ecef: np.ndarray, enu: np.ndarray)
     return body_xyz
 
 
-def eci_to_ecef_position(eci_xyz: np.ndarray|list, t: float = 0) -> np.ndarray:
+def eci_to_ecef(eci_xyz: np.ndarray|list, t: float = 0) -> np.ndarray:
     """This method converts a position vector from ECI
     coordinates to ECEF.
 
@@ -66,8 +66,8 @@ def eci_to_ecef_position(eci_xyz: np.ndarray|list, t: float = 0) -> np.ndarray:
     return dcm_eci_to_ecef @ eci_xyz
 
 
-def ecef_to_eci_position(ecef_xyz: np.ndarray|list, t: float = 0) -> np.ndarray:
-    """This method converts a postiion vector from ECEF
+def ecef_to_eci(ecef_xyz: np.ndarray|list, t: float = 0) -> np.ndarray:
+    """This method converts a non-velocity vector from ECEF
     coordinates to ECI.
 
     ---------------------------------------------------
@@ -89,9 +89,10 @@ def ecef_to_eci_position(ecef_xyz: np.ndarray|list, t: float = 0) -> np.ndarray:
     return dcm_eci_to_ecef.T @ ecef_xyz
 
 
-def eci_to_ecef(eci_xyz: np.ndarray|list, r_ecef: np.ndarray|list) -> np.ndarray:
-    """This method converts a non-position vector from ECI
-    coordinates to ECEF.
+def eci_to_ecef_velocity(eci_xyz: np.ndarray|list, r_ecef: np.ndarray|list) -> np.ndarray:
+    """This method converts a velocity vector from ECI
+    coordinates to ECEF by taking into account Earth's
+    rotation.
 
     vec_ecef = v_eci − omega_kew * r_ecef
 
@@ -117,9 +118,10 @@ def eci_to_ecef(eci_xyz: np.ndarray|list, r_ecef: np.ndarray|list) -> np.ndarray
     return eci_xyz - omega_skew @ r_ecef
 
 
-def ecef_to_eci(ecef_xyz: np.ndarray|list, r_ecef: np.ndarray|list) -> np.ndarray:
-    """This method converts a non-position vector from ECEF
-    coordinates to ECI.
+def ecef_to_eci_velocity(ecef_xyz: np.ndarray|list, r_ecef: np.ndarray|list) -> np.ndarray:
+    """This method converts a velocity vector from ECEF
+    coordinates to ECI by taking into account Earth's
+    rotation.
 
     vec_eci = vec_ecef + omega_skew * r_ecef
 
@@ -251,7 +253,7 @@ def eci_to_enu_position(eci_xyz: np.ndarray|list, ecef0: Optional[np.ndarray|lis
     ---------------------------------------------------
     """
     ecef0 = np.asarray(ecef0)
-    ecef = eci_to_ecef_position(eci_xyz, t=t)
+    ecef = eci_to_ecef(eci_xyz, t=t)
     enu = ecef_to_enu_position(ecef, ecef0)
     return enu
 
@@ -266,8 +268,6 @@ def eci_to_enu(eci_xyz: np.ndarray|list, r_ecef: np.ndarray|list,
     Arguments:
         - eci_xyz: [x, y, z] ECI-coordinate
         - r_ecef: [x, y, z] ECEF-coordinate position vector
-                  this is the coordinates for the reference
-                  frame origin.
         - ecef0: [x0, y0, z0] ECEF-coordinate reference vector
                   this is the coordinates for the reference
                   frame origin.
@@ -278,7 +278,7 @@ def eci_to_enu(eci_xyz: np.ndarray|list, r_ecef: np.ndarray|list,
     """
     r_ecef = np.asarray(r_ecef)
     ecef0 = np.asarray(ecef0)
-    ecef = eci_to_ecef(eci_xyz, r_ecef=r_ecef)
+    ecef = eci_to_ecef_velocity(eci_xyz, r_ecef=r_ecef)
     enu = ecef_to_enu(ecef, ecef0)
     return enu
 

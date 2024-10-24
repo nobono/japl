@@ -1,6 +1,7 @@
 import os
 import numpy as np
 from sympy import Matrix, Symbol, symbols
+from sympy import Piecewise
 from sympy import sign, rad, sqrt
 from sympy import sin, cos
 from sympy import atan, atan2, tan
@@ -14,6 +15,9 @@ from japl.BuildTools.DirectUpdate import DirectUpdate
 from japl.Aero.AeroTableSymbolic import AeroTableSymbolic
 from japl.Math.RotationSymbolic import ecef_to_lla_sym
 from japl.Library.Earth.Earth import Earth
+from japl.BuildTools.CCodeGenerator import CCodeGenerator
+from japl.Util.Util import flatten_list
+from japl.BuildTools.BuildTools import to_pycode
 from japl import JAPL_HOME_DIR
 
 DIR = os.path.dirname(__file__)
@@ -169,6 +173,7 @@ K_phi = Symbol("K_phi", real=True)              # roll controller gain
 
 flag_boosting = Symbol("flag_boosting")         # vehicle is boosting
 stage = Symbol("stage")                         # missile stage (int)
+blaunched = Symbol("blaunched", real=True)      # flag to launch missile or keep stationary
 
 # angular velocities
 p = Function("p", real=True)(t)                 # roll-rate
@@ -183,6 +188,7 @@ Sref = Symbol("Sref", real=True)                # area reference
 mach = Function("mach", real=True)(t)           # mach number
 C_s = Symbol("C_s", real=True)                  # speed of sound
 rho = Symbol("rho", real=True)                  # air density
+gacc = Symbol("gacc", real=True)
 
 # autopilot acceleration commands
 a_c_x = Symbol("a_c_x", real=True)              # acc-x command (body-frame)
@@ -231,9 +237,18 @@ v_e_e = C_eci_to_ecef * v_i_m - omega_skew_ie * r_e_e
 # (12)
 epsilon = 1e-3
 V = v_e_e.norm()
+V = Piecewise(
+        (sp.Expr(V), blaunched),
+        (0.0, True)
+        )
 
 # (10) Mach number
 M = V / C_s
+# zero-protect
+M = Piecewise(
+        (M, C_s > 0.0),  # type:ignore
+        (0, True)
+        )
 
 # (11) Dynamic pressure
 q_bar = 0.5 * rho * V**2  # type:ignore
@@ -254,12 +269,22 @@ f_b_A_z = CNB * q_bar * Sref
 f_b_A = Matrix([-f_b_A_x, 0, -f_b_A_z])
 
 # (6)
-gacc = -9.81
 g_i_m = Matrix([gacc, 0, 0])
 g_e_m = C_eci_to_ecef * g_i_m
 g_b_e = C_ecef_to_body * g_e_m
 
-a_b_m = ((f_b_A + f_b_T) / wet_mass) + g_b_e
+a_b_m_expr = ((f_b_A + f_b_T) / wet_mass) + g_b_e
+a_b_m = Matrix([
+    Piecewise(
+        (0.0, sp.Eq(blaunched, 0)),
+        (a_b_m_expr[0], True)),
+    Piecewise(
+        (0.0, sp.Eq(blaunched, 0)),
+        (a_b_m_expr[1], True)),
+    Piecewise(
+        (0.0, sp.Eq(blaunched, 0)),
+        (a_b_m_expr[2], True))
+    ])
 
 # (13) Earth-relative acceleration vector
 a_e_e = (C_body_to_ecef * a_b_m - (2 * omega_skew_ie * v_e_e)
@@ -332,6 +357,15 @@ C_2 = (C_11 * C_22 - C_12 * C_21) * u + (C_22 * C_31 - C_21 * C_32) * w
 # (42) (43)
 q_new = (w_dot - a_b_e[2] + p * v - omega_e * C_1) / u
 r_new = (a_b_e[1] - v_dot + p * w + omega_e * C_2) / u
+# zero-protect
+q_new = Piecewise(
+        (q_new, u > 0.0),
+        (0, True)
+        )
+r_new = Piecewise(
+        (r_new, u > 0.0),
+        (0, True)
+        )
 
 ##################################################
 
@@ -432,6 +466,11 @@ q_m_dot = 0.5 * Sq * omega_b_ib
 
 # (48) Total life coefficient command
 C_N_c = (a_c * wet_mass) / q_bar * Sref
+# zero-protect
+C_N_c = Piecewise(
+        (C_N_c, q_bar > 0.0),
+        (0, True)
+        )
 
 # (49) Aerodynamics roll angle command
 phi_Ac = atan2(-a_c_y, -a_c_z)
@@ -551,54 +590,53 @@ defs = (
 # - Any relationship can be defined in the definition
 #   tuple above.
 # ------------------------------------------------
-
 state = Matrix([
-    q_m,
-    r_i_m,
-    v_i_m,
+    q_m,  # 0 - 3
+    r_i_m,  # 4 - 6
+    v_i_m,  # 7 - 9
 
     alpha,      # 10
-    alpha_dot,
-    beta,
-    beta_dot,
-    phi_hat,
+    alpha_dot,  # 11
+    beta,       # 12
+    beta_dot,   # 13
+    phi_hat,    # 14
     DirectUpdate("phi_hat_dot", phi_hat_dot),  # 15
 
     # Angular rates
-    p,
-    DirectUpdate(q, q_new),
-    DirectUpdate(r, r_new),
+    p,  # 16
+    DirectUpdate(q, q_new),  # 17
+    DirectUpdate(r, r_new),  # 18
 
     # ENU
-    DirectUpdate(r_enu_m, r_enu_e_new),         # 19
-    DirectUpdate(v_enu_m, v_enu_e_new),         # 22
-    DirectUpdate(a_enu_m, a_enu_e_new),
+    DirectUpdate(r_enu_m, r_enu_e_new),         # 19 - 21
+    DirectUpdate(v_enu_m, v_enu_e_new),         # 22 - 24
+    DirectUpdate(a_enu_m, a_enu_e_new),         # 25 - 27
 
     # ECEF
-    r_e_m,
-    v_e_m,
-    DirectUpdate(a_e_m, a_e_e),
+    r_e_m,  # 28 -30
+    v_e_m,  # 31 - 33
+    DirectUpdate(a_e_m, a_e_e),  # 34 - 36
 
-    vel_mag_e,
-    DirectUpdate(vel_mag_e_dot, V_dot),
-    DirectUpdate(mach, M),
+    vel_mag_e,  # 37
+    DirectUpdate(vel_mag_e_dot, V_dot),  # 38
+    DirectUpdate(mach, M),  # 39
 
-    v_b_e_m,
-    v_b_e_m_hat,
+    v_b_e_m,  # 40 - 42
+    v_b_e_m_hat,  # 43 - 45
 
-    DirectUpdate(g_b_m, g_b_e),
-    DirectUpdate(a_b_e_m, a_b_m),
+    DirectUpdate(g_b_m, g_b_e),  # 46 -48
+    DirectUpdate(a_b_e_m, a_b_e),  # 49 - 51
 
     # Mass Properties
-    wet_mass,
-    dry_mass,
+    wet_mass,  # 52
+    dry_mass,  # 53
 
-    DirectUpdate("CA", CA),
-    DirectUpdate("CN", CNB),
-    DirectUpdate("q_bar", q_bar),
+    DirectUpdate("CA", CA),  # 54
+    DirectUpdate("CN", CNB),  # 55
+    DirectUpdate("q_bar", q_bar),  # 56
 
-    DirectUpdate(drag, f_b_A_x),
-    DirectUpdate(lift, f_b_A_z),
+    DirectUpdate(drag, f_b_A_x),  # 57 - 59
+    DirectUpdate(lift, f_b_A_z),  # 60 - 62
     ])
 
 input = Matrix([
@@ -608,6 +646,7 @@ input = Matrix([
     a_c_z,
     thrust,
     mass_dot,
+    gacc,
     ])
 
 static = Matrix([
@@ -619,12 +658,60 @@ static = Matrix([
     T_r,      # roll autopilot time constant
     flag_boosting,
     stage,
+    blaunched,
     ])
 ##################################################
 # Define dynamics
 ##################################################
 
 dynamics = state.diff(t)
+
+##################################################
+# Auto-Detect DirectUpdates
+##################################################
+
+# # quat = np.array([.7, 0, .7, 0])
+# # n = np.linalg.norm(quat)
+# # nquat = quat / n
+
+# ####
+# p, q, r = symbols("p, q, r")
+# omega = Matrix([p, q, r])
+# Sq = Matrix([[-q_1, -q_2, -q_3],    # type:ignore
+#              [q_0, -q_3, q_2],      # type:ignore
+#              [q_3, q_0, -q_1],      # type:ignore
+#              [-q_2, q_1, q_0]])     # type:ignore
+
+# subs = {dt: 0.1,
+#         p: 1,
+#         q: 0,
+#         r: 0,
+#         q_0: 1,
+#         q_1: 0,
+#         q_2: -1,
+#         q_3: 0,
+#         }
+# q_m_dot = 0.5 * Sq * omega
+# q_new = q_m + q_m_dot * dt
+# nq_new = Quaternion(*q_new, norm=1).normalize()
+
+# ssubs = {
+#         q_0.diff(t): q_m_dot.doit()[0],
+#         q_1.diff(t): q_m_dot.doit()[1],
+#         q_2.diff(t): q_m_dot.doit()[2],
+#         q_3.diff(t): q_m_dot.doit()[3],
+#         }
+# ####
+
+# # def_vars = flatten_list([var for (var, _) in defs])
+# # diff_defs = []
+# # direct_defs = []
+# # for var in def_vars:
+# #     if var.is_Derivative:
+# #         diff_defs += [var]
+# #     else:
+# #         direct_defs += [var]
+# quit()
 
 ##################################################
 # Build Model
@@ -643,4 +730,52 @@ if __name__ == "__main__":
                                               definitions=defs,
                                               use_multiprocess_build=True)
 
-    model.save(path=JAPL_HOME_DIR + "/data/", name="mmd")
+    # model.save(path=JAPL_HOME_DIR + "/../mmd/", name="mmd")
+
+    path = "./"
+    imports = ["from config import aerotable_get_CA",
+               "from config import aerotable_get_CNB",
+               "from config import aerotable_get_Sref",
+               "from config import atmosphere_density",
+               "from config import atmosphere_speed_of_sound",
+               "from config import aerotable_inv_aerodynamics"]
+
+    to_pycode(func_name="dynamics_func",
+              expr=model.dynamics_expr,
+              state_vars=state,
+              input_vars=input,
+              static_vars=static,
+              filepath=os.path.join(path, "mmd_dynamics.py"),
+              imports=imports)
+
+    to_pycode(func_name="state_update_func",
+              expr=model.state_direct_updates,
+              state_vars=state,
+              input_vars=input,
+              static_vars=static,
+              filepath=os.path.join(path, "mmd_state_update.py"),
+              imports=imports)
+
+    to_pycode(func_name="input_update_func",
+              expr=model.input_direct_updates,
+              state_vars=state,
+              input_vars=input,
+              static_vars=static,
+              filepath=os.path.join(path, "mmd_input_update.py"),
+              imports=imports)
+
+    # gen = CCodeGenerator()
+    # params = [t, state, input, static, dt]
+    # gen.add_function(expr=model.dynamics_expr,
+    #                  params=params,
+    #                  function_name="dynamics",
+    #                  return_name="Xdot")
+    # gen.add_function(expr=model.state_direct_updates,
+    #                  params=params,
+    #                  function_name="state_updates",
+    #                  return_name="Xnew")
+    # gen.add_function(expr=model.input_direct_updates,
+    #                  params=params,
+    #                  function_name="input_updates",
+    #                  return_name="Unew")
+    # gen.create_module(module_name="mmd", path="./")

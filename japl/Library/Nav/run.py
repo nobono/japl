@@ -174,79 +174,94 @@ def ekf_step(t, X, U, S, dt):
     return X
 
 
-# plotter = PyQtGraphPlotter(frame_rate=30, figsize=[10, 8], aspect="auto")
+if __name__ == "__main__":
+    # plotter = PyQtGraphPlotter(frame_rate=30, figsize=[10, 8], aspect="auto")
+    ######
+    # model = Model.from_file(f"{JAPL_HOME_DIR}/data/ekf_expr.japl")
+    model = Model.from_file(f"{JAPL_HOME_DIR}/data/ekf_expr.japl")
+    simobj = SimObject(model)
+    simobj.init_state([X, get_mat_upper(P)])
+    # Y = simobj.X0
+    # ret = simobj.get_state_array(Y, "P")
+    # print(ret)
+    # quit()
+    ######
 
-print("Building Model...")
-model = Model.from_function(dt, state, input,
-                            state_update_func=ekf_step,
-                            input_update_func=ekf_input_update)
-simobj = SimObject(model)
-simobj.init_state(X)
-simobj.plot.set_config({
+    # print("Building Model...")
+    # model = Model.from_function(dt, state, input,
+    #                             state_update_func=ekf_step,
+    #                             input_update_func=ekf_input_update)
+    # simobj = SimObject(model)
+    # simobj.init_state(X)
+    simobj.plot.set_config({
 
-    # "E": {
-    #     "xaxis": 'time',
-    #     "yaxis": 'pos_e',
-    #     "marker": 'o',
-    #     },
-    # "N": {
-    #     "xaxis": 'time',
-    #     "yaxis": 'pos_n',
-    #     "marker": 'o',
-    #     "color": "orange",
-    #     },
-    # "U": {
-    #     "xaxis": 't',
-    #     "yaxis": 'pos_d',
-    #     "marker": 'o',
-    #     "color": "green",
-    #     },
+        # "E": {
+        #     "xaxis": 'time',
+        #     "yaxis": 'pos_e',
+        #     "marker": 'o',
+        #     },
+        # "N": {
+        #     "xaxis": 'time',
+        #     "yaxis": 'pos_n',
+        #     "marker": 'o',
+        #     "color": "orange",
+        #     },
+        # "U": {
+        #     "xaxis": 't',
+        #     "yaxis": 'pos_d',
+        #     "marker": 'o',
+        #     "color": "green",
+        #     },
 
-    "EU": {
-        "xaxis": 'pos_e',
-        "yaxis": 'pos_d',
-        "marker": 'o',
-        # "xlim": [-1, 1],
-        # "ylim": [-1, 1]
-        },
+        "EU": {
+            "xaxis": 'pos_e',
+            "yaxis": 'pos_d',
+            "marker": 'o',
+            # "xlim": [-1, 1],
+            # "ylim": [-1, 1]
+            },
 
-    # "accel-x": {
-    #     "xaxis": 't',
-    #     "yaxis": 'z_accel_x',
-    #     "marker": 'o',
-    #     },
-    # "accel-y": {
-    #     "xaxis": 't',
-    #     "yaxis": 'z_accel_y',
-    #     "marker": 'o',
-    #     "color": "orange",
-    #     },
-    # "accel-z": {
-    #     "xaxis": 't',
-    #     "yaxis": 'z_accel_z',
-    #     "marker": 'o',
-    #     "color": "green",
-    #     },
+        # "accel-x": {
+        #     "xaxis": 't',
+        #     "yaxis": 'z_accel_x',
+        #     "marker": 'o',
+        #     },
+        # "accel-y": {
+        #     "xaxis": 't',
+        #     "yaxis": 'z_accel_y',
+        #     "marker": 'o',
+        #     "color": "orange",
+        #     },
+        # "accel-z": {
+        #     "xaxis": 't',
+        #     "yaxis": 'z_accel_z',
+        #     "marker": 'o',
+        #     "color": "green",
+        #     },
 
-    })
+        })
 
-print("Starting Sim...")
-sim = Sim([0, 25], 0.01, [simobj])
-sim.run()
-sim.profiler.print_info()
-# plotter.animate(sim)
+    print("Starting Sim...")
+    sim = Sim([0, 1], 0.01, [simobj])
+    sim.run()
+    sim.profiler.print_info()
+    # plotter.animate(sim)
 
-iaccel_z = simobj.model.get_input_id("z_accel_z")
-ipos_n = simobj.model.get_state_id("pos_n")
-ipos_e = simobj.model.get_state_id("pos_e")
-ipos_d = simobj.model.get_state_id("pos_d")
-T = sim.T
-accel_z = simobj.U[:, iaccel_z]
-pos_n = simobj.Y[:, ipos_n]
-pos_e = simobj.Y[:, ipos_e]
-pos_d = simobj.Y[:, ipos_d]
+    iaccel_z = simobj.model.get_input_id("z_accel_z")
+    ipos_n = simobj.model.get_state_id("pos_n")
+    ipos_e = simobj.model.get_state_id("pos_e")
+    ipos_d = simobj.model.get_state_id("pos_d")
+    T = sim.T
+    accel_z = simobj.U[:, iaccel_z]
+    pos_n = simobj.Y[:, ipos_n]
+    pos_e = simobj.Y[:, ipos_e]
+    pos_d = simobj.Y[:, ipos_d]
 
-# plotter.plot(T, pos_n)
-# plotter.plot(T, pos_e)
-# plotter.plot(T, pos_d)
-# plotter.show()
+    # plotter.plot(T, pos_n)
+    # plotter.plot(T, pos_e)
+    # plotter.plot(T, pos_d)
+    # plotter.show()
+
+    Y = simobj.Y[-1]
+    print(simobj.get_state_array(Y, "P"))
+    # quit()

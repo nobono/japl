@@ -39,5 +39,5 @@ class Profiler:
         wrap_str = "-" * 50
         header = f"\n{wrap_str}\nProfiler Info:\n{wrap_str}"
         print(header)
-        print("ave_dt: %.5f, ave_Hz: %.1f" % (self.dt_average, (1 / self.dt_average)))
+        print("ave_dt: %.5f, ave_Hz: %.1f" % (self.dt_average, (1 / max(1e-6, self.dt_average))))
         print(wrap_str, end='\n\n')

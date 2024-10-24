@@ -117,3 +117,11 @@ def pitchover_guidance(t,
 
         return (complete, a_c)
     return (complete, np.zeros(3))
+
+
+def pronav(rm, vm, r_targ, v_targ, N) -> np.ndarray:
+    v_r = v_targ - vm
+    r = r_targ - rm
+    omega = np.cross(r, v_r) / np.dot(r, r)
+    ac = N * np.cross(v_r, omega)
+    return ac

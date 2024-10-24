@@ -159,14 +159,14 @@ class Sim:
             self.device_input_data["ly"] = ly
 
         # setup time and initial state for step
-        tstep_prev = self.t_array[istep - 1]
-        tstep = self.t_array[istep]
-        X = simobj.Y[istep - 1]  # init with previous state
-        U = simobj.U[istep - 1]      # init with current input array (zeros)
+        tstep = self.t_array[istep - 1]
+        tstep_next = self.t_array[istep]
+        X = simobj.Y[istep - 1].copy()  # init with previous state
+        U = simobj.U[istep - 1].copy()      # init with current input array (zeros)
         S = simobj.S0
 
-        # setup input array
-        # U = np.zeros(len(simobj.model.input_vars), dtype=self._dtype)
+        # update SimObject time step index
+        simobj._set_sim_step(istep - 1)
 
         ##################################################################
         # apply direct state updates
@@ -181,26 +181,29 @@ class Sim:
         # for name, info in simobj.model.state_register.matrix_info.items():
         #     state_mat_reshape_info += [(info["id"], info["size"], info["var"].shape)]
 
+        X_prev = X.copy()
+        X_state_update = np.empty_like(X)
+        X_state_update[:] = np.nan
 
         # apply any user-defined input functions
         if simobj.model.user_input_function:
-            simobj.model.user_input_function(tstep, X, U, S, dt, simobj)
+            U = simobj.model.user_input_function(tstep, X_prev, U.copy(), S, dt, simobj)
 
         # apply direct updates to input
         if simobj.model.direct_input_update_func:
             # TODO: (working) expanding for matrix
             # for info in state_mat_reshape_info:
             #     id, size, shape = info
-            U_temp = simobj.model.direct_input_update_func(tstep, X, U, S, dt).flatten()
-            U[~np.isnan(U_temp)] = U_temp[~np.isnan(U_temp)]  # ignore nan values
+            U_temp = simobj.model.direct_input_update_func(tstep, X.copy(), U, S, dt).flatten()
+            input_update_mask = ~np.isnan(U_temp)
+            U[input_update_mask] = U_temp[input_update_mask]  # ignore nan values
 
         # apply direct updates to state
         if simobj.model.direct_state_update_func:
-            X_temp = simobj.model.direct_state_update_func(tstep, X, U, S, dt).flatten()
-            if X_temp is None:
+            X_state_update = simobj.model.direct_state_update_func(tstep, X_prev, U, S, dt).flatten()
+            if X_state_update is None:
                 raise Exception("Model direct_state_update_func returns None."
                                 f"(in SimObject \"{simobj.name})\"")
-            X[~np.isnan(X_temp)] = X_temp[~np.isnan(X_temp)]  # ignore nan values
 
         if not simobj.model.dynamics_func:
             self.T[istep] = tstep + dt
@@ -215,23 +218,33 @@ class Sim:
                     X_new, T_new = euler(
                             f=dynamics_func,
                             t=tstep,
-                            X=X,
+                            X=X_prev,
                             dt=dt,
                             args=(U, S, dt, simobj,),
                             )
+                    # mix non-NaN values from dynamics
+                    # and direct / external updates
+                    mask = ~np.isnan(X_state_update)
+                    X_new[mask] = X_state_update[mask]
+
                 case "rk4":
                     X_new, T_new = runge_kutta_4(
                             f=dynamics_func,
                             t=tstep,
-                            X=X,
+                            X=X_prev,
                             dt=dt,
                             args=(U, S, dt, simobj,),
                             )
+                    # mix non-NaN values from dynamics
+                    # and direct / external updates
+                    mask = ~np.isnan(X_state_update)
+                    X_new[mask] = X_state_update[mask]
+
                 case "odeint":
                     sol = solve_ivp(
                             fun=dynamics_func,
-                            t_span=(tstep_prev, tstep),
-                            t_eval=[tstep],
+                            t_span=(tstep, tstep_next),
+                            t_eval=[tstep_next],
                             y0=X,
                             args=(U, S, dt, simobj,),
                             events=self.events,
@@ -241,18 +254,22 @@ class Sim:
                             )
                     X_new = sol['y'].T[0]
                     T_new = sol['t'][0]
+                    # mix non-NaN values from dynamics
+                    # and direct / external updates
+                    mask = ~np.isnan(X_state_update)
+                    X_new[mask] = X_state_update[mask]
+
                 case _:
                     raise Exception(f"integration method {self.integrate_method} is not defined")
 
+            # run user-defined functions here, after parent SimObject's
+            # model update step.
+            for func in simobj.model.user_insert_functions:
+                func(tstep, X_new.copy(), U.copy(), S, dt, simobj)
+
             # store results
             self.T[istep] = T_new
-
-            # ignore any X_new that is nan
-            mask = ~np.isnan(X_new)
-            simobj.Y[istep][mask] = X_new[mask]
-            simobj.Y[istep][~mask] = X[~mask]
-
-            # simobj.Y[istep] = X_new
+            simobj.Y[istep] = X_new
             simobj.U[istep] = U
             self.istep += 1
 
@@ -264,9 +281,9 @@ class Sim:
                     match action:
                         case "stop":
                             # trim output arrays
-                            self.T = self.T[:self.istep]
-                            simobj.Y = simobj.Y[:self.istep]
-                            simobj.U = simobj.U[:self.istep]
+                            self.T = self.T[:self.istep + 1]
+                            simobj.Y = simobj.Y[:self.istep + 1]
+                            simobj.U = simobj.U[:self.istep + 1]
                             flag_sim_stop = True
                         case _:
                             pass

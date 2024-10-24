@@ -53,6 +53,7 @@ class Model:
         self.direct_state_update_func: Optional[Callable] = None
         self.direct_input_update_func: Optional[Callable] = None
         self.user_input_function: Optional[Callable] = None
+        self.user_insert_functions: list[Callable] = []
 
         self.A = np.array([])
         self.B = np.array([])
@@ -133,7 +134,7 @@ class Model:
         model.input_vars = model.input_register.get_vars()
         model.static_vars = model.static_register.get_vars()
         model.dt_var = dt_var
-        model.vars = (model.state_vars, model.input_vars, model.static_vars, dt_var)
+        model.vars = (Symbol("t"), model.state_vars, model.input_vars, model.static_vars, dt_var)
         model.state_dim = len(model.state_vars)
         model.input_dim = len(model.input_vars)
         model.static_dim = len(model.static_vars)
@@ -187,7 +188,7 @@ class Model:
         model.state_vars = model.state_register.get_vars()
         model.input_vars = model.input_register.get_vars()
         model.dt_var = dt_var
-        model.vars = (model.state_vars, input_vars, dt_var)
+        model.vars = (Symbol("t"), model.state_vars, input_vars, dt_var)
         model.dynamics_expr = A * model.state_vars + B * model.input_vars
         if isinstance(model.dynamics_expr, Expr) or isinstance(model.dynamics_expr, Matrix):
             model.dynamics_expr = simplify(model.dynamics_expr)
@@ -224,7 +225,7 @@ class Model:
                         dt_var: Symbol,
                         state_vars: list|tuple|Matrix,
                         input_vars: list|tuple|Matrix,
-                        dynamics_expr: Expr|Matrix|MatrixSymbol,
+                        dynamics_expr: Expr|Matrix|MatrixSymbol = Matrix([]),
                         static_vars: list|tuple|Matrix = [],
                         definitions: tuple = (),
                         modules: dict|list[dict] = {},
@@ -273,7 +274,7 @@ class Model:
         model.input_vars = model.input_register.get_vars()
         model.static_vars = model.static_register.get_vars()
         model.dt_var = dt_var
-        model.vars = (model.state_vars, model.input_vars, model.static_vars, dt_var)
+        model.vars = (Symbol("t"), model.state_vars, model.input_vars, model.static_vars, dt_var)
         model.dynamics_expr = dynamics_expr
         model.state_direct_updates = state_direct_updates
         model.input_direct_updates = input_direct_updates
@@ -544,8 +545,7 @@ class Model:
         -- (Callable) - lambdified sympy expression
         -------------------------------------------------------------------
         """
-        t = Symbol('t')  # 't' variable needed to adhear to func argument format
-        update_func = Desym((t, *self.vars), Matrix(direct_updates), modules=self.modules)
+        update_func = Desym(self.vars, Matrix(direct_updates), modules=self.modules)
         return update_func
 
 
@@ -560,12 +560,33 @@ class Model:
         -------------------------------------------------------------------
         Arguments:
             - func: Callable function with the signature:
+                        func(t, X, U, S, dt, ...) -> U
+                    where X is the state array, U is the input array,
+                    S is the static variable array.
+
+                    this function must return the input array U
+                    to have any affect on the model.
+        -------------------------------------------------------------------
+        """
+        self.user_input_function = func
+
+
+    def set_insert_functions(self, funcs: list[Callable]|Callable) -> None:
+        """This method takes a function and inserts it after the
+        Model's update step.
+
+        -------------------------------------------------------------------
+        Arguments:
+            - funcs: list of Callable functions with the signature:
                         func(t, X, U, S, dt, ...)
                     where X is the state array, U is the input array,
                     S is the static variable array.
         -------------------------------------------------------------------
         """
-        self.user_input_function = func
+        if isinstance(funcs, list):
+            self.user_insert_functions += funcs
+        else:
+            self.user_insert_functions += [funcs]
 
 
     def save(self, path: str, name: str):
@@ -643,7 +664,7 @@ class Model:
             model.input_vars = model.input_register.get_vars()
             model.static_vars = model.static_register.get_vars()
             model.dt_var = obj.dt_var
-            model.vars = (model.state_vars, model.input_vars, model.static_vars, obj.dt_var)
+            model.vars = (Symbol("t"), model.state_vars, model.input_vars, model.static_vars, obj.dt_var)
             model.dynamics_expr = obj.dynamics_expr
             model.state_direct_updates = obj.state_direct_updates
             model.input_direct_updates = obj.input_direct_updates

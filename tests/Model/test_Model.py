@@ -13,6 +13,7 @@ class TestModel(unittest.TestCase):
         vel = Matrix(symbols("vx vy vz"))
         acc = Matrix(symbols("ax ay az"))
         dt = symbols("dt")
+        t = symbols("t")
 
         state = Matrix([pos, vel])
         input = Matrix([acc])
@@ -22,11 +23,11 @@ class TestModel(unittest.TestCase):
             ])
 
         dynamics = X_new.diff(dt)
-        return (state, input, dt, dynamics)
+        return (t, state, input, dt, dynamics)
 
 
     def test_from_function(self):
-        state, input, dt, dynamics = self.setup()
+        t, state, input, dt, dynamics = self.setup()
 
         def func(t, X, U, S, dt):
             subs = {"vx": 0, "vy": 0, "vz": 0, "ax": 1, "ay": 0, "az": 0}
@@ -34,7 +35,7 @@ class TestModel(unittest.TestCase):
 
         model = Model.from_function(dt, state, input, dynamics_func=func)
         static = Matrix([])
-        self.assertListEqual(list(model.vars), [state, input, static, dt])
+        self.assertListEqual(list(model.vars), [t, state, input, static, dt])
         self.assertEqual(len(model.state_vars), model.state_dim)
         self.assertEqual(len(model.input_vars), model.input_dim)
         self.assertEqual(model.dynamics_func, func)
@@ -43,7 +44,7 @@ class TestModel(unittest.TestCase):
 
 
     def test_from_statespace(self):
-        state, input, dt, dynamics = self.setup()
+        t, state, input, dt, dynamics = self.setup()
         A = np.array([
             [0, 0, 0, 1, 0, 0],
             [0, 0, 0, 0, 1, 0],
@@ -61,19 +62,20 @@ class TestModel(unittest.TestCase):
             [0, 0, 1],
             ])
         model = Model.from_statespace(dt, state, input, A, B)
-        self.assertListEqual(list(model.vars), [state, input, dt])
+        self.assertListEqual(list(model.vars), [t, state, input, dt])
         self.assertEqual(len(model.state_vars), model.state_dim)
         self.assertEqual(len(model.input_vars), model.input_dim)
         self.assertListEqual(model.A.tolist(), A.tolist())
         self.assertListEqual(model.B.tolist(), B.tolist())
-        self.assertListEqual(model([0, 0, 0, 0, 0, 0], [1, 0, 0], 0.01).tolist(), np.array([0, 0, 0, 1, 0, 0]).tolist())
+        self.assertListEqual(model(0, [0, 0, 0, 0, 0, 0], [1, 0, 0], 0.01).tolist(),
+                             np.array([0, 0, 0, 1, 0, 0]).tolist())
 
 
     def test_from_expression(self):
-        state, input, dt, dynamics = self.setup()
+        t, state, input, dt, dynamics = self.setup()
         model = Model.from_expression(dt, state, input, dynamics_expr=dynamics)
         static = Matrix([])
-        self.assertListEqual(list(model.vars), [state, input, static, dt])
+        self.assertListEqual(list(model.vars), [t, state, input, static, dt])
         self.assertEqual(len(model.state_vars), model.state_dim)
         self.assertEqual(len(model.input_vars), model.input_dim)
         self.assertEqual(model.dynamics_expr, dynamics)
