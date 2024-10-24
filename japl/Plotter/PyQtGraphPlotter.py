@@ -844,6 +844,8 @@ class PyQtGraphPlotter:
             plot_item.setLabel("left", ylabel, color=self.text_color)
             plot_item.getAxis("left").setPen({"color": text_color_code})
             plot_item.getAxis("bottom").setPen({"color": text_color_code})
+            # downsampling
+            plot_item.setDownsampling(auto=True, ds=2, mode="mean")
         else:
             win = self.wins[-1]  # get last created window
             plot_item = win.getItem(row=0, col=0)
@@ -859,10 +861,11 @@ class PyQtGraphPlotter:
                 plot_item.setLabel("left", ylabel, color=self.text_color)
                 plot_item.getAxis("left").setPen({"color": text_color_code})
                 plot_item.getAxis("bottom").setPen({"color": text_color_code})
-        curve = pg.PlotCurveItem(x=x, y=y, pen=pen, symbol=marker, symbolPen=symbol_pen)
+                # downsampling
+                plot_item.setDownsampling(auto=False, ds=1, mode="mean")
+        curve = plot_item.plot(x=x, y=y, pen=pen, symbol=marker, symbolPen=symbol_pen)
         if plot_item.legend:
             plot_item.legend.addItem(curve, legend_name)  # type:ignore
-        plot_item.addItem(curve)
         self.__apply_style_settings_to_plot(plot_item)
         return plot_item
 
