@@ -113,8 +113,15 @@ class _PlotInterface:
 
 
 class SimObject:
+    __slots__ = ("_dtype", "name", "color", "size", "model",
+                 "state_dim", "input_dim", "static_dim",
+                 "X0", "U0", "S0", "Y", "U", "plot",
+                 "_SimObject__T", "__T",
+                 "_SimObject__istep", "__istep")
 
     """This is a base class for simulation objects"""
+
+
 
     def __init__(self, model: Model = Model(), **kwargs) -> None:
 
@@ -135,7 +142,7 @@ class SimObject:
         self.__T = np.array([])
         self.__istep: int  # sim step counter set by Sim class
 
-        self._setup_model(**kwargs)
+        # self._setup_model(**kwargs)
 
         # interface for visualization
         self.plot = _PlotInterface(
@@ -156,17 +163,25 @@ class SimObject:
         self.color = color
 
 
-    def _setup_model(self, **kwargs) -> None:
-        # mass properties
-        self.mass: float = kwargs.get("mass", 1)
-        self.Ixx: float = kwargs.get("Ixx", 1)
-        self.Iyy: float = kwargs.get("Iyy", 1)
-        self.Izz: float = kwargs.get("Izz", 1)
-        self.cg: float = kwargs.get("cg", 0)
+    # @DeprecationWarning
+    # def _setup_model(self, **kwargs) -> None:
+    #     # mass properties
+    #     self.mass: float = kwargs.get("mass", 1)
+    #     self.Ixx: float = kwargs.get("Ixx", 1)
+    #     self.Iyy: float = kwargs.get("Iyy", 1)
+    #     self.Izz: float = kwargs.get("Izz", 1)
+    #     self.cg: float = kwargs.get("cg", 0)
 
 
     def __getattr__(self, name) -> np.ndarray|float:
         return self.get_current(name)
+
+
+    def __setattr__(self, name, val) -> None:
+        if name in self.__slots__:
+            super().__setattr__(name, val)
+        else:
+            return self.set(name, val)
 
 
     def get_current(self, var_names: str|list[str]) -> np.ndarray|float:
@@ -218,6 +233,43 @@ class SimObject:
                 return self.U[:, self.model.get_input_id(var_names)]
             elif var_names in self.model.static_register:
                 return self.S0[self.model.get_static_id(var_names)]
+            else:
+                raise Exception(f"SimObject: {self.name} cannot get model variable "
+                                "\"{var_str}\". variable not found.")
+        else:
+            raise Exception("unhandled case.")
+
+
+    def set(self, var_names: str|list[str], vals: float|list|np.ndarray) -> None:
+        """This method will set data from SimObject.Y array corresponding
+        to the state-name \"var_str\" and the current Sim time step.
+
+        This method is more general, using extra checks, making is slower
+        than useing set_state_array, set_input_array, or set_static_array."""
+
+        # allow multiple names in a single string (e.g. "a, b, c")
+        if isinstance(var_names, str) and (',' in var_names)\
+                and ((names_list := var_names.split(',')).__len__() > 1):
+            var_names = [i.strip() for i in names_list]
+
+        if isinstance(var_names, list):
+            for var_name in var_names:
+                if var_name in self.model.state_register:
+                    self.set_state_array(self.Y[self.__istep], var_name, vals)
+                elif var_name in self.model.input_register:
+                    self.set_input_array(self.U[self.__istep], var_name, vals)
+                elif var_name in self.model.static_register:
+                    self.set_static_array(self.S0, var_name, vals)
+                else:
+                    raise Exception(f"SimObject: {self.name} cannot set model variable "
+                                    "\"{var_str}\". variable not found.")
+        elif isinstance(var_names, str):  # type:ignore
+            if var_names in self.model.state_register:
+                self.set_state_array(self.Y[self.__istep], var_names, vals)
+            elif var_names in self.model.input_register:
+                self.set_input_array(self.U[self.__istep], var_names, vals)
+            elif var_names in self.model.static_register:
+                self.set_static_array(self.S0, var_names, vals)
             else:
                 raise Exception(f"SimObject: {self.name} cannot get model variable "
                                 "\"{var_str}\". variable not found.")
