@@ -11,7 +11,7 @@ from pyqtgraph import GraphicsLayoutWidget
 from pyqtgraph import PlotDataItem
 from pyqtgraph import TextItem
 from pyqtgraph import ViewBox
-from pyqtgraph.Qt.QtGui import QColor, QKeySequence, QTransform
+from pyqtgraph.Qt.QtGui import QColor, QFont, QKeySequence, QPen, QTransform
 from pyqtgraph.Qt.QtWidgets import QApplication, QWidget
 from pyqtgraph.Qt.QtWidgets import QShortcut
 from pyqtgraph.Qt.QtWidgets import QInputDialog
@@ -65,6 +65,8 @@ class PyQtGraphPlotter:
         self.instrument_view &= not self.quiet
         self.profiler = Profiler()
 
+        self._use_legend = True
+
         # colors
         self.COLORS = mplcolors.TABLEAU_COLORS
         self.COLORS.update({
@@ -92,6 +94,10 @@ class PyQtGraphPlotter:
         self.shortcuts = []
         self.timer: Optional[QTimer] = None
         self.app = self.setup()
+
+
+    def set_legend(self, val: bool) -> None:
+        self._use_legend = val
 
 
     def setup(self) -> QCoreApplication:
@@ -258,6 +264,20 @@ class PyQtGraphPlotter:
     # --------------------------------------------------------------------------------------
     # ViewBoxes
     # --------------------------------------------------------------------------------------
+
+    def __get_window(self) -> GraphicsLayoutWidget:
+        """Returns a window to apply a plot to.
+
+        this is to handle implicit plot appending to the list
+        of windows, self.wins, unless a new window creation is
+        specified by Plotter.figure()"""
+        # check if at least 1 window avaiable, otherwise create
+        # a new one
+        if len(self.wins) < 1:
+            return self.create_window()
+        else:
+            return self.wins[-1]
+
 
     def get_text_viewbox(self, window_id: int) -> Optional[ViewBox]:
         """Returns the ViewBox associated with provided window_id"""
@@ -798,6 +818,10 @@ class PyQtGraphPlotter:
              ylabel: str = "",
              linestyle: str = "-",
              legend_name: str = "",
+             title_size: int = 18,
+             font_size: int = 14,
+             xunits: str = "",
+             yunits: str = "",
              **kwargs) -> PlotItem:
 
         # convert mpl color to rgb
@@ -829,42 +853,59 @@ class PyQtGraphPlotter:
         # graphic_item.setData(data, symbol=marker, symbolPen=symbol_pen, **kwargs)
         ###########################################################################
 
-        # check if at least 1 window avaiable
-        # then get GraphicsItem at [0, 0] (default)
-        if len(self.wins) < 1:
-            win = self.create_window()
+        _font_type = "Arial"
+
+        _title_size = f"{str(int(title_size))}pt"
+
+        # left, top, right, bottom
+        _margin_base = 50
+        _border_margins = [_margin_base,
+                           _margin_base,
+                           _margin_base + (font_size * 2),
+                           _margin_base]
+
+        win = self.__get_window()
+
+        # set window margins
+        win.centralWidget.layout.setContentsMargins(*_border_margins)  # type:ignore
+        win.centralWidget.layout.setSpacing(0)  # type:ignore
+
+        plot_item = win.getItem(row=0, col=0)
+        if plot_item is None:  # create new plotItem if row=0, col=0 exists
             plot_item: PlotItem = win.addPlot(row=0, col=0, title=title, name=title)
-            text_color_code = self.__get_color_code(self.text_color)
-            legend = plot_item.addLegend()
-            legend.setBrush('k')
-            legend.setPen({"color": self.__get_color_code("black")})
-            # style settings
-            plot_item.setTitle(title, color=self.text_color)
-            plot_item.setLabel("bottom", xlabel, color=self.text_color)
-            plot_item.setLabel("left", ylabel, color=self.text_color)
-            plot_item.getAxis("left").setPen({"color": text_color_code})
-            plot_item.getAxis("bottom").setPen({"color": text_color_code})
-            # downsampling
-            plot_item.setDownsampling(auto=True, ds=2, mode="mean")
-        else:
-            win = self.wins[-1]  # get last created window
-            plot_item = win.getItem(row=0, col=0)
-            if plot_item is None:
-                plot_item: PlotItem = win.addPlot(row=0, col=0, title=title, name=title)
+            if self._use_legend:
                 legend = plot_item.addLegend()
                 legend.setBrush('k')
                 legend.setPen({"color": self.__get_color_code("black")})
-                # style settings
-                text_color_code = self.__get_color_code(self.text_color)
-                plot_item.setTitle(title, color=self.text_color)
-                plot_item.setLabel("bottom", xlabel, color=self.text_color)
-                plot_item.setLabel("left", ylabel, color=self.text_color)
-                plot_item.getAxis("left").setPen({"color": text_color_code})
-                plot_item.getAxis("bottom").setPen({"color": text_color_code})
-                # downsampling
-                plot_item.setDownsampling(auto=False, ds=1, mode="mean")
+
+            # style settings
+            text_color_code = self.__get_color_code(self.text_color)
+            plot_item.setTitle(title, color=self.text_color, size=_title_size, bold=True)
+
+            left_axis = plot_item.getAxis("left")
+            bottom_axis = plot_item.getAxis("bottom")
+
+            left_axis.setLabel(ylabel, color=self.text_color, units=yunits)
+            left_axis.setPen({"color": text_color_code})
+            left_axis.setStyle(tickFont=QFont(_font_type, font_size))
+            left_axis.setTextPen(QColor(text_color_code))
+            left_axis.label.setFont(QFont(_font_type, font_size))
+
+            bottom_axis.setLabel(xlabel, color=self.text_color, units=xunits)
+            bottom_axis.setPen({"color": text_color_code})
+            bottom_axis.setStyle(tickFont=QFont(_font_type, font_size))
+            bottom_axis.setTextPen(QColor(text_color_code))
+            bottom_axis.label.setFont(QFont(_font_type, font_size))
+
+            # downsampling
+            plot_item.setDownsampling(auto=False, ds=1, mode="mean")
+
         curve = plot_item.plot(x=x, y=y, pen=pen, symbol=marker, symbolPen=symbol_pen)
-        if plot_item.legend:
+
+        # set plot item border
+        plot_item.getViewBox().setBorder(mkPen(color='black', width=2))  # type:ignore
+
+        if self._use_legend and plot_item.legend:
             plot_item.legend.addItem(curve, legend_name)  # type:ignore
         self.__apply_style_settings_to_plot(plot_item)
         return plot_item
@@ -881,6 +922,10 @@ class PyQtGraphPlotter:
                 xlabel: str = "",
                 ylabel: str = "",
                 legend_name: str = "",
+                title_size: int = 18,
+                font_size: int = 14,
+                xunits: str = "",
+                yunits: str = "",
                 **kwargs) -> PlotItem:
 
         # convert mpl color to rgb
@@ -896,37 +941,58 @@ class PyQtGraphPlotter:
         if not marker:
             marker = 'o'
 
-        # check if at least 1 window avaiable
-        # then get GraphicsItem at [0, 0] (default)
-        if len(self.wins) < 1:
-            win = self.create_window()
-            plot_item = win.addPlot(row=0, col=0, title=title, name=title)
-            legend = plot_item.addLegend()
-            legend.setBrush('k')
-            legend.setPen({"color": self.__get_color_code("black")})
-            # style settings
-            text_color_code = self.__get_color_code(self.text_color)
-            plot_item.setTitle(title, color=self.text_color)
-            plot_item.setLabel("bottom", xlabel, color=self.text_color)
-            plot_item.setLabel("left", ylabel, color=self.text_color)
-            plot_item.getAxis("left").setPen({"color": text_color_code})
-            plot_item.getAxis("bottom").setPen({"color": text_color_code})
-        else:
-            win = self.wins[-1]
-            plot_item = win.getItem(row=0, col=0)
-            if plot_item is None:
-                plot_item: PlotItem = win.addPlot(row=0, col=0, title=title, name=title)
+        _font_type = "Arial"
+
+        _title_size = f"{str(int(title_size))}pt"
+
+        # left, top, right, bottom
+        _margin_base = 50
+        _border_margins = [_margin_base,
+                           _margin_base,
+                           _margin_base + (font_size * 2),
+                           _margin_base]
+
+        win = self.__get_window()
+
+        # set window margins
+        win.centralWidget.layout.setContentsMargins(*_border_margins)  # type:ignore
+        win.centralWidget.layout.setSpacing(0)  # type:ignore
+
+        plot_item = win.getItem(row=0, col=0)
+        if plot_item is None:  # create new plotItem if row=0, col=0 exists
+            plot_item: PlotItem = win.addPlot(row=0, col=0, title=title, name=title)
+            if self._use_legend:
                 legend = plot_item.addLegend()
                 legend.setBrush('k')
                 legend.setPen({"color": self.__get_color_code("black")})
-                # style settings
-                text_color_code = self.__get_color_code(self.text_color)
-                plot_item.setTitle(title, color=self.text_color)
-                plot_item.setLabel("bottom", xlabel, color=self.text_color)
-                plot_item.setLabel("left", ylabel, color=self.text_color)
-                plot_item.getAxis("left").setPen({"color": text_color_code})
-                plot_item.getAxis("bottom").setPen({"color": text_color_code})
+
+            # style settings
+            text_color_code = self.__get_color_code(self.text_color)
+            plot_item.setTitle(title, color=self.text_color, size=_title_size, bold=True)
+
+            left_axis = plot_item.getAxis("left")
+            bottom_axis = plot_item.getAxis("bottom")
+
+            left_axis.setLabel(ylabel, color=self.text_color, units=yunits)
+            left_axis.setPen({"color": text_color_code})
+            left_axis.setStyle(tickFont=QFont(_font_type, font_size))
+            left_axis.setTextPen(QColor(text_color_code))
+            left_axis.label.setFont(QFont(_font_type, font_size))
+
+            bottom_axis.setLabel(xlabel, color=self.text_color, units=xunits)
+            bottom_axis.setPen({"color": text_color_code})
+            bottom_axis.setStyle(tickFont=QFont(_font_type, font_size))
+            bottom_axis.setTextPen(QColor(text_color_code))
+            bottom_axis.label.setFont(QFont(_font_type, font_size))
+
+            # downsampling
+            plot_item.setDownsampling(auto=False, ds=1, mode="mean")
+
         scatter = pg.ScatterPlotItem(x=x, y=y, pen=pen, symbol=marker, symbolPen=symbol_pen)
+
+        # set plot item border
+        plot_item.getViewBox().setBorder(mkPen(color='black', width=2))  # type:ignore
+
         if plot_item.legend:
             plot_item.legend.addItem(scatter, legend_name)  # type:ignore
         plot_item.addItem(scatter)
