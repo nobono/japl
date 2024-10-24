@@ -268,8 +268,6 @@ def eci_to_enu(eci_xyz: np.ndarray|list, r_ecef: np.ndarray|list,
     Arguments:
         - eci_xyz: [x, y, z] ECI-coordinate
         - r_ecef: [x, y, z] ECEF-coordinate position vector
-                  this is the coordinates for the reference
-                  frame origin.
         - ecef0: [x0, y0, z0] ECEF-coordinate reference vector
                   this is the coordinates for the reference
                   frame origin.
