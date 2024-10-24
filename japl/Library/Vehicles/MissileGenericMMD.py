@@ -171,9 +171,9 @@ omega_p = Symbol("omega_p", real=True)          # roll natural frequency
 T_r = Symbol("T_r", real=True)                  # roll autopilot time constant
 K_phi = Symbol("K_phi", real=True)              # roll controller gain
 
-flag_boosting = Symbol("flag_boosting")         # vehicle is boosting
+is_boosting = Symbol("is_boosting", real=True)  # vehicle is boosting
 stage = Symbol("stage")                         # missile stage (int)
-blaunched = Symbol("blaunched", real=True)      # flag to launch missile or keep stationary
+is_launched = Symbol("is_launched", real=True)  # flag to launch missile or keep stationary
 
 # angular velocities
 p = Function("p", real=True)(t)                 # roll-rate
@@ -237,10 +237,10 @@ v_e_e = C_eci_to_ecef * v_i_m - omega_skew_ie * r_e_e
 # (12)
 epsilon = 1e-3
 V = v_e_e.norm()
-V = Piecewise(
-        (sp.Expr(V), blaunched),
-        (0.0, True)
-        )
+# V = Piecewise(
+#         (sp.Expr(V), is_launched),
+#         (0.0, True)
+#         )
 
 # (10) Mach number
 M = V / C_s
@@ -276,13 +276,13 @@ g_b_e = C_ecef_to_body * g_e_m
 a_b_m_expr = ((f_b_A + f_b_T) / wet_mass) + g_b_e
 a_b_m = Matrix([
     Piecewise(
-        (0.0, sp.Eq(blaunched, 0)),
+        (0.0, sp.Eq(is_launched, 0)),
         (a_b_m_expr[0], True)),
     Piecewise(
-        (0.0, sp.Eq(blaunched, 0)),
+        (0.0, sp.Eq(is_launched, 0)),
         (a_b_m_expr[1], True)),
     Piecewise(
-        (0.0, sp.Eq(blaunched, 0)),
+        (0.0, sp.Eq(is_launched, 0)),
         (a_b_m_expr[2], True))
     ])
 
@@ -656,9 +656,9 @@ static = Matrix([
     omega_p,  # natural frequency (roll)
     phi_c,    # roll angle command
     T_r,      # roll autopilot time constant
-    flag_boosting,
+    is_boosting,
     stage,
-    blaunched,
+    is_launched,
     ])
 ##################################################
 # Define dynamics
