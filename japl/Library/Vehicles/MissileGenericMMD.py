@@ -1,6 +1,7 @@
 import os
 import numpy as np
 from sympy import Matrix, Symbol, symbols
+from sympy import Piecewise
 from sympy import sign, rad, sqrt
 from sympy import sin, cos
 from sympy import atan, atan2, tan
@@ -16,6 +17,7 @@ from japl.Math.RotationSymbolic import ecef_to_lla_sym
 from japl.Library.Earth.Earth import Earth
 from japl.BuildTools.CCodeGenerator import CCodeGenerator
 from japl.Util.Util import flatten_list
+from japl.BuildTools.BuildTools import to_pycode
 from japl import JAPL_HOME_DIR
 
 DIR = os.path.dirname(__file__)
@@ -171,6 +173,7 @@ K_phi = Symbol("K_phi", real=True)              # roll controller gain
 
 flag_boosting = Symbol("flag_boosting")         # vehicle is boosting
 stage = Symbol("stage")                         # missile stage (int)
+blaunched = Symbol("blaunched", real=True)      # flag to launch missile or keep stationary
 
 # angular velocities
 p = Function("p", real=True)(t)                 # roll-rate
@@ -234,9 +237,18 @@ v_e_e = C_eci_to_ecef * v_i_m - omega_skew_ie * r_e_e
 # (12)
 epsilon = 1e-3
 V = v_e_e.norm()
+V = Piecewise(
+        (sp.Expr(V), blaunched),
+        (0.0, True)
+        )
 
 # (10) Mach number
 M = V / C_s
+# zero-protect
+M = Piecewise(
+        (M, C_s > 0.0),  # type:ignore
+        (0, True)
+        )
 
 # (11) Dynamic pressure
 q_bar = 0.5 * rho * V**2  # type:ignore
@@ -261,7 +273,18 @@ g_i_m = Matrix([gacc, 0, 0])
 g_e_m = C_eci_to_ecef * g_i_m
 g_b_e = C_ecef_to_body * g_e_m
 
-a_b_m = ((f_b_A + f_b_T) / wet_mass) + g_b_e
+a_b_m_expr = ((f_b_A + f_b_T) / wet_mass) + g_b_e
+a_b_m = Matrix([
+    Piecewise(
+        (0.0, sp.Eq(blaunched, 0)),
+        (a_b_m_expr[0], True)),
+    Piecewise(
+        (0.0, sp.Eq(blaunched, 0)),
+        (a_b_m_expr[1], True)),
+    Piecewise(
+        (0.0, sp.Eq(blaunched, 0)),
+        (a_b_m_expr[2], True))
+    ])
 
 # (13) Earth-relative acceleration vector
 a_e_e = (C_body_to_ecef * a_b_m - (2 * omega_skew_ie * v_e_e)
@@ -334,6 +357,15 @@ C_2 = (C_11 * C_22 - C_12 * C_21) * u + (C_22 * C_31 - C_21 * C_32) * w
 # (42) (43)
 q_new = (w_dot - a_b_e[2] + p * v - omega_e * C_1) / u
 r_new = (a_b_e[1] - v_dot + p * w + omega_e * C_2) / u
+# zero-protect
+q_new = Piecewise(
+        (q_new, u > 0.0),
+        (0, True)
+        )
+r_new = Piecewise(
+        (r_new, u > 0.0),
+        (0, True)
+        )
 
 ##################################################
 
@@ -434,6 +466,11 @@ q_m_dot = 0.5 * Sq * omega_b_ib
 
 # (48) Total life coefficient command
 C_N_c = (a_c * wet_mass) / q_bar * Sref
+# zero-protect
+C_N_c = Piecewise(
+        (C_N_c, q_bar > 0.0),
+        (0, True)
+        )
 
 # (49) Aerodynamics roll angle command
 phi_Ac = atan2(-a_c_y, -a_c_z)
@@ -553,7 +590,6 @@ defs = (
 # - Any relationship can be defined in the definition
 #   tuple above.
 # ------------------------------------------------
-
 state = Matrix([
     q_m,  # 0 - 3
     r_i_m,  # 4 - 6
@@ -622,6 +658,7 @@ static = Matrix([
     T_r,      # roll autopilot time constant
     flag_boosting,
     stage,
+    blaunched,
     ])
 ##################################################
 # Define dynamics
@@ -693,9 +730,39 @@ if __name__ == "__main__":
                                               definitions=defs,
                                               use_multiprocess_build=True)
 
-    model.save(path=JAPL_HOME_DIR + "/../mmd/", name="mmd")
+    # model.save(path=JAPL_HOME_DIR + "/../mmd/", name="mmd")
 
-    # model.dynamics_func.to_pycode("dynamics", model.dynamics_expr, "dynamics.py")
+    path = "./"
+    imports = ["from config import aerotable_get_CA",
+               "from config import aerotable_get_CNB",
+               "from config import aerotable_get_Sref",
+               "from config import atmosphere_density",
+               "from config import atmosphere_speed_of_sound",
+               "from config import aerotable_inv_aerodynamics"]
+
+    to_pycode(func_name="dynamics_func",
+              expr=model.dynamics_expr,
+              state_vars=state,
+              input_vars=input,
+              static_vars=static,
+              filepath=os.path.join(path, "mmd_dynamics.py"),
+              imports=imports)
+
+    to_pycode(func_name="state_update_func",
+              expr=model.state_direct_updates,
+              state_vars=state,
+              input_vars=input,
+              static_vars=static,
+              filepath=os.path.join(path, "mmd_state_update.py"),
+              imports=imports)
+
+    to_pycode(func_name="input_update_func",
+              expr=model.input_direct_updates,
+              state_vars=state,
+              input_vars=input,
+              static_vars=static,
+              filepath=os.path.join(path, "mmd_input_update.py"),
+              imports=imports)
 
     # gen = CCodeGenerator()
     # params = [t, state, input, static, dt]
