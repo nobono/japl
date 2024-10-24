@@ -66,6 +66,7 @@ class PyQtGraphPlotter:
         self.profiler = Profiler()
 
         self._use_legend = True
+        self._margin_base = 0
 
         # colors
         self.COLORS = mplcolors.TABLEAU_COLORS
@@ -98,6 +99,10 @@ class PyQtGraphPlotter:
 
     def set_legend(self, val: bool) -> None:
         self._use_legend = val
+
+
+    def set_margin(self, val: float) -> None:
+        self._margin_base = val
 
 
     def setup(self) -> QCoreApplication:
@@ -814,8 +819,8 @@ class PyQtGraphPlotter:
              marker_size: int = 1,
              window_id: int = 0,
              title: str = "",
-             xlabel: str = "",
-             ylabel: str = "",
+             xlabel: str = " ",
+             ylabel: str = " ",
              linestyle: str = "-",
              legend_name: str = "",
              title_size: int = 18,
@@ -858,11 +863,10 @@ class PyQtGraphPlotter:
         _title_size = f"{str(int(title_size))}pt"
 
         # left, top, right, bottom
-        _margin_base = 50
-        _border_margins = [_margin_base,
-                           _margin_base,
-                           _margin_base + (font_size * 2),
-                           _margin_base]
+        _border_margins = [self._margin_base,
+                           self._margin_base,
+                           self._margin_base + (font_size * 2),
+                           self._margin_base]
 
         win = self.__get_window()
 
@@ -919,8 +923,8 @@ class PyQtGraphPlotter:
                 marker: str = "o",
                 window_id: int = 0,
                 title: str = "",
-                xlabel: str = "",
-                ylabel: str = "",
+                xlabel: str = " ",
+                ylabel: str = " ",
                 legend_name: str = "",
                 title_size: int = 18,
                 font_size: int = 14,
@@ -946,11 +950,10 @@ class PyQtGraphPlotter:
         _title_size = f"{str(int(title_size))}pt"
 
         # left, top, right, bottom
-        _margin_base = 50
-        _border_margins = [_margin_base,
-                           _margin_base,
-                           _margin_base + (font_size * 2),
-                           _margin_base]
+        _border_margins = [self._margin_base,
+                           self._margin_base,
+                           self._margin_base + (font_size * 2),
+                           self._margin_base]
 
         win = self.__get_window()
 
