@@ -116,8 +116,7 @@ class SimObject:
     __slots__ = ("_dtype", "name", "color", "size", "model",
                  "state_dim", "input_dim", "static_dim",
                  "X0", "U0", "S0", "Y", "U", "plot",
-                 "_SimObject__T", "__T",
-                 "_SimObject__istep", "__istep")
+                 "_T", "_istep")
 
     """This is a base class for simulation objects"""
 
@@ -139,8 +138,8 @@ class SimObject:
         self.S0 = np.zeros((self.static_dim,))
         self.Y = np.array([], dtype=self._dtype)
         self.U = np.array([], dtype=self._dtype)
-        self.__T = np.array([])
-        self.__istep: int  # sim step counter set by Sim class
+        self._T = np.array([])
+        self._istep: int = 1  # sim step counter set by Sim class
 
         # self._setup_model(**kwargs)
 
@@ -155,7 +154,7 @@ class SimObject:
 
 
     def _set_sim_step(self, istep: int):
-        self.__istep = istep
+        self._istep = istep
 
 
     def set_draw(self, size: float = 1, color: str = "black") -> None:
@@ -186,15 +185,15 @@ class SimObject:
 
     def get_current(self, var_names: str|list[str]) -> np.ndarray|float:
         """This method will get data from SimObject.Y array corresponding
-        to the state-name \"var_str\". but returns the current time step
+        to the state-name \"var_names\". but returns the current time step
         of specific variable name in the running simulation.
         """
         ret = self.get(var_names)
         if hasattr(ret, "shape"):
             if len(ret.shape) > 1:
-                return ret[self.__istep, :]
+                return ret[self._istep, :]
             elif len(ret.shape) == 1:
-                return ret[self.__istep]
+                return ret[self._istep]
             else:
                 return ret
         else:
@@ -203,7 +202,7 @@ class SimObject:
 
     def get(self, var_names: str|list[str]) -> np.ndarray:
         """This method will get data from SimObject.Y array corresponding
-        to the state-name \"var_str\".
+        to the state-name \"var_names\".
 
         This method is more general, using extra checks, making is slower
         than useing get_state_array, get_input_array, or get_static_array."""
@@ -224,7 +223,7 @@ class SimObject:
                     ret += [self.S0[:, self.model.get_static_id(var_name)]]
                 else:
                     raise Exception(f"SimObject: {self.name} cannot get model variable "
-                                    "\"{var_str}\". variable not found.")
+                                    f"\"{var_names}\". variable not found.")
             return np.asarray(ret).T
         elif isinstance(var_names, str):  # type:ignore
             if var_names in self.model.state_register:
@@ -235,14 +234,14 @@ class SimObject:
                 return self.S0[self.model.get_static_id(var_names)]
             else:
                 raise Exception(f"SimObject: {self.name} cannot get model variable "
-                                "\"{var_str}\". variable not found.")
+                                f"\"{var_names}\". variable not found.")
         else:
             raise Exception("unhandled case.")
 
 
     def set(self, var_names: str|list[str], vals: float|list|np.ndarray) -> None:
         """This method will set data from SimObject.Y array corresponding
-        to the state-name \"var_str\" and the current Sim time step.
+        to the state-name \"var_names\" and the current Sim time step.
 
         This method is more general, using extra checks, making is slower
         than useing set_state_array, set_input_array, or set_static_array."""
@@ -255,24 +254,24 @@ class SimObject:
         if isinstance(var_names, list):
             for var_name in var_names:
                 if var_name in self.model.state_register:
-                    self.set_state_array(self.Y[self.__istep], var_name, vals)
+                    self.set_state_array(self.Y[self._istep], var_name, vals)
                 elif var_name in self.model.input_register:
-                    self.set_input_array(self.U[self.__istep], var_name, vals)
+                    self.set_input_array(self.U[self._istep], var_name, vals)
                 elif var_name in self.model.static_register:
                     self.set_static_array(self.S0, var_name, vals)
                 else:
                     raise Exception(f"SimObject: {self.name} cannot set model variable "
-                                    "\"{var_str}\". variable not found.")
+                                    f"\"{var_names}\". variable not found.")
         elif isinstance(var_names, str):  # type:ignore
             if var_names in self.model.state_register:
-                self.set_state_array(self.Y[self.__istep], var_names, vals)
+                self.set_state_array(self.Y[self._istep], var_names, vals)
             elif var_names in self.model.input_register:
-                self.set_input_array(self.U[self.__istep], var_names, vals)
+                self.set_input_array(self.U[self._istep], var_names, vals)
             elif var_names in self.model.static_register:
                 self.set_static_array(self.S0, var_names, vals)
             else:
                 raise Exception(f"SimObject: {self.name} cannot get model variable "
-                                "\"{var_str}\". variable not found.")
+                                f"\"{var_names}\". variable not found.")
         else:
             raise Exception("unhandled case.")
 
@@ -498,7 +497,7 @@ class SimObject:
             return self.Y[:index, state_slice]
         elif isinstance(state_slice, str):  # type:ignore
             if state_slice.lower() in ['t', 'time']:
-                return self.__T[:index]
+                return self._T[:index]
             elif state_slice in self.model.state_register:
                 return self.Y[:index, self.model.state_register[state_slice]["id"]]
             elif state_slice in self.model.input_register:
@@ -511,11 +510,11 @@ class SimObject:
 
 
     def _set_T_array_ref(self, _T) -> None:
-        """This method is used to reference the internal __T time array to the
+        """This method is used to reference the internal _T time array to the
         Sim class Time array 'T'. This method exists to avoid redundant time arrays in
         various SimObjects."""
 
-        self.__T = _T
+        self._T = _T
 
 
     def _update_patch_data(self, xdata: np.ndarray, ydata: np.ndarray, subplot_id: int, **kwargs) -> None:
