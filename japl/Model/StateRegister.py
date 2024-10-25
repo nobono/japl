@@ -78,7 +78,23 @@ class StateRegister(dict):
 
 
     def set(self, vars: tuple|list|Matrix, labels: Optional[list|tuple] = None) -> None:
-        """register state and labels"""
+        """
+        register an iterable of sympy Symbols
+
+        Arguments
+        ----------
+        input_vars:
+            iterable of symbolic input variables
+
+        labels:
+            (optional) iterable of labels that may be used by the
+                    Plotter class. order labels must correspond to order
+                    of input_vars.
+
+        Returns
+        --------
+        (Symbol) - the symbolic object of the state variable
+        """
         for id, var in enumerate(vars):  # type:ignore
             # recursive
             if isinstance(var, DirectUpdateSymbol):
