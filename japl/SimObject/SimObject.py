@@ -1,4 +1,5 @@
 import japl
+import re
 import numpy as np
 from collections.abc import Generator
 from typing import Optional, Callable
@@ -208,35 +209,33 @@ class SimObject:
         than useing get_state_array, get_input_array, or get_static_array."""
 
         # allow multiple names in a single string (e.g. "a, b, c")
-        if isinstance(var_names, str) and (',' in var_names)\
-                and ((names_list := var_names.split(',')).__len__() > 1):
-            var_names = [i.strip() for i in names_list]
+        if isinstance(var_names, str):
+            var_names = re.split(r"[,\s]", var_names)
 
-        if isinstance(var_names, list):
+        if len(var_names) > 1:
             ret = []
             for var_name in var_names:
-                if var_name in self.model.state_register:
-                    ret += [self.Y[:, self.model.get_state_id(var_name)]]
-                elif var_name in self.model.input_register:
-                    ret += [self.U[:, self.model.get_input_id(var_name)]]
-                elif var_name in self.model.static_register:
-                    ret += [self.S0[:, self.model.get_static_id(var_name)]]
-                else:
-                    raise Exception(f"SimObject: {self.name} cannot get model variable "
-                                    f"\"{var_names}\". variable not found.")
+                if var_name:  # string parsing may
+                    if var_name in self.model.state_register:
+                        ret += [self.Y[:, self.model.get_state_id(var_name)]]
+                    elif var_name in self.model.input_register:
+                        ret += [self.U[:, self.model.get_input_id(var_name)]]
+                    elif var_name in self.model.static_register:
+                        ret += [self.S0[self.model.get_static_id(var_name)]]
+                    else:
+                        raise Exception(f"SimObject: {self.name} cannot get model variable "
+                                        f"\"{var_names}\". variable not found.")
             return np.asarray(ret).T
-        elif isinstance(var_names, str):  # type:ignore
-            if var_names in self.model.state_register:
-                return self.Y[:, self.model.get_state_id(var_names)]
-            elif var_names in self.model.input_register:
-                return self.U[:, self.model.get_input_id(var_names)]
-            elif var_names in self.model.static_register:
-                return self.S0[self.model.get_static_id(var_names)]
+        else:
+            if var_names[0] in self.model.state_register:
+                return self.Y[:, self.model.get_state_id(var_names[0])]
+            elif var_names[0] in self.model.input_register:
+                return self.U[:, self.model.get_input_id(var_names[0])]
+            elif var_names[0] in self.model.static_register:
+                return self.S0[self.model.get_static_id(var_names[0])]
             else:
                 raise Exception(f"SimObject: {self.name} cannot get model variable "
                                 f"\"{var_names}\". variable not found.")
-        else:
-            raise Exception("unhandled case.")
 
 
     def set(self, var_names: str|list[str], vals: float|list|np.ndarray) -> None:
