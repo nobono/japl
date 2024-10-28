@@ -297,7 +297,7 @@ def eci_to_enu_position(eci_xyz: np.ndarray|list, ecef0: Optional[np.ndarray|lis
 
 
 def eci_to_enu_velocity(eci_xyz: np.ndarray|list, r_ecef: np.ndarray|list,
-               ecef0: np.ndarray|list) -> np.ndarray:
+                        ecef0: np.ndarray|list) -> np.ndarray:
     """
     This method converts a vector from ECI coordinates
     to ENU.
