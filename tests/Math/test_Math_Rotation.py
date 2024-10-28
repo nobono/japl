@@ -413,13 +413,13 @@ class TestMathRotation(unittest.TestCase):
         self.assertEqual(up, 0.9830421404913068)
 
 
-    def test_eci_to_enu(self):
+    def test_eci_to_enu_velocity(self):
         """for position vector"""
         radius_equatorial = 6_378_137.0  # meters
         ecef0 = np.array([radius_equatorial, 0, 0])
         r_ecef = np.array([radius_equatorial, 0, 0])
         vel_eci = np.array([1, 0, 0])
-        enu = Rot.eci_to_enu(vel_eci, r_ecef=r_ecef, ecef0=ecef0)
+        enu = Rot.eci_to_enu_velocity(vel_eci, r_ecef=r_ecef, ecef0=ecef0)
         east, north, up = enu
         # NOTE: velocity vector in the initial eci
         # frame x-axis should translate directly to

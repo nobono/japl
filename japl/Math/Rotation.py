@@ -5,6 +5,44 @@ from quaternion.numpy_quaternion import quaternion
 
 
 
+def body_to_enu(t: float, body_xyz: np.ndarray, quat: np.ndarray, r_ecef: np.ndarray):
+    """This method converts a vector from Body-frame
+    coordinates to ENU coordinates.
+
+    ---------------------------------------------------
+    Arguments:
+        - t: time in seconds
+        - body_xyz: [x, y, z] body-frame vector
+        - quat: quaternion (body to eci)
+        - r_ecef: [x, y, z] ecef position coordinates
+
+    Returns:
+        - enu: [east, north, up] ENU-coodinates
+    ---------------------------------------------------
+    """
+    omega_e = Earth.omega
+    q_0, q_1, q_2, q_3 = quat
+    C_eci_to_ecef = np.array([
+        [np.cos(omega_e * t), np.sin(omega_e * t), 0],
+        [-np.sin(omega_e * t), np.cos(omega_e * t), 0],
+        [0, 0, 1]])
+    C_body_to_eci = np.array([
+        [1 - 2*(q_2**2 + q_3**2), 2*(q_1*q_2 + q_0*q_3) , 2*(q_1*q_3 - q_0*q_2)],  # type:ignore # noqa
+        [2*(q_1*q_2 - q_0*q_3) , 1 - 2*(q_1**2 + q_3**2), 2*(q_2*q_3 + q_0*q_1)],  # type:ignore # noqa
+        [2*(q_1*q_3 + q_0*q_2) , 2*(q_2*q_3 - q_0*q_1), 1 - 2*(q_1**2 + q_2**2)]]).T  # type:ignore # noqa
+    C_body_to_ecef = C_eci_to_ecef @ C_body_to_eci
+    lla0 = ecef_to_lla(r_ecef)
+    lat0, lon0, _ = lla0
+    C_ecef_to_enu = np.array([
+        [-np.sin(lon0), np.cos(lon0), 0],
+        [-np.sin(lat0) * np.cos(lon0), -np.sin(lat0) * np.sin(lon0), np.cos(lat0)],
+        [np.cos(lat0) * np.cos(lon0), np.cos(lat0) * np.sin(lon0), np.sin(lat0)],
+        ])
+    vec_ecef = C_body_to_ecef @ body_xyz
+    enu = C_ecef_to_enu @ vec_ecef
+    return enu
+
+
 def enu_to_body(t: float, quat: np.ndarray, r_ecef: np.ndarray, enu: np.ndarray):
     """This method converts a position vector from ENU
     coordinates to Body-frame coordinates.
@@ -258,7 +296,7 @@ def eci_to_enu_position(eci_xyz: np.ndarray|list, ecef0: Optional[np.ndarray|lis
     return enu
 
 
-def eci_to_enu(eci_xyz: np.ndarray|list, r_ecef: np.ndarray|list,
+def eci_to_enu_velocity(eci_xyz: np.ndarray|list, r_ecef: np.ndarray|list,
                ecef0: np.ndarray|list) -> np.ndarray:
     """
     This method converts a vector from ECI coordinates
