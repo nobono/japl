@@ -525,19 +525,19 @@ C_ecef_to_enu = Matrix([
     [-sin(lat0) * cos(lon0), -sin(lat0) * sin(lon0), cos(lat0)],  # type:ignore
     [cos(lat0) * cos(lon0), cos(lat0) * sin(lon0), sin(lat0)]  # type:ignore
     ])
-r_enu_e_new = C_ecef_to_enu * (r_e_m - ecef0)
+r_enu_e_new = C_ecef_to_enu * (r_e_e - ecef0)
 
 # NOTE: non-position vectors should use the current vehicle
 # position as the reference point
-lla0 = ecef_to_lla_sym(r_e_m)
+lla0 = ecef_to_lla_sym(r_e_e)
 lat0, lon0, alt0 = lla0
 C_ecef_to_enu = Matrix([
     [-sin(lon0), cos(lon0), 0],  # type:ignore
     [-sin(lat0) * cos(lon0), -sin(lat0) * sin(lon0), cos(lat0)],  # type:ignore
     [cos(lat0) * cos(lon0), cos(lat0) * sin(lon0), sin(lat0)]  # type:ignore
     ])
-v_enu_e_new = C_ecef_to_enu * v_e_m
-a_enu_e_new = C_ecef_to_enu * a_e_m
+v_enu_e_new = C_ecef_to_enu * v_e_e
+a_enu_e_new = C_ecef_to_enu * a_e_e
 
 ##################################################
 # Quaternion regularization term:
