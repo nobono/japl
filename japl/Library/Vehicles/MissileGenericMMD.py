@@ -8,6 +8,7 @@ from sympy import atan, atan2, tan
 from sympy import sec
 from sympy import Float
 import sympy as sp
+from sympy import Abs
 from japl import Model
 from sympy import Function
 from japl.Aero.AtmosphereSymbolic import AtmosphereSymbolic
@@ -196,6 +197,14 @@ a_c_y = Symbol("a_c_y", real=True)              # acc-y command (body-frame)
 a_c_z = Symbol("a_c_z", real=True)              # acc-z command (body-frame)
 a_c = Matrix([a_c_x, a_c_y, a_c_z])
 
+# specific force
+# this is the physical quantity measured by
+# an accelerometer.
+accel_x = Symbol("accel_x", real=True)
+accel_y = Symbol("accel_y", real=True)
+accel_z = Symbol("accel_z", real=True)
+accel = Matrix([accel_x, accel_y, accel_z])
+
 ##################################################
 # 2.1 ECI Position and Velocity Derivatives
 ##################################################
@@ -286,6 +295,9 @@ a_b_m = Matrix([
         (a_b_m_expr[2], True))
     ])
 
+# for specific force measurements (accelerometer)
+accel_meas = (f_b_A + f_b_T) / wet_mass
+
 # (13) Earth-relative acceleration vector
 a_e_e = (C_body_to_ecef * a_b_m - (2 * omega_skew_ie * v_e_e)
          - (omega_skew_ie * omega_skew_ie * r_e_e))
@@ -357,20 +369,21 @@ C_2 = (C_11 * C_22 - C_12 * C_21) * u + (C_22 * C_31 - C_21 * C_32) * w
 # (42) (43)
 q_new = (w_dot - a_b_e[2] + p * v - omega_e * C_1) / u
 r_new = (a_b_e[1] - v_dot + p * w + omega_e * C_2) / u
+
 # zero-protect
 q_new = Piecewise(
-        (q_new, u > 0.0),
-        (0, True)
+        (q_new, Abs(u) > 0.0),  # type:ignore
+        (q, True)
         )
 r_new = Piecewise(
-        (r_new, u > 0.0),
-        (0, True)
+        (r_new, Abs(u) > 0.0),  # type:ignore
+        (r, True)
         )
 
 ##################################################
 
 # (26)
-omega_b_ib = Matrix([p, q_new, r_new])
+omega_b_ib = Matrix([p, q, r])
 
 ##################################################
 
@@ -456,7 +469,7 @@ q_m_dot = 0.5 * Sq * omega_b_ib
 
 # (27)
 # TODO: include this or not?
-# a_b_e = v_b_e_dot + (omega_skew_ib - C_ecef_to_body * omega_skew_ie * C_body_to_ecef) * v_b_e
+# a_b_e = vbe_dot + (omega_skew_ib - C_b_to_e.T * omega_skew_ie * C_b_to_e) * vbe
 
 # (46) NOTE: this is for a BTT missile
 
@@ -625,7 +638,7 @@ state = Matrix([
     v_b_e_m_hat,  # 43 - 45
 
     DirectUpdate(g_b_m, g_b_e),  # 46 -48
-    DirectUpdate(a_b_e_m, a_b_e),  # 49 - 51
+    DirectUpdate(a_b_e_m, a_b_m),  # 49 - 51
 
     # Mass Properties
     wet_mass,  # 52
@@ -637,6 +650,7 @@ state = Matrix([
 
     DirectUpdate(drag, f_b_A_x),  # 57 - 59
     DirectUpdate(lift, f_b_A_z),  # 60 - 62
+    DirectUpdate(accel, accel_meas),
     ])
 
 input = Matrix([
