@@ -607,49 +607,50 @@ state = Matrix([
     q_m,  # 0 - 3
     r_i_m,  # 4 - 6
     v_i_m,  # 7 - 9
+    DirectUpdate(a_i_m, v_i_m_dot),
 
-    alpha,      # 10
-    alpha_dot,  # 11
-    beta,       # 12
-    beta_dot,   # 13
-    phi_hat,    # 14
-    DirectUpdate("phi_hat_dot", phi_hat_dot),  # 15
+    alpha,      # 13
+    alpha_dot,  # 14
+    beta,       # 15
+    beta_dot,   # 16
+    phi_hat,    # 17
+    DirectUpdate("phi_hat_dot", phi_hat_dot),  # 18
 
     # Angular rates
-    p,  # 16
-    DirectUpdate(q, q_new),  # 17
-    DirectUpdate(r, r_new),  # 18
+    p,  # 19
+    DirectUpdate(q, q_new),  # 20
+    DirectUpdate(r, r_new),  # 21
 
     # ENU
-    DirectUpdate(r_enu_m, r_enu_e_new),         # 19 - 21
-    DirectUpdate(v_enu_m, v_enu_e_new),         # 22 - 24
-    DirectUpdate(a_enu_m, a_enu_e_new),         # 25 - 27
+    DirectUpdate(r_enu_m, r_enu_e_new),         # 21 - 24
+    DirectUpdate(v_enu_m, v_enu_e_new),         # 25 - 27
+    DirectUpdate(a_enu_m, a_enu_e_new),         # 28 - 30
 
     # ECEF
-    r_e_m,  # 28 -30
-    v_e_m,  # 31 - 33
-    DirectUpdate(a_e_m, a_e_e),  # 34 - 36
+    r_e_m,  # 31 -33
+    v_e_m,  # 34 - 36
+    DirectUpdate(a_e_m, a_e_e),  # 37 - 39
 
-    vel_mag_e,  # 37
-    DirectUpdate(vel_mag_e_dot, V_dot),  # 38
-    DirectUpdate(mach, M),  # 39
+    vel_mag_e,  # 40
+    DirectUpdate(vel_mag_e_dot, V_dot),  # 41
+    DirectUpdate(mach, M),  # 42
 
-    v_b_e_m,  # 40 - 42
-    v_b_e_m_hat,  # 43 - 45
+    v_b_e_m,  # 43 - 45
+    v_b_e_m_hat,  # 46 - 48
 
-    DirectUpdate(g_b_m, g_b_e),  # 46 -48
-    DirectUpdate(a_b_e_m, a_b_m),  # 49 - 51
+    DirectUpdate(g_b_m, g_b_e),  # 49 - 51
+    DirectUpdate(a_b_e_m, a_b_m),  # 52 - 54
 
     # Mass Properties
-    wet_mass,  # 52
-    dry_mass,  # 53
+    wet_mass,  # 55
+    dry_mass,  # 56
 
-    DirectUpdate("CA", CA),  # 54
-    DirectUpdate("CN", CNB),  # 55
-    DirectUpdate("q_bar", q_bar),  # 56
+    DirectUpdate("CA", CA),  # 57
+    DirectUpdate("CN", CNB),  # 58
+    DirectUpdate("q_bar", q_bar),  # 59
 
-    DirectUpdate(drag, f_b_A_x),  # 57 - 59
-    DirectUpdate(lift, f_b_A_z),  # 60 - 62
+    DirectUpdate(drag, f_b_A_x),  # 60 - 62
+    DirectUpdate(lift, f_b_A_z),  # 63 - 65
     DirectUpdate(accel, accel_meas),
     ])
 
