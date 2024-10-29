@@ -299,7 +299,7 @@ def eci_to_enu_position(eci_xyz: np.ndarray|list, ecef0: Optional[np.ndarray|lis
 def eci_to_enu_velocity(eci_xyz: np.ndarray|list, r_ecef: np.ndarray|list,
                         ecef0: np.ndarray|list) -> np.ndarray:
     """
-    This method converts a vector from ECI coordinates
+    This method converts a velocity vector from ECI coordinates
     to ENU.
 
     ---------------------------------------------------
@@ -317,6 +317,25 @@ def eci_to_enu_velocity(eci_xyz: np.ndarray|list, r_ecef: np.ndarray|list,
     r_ecef = np.asarray(r_ecef)
     ecef0 = np.asarray(ecef0)
     ecef = eci_to_ecef_velocity(eci_xyz, r_ecef=r_ecef)
+    enu = ecef_to_enu(ecef, ecef0)
+    return enu
+
+
+def eci_to_enu(eci_xyz: np.ndarray|list, ecef0: np.ndarray|list, t: float = 0) -> np.ndarray:
+    """
+    This method converts a vector from ECI coordinates
+    to ENU.
+
+    ---------------------------------------------------
+    Arguments:
+        - eci_xyz: [x, y, z] ECI-coordinate
+        - t: elapsed time (seconds)
+
+    Returns:
+        - enu: [east, north, up] ENU-coordinates
+    ---------------------------------------------------
+    """
+    ecef = eci_to_ecef(eci_xyz, t=t)
     enu = ecef_to_enu(ecef, ecef0)
     return enu
 
