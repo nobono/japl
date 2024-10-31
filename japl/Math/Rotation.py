@@ -127,6 +127,7 @@ def ecef_to_eci(ecef_xyz: np.ndarray|list, t: float = 0) -> np.ndarray:
     return dcm_eci_to_ecef.T @ ecef_xyz
 
 
+# TODO: this may be wrong: see     vel_ecef = C_eci_to_ecef @ _vel - omega_skew_ie @ _pos
 def eci_to_ecef_velocity(eci_xyz: np.ndarray|list, r_ecef: np.ndarray|list) -> np.ndarray:
     """This method converts a velocity vector from ECI
     coordinates to ECEF by taking into account Earth's
