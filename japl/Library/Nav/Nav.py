@@ -1,3 +1,4 @@
+import os
 import dill as pickle
 import numpy as np
 import sympy as sp
@@ -13,6 +14,7 @@ from japl import Model
 from japl.BuildTools.CCodeGenerator import CCodeGenerator
 
 from japl.Library.Earth.Earth import Earth
+from japl.BuildTools.BuildTools import to_pycode
 # from japl.Sim.Integrate import runge_kutta_4_symbolic, runge_kutta_4
 
 
@@ -185,19 +187,19 @@ q0 = Symbol("q0", real=True)  # (t)
 q1 = Symbol("q1", real=True)  # (t)
 q2 = Symbol("q2", real=True)  # (t)
 q3 = Symbol("q3", real=True)  # (t)
-pos_e = Symbol("pos_e", real=True)  # (t)
-pos_n = Symbol("pos_n", real=True)  # (t)
-pos_u = Symbol("pos_u", real=True)  # (t)
-vel_e = Symbol("vel_e", real=True)  # (t)
-vel_n = Symbol("vel_n", real=True)  # (t)
-vel_u = Symbol("vel_u", real=True)  # (t)
+pos_x = Symbol("pos_x", real=True)  # (t)
+pos_y = Symbol("pos_y", real=True)  # (t)
+pos_z = Symbol("pos_z", real=True)  # (t)
+vel_x = Symbol("vel_x", real=True)  # (t)
+vel_y = Symbol("vel_y", real=True)  # (t)
+vel_z = Symbol("vel_z", real=True)  # (t)
 
 acc_bias_x, acc_bias_y, acc_bias_z = symbols("acc_bias_x, acc_bias_y, acc_bias_z", real=True)
 angvel_bias_x, angvel_bias_y, angvel_bias_z = symbols("angvel_bias_x, angvel_bias_y, angvel_bias_z", real=True)
 
 quat = Matrix([q0, q1, q2, q3])
-pos = Matrix([pos_e, pos_n, pos_u])
-vel = Matrix([vel_e, vel_n, vel_u])
+pos = Matrix([pos_x, pos_y, pos_z])
+vel = Matrix([vel_x, vel_y, vel_z])
 acc_bias = Matrix([acc_bias_x, acc_bias_y, acc_bias_z])
 angvel_bias = Matrix([angvel_bias_x, angvel_bias_y, angvel_bias_z])
 
@@ -225,9 +227,6 @@ U = Matrix([z_gyro, z_accel, z_gps_pos, z_gps_vel])
 # State Prediction Model
 ##################################################
 
-angvel_true = z_gyro - angvel_bias
-acc_true = z_accel - acc_bias
-
 omega_e = Earth.omega
 C_eci_to_ecef = Matrix([
     [cos(omega_e * t), sin(omega_e * t), 0],   # type:ignore
@@ -244,11 +243,13 @@ C_body_to_ecef = C_eci_to_ecef * C_body_to_eci
 C_eci_to_body = C_body_to_eci.T
 C_ecef_to_body = C_body_to_ecef.T
 
-# dcm_to_body = C_body_to_eci.T
-gravity_ef = Matrix([-9.81, 0, 0])  # gravity earth-frame
-# gravity_bf = dcm_to_body * gravity_ef
-gravity_ecef = C_eci_to_ecef * gravity_ef
-gravity_bf = C_ecef_to_body * gravity_ecef
+gravity_eci = Matrix([-9.81, 0, 0])  # gravity earth-frame
+gravity_ecef = C_eci_to_ecef * gravity_eci
+gravity_body = C_ecef_to_body * gravity_ecef
+# gravity_body = C_eci_to_body * gravity_eci
+
+angvel_true = z_gyro - angvel_bias
+acc_true = z_accel - acc_bias
 
 wx, wy, wz = angvel_true
 Sq = np.array([[-q1, -q2, -q3],    # type:ignore
@@ -258,10 +259,31 @@ Sq = np.array([[-q1, -q2, -q3],    # type:ignore
 
 quat_dot = (0.5 * Sq * angvel_true)
 quat_new = quat + quat_dot * dt
-acc_eci = (C_body_to_eci * acc_true)
+# acc_eci = (C_body_to_eci * acc_true)
 
-pos_new = pos + vel * dt + 0.5 * acc_eci * dt**2
-vel_new = vel + acc_eci * dt
+############
+omega_skew_ie = Matrix([
+    [0, -omega_e, 0],
+    [omega_e, 0, 0],
+    [0, 0, 0],
+    ])
+pos_ecef = C_eci_to_ecef * pos
+# Earth-relative velocity vector
+vel_ecef = C_eci_to_ecef @ vel - omega_skew_ie @ pos_ecef
+# Earth-relative acceleration vector
+acc_ecef = (C_body_to_ecef @ acc_true - (2. * omega_skew_ie @ vel_ecef)
+            - (omega_skew_ie @ omega_skew_ie @ pos_ecef))
+acc_body = C_ecef_to_body @ acc_ecef
+
+pos_dot = vel
+vel_dot = C_body_to_eci @ acc_body
+
+pos_new = pos + pos_dot * dt + 0.5 * vel_dot * dt**2
+vel_new = vel + vel_dot * dt
+############
+
+# pos_new = pos + vel * dt + 0.5 * (acc_true + gravity_body) * dt**2
+# vel_new = vel + (acc_true + gravity_body) * dt**2
 gyro_bias_new = angvel_bias
 accel_bias_new = acc_bias
 
@@ -322,6 +344,10 @@ R_mag_world_x, R_mag_world_y, R_mag_world_z = symbols('R_mag_world_x R_mag_world
 R_gps_pos_x, R_gps_pos_y, R_gps_pos_z = symbols('R_gps_pos_x R_gps_pos_y R_gps_pos_z')
 R_gps_vel_x, R_gps_vel_y, R_gps_vel_z = symbols('R_gps_vel_x R_gps_vel_y R_gps_vel_z')
 
+R_accel = Matrix([R_accel_x, R_accel_y, R_accel_z])
+R_gps_pos = Matrix([R_gps_pos_x, R_gps_pos_y, R_gps_pos_z])
+R_gps_vel = Matrix([R_gps_vel_x, R_gps_vel_y, R_gps_vel_z])
+
 R = Matrix([R_accel_x, R_accel_y, R_accel_z,
             R_gps_pos_x, R_gps_pos_y, R_gps_pos_z,
             R_gps_vel_x, R_gps_vel_y, R_gps_vel_z])
@@ -360,9 +386,9 @@ P_new = F * P * F.T + G * Q * G.T
 # for i in range(1, P_new.shape[0]):
 #     for j in range(i):
 #         P_new[i, j] = P_new[j, i]
-for i in range(1, P_new.shape[0]):
-    for j in range(i):
-        P_new[i, j] = 0
+# for i in range(1, P_new.shape[0]):
+#     for j in range(i):
+#         P_new[i, j] = 0
 
 ##################################################
 # Observations
@@ -370,9 +396,9 @@ for i in range(1, P_new.shape[0]):
 print("Building Observations...")
 
 # Body Frame Accelerometer Observation
-obs_accel = (C_body_to_eci * gravity_bf) + acc_bias
+# obs_accel = C_eci_to_body * gravity_eci + acc_bias
 # obs_accel = (dcm_to_body * gravity_ef) + acc_bias
-# obs_accel = gravity_bf + acc_bias
+obs_accel = acc_body + gravity_body + acc_bias
 H_accel_x = obs_accel[0, :].jacobian(X)
 H_accel_y = obs_accel[1, :].jacobian(X)
 H_accel_z = obs_accel[2, :].jacobian(X)
@@ -457,6 +483,53 @@ res_gps = z_gps - H_gps * X
 X_gps_update = X + K_gps * res_gps
 P_gps_update = P - (K_gps * H_gps * P)
 
+# s = {i: 0. for i in X.flat()}
+# # subs.update({i: 0. for i in U.flat()})
+# s.update({i: 0.1 for i in R.flat()})
+# s.update({i: 0. for i in P.flat()})
+# for i in range(16):
+#     s.update({P.flat()[i]: 1})
+# ang = np.radians(0)
+# s[q0] = cos(ang / 2)
+# s[q1] = sin(ang / 2)
+# s[q2] = 0.
+# s[q3] = 0.
+# s[z_accel_x] = 0
+# s[z_accel_y] = 0
+# s[z_accel_z] = 1
+# s[z_gyro_x] = 0
+# s[z_gyro_y] = 0
+# s[z_gyro_z] = 0
+# s[t] = 0.
+# s[dt] = 0.1
+# # ret = H_accel.xreplace(s)
+
+##########
+# obs_vel = acc_body - gravity_body + acc_bias
+# H_acc_x = obs_vel[0, :].jacobian(X)
+# H_acc_y = obs_vel[1, :].jacobian(X)
+# H_acc_z = obs_vel[2, :].jacobian(X)
+# H_accel = Matrix([H_acc_x, H_acc_y, H_acc_z])
+
+# innov_var_accel_x = H_acc_x * P * H_acc_x.T + Matrix([R_accel_x * dt])
+# innov_var_accel_y = H_acc_y * P * H_acc_y.T + Matrix([R_accel_y * dt])
+# innov_var_accel_z = H_acc_z * P * H_acc_z.T + Matrix([R_accel_z * dt])
+# K_accel_x = P * H_acc_x.T / innov_var_accel_x[0, 0]
+# K_accel_y = P * H_acc_y.T / innov_var_accel_y[0, 0]
+# K_accel_z = P * H_acc_z.T / innov_var_accel_z[0, 0]
+
+# K_accel = Matrix()
+# K_accel = K_accel.col_insert(0, K_accel_x)
+# K_accel = K_accel.col_insert(1, K_accel_y)
+# K_accel = K_accel.col_insert(2, K_accel_z)
+
+# res_accel = z_accel - H_accel * X
+
+# # accelerometer
+# X_accel_update = X + K_accel * res_accel
+# P_accel_update = P - (K_accel * H_accel * P)
+##########
+
 ##################################################
 # NIV: normalized innovation variance
 ##################################################
@@ -482,12 +555,12 @@ state_info = {
         q1: 0,
         q2: 0,
         q3: 0,
-        pos_e: 0,
-        pos_n: 0,
-        pos_u: 0,
-        vel_e: 0,
-        vel_n: 0,
-        vel_u: 0,
+        pos_x: 0,
+        pos_y: 0,
+        pos_z: 0,
+        vel_x: 0,
+        vel_y: 0,
+        vel_z: 0,
         acc_bias_x: 0,
         acc_bias_y: 0,
         acc_bias_z: 0,
@@ -673,20 +746,20 @@ if __name__ == "__main__":
     # P_upper = MatrixSymbol("P", upper_ncols, 1).as_mutable()
     # P_new_upper = Matrix([P_new[i, j] for i, j in zip(*upper_ids)])
 
-    params = [t, X, U, P, variance, R, Matrix([*innov.keys()]), dt]
+    # params = [t, X, U, P, variance, R, Matrix([*innov.keys()]), dt]
 
-    gen = CCodeGenerator()
-    gen.add_function(expr=X_new,
-                     params=params,
-                     function_name="x_predict",
-                     return_name="X_new")
+    # gen = CCodeGenerator()
+    # gen.add_function(expr=X_new,
+    #                  params=params,
+    #                  function_name="x_predict",
+    #                  return_name="X_new")
 
-    gen.add_function(expr=P_new,
-                     params=params,
-                     function_name="p_predict",
-                     return_name="P_new",
-                     is_symmetric=False,
-                     by_reference=innov)
+    # gen.add_function(expr=P_new,
+    #                  params=params,
+    #                  function_name="p_predict",
+    #                  return_name="P_new",
+    #                  is_symmetric=False,
+    #                  by_reference=innov)
 
     # gen.add_function(expr=X_accel_update,
     #                  params=params,
@@ -711,7 +784,56 @@ if __name__ == "__main__":
     #                  return_name="P_gps_new",
     #                  is_symmetric=False)
 
-    profile(gen.create_module)(module_name="ekf", path="./")
+    # profile(gen.create_module)(module_name="ekf", path="./")
+
+    path = "./"
+    imports = []
+    # extra_params = [P, variance, R, Matrix([*innov.values()])]
+    extra_params = {
+            "P": P,
+            "variance": variance,
+            "noise": R,
+            # "innov_var": Matrix([*innov.values()])
+            }
+    to_pycode(func_name="x_predict",
+              expr=X_new,
+              state_vars=X,
+              input_vars=U,
+              filepath=os.path.join(path, "ekf_x_predict.py"),
+              imports=imports,
+              extra_params=extra_params)
+
+    to_pycode(func_name="p_predict",
+              expr=P_new,
+              state_vars=X,
+              input_vars=U,
+              filepath=os.path.join(path, "ekf_p_predict.py"),
+              imports=imports,
+              extra_params=extra_params)
+
+    to_pycode(func_name="x_accel_update",
+              expr=X_accel_update,
+              state_vars=X,
+              input_vars=U,
+              filepath=os.path.join(path, "ekf_x_accel_update.py"),
+              imports=imports,
+              extra_params=extra_params)
+
+    to_pycode(func_name="p_accel_update",
+              expr=P_accel_update,
+              state_vars=X,
+              input_vars=U,
+              filepath=os.path.join(path, "ekf_p_accel_update.py"),
+              imports=imports,
+              extra_params=extra_params)
+
+    to_pycode(func_name="h_accel",
+              expr=H_accel,
+              state_vars=X,
+              input_vars=U,
+              filepath=os.path.join(path, "ekf_h_accel.py"),
+              imports=imports,
+              extra_params=extra_params)
     quit()
 
     definitions = (
