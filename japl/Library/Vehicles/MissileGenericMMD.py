@@ -296,7 +296,7 @@ a_b_m = Matrix([
     ])
 
 # for specific force measurements (accelerometer)
-accel_meas = (f_b_A + f_b_T) / wet_mass
+accel_meas = (f_b_A + f_b_T) / wet_mass + g_b_e
 
 # (13) Earth-relative acceleration vector
 a_e_e = (C_body_to_ecef * a_b_m - (2 * omega_skew_ie * v_e_e)
