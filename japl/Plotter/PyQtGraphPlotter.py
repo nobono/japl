@@ -503,6 +503,7 @@ class PyQtGraphPlotter:
             color = axes.get("color", simobj.plot.color)
             size = axes.get("size", 1)
             marker = axes.get("marker", None)
+            global_markers = axes.get("global_markers", {})
 
             # resolve color str to hex color code
             # or get random color
@@ -531,6 +532,30 @@ class PyQtGraphPlotter:
                 plot_item = win.getItem(row=i, col=0)
                 plot_item.addItem(marker_item)
                 simobj.plot.qt_markers += [marker_item]
+
+            # TODO: integrate this better...
+            ####################################################################################
+            # setup any global / static markers defined
+            for _title, _axes in global_markers.items():
+                _data = _axes.get("data", [0, 0])
+                _color = _axes.get("color", simobj.plot.color)
+                _size = _axes.get("size", 1)
+                _marker = _axes.get("marker", None)
+                _color_code = self.__get_color_code(_color)
+                _marker_pen = {"color": _color_code, "width": _size}
+                _marker_item = pg.ScatterPlotItem(x=[_data[0]], y=[_data[1]], pen=_marker_pen,
+                                                  useCache=self.draw_cache_mode,
+                                                  antialias=self.antialias,
+                                                  autoDownsample=True,
+                                                  downsampleMethod="peak",
+                                                  clipToView=True,
+                                                  skipFiniteCheck=True,
+                                                  symbol=_marker)
+                # refer to current plot in current window
+                plot_item = win.getItem(row=i, col=0)
+                plot_item.addItem(_marker_item)
+            ####################################################################################
+
             num_plots += 1
 
         # setup vehicle viewer widget
@@ -615,7 +640,7 @@ class PyQtGraphPlotter:
 
 
     def _animate_func(self, frame, simobj: SimObject, step_func: Callable,
-                      frame_rate: float, moving_bounds: bool = False):
+                      frame_rate: float, moving_bounds: bool = False) -> None:
 
         self.profiler()
 
@@ -626,7 +651,41 @@ class PyQtGraphPlotter:
             if self.istep <= self.Nt:
                 flag_sim_stop: bool = step_func(istep=self.istep)
                 if flag_sim_stop:
+                    plot_config = simobj.plot.get_config()
+                    for subplot_id, plot_name in enumerate(plot_config):
+                        # NOTE: DO final draw
+                        #########################################################################
+                        # get data from SimObject based on state_select user configuration
+                        # NOTE: can pass QPen to _update_patch_data
+                        xdata, ydata = simobj.get_plot_data(subplot_id, self.istep)
+                        simobj._update_patch_data(xdata, ydata, subplot_id=subplot_id)
+
+                        ##########################################
+                        # this code allows xlim, ylim ranges to be
+                        # defined and used until data goes outside
+                        # of bounds and autorange is enabled.
+                        ##########################################
+                        widget_items = list(self.wins[0].centralWidget.items.keys())  # type:ignore
+                        subplot = plot_config[plot_name]
+                        # xrange, yrange = widget_items[subplot_id].viewRange()
+                        xlim = subplot.get("xlim", None)
+                        ylim = subplot.get("ylim", None)
+                        if xlim:
+                            if (xdata[-1] < xlim[0]) or (xdata[-1] > xlim[1]):
+                                widget_items[subplot_id].enableAutoRange(x=True)
+                            else:
+                                widget_items[subplot_id].setRange(xRange=xlim)
+                        if ylim:
+                            if (ydata[-1] < ylim[0]) or (ydata[-1] > ylim[1]):
+                                widget_items[subplot_id].enableAutoRange(y=True)
+                            else:
+                                widget_items[subplot_id].setRange(yRange=ylim)
+                        #########################################################################
+                    # trim output arrays
+                    simobj.Y = simobj.Y[:self.istep + 1]
+                    simobj.U = simobj.U[:self.istep + 1]
                     self.exit()
+                    return
             else:
                 break
 
