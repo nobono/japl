@@ -128,7 +128,7 @@ def ecef_to_eci(ecef_xyz: np.ndarray|list, t: float = 0) -> np.ndarray:
 
 
 # TODO: this may be wrong: see     vel_ecef = C_eci_to_ecef @ _vel - omega_skew_ie @ _pos
-def eci_to_ecef_velocity(eci_xyz: np.ndarray|list, r_ecef: np.ndarray|list) -> np.ndarray:
+def eci_to_ecef_velocity(eci_xyz: np.ndarray|list, r_ecef: np.ndarray|list, t: float) -> np.ndarray:
     """This method converts a velocity vector from ECI
     coordinates to ECEF by taking into account Earth's
     rotation.
@@ -154,7 +154,11 @@ def eci_to_ecef_velocity(eci_xyz: np.ndarray|list, r_ecef: np.ndarray|list) -> n
         [0, -omega_e, 0],
         [omega_e, 0, 0],
         [0, 0, 0]])
-    return eci_xyz - omega_skew @ r_ecef
+    C_eci_to_ecef = np.array([
+        [np.cos(omega_e * t), np.sin(omega_e * t), 0],
+        [-np.sin(omega_e * t), np.cos(omega_e * t), 0],
+        [0, 0, 1]])
+    return C_eci_to_ecef @ eci_xyz - omega_skew @ r_ecef
 
 
 def ecef_to_eci_velocity(ecef_xyz: np.ndarray|list, r_ecef: np.ndarray|list) -> np.ndarray:
@@ -297,8 +301,9 @@ def eci_to_enu_position(eci_xyz: np.ndarray|list, ecef0: Optional[np.ndarray|lis
     return enu
 
 
+# TODO: i think this is wrong
 def eci_to_enu_velocity(eci_xyz: np.ndarray|list, r_ecef: np.ndarray|list,
-                        ecef0: np.ndarray|list) -> np.ndarray:
+                        t: float) -> np.ndarray:
     """
     This method converts a velocity vector from ECI coordinates
     to ENU.
@@ -316,9 +321,8 @@ def eci_to_enu_velocity(eci_xyz: np.ndarray|list, r_ecef: np.ndarray|list,
     ---------------------------------------------------
     """
     r_ecef = np.asarray(r_ecef)
-    ecef0 = np.asarray(ecef0)
-    ecef = eci_to_ecef_velocity(eci_xyz, r_ecef=r_ecef)
-    enu = ecef_to_enu(ecef, ecef0)
+    ecef = eci_to_ecef_velocity(eci_xyz, r_ecef=r_ecef, t=t)
+    enu = ecef_to_enu(ecef, r_ecef)
     return enu
 
 
@@ -390,7 +394,8 @@ def ecef_to_enu_position(ecef_xyz: np.ndarray|list, ecef0: np.ndarray|list) -> n
     return dcm_ecef_to_enu @ (ecef_xyz - ecef0)
 
 
-def ecef_to_enu(ecef_xyz: np.ndarray|list, ecef0: np.ndarray|list) -> np.ndarray:
+# TODO: this needed fixing
+def ecef_to_enu(ecef_xyz: np.ndarray|list, r_ecef: np.ndarray|list) -> np.ndarray:
     """
     This method converts a vector from ECEF coordinates
     to ENU.
@@ -398,7 +403,7 @@ def ecef_to_enu(ecef_xyz: np.ndarray|list, ecef0: np.ndarray|list) -> np.ndarray
     ---------------------------------------------------
     Arguments:
         - ecef_xyz: [x, y, z] ECEF-coordinate
-        - ecef0: [x0, y0, z0] ECEF-reference point. This
+        - r_ecef: [x0, y0, z0] ECEF-reference point. This
                  determines the origin of the local ENU
                  frame.
 
@@ -406,10 +411,10 @@ def ecef_to_enu(ecef_xyz: np.ndarray|list, ecef0: np.ndarray|list) -> np.ndarray
         - enu: [east, north, up] ENU-coordinates
     ---------------------------------------------------
     """
-    ecef0 = np.asarray(ecef0)
+    r_ecef = np.asarray(r_ecef)
     cos = np.cos
     sin = np.sin
-    lat, lon, alt = ecef_to_lla(ecef0)
+    lat, lon, alt = ecef_to_lla(r_ecef)
     dcm_ecef_to_enu = np.array([[-sin(lon), cos(lon), 0],
                                 [-sin(lat) * cos(lon), -sin(lat) * sin(lon), cos(lat)],
                                 [cos(lat) * cos(lon), cos(lat) * sin(lon), sin(lat)]])
