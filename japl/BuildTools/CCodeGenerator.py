@@ -258,7 +258,8 @@ class CCodeGenerator(CodeGeneratorBase):
             })
 
 
-    def _subs_prune(self, replacements, expr_simple) -> tuple[dict, Matrix, int]:
+    @staticmethod
+    def _subs_prune(replacements, expr_simple) -> tuple[dict, Matrix, int]:
         # unpack to single iterable
         reps = []
         for rep in replacements:
