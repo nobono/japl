@@ -9,6 +9,8 @@ from pyqtgraph import ScatterPlotItem, PlotDataItem, mkPen
 from pyqtgraph.Qt.QtGui import QPen
 from matplotlib.lines import Line2D
 from matplotlib import colors as mplcolors
+from pandas import DataFrame
+from japl.Util.Pubsub import Publisher
 # from sympy import Symbol
 # from pyqtgraph import GraphicsView, PlotCurveItem,
 # from pyqtgraph import CircleROI
@@ -117,7 +119,7 @@ class SimObject:
     __slots__ = ("_dtype", "name", "color", "size", "model",
                  "state_dim", "input_dim", "static_dim",
                  "X0", "U0", "S0", "Y", "U", "plot",
-                 "_T", "_istep")
+                 "_T", "_istep", "publisher")
 
     """This is a base class for simulation objects"""
 
@@ -141,6 +143,7 @@ class SimObject:
         self.U = np.array([], dtype=self._dtype)
         self._T = np.array([])
         self._istep: int = 1  # sim step counter set by Sim class
+        self.publisher = Publisher()
 
         # self._setup_model(**kwargs)
 
@@ -518,3 +521,9 @@ class SimObject:
 
     def _update_patch_data(self, xdata: np.ndarray, ydata: np.ndarray, subplot_id: int, **kwargs) -> None:
         self.plot._update_patch_data(xdata, ydata, subplot_id=subplot_id, **kwargs)
+
+
+    def create_dataframe(self):
+        """Creates DataFrame for each data array (state, input, static) on completion
+        of a simulation run."""
+        state_df = DataFrame()
