@@ -10,6 +10,7 @@ from pyqtgraph.Qt.QtGui import QPen
 from matplotlib.lines import Line2D
 from matplotlib import colors as mplcolors
 from pandas import DataFrame
+from pandas import MultiIndex
 from japl.Util.Pubsub import Publisher
 # from sympy import Symbol
 # from pyqtgraph import GraphicsView, PlotCurveItem,
@@ -523,7 +524,19 @@ class SimObject:
         self.plot._update_patch_data(xdata, ydata, subplot_id=subplot_id, **kwargs)
 
 
-    def create_dataframe(self):
+    def to_dataframe(self) -> DataFrame:
         """Creates DataFrame for each data array (state, input, static) on completion
         of a simulation run."""
-        state_df = DataFrame()
+        # define the multi-level column structure
+        column_structure = []
+        data = {}
+        for name in self.model.state_register.keys():
+            struct_tuple = ("state", name)
+            data[struct_tuple] = self.get(name)
+        for name in self.model.input_register.keys():
+            struct_tuple = ("input", name)
+            data[struct_tuple] = self.get(name)
+
+        columns = MultiIndex.from_tuples([*data.keys()])
+        df = DataFrame(data, index=self._T, columns=columns)
+        return df
