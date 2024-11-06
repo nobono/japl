@@ -1,4 +1,5 @@
 import os
+import time
 import dill as pickle
 import numpy as np
 import sympy as sp
@@ -194,6 +195,12 @@ vel_x = Symbol("vel_x", real=True)  # (t)
 vel_y = Symbol("vel_y", real=True)  # (t)
 vel_z = Symbol("vel_z", real=True)  # (t)
 
+thrust = Symbol("thrust", real=True)
+mass = Symbol("mass", real=True)
+lift = Symbol("lift", real=True)
+drag = Symbol("drag", real=True)
+gacc = Symbol("gacc", real=True)
+
 acc_bias_x, acc_bias_y, acc_bias_z = symbols("acc_bias_x, acc_bias_y, acc_bias_z", real=True)
 angvel_bias_x, angvel_bias_y, angvel_bias_z = symbols("angvel_bias_x, angvel_bias_y, angvel_bias_z", real=True)
 
@@ -234,22 +241,27 @@ C_eci_to_ecef = Matrix([
     [0, 0, 1]])
 
 # C_body_to_eci = body_to_eci_dcm(quat)
+# C_body_to_eci = Matrix([
+#     [1 - 2*(q2**2 + q3**2), 2*(q1*q2 + q0*q3) , 2*(q1*q3 - q0*q2)],   # type:ignore # noqa
+#     [2*(q1*q2 - q0*q3) , 1 - 2*(q1**2 + q3**2), 2*(q2*q3 + q0*q1)],   # type:ignore # noqa
+#     [2*(q1*q3 + q0*q2) , 2*(q2*q3 - q0*q1), 1 - 2*(q1**2 + q2**2)]]).T  # type:ignore # noqa
+
 C_body_to_eci = Matrix([
-    [1 - 2*(q2**2 + q3**2), 2*(q1*q2 + q0*q3) , 2*(q1*q3 - q0*q2)],   # type:ignore # noqa
-    [2*(q1*q2 - q0*q3) , 1 - 2*(q1**2 + q3**2), 2*(q2*q3 + q0*q1)],   # type:ignore # noqa
-    [2*(q1*q3 + q0*q2) , 2*(q2*q3 - q0*q1), 1 - 2*(q1**2 + q2**2)]]).T  # type:ignore # noqa
+    [q0**2+q1**2-q2**2-q3**2, 2*(q1*q2 - q0*q3), 2*(q1*q3 + q0*q2)],   # type:ignore # noqa
+    [2*(q1*q2 + q0*q3), q0**2-q1**2+q2**2-q3**2, 2*(q2*q3 - q0*q1)],   # type:ignore # noqa
+    [2*(q1*q3 - q0*q2), 2*(q2*q3 + q0*q1), q0**2-q1**2-q2**2+q3**2]])  # type:ignore # noqa
 
 C_body_to_ecef = C_eci_to_ecef * C_body_to_eci
 C_eci_to_body = C_body_to_eci.T
 C_ecef_to_body = C_body_to_ecef.T
 
-gravity_eci = Matrix([-9.81, 0, 0])  # gravity earth-frame
-gravity_ecef = C_eci_to_ecef * gravity_eci
-gravity_body = C_ecef_to_body * gravity_ecef
-# gravity_body = C_eci_to_body * gravity_eci
+# gravity_eci = Matrix([-9.81, 0, 0])  # gravity earth-frame
+r_hat = pos / pos.norm()
+gravity_eci = gacc * r_hat
+gravity_body = C_eci_to_body * gravity_eci
 
-angvel_true = z_gyro - angvel_bias
-acc_true = z_accel - acc_bias
+angvel_true = z_gyro - angvel_bias - (C_eci_to_body * Matrix([0, 0, omega_e]))
+acc_true = z_accel - acc_bias - gravity_body
 
 wx, wy, wz = angvel_true
 Sq = np.array([[-q1, -q2, -q3],    # type:ignore
@@ -258,8 +270,6 @@ Sq = np.array([[-q1, -q2, -q3],    # type:ignore
                [-q2, q1, q0]])     # type:ignore
 
 quat_dot = (0.5 * Sq * angvel_true)
-quat_new = quat + quat_dot * dt
-# acc_eci = (C_body_to_eci * acc_true)
 
 ############
 omega_skew_ie = Matrix([
@@ -269,15 +279,16 @@ omega_skew_ie = Matrix([
     ])
 pos_ecef = C_eci_to_ecef * pos
 # Earth-relative velocity vector
-vel_ecef = C_eci_to_ecef @ vel - omega_skew_ie @ pos_ecef
+vel_ecef = C_eci_to_ecef * vel - omega_skew_ie * pos_ecef
 # Earth-relative acceleration vector
-acc_ecef = (C_body_to_ecef @ acc_true - (2. * omega_skew_ie @ vel_ecef)
-            - (omega_skew_ie @ omega_skew_ie @ pos_ecef))
+acc_ecef = (C_body_to_ecef * (acc_true) - (2. * omega_skew_ie * vel_ecef)
+            - (omega_skew_ie * omega_skew_ie * pos_ecef))
 acc_body = C_ecef_to_body @ acc_ecef
 
 pos_dot = vel
-vel_dot = C_body_to_eci @ acc_body
+vel_dot = (C_body_to_eci @ (acc_body + gravity_body))
 
+quat_new = quat + quat_dot * dt
 pos_new = pos + pos_dot * dt + 0.5 * vel_dot * dt**2
 vel_new = vel + vel_dot * dt
 ############
@@ -374,6 +385,9 @@ P = MatrixSymbol("P", len(X), len(X)).as_mutable()
 for i in range(1, P.shape[0]):
     for j in range(i):
         P[i, j] = P[j, i]
+# for i in range(1, P.shape[0]):
+#     for j in range(i):
+#         P[i, j] = 0
 
 P_new = F * P * F.T + G * Q * G.T
 
@@ -383,9 +397,9 @@ P_new = F * P * F.T + G * Q * G.T
 #     P_new[i, i] = sp.Min(P_new[i, i], max_uncertainty)
 
 # make symmetric
-# for i in range(1, P_new.shape[0]):
-#     for j in range(i):
-#         P_new[i, j] = P_new[j, i]
+for i in range(1, P_new.shape[0]):
+    for j in range(i):
+        P_new[i, j] = P_new[j, i]
 # for i in range(1, P_new.shape[0]):
 #     for j in range(i):
 #         P_new[i, j] = 0
@@ -398,7 +412,10 @@ print("Building Observations...")
 # Body Frame Accelerometer Observation
 # obs_accel = C_eci_to_body * gravity_eci + acc_bias
 # obs_accel = (dcm_to_body * gravity_ef) + acc_bias
-obs_accel = acc_body + gravity_body + acc_bias
+acc_aero_body = Matrix([drag, 0, lift]) / mass
+# acc_thrust_body = Matrix([thrust, 0, 0]) / mass
+obs_accel = (gravity_body / 2) + acc_bias
+
 H_accel_x = obs_accel[0, :].jacobian(X)
 H_accel_y = obs_accel[1, :].jacobian(X)
 H_accel_z = obs_accel[2, :].jacobian(X)
@@ -470,7 +487,7 @@ K_gps = K_gps.col_insert(4, K_gps_vel_y)
 K_gps = K_gps.col_insert(5, K_gps_vel_z)
 
 # accelerometer residual
-res_accel = z_accel - H_accel * X
+res_accel = z_accel - (H_accel * X) + acc_aero_body
 
 # accelerometer
 X_accel_update = X + K_accel * res_accel
@@ -786,15 +803,22 @@ if __name__ == "__main__":
 
     # profile(gen.create_module)(module_name="ekf", path="./")
 
+    st = time.perf_counter()
+
     path = "./"
     imports = []
-    # extra_params = [P, variance, R, Matrix([*innov.values()])]
     extra_params = {
             "P": P,
             "variance": variance,
             "noise": R,
+            "thrust": thrust,
+            "mass": mass,
+            "lift": lift,
+            "drag": drag,
+            "gacc": gacc,
             # "innov_var": Matrix([*innov.values()])
             }
+
     to_pycode(func_name="x_predict",
               expr=X_new,
               state_vars=X,
@@ -827,6 +851,14 @@ if __name__ == "__main__":
               imports=imports,
               extra_params=extra_params)
 
+    to_pycode(func_name="obs_accel",
+              expr=obs_accel,
+              state_vars=X,
+              input_vars=U,
+              filepath=os.path.join(path, "ekf_obs_accel.py"),
+              imports=imports,
+              extra_params=extra_params)
+
     to_pycode(func_name="h_accel",
               expr=H_accel,
               state_vars=X,
@@ -834,6 +866,8 @@ if __name__ == "__main__":
               filepath=os.path.join(path, "ekf_h_accel.py"),
               imports=imports,
               extra_params=extra_params)
+
+    print("exec: %.3f (sec)" % (time.perf_counter() - st))
     quit()
 
     definitions = (
