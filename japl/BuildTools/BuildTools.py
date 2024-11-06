@@ -737,7 +737,7 @@ def to_pycode(func_name: str,
 
     replacements = ()
     if not use_cse:
-        expr_simple = [expr]
+        expr_simple = expr
     else:
         # optimize expression
         replacements, expr_simple = cse(expr)
