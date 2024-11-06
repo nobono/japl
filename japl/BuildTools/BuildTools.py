@@ -810,7 +810,12 @@ def to_pycode(func_name: str,
 
         intermed_assigns = []
         for name, expr in intermediates:
-            expr_str = re.sub(r"\#.*?\n", "", str(pycode(expr, strict=False)))
+            temp_name = re.sub(r"\[*.\]", "_", name)
+            _reps, _expr = cse(expr, symbols(f"temp_{temp_name}0:500"))
+            _expr = _expr[0]  # type:ignore
+            for rep in _reps:
+                intermed_assigns += [Assignment(*rep)]
+            expr_str = re.sub(r"\#.*?\n", "", str(pycode(_expr, strict=False)))
             expr_str = expr_str.replace("(t)", "")
             intermed_assigns += [Assignment(Symbol(name), Symbol(expr_str))]
 
