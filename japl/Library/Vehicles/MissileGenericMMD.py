@@ -275,14 +275,18 @@ CA = aerotable.get_CA(alpha, np.nan, M, alt, np.nan, thrust)
 
 f_b_A_x = CA * q_bar * Sref
 f_b_A_z = CNB * q_bar * Sref
-f_b_A = Matrix([-f_b_A_x, 0, -f_b_A_z])
+f_b_A = Matrix([f_b_A_x, 0, f_b_A_z])
 
 # (6)
-g_i_m = Matrix([gacc, 0, 0])
-g_e_m = C_eci_to_ecef * g_i_m
-g_b_e = C_ecef_to_body * g_e_m
+# g_i_m = Matrix([gacc, 0, 0])
+# g_e_m = C_eci_to_ecef * g_i_m
+# g_b_e = C_ecef_to_body * g_e_m
+r_hat = r_i_m / r_i_m.norm()
+g_i_m = gacc * r_hat
+g_b_e = C_eci_to_body * g_i_m
 
-a_b_m_expr = ((f_b_A + f_b_T) / wet_mass) + g_b_e
+# a_b_m_expr = ((f_b_A + f_b_T) / wet_mass) + g_b_e
+a_b_m_expr = ((f_b_T - f_b_A) / wet_mass) + g_b_e
 a_b_m = Matrix([
     Piecewise(
         (0.0, sp.Eq(is_launched, 0)),
@@ -295,15 +299,15 @@ a_b_m = Matrix([
         (a_b_m_expr[2], True))
     ])
 
-# for specific force measurements (accelerometer)
-accel_meas = (f_b_A + f_b_T) / wet_mass + g_b_e
-
 # (13) Earth-relative acceleration vector
 a_e_e = (C_body_to_ecef * a_b_m - (2 * omega_skew_ie * v_e_e)
          - (omega_skew_ie * omega_skew_ie * r_e_e))
 
 # (29)
 a_b_e = C_ecef_to_body * a_e_e
+
+# for specific force measurements (accelerometer)
+accel_meas = ((f_b_T - f_b_A) / wet_mass) + g_b_e
 
 ##################################################
 
@@ -649,9 +653,11 @@ state = Matrix([
     DirectUpdate("CN", CNB),  # 58
     DirectUpdate("q_bar", q_bar),  # 59
 
-    DirectUpdate(drag, f_b_A_x),  # 60 - 62
-    DirectUpdate(lift, f_b_A_z),  # 63 - 65
+    DirectUpdate(drag, f_b_A[0]),  # 60 - 62
+    DirectUpdate(lift, f_b_A[2]),  # 63 - 65
     DirectUpdate(accel, accel_meas),
+
+    DirectUpdate("rho", rho),
     ])
 
 input = Matrix([
