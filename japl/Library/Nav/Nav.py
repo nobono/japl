@@ -747,16 +747,16 @@ if __name__ == "__main__":
     # noise = list(noise_info.keys())
     # variance = list(variance_info.keys())
     # input = list(input_info.keys())
-    innov = {"innov_var_accel_x": norm_innov_var_accel_x,
-             "innov_var_accel_y": norm_innov_var_accel_y,
-             "innov_var_accel_z": norm_innov_var_accel_z,
-             "innov_var_gps_pos_x": norm_innov_var_gps_pos_x,
-             "innov_var_gps_pos_y": norm_innov_var_gps_pos_y,
-             "innov_var_gps_pos_z": norm_innov_var_gps_pos_z,
-             "innov_var_gps_vel_x": norm_innov_var_gps_vel_x,
-             "innov_var_gps_vel_y": norm_innov_var_gps_vel_y,
-             "innov_var_gps_vel_z": norm_innov_var_gps_vel_z,
-             }
+    # innov = {"innov_var_accel_x": norm_innov_var_accel_x,
+    #          "innov_var_accel_y": norm_innov_var_accel_y,
+    #          "innov_var_accel_z": norm_innov_var_accel_z,
+    #          "innov_var_gps_pos_x": norm_innov_var_gps_pos_x,
+    #          "innov_var_gps_pos_y": norm_innov_var_gps_pos_y,
+    #          "innov_var_gps_pos_z": norm_innov_var_gps_pos_z,
+    #          "innov_var_gps_vel_x": norm_innov_var_gps_vel_x,
+    #          "innov_var_gps_vel_y": norm_innov_var_gps_vel_y,
+    #          "innov_var_gps_vel_z": norm_innov_var_gps_vel_z,
+    #          }
 
     # upper_ids = np.triu_indices(P.shape[0])
     # upper_ncols = len(upper_ids[0])
@@ -803,6 +803,17 @@ if __name__ == "__main__":
 
     # profile(gen.create_module)(module_name="ekf", path="./")
 
+    innov = {"innov_var[0]": norm_innov_var_accel_x,
+             "innov_var[1]": norm_innov_var_accel_y,
+             "innov_var[2]": norm_innov_var_accel_z,
+             "innov_var[3]": norm_innov_var_gps_pos_x,
+             "innov_var[4]": norm_innov_var_gps_pos_y,
+             "innov_var[5]": norm_innov_var_gps_pos_z,
+             "innov_var[6]": norm_innov_var_gps_vel_x,
+             "innov_var[7]": norm_innov_var_gps_vel_y,
+             "innov_var[8]": norm_innov_var_gps_vel_z,
+             }
+
     st = time.perf_counter()
 
     path = "./"
@@ -816,8 +827,16 @@ if __name__ == "__main__":
             "lift": lift,
             "drag": drag,
             "gacc": gacc,
-            # "innov_var": Matrix([*innov.values()])
+            "innov_var": Symbol("innov_var"),
             }
+
+    to_pycode(func_name="x_dynamics",
+              expr=X_dot,
+              state_vars=X,
+              input_vars=U,
+              filepath=os.path.join(path, "ekf_x_dynamics.py"),
+              imports=imports,
+              extra_params=extra_params)
 
     to_pycode(func_name="x_predict",
               expr=X_new,
@@ -833,7 +852,8 @@ if __name__ == "__main__":
               input_vars=U,
               filepath=os.path.join(path, "ekf_p_predict.py"),
               imports=imports,
-              extra_params=extra_params)
+              extra_params=extra_params,
+              intermediates=[*innov.items()])
 
     to_pycode(func_name="x_accel_update",
               expr=X_accel_update,
@@ -849,23 +869,24 @@ if __name__ == "__main__":
               input_vars=U,
               filepath=os.path.join(path, "ekf_p_accel_update.py"),
               imports=imports,
-              extra_params=extra_params)
+              extra_params=extra_params,
+              intermediates=[*innov.items()])
 
-    to_pycode(func_name="obs_accel",
-              expr=obs_accel,
-              state_vars=X,
-              input_vars=U,
-              filepath=os.path.join(path, "ekf_obs_accel.py"),
-              imports=imports,
-              extra_params=extra_params)
+    # to_pycode(func_name="obs_accel",
+    #           expr=obs_accel,
+    #           state_vars=X,
+    #           input_vars=U,
+    #           filepath=os.path.join(path, "ekf_obs_accel.py"),
+    #           imports=imports,
+    #           extra_params=extra_params)
 
-    to_pycode(func_name="h_accel",
-              expr=H_accel,
-              state_vars=X,
-              input_vars=U,
-              filepath=os.path.join(path, "ekf_h_accel.py"),
-              imports=imports,
-              extra_params=extra_params)
+    # to_pycode(func_name="h_accel",
+    #           expr=H_accel,
+    #           state_vars=X,
+    #           input_vars=U,
+    #           filepath=os.path.join(path, "ekf_h_accel.py"),
+    #           imports=imports,
+    #           extra_params=extra_params)
 
     print("exec: %.3f (sec)" % (time.perf_counter() - st))
     quit()
