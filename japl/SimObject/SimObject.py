@@ -540,3 +540,15 @@ class SimObject:
         columns = MultiIndex.from_tuples([*data.keys()])
         df = DataFrame(data, index=self._T, columns=columns)
         return df
+
+
+    def to_dict(self) -> dict:
+        """Creates DataFrame for each data array (state, input, static) on completion
+        of a simulation run."""
+        # define the multi-level column structure
+        data = {"state": {}, "input": {}}
+        for name in self.model.state_register.keys():
+            data["state"][name] = self.get(name)
+        for name in self.model.input_register.keys():
+            data["input"][name] = self.get(name)
+        return data
