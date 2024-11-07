@@ -3,6 +3,7 @@ from typing import Union
 from japl.Math.Rotation import Sq
 from japl.Math.Rotation import quat_norm
 from japl.Math.Rotation import quat_to_dcm
+from japl.Math.Rotation import euler_to_dcm
 from japl.Sim.Integrate import runge_kutta_4
 from japl.Sim.Integrate import euler
 # from collections import deque
@@ -29,8 +30,10 @@ class SensorBase:
     def __init__(self,
                  scale_factor: IterT = np.ones(3),
                  misalignment: IterT = np.zeros(3),
+                 cross_axis_sensitivity: IterT = np.zeros(3),
                  bias: IterT = np.zeros(3),
                  noise: IterT = np.zeros(3),
+                 range: IterT = [-np.inf, np.inf],
                  delay: float = 0,
                  dof: int = 3) -> None:
         """
@@ -40,13 +43,19 @@ class SensorBase:
             sensitivity multiplier for each sensor axis [x, y, z]
 
         misalignment: np.ndarray
-            sensor axis misalignment values for each pair of axes [xy, xz, yz]
+            sensor axis misalignment values for each pair of axes [roll, pitch, yaw]
+
+        cross_axis_sensitivity: np.ndarray
+            sensor cross-axis sensitivity values for each pair of axes [xy, xz, yz]
 
         bias: np.ndarray
             sensor axis bias
 
         noise: np.ndarray
             sensor noise (variance) for each axis
+
+        range: np.ndarray
+            sensor measurement range [lower, upper]
 
         delay: float
             sensors delay which affects when measurements are readily available
@@ -62,6 +71,10 @@ class SensorBase:
         self.bias = np.asarray(bias)
         self.noise = np.asarray(noise)  # variance
         self.noise_std = np.sqrt(self.noise)  # standard deviation
+        if len(range) == 1:
+            self.range = [-range, range]
+        elif len(range) > 1:
+            self.range = range[:2]
         self.delay = delay
         self.last_measurement_time = 0
         self.buffer = Queue()
@@ -70,11 +83,13 @@ class SensorBase:
             [0, scale_factor[1], 0],
             [0, 0, scale_factor[2]],
             ])
-        self.M = np.array([
-            [1, misalignment[0], misalignment[1]],
-            [misalignment[0], 1, misalignment[2]],
-            [misalignment[1], misalignment[2], 1],
+        self.M = euler_to_dcm(*misalignment)
+        self.C = np.array([
+            [1, cross_axis_sensitivity[0], cross_axis_sensitivity[1]],
+            [cross_axis_sensitivity[0], 1, cross_axis_sensitivity[2]],
+            [cross_axis_sensitivity[1], cross_axis_sensitivity[2], 1],
             ])
+        self.R = self.C @ self.M @ self.S
 
 
     def count(self) -> int:
@@ -91,7 +106,11 @@ class SensorBase:
     def calc_measurement(self, time: float, true_val: np.ndarray):
         """Calculates measurement by applying scale factor, misalignment,
         bias, and noise."""
-        return self.M @ self.S @ true_val + self.bias + self.get_noise()
+        meas = self.R @ true_val + self.bias + self.get_noise()
+        if len(self.range) > 1:
+            return np.clip(meas, *self.range)
+        else:
+            return meas
 
 
     def update(self, time: float, true_val: np.ndarray):

@@ -8,6 +8,7 @@ from sympy import atan, atan2, tan
 from sympy import sec
 from sympy import Float
 import sympy as sp
+from sympy import Abs
 from japl import Model
 from sympy import Function
 from japl.Aero.AtmosphereSymbolic import AtmosphereSymbolic
@@ -171,9 +172,9 @@ omega_p = Symbol("omega_p", real=True)          # roll natural frequency
 T_r = Symbol("T_r", real=True)                  # roll autopilot time constant
 K_phi = Symbol("K_phi", real=True)              # roll controller gain
 
-flag_boosting = Symbol("flag_boosting")         # vehicle is boosting
+is_boosting = Symbol("is_boosting", real=True)  # vehicle is boosting
 stage = Symbol("stage")                         # missile stage (int)
-blaunched = Symbol("blaunched", real=True)      # flag to launch missile or keep stationary
+is_launched = Symbol("is_launched", real=True)  # flag to launch missile or keep stationary
 
 # angular velocities
 p = Function("p", real=True)(t)                 # roll-rate
@@ -195,6 +196,14 @@ a_c_x = Symbol("a_c_x", real=True)              # acc-x command (body-frame)
 a_c_y = Symbol("a_c_y", real=True)              # acc-y command (body-frame)
 a_c_z = Symbol("a_c_z", real=True)              # acc-z command (body-frame)
 a_c = Matrix([a_c_x, a_c_y, a_c_z])
+
+# specific force
+# this is the physical quantity measured by
+# an accelerometer.
+accel_x = Symbol("accel_x", real=True)
+accel_y = Symbol("accel_y", real=True)
+accel_z = Symbol("accel_z", real=True)
+accel = Matrix([accel_x, accel_y, accel_z])
 
 ##################################################
 # 2.1 ECI Position and Velocity Derivatives
@@ -237,10 +246,10 @@ v_e_e = C_eci_to_ecef * v_i_m - omega_skew_ie * r_e_e
 # (12)
 epsilon = 1e-3
 V = v_e_e.norm()
-V = Piecewise(
-        (sp.Expr(V), blaunched),
-        (0.0, True)
-        )
+# V = Piecewise(
+#         (sp.Expr(V), is_launched),
+#         (0.0, True)
+#         )
 
 # (10) Mach number
 M = V / C_s
@@ -266,23 +275,27 @@ CA = aerotable.get_CA(alpha, np.nan, M, alt, np.nan, thrust)
 
 f_b_A_x = CA * q_bar * Sref
 f_b_A_z = CNB * q_bar * Sref
-f_b_A = Matrix([-f_b_A_x, 0, -f_b_A_z])
+f_b_A = Matrix([f_b_A_x, 0, f_b_A_z])
 
 # (6)
-g_i_m = Matrix([gacc, 0, 0])
-g_e_m = C_eci_to_ecef * g_i_m
-g_b_e = C_ecef_to_body * g_e_m
+# g_i_m = Matrix([gacc, 0, 0])
+# g_e_m = C_eci_to_ecef * g_i_m
+# g_b_e = C_ecef_to_body * g_e_m
+r_hat = r_i_m / r_i_m.norm()
+g_i_m = gacc * r_hat
+g_b_e = C_eci_to_body * g_i_m
 
-a_b_m_expr = ((f_b_A + f_b_T) / wet_mass) + g_b_e
+# a_b_m_expr = ((f_b_A + f_b_T) / wet_mass) + g_b_e
+a_b_m_expr = ((f_b_T - f_b_A) / wet_mass) + g_b_e
 a_b_m = Matrix([
     Piecewise(
-        (0.0, sp.Eq(blaunched, 0)),
+        (0.0, sp.Eq(is_launched, 0)),
         (a_b_m_expr[0], True)),
     Piecewise(
-        (0.0, sp.Eq(blaunched, 0)),
+        (0.0, sp.Eq(is_launched, 0)),
         (a_b_m_expr[1], True)),
     Piecewise(
-        (0.0, sp.Eq(blaunched, 0)),
+        (0.0, sp.Eq(is_launched, 0)),
         (a_b_m_expr[2], True))
     ])
 
@@ -292,6 +305,9 @@ a_e_e = (C_body_to_ecef * a_b_m - (2 * omega_skew_ie * v_e_e)
 
 # (29)
 a_b_e = C_ecef_to_body * a_e_e
+
+# for specific force measurements (accelerometer)
+accel_meas = ((f_b_T - f_b_A) / wet_mass) + g_b_e
 
 ##################################################
 
@@ -357,20 +373,21 @@ C_2 = (C_11 * C_22 - C_12 * C_21) * u + (C_22 * C_31 - C_21 * C_32) * w
 # (42) (43)
 q_new = (w_dot - a_b_e[2] + p * v - omega_e * C_1) / u
 r_new = (a_b_e[1] - v_dot + p * w + omega_e * C_2) / u
+
 # zero-protect
 q_new = Piecewise(
-        (q_new, u > 0.0),
-        (0, True)
+        (q_new, Abs(u) > 0.0),  # type:ignore
+        (q, True)
         )
 r_new = Piecewise(
-        (r_new, u > 0.0),
-        (0, True)
+        (r_new, Abs(u) > 0.0),  # type:ignore
+        (r, True)
         )
 
 ##################################################
 
 # (26)
-omega_b_ib = Matrix([p, q_new, r_new])
+omega_b_ib = Matrix([p, q, r])
 
 ##################################################
 
@@ -456,7 +473,7 @@ q_m_dot = 0.5 * Sq * omega_b_ib
 
 # (27)
 # TODO: include this or not?
-# a_b_e = v_b_e_dot + (omega_skew_ib - C_ecef_to_body * omega_skew_ie * C_body_to_ecef) * v_b_e
+# a_b_e = vbe_dot + (omega_skew_ib - C_b_to_e.T * omega_skew_ie * C_b_to_e) * vbe
 
 # (46) NOTE: this is for a BTT missile
 
@@ -512,19 +529,19 @@ C_ecef_to_enu = Matrix([
     [-sin(lat0) * cos(lon0), -sin(lat0) * sin(lon0), cos(lat0)],  # type:ignore
     [cos(lat0) * cos(lon0), cos(lat0) * sin(lon0), sin(lat0)]  # type:ignore
     ])
-r_enu_e_new = C_ecef_to_enu * (r_e_m - ecef0)
+r_enu_e_new = C_ecef_to_enu * (r_e_e - ecef0)
 
 # NOTE: non-position vectors should use the current vehicle
 # position as the reference point
-lla0 = ecef_to_lla_sym(r_e_m)
+lla0 = ecef_to_lla_sym(r_e_e)
 lat0, lon0, alt0 = lla0
 C_ecef_to_enu = Matrix([
     [-sin(lon0), cos(lon0), 0],  # type:ignore
     [-sin(lat0) * cos(lon0), -sin(lat0) * sin(lon0), cos(lat0)],  # type:ignore
     [cos(lat0) * cos(lon0), cos(lat0) * sin(lon0), sin(lat0)]  # type:ignore
     ])
-v_enu_e_new = C_ecef_to_enu * v_e_m
-a_enu_e_new = C_ecef_to_enu * a_e_m
+v_enu_e_new = C_ecef_to_enu * v_e_e
+a_enu_e_new = C_ecef_to_enu * a_e_e
 
 ##################################################
 # Quaternion regularization term:
@@ -594,49 +611,53 @@ state = Matrix([
     q_m,  # 0 - 3
     r_i_m,  # 4 - 6
     v_i_m,  # 7 - 9
+    DirectUpdate(a_i_m, v_i_m_dot),
 
-    alpha,      # 10
-    alpha_dot,  # 11
-    beta,       # 12
-    beta_dot,   # 13
-    phi_hat,    # 14
-    DirectUpdate("phi_hat_dot", phi_hat_dot),  # 15
+    alpha,      # 13
+    alpha_dot,  # 14
+    beta,       # 15
+    beta_dot,   # 16
+    phi_hat,    # 17
+    DirectUpdate("phi_hat_dot", phi_hat_dot),  # 18
 
     # Angular rates
-    p,  # 16
-    DirectUpdate(q, q_new),  # 17
-    DirectUpdate(r, r_new),  # 18
+    p,  # 19
+    DirectUpdate(q, q_new),  # 20
+    DirectUpdate(r, r_new),  # 21
 
     # ENU
-    DirectUpdate(r_enu_m, r_enu_e_new),         # 19 - 21
-    DirectUpdate(v_enu_m, v_enu_e_new),         # 22 - 24
-    DirectUpdate(a_enu_m, a_enu_e_new),         # 25 - 27
+    DirectUpdate(r_enu_m, r_enu_e_new),         # 21 - 24
+    DirectUpdate(v_enu_m, v_enu_e_new),         # 25 - 27
+    DirectUpdate(a_enu_m, a_enu_e_new),         # 28 - 30
 
     # ECEF
-    r_e_m,  # 28 -30
-    v_e_m,  # 31 - 33
-    DirectUpdate(a_e_m, a_e_e),  # 34 - 36
+    r_e_m,  # 31 -33
+    v_e_m,  # 34 - 36
+    DirectUpdate(a_e_m, a_e_e),  # 37 - 39
 
-    vel_mag_e,  # 37
-    DirectUpdate(vel_mag_e_dot, V_dot),  # 38
-    DirectUpdate(mach, M),  # 39
+    vel_mag_e,  # 40
+    DirectUpdate(vel_mag_e_dot, V_dot),  # 41
+    DirectUpdate(mach, M),  # 42
 
-    v_b_e_m,  # 40 - 42
-    v_b_e_m_hat,  # 43 - 45
+    v_b_e_m,  # 43 - 45
+    v_b_e_m_hat,  # 46 - 48
 
-    DirectUpdate(g_b_m, g_b_e),  # 46 -48
-    DirectUpdate(a_b_e_m, a_b_e),  # 49 - 51
+    DirectUpdate(g_b_m, g_b_e),  # 49 - 51
+    DirectUpdate(a_b_e_m, a_b_m),  # 52 - 54
 
     # Mass Properties
-    wet_mass,  # 52
-    dry_mass,  # 53
+    wet_mass,  # 55
+    dry_mass,  # 56
 
-    DirectUpdate("CA", CA),  # 54
-    DirectUpdate("CN", CNB),  # 55
-    DirectUpdate("q_bar", q_bar),  # 56
+    DirectUpdate("CA", CA),  # 57
+    DirectUpdate("CN", CNB),  # 58
+    DirectUpdate("q_bar", q_bar),  # 59
 
-    DirectUpdate(drag, f_b_A_x),  # 57 - 59
-    DirectUpdate(lift, f_b_A_z),  # 60 - 62
+    DirectUpdate(drag, f_b_A[0]),  # 60 - 62
+    DirectUpdate(lift, f_b_A[2]),  # 63 - 65
+    DirectUpdate(accel, accel_meas),
+
+    DirectUpdate("rho", rho),
     ])
 
 input = Matrix([
@@ -656,9 +677,9 @@ static = Matrix([
     omega_p,  # natural frequency (roll)
     phi_c,    # roll angle command
     T_r,      # roll autopilot time constant
-    flag_boosting,
+    is_boosting,
     stage,
-    blaunched,
+    is_launched,
     ])
 ##################################################
 # Define dynamics

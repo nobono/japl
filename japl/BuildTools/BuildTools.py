@@ -17,6 +17,8 @@ from japl.Util.Util import flatten_list
 import dill as pickle
 from time import perf_counter
 import numpy as np
+from tqdm import tqdm
+from collections import defaultdict
 
 from sympy.codegen.ast import Assignment, Variable, Return
 
@@ -639,6 +641,76 @@ def _apply_definitions_to_array(array: Matrix, subs: dict):
 
 
 
+def _subs_prune(replacements, expr_simple, nchunk: int = 2_000,
+                nchunk_subs: int = 500) -> tuple[dict, Matrix, int]:
+    # unpack to single iterable
+    reps = []
+    for rep in replacements:
+        if isinstance(rep, tuple) and (len(rep) == 2):
+            reps += [rep]
+        else:
+            for r in rep:
+                reps += [r]
+
+    # condense redundant replacements
+    dreps = {sub: rexpr for sub, rexpr in reps}
+    dreps_pops = []
+    new_subs = {}  # new subs for expression to take out redundant variables
+
+    # precompute and group subs by replacement expression
+    repl_to_subs = defaultdict(list)
+    # for sub, rexpr in dreps.items():
+    for sub, rexpr in reps:
+        repl_to_subs[rexpr].append(sub)
+
+    # iterate over grouped expressions
+    for sub, rexpr in tqdm(reps, ncols=100, desc="Pruning"):
+        # if rexpr appears more than once in dict, its redundant
+        if len(repl_to_subs[rexpr]) > 1:
+            redundant_vars = repl_to_subs[rexpr]
+            # replace redundant vars with first found var
+            if redundant_vars:
+                keep_var = redundant_vars[0]
+                for rvar in redundant_vars[1:]:
+                    new_subs.update({rvar: keep_var})
+                    dreps_pops += [rvar]
+
+    for var in dreps_pops:
+        if var in dreps:
+            dreps.pop(var)  # type:ignore
+
+    #########################
+    # nchunk = 2_000
+    remaining_chunk = [*dreps.items()]
+
+    if len(remaining_chunk) > nchunk:
+        chunked_dicts = []
+        for i in range(0, len(remaining_chunk), nchunk):
+            chunk = dict(remaining_chunk[i:i + nchunk])
+            chunked_dicts += [chunk]
+
+        chunked_new_subs = []
+        # nchunk_subs = 500
+        new_subs_list = [*new_subs.items()]
+        for i in range(0, len(new_subs), nchunk_subs):
+            chunk_new_subs = dict(new_subs_list[i:i + nchunk_subs])
+            chunked_new_subs += [chunk_new_subs]
+
+        # remaining_chunk = dict(remaining_chunk[nchunk:])
+        inter_reps = {}
+        for chunk in tqdm(chunked_dicts, ncols=70, desc="\tdict subs",
+                          ascii=" ="):
+            inter_reps.update(parallel_subs(chunk, chunked_new_subs))  # type:ignore
+        dreps = inter_reps
+    else:
+        dreps = parallel_subs(dict(remaining_chunk), [new_subs])
+
+    replacements = [*dreps.items()]  # type:ignore
+
+    expr_simple = parallel_subs(expr_simple, [new_subs])
+    return (replacements, expr_simple, len(dreps_pops))  # type:ignore
+
+
 def to_pycode(func_name: str,
               expr: Expr|Matrix,
               state_vars: list|Matrix,
@@ -648,7 +720,8 @@ def to_pycode(func_name: str,
               use_cse: bool = True,
               imports: list[str] = [],
               header_insert: str = "",
-              intermediates: list[tuple] = []):
+              intermediates: list[tuple] = [],
+              extra_params: dict = {}):
     if not filepath:
         filepath = func_name + ".py"
     # NOTE: in development
@@ -664,10 +737,23 @@ def to_pycode(func_name: str,
 
     replacements = ()
     if not use_cse:
-        expr_simple = [expr]
+        expr_simple = expr
     else:
         # optimize expression
         replacements, expr_simple = cse(expr)
+        expr_simple = expr_simple[0]  # type:ignore
+
+        # replacements, expr_simple = parallel_cse(expr)
+        # # must further optimize and make substitutions
+        # # between indices of expr
+        # NCHUNK = 10_000
+        # NCHUNK_SUBS = 5_000
+        # MAX_PRUNE_ITER = 10
+        # for _ in range(MAX_PRUNE_ITER):
+        #     replacements, expr_simple, nredundant = _subs_prune(replacements, expr_simple,
+        #                                                         nchunk=NCHUNK, nchunk_subs=NCHUNK_SUBS)
+        #     if nredundant == 0:
+        #         break
 
     ##########################################################################
     # Model uses standardized arg format: (t, X, U, S, dt)
@@ -676,17 +762,34 @@ def to_pycode(func_name: str,
     assert len(vars) == len(standard_args)
     parameters = [Symbol(i, real=True) for i in standard_args]
 
+    # user-specified extra fucntion params
+    ##################################
+    # NOTE this is all temporary
+    ##################################
+    for i, (param_name, param) in enumerate(extra_params.items()):
+        # vars.insert(-1, param)
+        parameters.insert(-1, Symbol(param_name, real=True))
+        if hasattr(param, "__len__"):
+            vars.insert(-1, param)
+            standard_args.insert(-1, param_name)
+    ##################################
+
     # unpack array-type parameters
     unpack_assignments = []
     for param, param_name in zip(vars, standard_args):
         if hasattr(param, "__len__") or hasattr(param, "shape"):
             for i, item in enumerate(flatten_list(param)):  # type:ignore
-                item_name = CodeGeneratorBase._get_expr_name(item)
-                iter_param = IndexedBase(param_name, shape=(len(param),))
-                unpack_assignments += [Assignment(Symbol(item_name, real=True), iter_param[i])]
+                if isinstance(item, MatrixElement):
+                    # NOTE this if-stmt is temporary and can be removed.
+                    # this is for temp solution for extra_parameters
+                    pass
+                else:
+                    item_name = CodeGeneratorBase._get_expr_name(item)
+                    iter_param = IndexedBase(param_name, shape=(len(param),))
+                    unpack_assignments += [Assignment(Symbol(item_name, real=True), iter_param[i])]
     ##########################################################################
 
-    mat_body = [Return(expr_simple[0])]  # type:ignore
+    mat_body = [Return(expr_simple)]  # type:ignore
 
     if not use_cse:
         body = unpack_assignments + mat_body
@@ -707,7 +810,12 @@ def to_pycode(func_name: str,
 
         intermed_assigns = []
         for name, expr in intermediates:
-            expr_str = re.sub(r"\#.*?\n", "", str(pycode(expr, strict=False)))
+            temp_name = re.sub(r"\[*.\]", "_", name)
+            _reps, _expr = cse(expr, symbols(f"temp_{temp_name}0:500"))
+            _expr = _expr[0]  # type:ignore
+            for rep in _reps:
+                intermed_assigns += [Assignment(*rep)]
+            expr_str = re.sub(r"\#.*?\n", "", str(pycode(_expr, strict=False)))
             expr_str = expr_str.replace("(t)", "")
             intermed_assigns += [Assignment(Symbol(name), Symbol(expr_str))]
 

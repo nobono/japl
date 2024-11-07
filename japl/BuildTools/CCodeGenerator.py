@@ -7,6 +7,7 @@ from sympy import ccode
 from sympy import Expr
 from sympy import Matrix
 from sympy import Symbol
+from sympy import cse
 from sympy.codegen.ast import float64, real
 from textwrap import dedent
 from japl.BuildTools.BuildTools import parallel_subs
@@ -258,7 +259,8 @@ class CCodeGenerator(CodeGeneratorBase):
             })
 
 
-    def _subs_prune(self, replacements, expr_simple) -> tuple[dict, Matrix, int]:
+    @staticmethod
+    def _subs_prune(replacements, expr_simple) -> tuple[dict, Matrix, int]:
         # unpack to single iterable
         reps = []
         for rep in replacements:
@@ -366,7 +368,8 @@ class CCodeGenerator(CodeGeneratorBase):
                 expr = Matrix([*expr, *by_ref_expr])
             ######################################################
 
-            replacements, expr_simple = parallel_cse(expr)
+            replacements, expr_simple = cse(expr)
+            expr_simple = expr_simple[0]
 
             # must further optimize and make substitutions
             # between indices of expr
@@ -383,6 +386,11 @@ class CCodeGenerator(CodeGeneratorBase):
                 for i, (k, v) in enumerate(by_reference.items()):
                     by_reference[k] = expr_simple[-by_ref_nadds:][i]
             ######################################################
+
+            # remove added reference expr which were
+            # added for cse()
+            if by_ref_nadds > 0:
+                expr = Matrix(expr[:-by_ref_nadds])
 
         else:
             replacements = []
