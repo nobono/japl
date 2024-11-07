@@ -28,10 +28,10 @@ def runge_kutta_4(f: Callable, t: float, X: np.ndarray, dt: float, args: tuple =
     -------------------------------------------------------------------
     """
 
-    k1 = f(t, X, *args)
-    k2 = f(t + 0.5 * dt, X + (0.5 * dt * k1), *args)
-    k3 = f(t + 0.5 * dt, X + (0.5 * dt * k2), *args)
-    k4 = f(t + dt, X + (dt * k3), *args)
+    k1 = f(t, X, *args).flatten()
+    k2 = f(t + 0.5 * dt, X + (0.5 * dt * k1), *args).flatten()
+    k3 = f(t + 0.5 * dt, X + (0.5 * dt * k2), *args).flatten()
+    k4 = f(t + dt, X + (dt * k3), *args).flatten()
     X_new = X + (dt / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4)
     T_new = t + dt
     return (X_new, T_new)
