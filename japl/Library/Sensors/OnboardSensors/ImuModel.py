@@ -3,6 +3,7 @@ from typing import Union
 from japl.Math.Rotation import Sq
 from japl.Math.Rotation import quat_norm
 from japl.Math.Rotation import quat_to_dcm
+from japl.Math.Rotation import euler_to_dcm
 from japl.Sim.Integrate import runge_kutta_4
 from japl.Sim.Integrate import euler
 # from collections import deque
@@ -29,6 +30,7 @@ class SensorBase:
     def __init__(self,
                  scale_factor: IterT = np.ones(3),
                  misalignment: IterT = np.zeros(3),
+                 cross_axis_sensitivity: IterT = np.zeros(3),
                  bias: IterT = np.zeros(3),
                  noise: IterT = np.zeros(3),
                  delay: float = 0,
@@ -40,7 +42,10 @@ class SensorBase:
             sensitivity multiplier for each sensor axis [x, y, z]
 
         misalignment: np.ndarray
-            sensor axis misalignment values for each pair of axes [xy, xz, yz]
+            sensor axis misalignment values for each pair of axes [roll, pitch, yaw]
+
+        cross_axis_sensitivity: np.ndarray
+            sensor cross-axis sensitivity values for each pair of axes [xy, xz, yz]
 
         bias: np.ndarray
             sensor axis bias
@@ -70,11 +75,13 @@ class SensorBase:
             [0, scale_factor[1], 0],
             [0, 0, scale_factor[2]],
             ])
-        self.M = np.array([
-            [1, misalignment[0], misalignment[1]],
-            [misalignment[0], 1, misalignment[2]],
-            [misalignment[1], misalignment[2], 1],
+        self.M = euler_to_dcm(*misalignment)
+        self.C = np.array([
+            [1, cross_axis_sensitivity[0], cross_axis_sensitivity[1]],
+            [cross_axis_sensitivity[0], 1, cross_axis_sensitivity[2]],
+            [cross_axis_sensitivity[1], cross_axis_sensitivity[2], 1],
             ])
+        self.R = self.C @ self.M @ self.S
 
 
     def count(self) -> int:
@@ -91,7 +98,7 @@ class SensorBase:
     def calc_measurement(self, time: float, true_val: np.ndarray):
         """Calculates measurement by applying scale factor, misalignment,
         bias, and noise."""
-        return self.M @ self.S @ true_val + self.bias + self.get_noise()
+        return self.R @ true_val + self.bias + self.get_noise()
 
 
     def update(self, time: float, true_val: np.ndarray):

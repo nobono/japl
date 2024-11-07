@@ -81,7 +81,7 @@ class TestSensorBase3Dof(unittest.TestCase):
 
     def test_base_misalign(self):
         sensor = SensorBase(scale_factor=np.ones(3),
-                            misalignment=[.1, .1, .1],
+                            cross_axis_sensitivity=[.1, .1, .1],
                             bias=np.zeros(3),
                             noise=np.zeros(3),
                             delay=0)
