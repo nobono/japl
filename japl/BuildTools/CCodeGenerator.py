@@ -7,6 +7,7 @@ from sympy import ccode
 from sympy import Expr
 from sympy import Matrix
 from sympy import Symbol
+from sympy import cse
 from sympy.codegen.ast import float64, real
 from textwrap import dedent
 from japl.BuildTools.BuildTools import parallel_subs
@@ -367,7 +368,8 @@ class CCodeGenerator(CodeGeneratorBase):
                 expr = Matrix([*expr, *by_ref_expr])
             ######################################################
 
-            replacements, expr_simple = parallel_cse(expr)
+            replacements, expr_simple = cse(expr)
+            expr_simple = expr_simple[0]
 
             # must further optimize and make substitutions
             # between indices of expr
