@@ -371,7 +371,8 @@ X_new = Matrix([quat_new, pos_new, vel_new, accel_bias_new, gyro_bias_new])
 F = X_new.jacobian(X)
 G = X_new.jacobian(U)
 
-X_dot = X_new.diff(dt) + X_new.diff(t)  # type:ignore
+# X_dot = X_new.diff(dt) + X_new.diff(t)  # type:ignore
+X_dot = Matrix([quat_dot, pos_dot, vel_dot, 0, 0, 0, 0, 0, 0])
 
 # TODO starting testing symbolic integration function
 # X_new = runge_kutta_4_symbolic(X_dot, t, X, dt)
@@ -712,18 +713,6 @@ if __name__ == "__main__":
     #                                input_vars=args,
     #                                return_var="nextP")
 
-    ##################################################
-    # Sim
-    ##################################################
-
-    ######################################################
-    # NOTE: trying to create model from_expression
-    ######################################################
-    # state_update = Matrix([
-    #     DirectUpdate(state, X_new),
-    #     DirectUpdate(P, P_new),
-    #     ])
-
     static = Matrix([
         gyro_x_var,
         gyro_y_var,
@@ -739,56 +728,59 @@ if __name__ == "__main__":
         gps_vel_z_var,
         ])
 
-    # X_new[0] = X_new[0] / quat_new.norm()
-    # X_new[1] = X_new[1] / quat_new.norm()
-    # X_new[2] = X_new[2] / quat_new.norm()
-    # X_new[3] = X_new[3] / quat_new.norm()
+    ##################################################
+    # C++ CodeGen
+    ##################################################
 
-    # noise = list(noise_info.keys())
-    # variance = list(variance_info.keys())
-    # input = list(input_info.keys())
-    # innov = {"innov_var_accel_x": norm_innov_var_accel_x,
-    #          "innov_var_accel_y": norm_innov_var_accel_y,
-    #          "innov_var_accel_z": norm_innov_var_accel_z,
-    #          "innov_var_gps_pos_x": norm_innov_var_gps_pos_x,
-    #          "innov_var_gps_pos_y": norm_innov_var_gps_pos_y,
-    #          "innov_var_gps_pos_z": norm_innov_var_gps_pos_z,
-    #          "innov_var_gps_vel_x": norm_innov_var_gps_vel_x,
-    #          "innov_var_gps_vel_y": norm_innov_var_gps_vel_y,
-    #          "innov_var_gps_vel_z": norm_innov_var_gps_vel_z,
-    #          }
+    noise = list(noise_info.keys())
+    variance = list(variance_info.keys())
+    input = list(input_info.keys())
+    innov = {"innov_var_accel_x": norm_innov_var_accel_x,
+             "innov_var_accel_y": norm_innov_var_accel_y,
+             "innov_var_accel_z": norm_innov_var_accel_z,
+             "innov_var_gps_pos_x": norm_innov_var_gps_pos_x,
+             "innov_var_gps_pos_y": norm_innov_var_gps_pos_y,
+             "innov_var_gps_pos_z": norm_innov_var_gps_pos_z,
+             "innov_var_gps_vel_x": norm_innov_var_gps_vel_x,
+             "innov_var_gps_vel_y": norm_innov_var_gps_vel_y,
+             "innov_var_gps_vel_z": norm_innov_var_gps_vel_z,
+             }
 
-    # upper_ids = np.triu_indices(P.shape[0])
-    # upper_ncols = len(upper_ids[0])
-    # P_upper = MatrixSymbol("P", upper_ncols, 1).as_mutable()
-    # P_new_upper = Matrix([P_new[i, j] for i, j in zip(*upper_ids)])
+    S = Matrix([])
 
-    # params = [t, X, U, P, variance, R, Matrix([*innov.keys()]), dt]
+    params = [t, X, U, S, P, variance, R,
+              thrust, mass, lift, drag, gacc,
+              Matrix([*innov.keys()]), dt]
 
-    # gen = CCodeGenerator()
-    # gen.add_function(expr=X_new,
-    #                  params=params,
-    #                  function_name="x_predict",
-    #                  return_name="X_new")
+    gen = CCodeGenerator()
+    gen.add_function(expr=X_dot,
+                     params=params,
+                     function_name="x_dynamics",
+                     return_name="X_dot")
 
-    # gen.add_function(expr=P_new,
-    #                  params=params,
-    #                  function_name="p_predict",
-    #                  return_name="P_new",
-    #                  is_symmetric=False,
-    #                  by_reference=innov)
+    gen.add_function(expr=X_new,
+                     params=params,
+                     function_name="x_predict",
+                     return_name="X_new")
 
-    # gen.add_function(expr=X_accel_update,
-    #                  params=params,
-    #                  function_name="x_accel_update",
-    #                  return_name="X_accel_new")
+    gen.add_function(expr=P_new,
+                     params=params,
+                     function_name="p_predict",
+                     return_name="P_new",
+                     is_symmetric=False,
+                     by_reference=innov)
 
-    # gen.add_function(expr=P_accel_update,
-    #                  params=params,
-    #                  function_name="p_accel_update",
-    #                  return_name="P_accel_new",
-    #                  is_symmetric=False,
-    #                  by_reference=innov)
+    gen.add_function(expr=X_accel_update,
+                     params=params,
+                     function_name="x_accel_update",
+                     return_name="X_accel_new")
+
+    gen.add_function(expr=P_accel_update,
+                     params=params,
+                     function_name="p_accel_update",
+                     return_name="P_accel_new",
+                     is_symmetric=False,
+                     by_reference=innov)
 
     # gen.add_function(expr=X_gps_update,
     #                  params=params,
@@ -801,8 +793,12 @@ if __name__ == "__main__":
     #                  return_name="P_gps_new",
     #                  is_symmetric=False)
 
-    # profile(gen.create_module)(module_name="ekf", path="./")
+    profile(gen.create_module)(module_name="cpp_ekf", path="./")
+    quit()
 
+    ##################################################
+    # Python CodeGen
+    ##################################################
     innov = {"innov_var[0]": norm_innov_var_accel_x,
              "innov_var[1]": norm_innov_var_accel_y,
              "innov_var[2]": norm_innov_var_accel_z,
@@ -838,39 +834,39 @@ if __name__ == "__main__":
               imports=imports,
               extra_params=extra_params)
 
-    to_pycode(func_name="x_predict",
-              expr=X_new,
-              state_vars=X,
-              input_vars=U,
-              filepath=os.path.join(path, "ekf_x_predict.py"),
-              imports=imports,
-              extra_params=extra_params)
+    # to_pycode(func_name="x_predict",
+    #           expr=X_new,
+    #           state_vars=X,
+    #           input_vars=U,
+    #           filepath=os.path.join(path, "ekf_x_predict.py"),
+    #           imports=imports,
+    #           extra_params=extra_params)
 
-    to_pycode(func_name="p_predict",
-              expr=P_new,
-              state_vars=X,
-              input_vars=U,
-              filepath=os.path.join(path, "ekf_p_predict.py"),
-              imports=imports,
-              extra_params=extra_params,
-              intermediates=[*innov.items()])
+    # to_pycode(func_name="p_predict",
+    #           expr=P_new,
+    #           state_vars=X,
+    #           input_vars=U,
+    #           filepath=os.path.join(path, "ekf_p_predict.py"),
+    #           imports=imports,
+    #           extra_params=extra_params,
+    #           intermediates=[*innov.items()])
 
-    to_pycode(func_name="x_accel_update",
-              expr=X_accel_update,
-              state_vars=X,
-              input_vars=U,
-              filepath=os.path.join(path, "ekf_x_accel_update.py"),
-              imports=imports,
-              extra_params=extra_params)
+    # to_pycode(func_name="x_accel_update",
+    #           expr=X_accel_update,
+    #           state_vars=X,
+    #           input_vars=U,
+    #           filepath=os.path.join(path, "ekf_x_accel_update.py"),
+    #           imports=imports,
+    #           extra_params=extra_params)
 
-    to_pycode(func_name="p_accel_update",
-              expr=P_accel_update,
-              state_vars=X,
-              input_vars=U,
-              filepath=os.path.join(path, "ekf_p_accel_update.py"),
-              imports=imports,
-              extra_params=extra_params,
-              intermediates=[*innov.items()])
+    # to_pycode(func_name="p_accel_update",
+    #           expr=P_accel_update,
+    #           state_vars=X,
+    #           input_vars=U,
+    #           filepath=os.path.join(path, "ekf_p_accel_update.py"),
+    #           imports=imports,
+    #           extra_params=extra_params,
+    #           intermediates=[*innov.items()])
 
     # to_pycode(func_name="obs_accel",
     #           expr=obs_accel,
@@ -890,85 +886,3 @@ if __name__ == "__main__":
 
     print("exec: %.3f (sec)" % (time.perf_counter() - st))
     quit()
-
-    definitions = (
-            (state, X_new),
-            (P, P_new),
-            )
-
-    ekf_state = Matrix([
-        state,
-        *P,
-        ])
-
-    model = Model.from_expression(dt_var=dt,
-                                  state_vars=ekf_state,
-                                  input_vars=input,
-                                  static_vars=static,
-                                  definitions=definitions,
-                                  dynamics_expr=Matrix([np.nan] * len(ekf_state)),
-                                  use_multiprocess_build=True)
-    model.save(f"{JAPL_HOME_DIR}/data", "ekf")
-
-    # t = 0
-    # X = np.array([*state_info.values()])
-    # U = np.array([*input_info.values()])
-    # S = []
-    # dt = 0.1
-    # ret = model.direct_state_update_func(t, X, U, S, dt)
-    # print(ret)
-
-    # model = Model.from_file("./data/ekf.japl")
-    # # pp = np.eye(P.shape[0])
-    # # ret = model.direct_state_update_func(0, [1,0,0,0, 0,0,0, 0,1,0, 0,0,0, 0,0,0, pp],
-    # #                                          [0,0,0, 0,0,0], [1,1,1, 1,1,1], 0.1)
-    # # print(ret)
-
-    # simobj = SimObject(model)
-    # quat0 = [1, 0, 0, 0]
-    # p0 = [0, 0, 0]
-    # v0 = [0, 0, 0]
-    # ab0 = [0, 0, 0]
-    # gb0 = [0, 0, 0]
-    # P0 = np.eye(P.shape[0])
-    # simobj.init_state([quat0, p0, v0, ab0, gb0, P0])
-
-    # sim = Sim(t_span=[0, 10],
-    #           dt=0.01,
-    #           simobjs=[simobj])
-    # sim.run()
-
-    # Y = simobj.Y[-1]
-    # print(Y)
-    # quit()
-    ######################################################
-
-    quit()
-
-    print("Lambdify-ing Symbolic Expressions...")
-
-    # state predict
-    X_new_func = profile(sp.lambdify)(vars, X_new, cse=True)
-
-    # covariance predict
-    P_new_func = profile(sp.lambdify)(vars, P_new, cse=True)
-
-    # update from accel
-    X_accel_update_func = profile(sp.lambdify)(vars, X_accel_update, cse=True)
-    P_accel_update_func = profile(sp.lambdify)(vars, P_accel_update, cse=True)
-
-    # update from gps-position
-    X_gps_update_func = profile(sp.lambdify)(vars, X_gps_update, cse=True)
-    P_gps_update_func = profile(sp.lambdify)(vars, P_gps_update, cse=True)
-
-    out = [("X_new_func", X_new_func),
-           ("P_new_func", P_new_func),
-           ("X_accel_update_func", X_accel_update_func),
-           ("P_accel_update_func", P_accel_update_func),
-           ("X_gps_update_func", X_gps_update_func),
-           ("P_gps_update_func", P_gps_update_func)]
-
-    for (name, func) in out:
-        print(f"saving {name}...")
-        with open(f"{JAPL_HOME_DIR}/data/{name}.pickle", "wb") as f:
-            pickle.dump(func, f)
