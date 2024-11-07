@@ -33,6 +33,7 @@ class SensorBase:
                  cross_axis_sensitivity: IterT = np.zeros(3),
                  bias: IterT = np.zeros(3),
                  noise: IterT = np.zeros(3),
+                 range: IterT = [-np.inf, np.inf],
                  delay: float = 0,
                  dof: int = 3) -> None:
         """
@@ -53,6 +54,9 @@ class SensorBase:
         noise: np.ndarray
             sensor noise (variance) for each axis
 
+        range: np.ndarray
+            sensor measurement range [lower, upper]
+
         delay: float
             sensors delay which affects when measurements are readily available
 
@@ -67,6 +71,10 @@ class SensorBase:
         self.bias = np.asarray(bias)
         self.noise = np.asarray(noise)  # variance
         self.noise_std = np.sqrt(self.noise)  # standard deviation
+        if len(range) == 1:
+            self.range = [-range, range]
+        elif len(range) > 1:
+            self.range = range[:2]
         self.delay = delay
         self.last_measurement_time = 0
         self.buffer = Queue()
@@ -98,7 +106,11 @@ class SensorBase:
     def calc_measurement(self, time: float, true_val: np.ndarray):
         """Calculates measurement by applying scale factor, misalignment,
         bias, and noise."""
-        return self.R @ true_val + self.bias + self.get_noise()
+        meas = self.R @ true_val + self.bias + self.get_noise()
+        if len(self.range) > 1:
+            return np.clip(meas, *self.range)
+        else:
+            return meas
 
 
     def update(self, time: float, true_val: np.ndarray):
