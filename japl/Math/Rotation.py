@@ -2,7 +2,17 @@ from typing import Optional
 import numpy as np
 from japl.Library.Earth.Earth import Earth
 from quaternion.numpy_quaternion import quaternion
+sin = np.sin
+cos = np.cos
 
+
+def euler_to_dcm(roll: float = 0, pitch: float = 0, yaw: float = 0) -> np.ndarray:
+    R = np.array([
+        [cos(yaw)*cos(pitch), cos(yaw)*sin(pitch*sin(roll))-sin(yaw)*cos(roll), cos(yaw)*sin(pitch)*cos(roll)+sin(yaw)*sin(roll)],  # type:ignore # noqa
+        [sin(yaw)*cos(pitch), sin(yaw)*sin(pitch)*sin(roll)+cos(yaw)*cos(roll), sin(yaw)*sin(pitch)*cos(roll)-cos(yaw)*sin(roll)],  # type:ignore # noqa
+        [-sin(pitch), cos(pitch)*sin(roll), cos(pitch)*cos(roll)]  # type:ignore # noqa
+        ])
+    return R
 
 
 def body_to_enu(t: float, body_xyz: np.ndarray, quat: np.ndarray, r_ecef: np.ndarray):
