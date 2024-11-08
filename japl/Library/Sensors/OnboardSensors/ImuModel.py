@@ -72,7 +72,7 @@ class SensorBase:
         self.noise = np.asarray(noise)  # variance
         self.noise_std = np.sqrt(self.noise)  # standard deviation
         if len(range) == 1:
-            self.range = [-range, range]
+            self.range = [-range[0], range[0]]
         elif len(range) > 1:
             self.range = range[:2]
         self.delay = delay
