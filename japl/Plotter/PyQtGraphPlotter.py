@@ -1069,6 +1069,10 @@ class PyQtGraphPlotter:
             # downsampling
             plot_item.setDownsampling(auto=False, ds=1, mode="mean")
 
+        if not hasattr(x, "__len__"):
+            x = [x]
+        if not hasattr(y, "__len__"):
+            y = [y]
         scatter = pg.ScatterPlotItem(x=x, y=y, pen=pen, symbol=marker, symbolPen=symbol_pen)
 
         # set plot item border
