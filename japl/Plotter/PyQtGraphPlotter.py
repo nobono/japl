@@ -79,6 +79,7 @@ class PyQtGraphPlotter:
             "blue": mplcolors.CSS4_COLORS["blue"],
             "red": mplcolors.CSS4_COLORS["red"],
             "green": mplcolors.CSS4_COLORS["green"],
+            "yellow": mplcolors.CSS4_COLORS["yellow"],
             "navy": mplcolors.CSS4_COLORS["navy"],
             "magenta": mplcolors.CSS4_COLORS["magenta"],
             "orange": mplcolors.CSS4_COLORS["orange"],
