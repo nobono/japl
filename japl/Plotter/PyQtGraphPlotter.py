@@ -22,6 +22,7 @@ from pyqtgraph.Qt import QtCore
 from pyqtgraph.exporters import ImageExporter
 from functools import partial
 from japl import JAPL_HOME_DIR
+from PIL import Image
 # from japl.Math.Rotation import quat_to_tait_bryan
 # from pyqtgraph.Qt.QtWidgets import QGridLayout, QWidget, QWidgetItem
 # from pyqtgraph import PlotItem, QtGui, mkColor, mkPen, PlotCurveItem
@@ -67,6 +68,9 @@ class PyQtGraphPlotter:
 
         self._use_legend = True
         self._margin_base = 0
+
+        self.save_gif_path: str = kwargs.get("save_gif_path", "")
+        self.frames_gif = []
 
         # colors
         self.COLORS = mplcolors.TABLEAU_COLORS
@@ -124,6 +128,11 @@ class PyQtGraphPlotter:
 
 
     def exit(self) -> None:
+        if self.save_gif_path:
+            interval_ms = int(max(1, (1 / self.frame_rate) * 1000))
+            self.frames_gif[0].save(self.save_gif_path, save_all=True,
+                                    append_images=self.frames_gif[1:],
+                                    duration=interval_ms, loop=0)
         if self.app:
             if self.quiet:
                 self.app.exit()  # immediately exit
@@ -722,6 +731,15 @@ class PyQtGraphPlotter:
         # TODO generalize: each simobj has its own body to draw.
         if self.instrument_view:
             self._draw_instrument_view(simobj)
+
+        if self.save_gif_path:
+            # capture the widget as a QImage
+            qimage = self.wins[0].grab().toImage()
+            qimage = qimage.convertToFormat(qimage.Format_RGBA8888)
+            # convert QImage to PIL image and store in frames
+            buffer = qimage.bits().asstring(qimage.byteCount())  # type:ignore
+            image = Image.frombytes("RGBA", (qimage.width(), qimage.height()), buffer)
+            self.frames_gif.append(image)
 
 
     def _draw_instrument_view(self, _simobj: SimObject) -> None:
