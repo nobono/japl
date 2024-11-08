@@ -100,11 +100,11 @@ class test_MissileGeneric(unittest.TestCase):
     def create_simobj(self):
         model = MissileGeneric.model
         simobj = SimObject(model=model, size=2, color='tab:blue', dtype=self._dtype)
-        simobj.Ixx = 1.309  # (kg * m^2)
-        simobj.Iyy = 58.27  # (kg * m^2)
-        simobj.Izz = 58.27  # (kg * m^2)
-        simobj.mass = 133  # (kg)
-        simobj.cg = 1.42  # (m)
+        # simobj.Ixx = 1.309  # (kg * m^2)
+        # simobj.Iyy = 58.27  # (kg * m^2)
+        # simobj.Izz = 58.27  # (kg * m^2)
+        # simobj.mass = 133  # (kg)
+        # simobj.cg = 1.42  # (m)
         x0 = [0, 0, 10000]
         v0 = [1500, 0, 0]
         w0 = [0, 0, 0]

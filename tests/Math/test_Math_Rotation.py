@@ -253,7 +253,7 @@ class TestMathRotation(unittest.TestCase):
         t = 0
         radius_equatorial = 6_378_137.0  # meters
         ecef = np.array([radius_equatorial, 0, 0])  # ecef @ t=0
-        eci = Rot.ecef_to_eci_position(ecef, t=t)
+        eci = Rot.ecef_to_eci(ecef, t=t)
         self.assertListEqual(eci.tolist(), ecef.tolist())
 
 
@@ -261,7 +261,7 @@ class TestMathRotation(unittest.TestCase):
         t = 1
         radius_equatorial = 6_378_137.0  # meters
         ecef = np.array([radius_equatorial, 0, 0])  # ecef @ t=0
-        eci = Rot.ecef_to_eci_position(ecef, t=t)
+        eci = Rot.ecef_to_eci(ecef, t=t)
         truth_eci = [6378136.983042143, 465.1011418885875, 0.]
         truth_ecef = [6378137., 0., 0.]
         self.assertListEqual(eci.tolist(), truth_eci)
@@ -271,11 +271,11 @@ class TestMathRotation(unittest.TestCase):
     # to ECI (velocity)
     #################################
 
-    def test_ecef_to_eci(self):
+    def test_ecef_to_eci_velocity(self):
         radius_equatorial = 6_378_137.0  # meters
         r_ecef = np.array([radius_equatorial, 0, 0])
         vel_ecef = np.array([0, 0, 0])
-        vel_eci = Rot.ecef_to_eci(vel_ecef, r_ecef=r_ecef)
+        vel_eci = Rot.ecef_to_eci_velocity(vel_ecef, r_ecef=r_ecef)
         self.assertListEqual(vel_eci.tolist(), [0, 465.101142300783, 0])
 
     #################################
@@ -286,7 +286,7 @@ class TestMathRotation(unittest.TestCase):
         t = 0
         radius_equatorial = 6_378_137.0  # meters
         eci = np.array([radius_equatorial, 0, 0])
-        ecef = Rot.eci_to_ecef_position(eci, t=t)
+        ecef = Rot.eci_to_ecef(eci, t=t)
         self.assertListEqual(eci.tolist(), ecef.tolist())
 
 
@@ -294,7 +294,7 @@ class TestMathRotation(unittest.TestCase):
         t = 1
         radius_equatorial = 6_378_137.0  # meters
         eci = np.array([radius_equatorial, 0, 0])
-        ecef = Rot.eci_to_ecef_position(eci, t=t)
+        ecef = Rot.eci_to_ecef(eci, t=t)
         truth_eci = [6378137., 0., 0.]
         truth_ecef = [6378136.983042143, -465.1011418885875, 0.]
         self.assertListEqual(eci.tolist(), truth_eci)
@@ -304,11 +304,11 @@ class TestMathRotation(unittest.TestCase):
     # to ECEF (velocity)
     #################################
 
-    def test_eci_to_ecef(self):
+    def test_eci_to_ecef_velocity(self):
         radius_equatorial = 6_378_137.0  # meters
         r_ecef = np.array([radius_equatorial, 0, 0])
         vel_eci = np.array([0, 0, 0])
-        vel_ecef = Rot.eci_to_ecef(vel_eci, r_ecef=r_ecef)
+        vel_ecef = Rot.eci_to_ecef_velocity(vel_eci, r_ecef=r_ecef, t=0)
         self.assertListEqual(vel_ecef.tolist(), [0, -465.101142300783, 0])
 
 
@@ -413,13 +413,12 @@ class TestMathRotation(unittest.TestCase):
         self.assertEqual(up, 0.9830421404913068)
 
 
-    def test_eci_to_enu(self):
+    def test_eci_to_enu_velocity(self):
         """for position vector"""
         radius_equatorial = 6_378_137.0  # meters
-        ecef0 = np.array([radius_equatorial, 0, 0])
         r_ecef = np.array([radius_equatorial, 0, 0])
         vel_eci = np.array([1, 0, 0])
-        enu = Rot.eci_to_enu(vel_eci, r_ecef=r_ecef, ecef0=ecef0)
+        enu = Rot.eci_to_enu_velocity(vel_eci, r_ecef=r_ecef, t=0)
         east, north, up = enu
         # NOTE: velocity vector in the initial eci
         # frame x-axis should translate directly to

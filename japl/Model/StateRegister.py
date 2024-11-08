@@ -27,7 +27,7 @@ class StateRegister(dict):
 
     def __init__(self, state: dict|list[str]|str = {}):
         self._syms: list[Symbol] = []
-        self.matrix_info = {}
+        self.matrix_info = {}  # info as full matrices in register
 
         # if isinstance(state, dict):
         #     self.update(state)
@@ -78,7 +78,23 @@ class StateRegister(dict):
 
 
     def set(self, vars: tuple|list|Matrix, labels: Optional[list|tuple] = None) -> None:
-        """register state and labels"""
+        """
+        register an iterable of sympy Symbols
+
+        Arguments
+        ----------
+        input_vars:
+            iterable of symbolic input variables
+
+        labels:
+            (optional) iterable of labels that may be used by the
+                    Plotter class. order labels must correspond to order
+                    of input_vars.
+
+        Returns
+        --------
+        (Symbol) - the symbolic object of the state variable
+        """
         for id, var in enumerate(vars):  # type:ignore
             # recursive
             if isinstance(var, DirectUpdateSymbol):
@@ -94,33 +110,30 @@ class StateRegister(dict):
 
             self.update({var_name: {"id": id, "label": label, "var": var, "size": 1}})
 
-            # # handle MatrixElement and MatrixSymbol
+            # handle MatrixElement and MatrixSymbol
             self._handle_set_matrix(id, var, var_name, label)
 
 
     def _handle_set_matrix(self, id, var, var_name: str, label: str) -> None:
-        # NOTE: regarding self.matrix_info
-        # also store matrix info for quick access
-        # this is later used for reshaping matrices
-        # passed to lambdified (sympy) functions.
-
+        # NOTE: this process assumes matrices are loaded into the state
+        # as a contiguous array.
         if isinstance(var, MatrixElement):
-            # only store parent the first time
-            # so "id" will represent the starting
-            # index.
-            if var.parent.name not in self:
-                parent_name = var.parent.name
-                parent = var.parent
-                label = parent_name
-                size = len(var.parent.as_mutable())
-                info = {parent_name: {"id": id, "label": label, "var": parent, "size": size}}
+            parent_var = var.parent
+            var_name = str(var)
+            alias_name = var_name.split('[')[0]  # get mat name before indexing # ]
+            if alias_name in self:
+                self[alias_name]["size"] += 1
+                # NOTE: somehow this increment is being applied
+                # to self.matrix_info as well...
+            else:
+                info = {alias_name: {"id": id, "label": alias_name, "var": parent_var, "size": 1}}
                 self.update(info)
-                self.matrix_info.update(info)
+                self.matrix_info.update(info.copy())
         elif isinstance(var, MatrixSymbol):
             size = len(var.as_mutable())
             info = {var_name: {"id": id, "label": label, "var": var, "size": size}}
             self.update(info)
-            self.matrix_info.update(info)
+            self.matrix_info.update(info.copy())
 
 
     def get_ids(self, names: str|list[str]) -> int|list[int]:
@@ -153,11 +166,18 @@ class StateRegister(dict):
         else:
             start_id = self[names]["id"]
             size = self[names]["size"]
+            var = self[names]["var"]
             if size > 1:
                 ids = np.arange(start_id, start_id + size)
-                # reshape ids to match the MatrixSymbol
-                shape = self[names]["var"].shape
-                ids = ids.reshape(shape).tolist()
+                # try to reshape ids to match the MatrixSymbol
+                # to qualify for reshaping, the number of ids
+                # must equal the expected size of the reshaping.
+                # Otherwise, a partial matrix may have been passed
+                # which cannot be reshaped to its original shape.
+                total_elements = np.prod(var.shape)
+                if total_elements == size:
+                    shape = var.shape
+                    ids = ids.reshape(shape).tolist()
                 return ids
             else:
                 return start_id

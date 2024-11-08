@@ -11,16 +11,18 @@ from pyqtgraph import GraphicsLayoutWidget
 from pyqtgraph import PlotDataItem
 from pyqtgraph import TextItem
 from pyqtgraph import ViewBox
-from pyqtgraph.Qt.QtGui import QColor, QKeySequence, QTransform
+from pyqtgraph.Qt.QtGui import QColor, QFont, QKeySequence, QPen, QTransform
 from pyqtgraph.Qt.QtWidgets import QApplication, QWidget
 from pyqtgraph.Qt.QtWidgets import QShortcut
 from pyqtgraph.Qt.QtWidgets import QInputDialog
 from pyqtgraph.Qt.QtCore import QCoreApplication
 from pyqtgraph.Qt.QtCore import QTimer
 from pyqtgraph.Qt.QtWidgets import QInputDialog
+from pyqtgraph.Qt import QtCore
 from pyqtgraph.exporters import ImageExporter
 from functools import partial
 from japl import JAPL_HOME_DIR
+from PIL import Image
 # from japl.Math.Rotation import quat_to_tait_bryan
 # from pyqtgraph.Qt.QtWidgets import QGridLayout, QWidget, QWidgetItem
 # from pyqtgraph import PlotItem, QtGui, mkColor, mkPen, PlotCurveItem
@@ -64,6 +66,12 @@ class PyQtGraphPlotter:
         self.instrument_view &= not self.quiet
         self.profiler = Profiler()
 
+        self._use_legend = True
+        self._margin_base = 0
+
+        self.save_gif_path: str = kwargs.get("save_gif_path", "")
+        self.frames_gif = []
+
         # colors
         self.COLORS = mplcolors.TABLEAU_COLORS
         self.COLORS.update({
@@ -71,6 +79,7 @@ class PyQtGraphPlotter:
             "blue": mplcolors.CSS4_COLORS["blue"],
             "red": mplcolors.CSS4_COLORS["red"],
             "green": mplcolors.CSS4_COLORS["green"],
+            "yellow": mplcolors.CSS4_COLORS["yellow"],
             "navy": mplcolors.CSS4_COLORS["navy"],
             "magenta": mplcolors.CSS4_COLORS["magenta"],
             "orange": mplcolors.CSS4_COLORS["orange"],
@@ -93,6 +102,14 @@ class PyQtGraphPlotter:
         self.app = self.setup()
 
 
+    def set_legend(self, val: bool) -> None:
+        self._use_legend = val
+
+
+    def set_margin(self, val: float) -> None:
+        self._margin_base = val
+
+
     def setup(self) -> QCoreApplication:
         """This method starts the Qt Application."""
         # Always start by initializing Qt (only once per application)
@@ -112,6 +129,11 @@ class PyQtGraphPlotter:
 
 
     def exit(self) -> None:
+        if self.save_gif_path:
+            interval_ms = int(max(1, (1 / self.frame_rate) * 1000))
+            self.frames_gif[0].save(self.save_gif_path, save_all=True,
+                                    append_images=self.frames_gif[1:],
+                                    duration=interval_ms, loop=0)
         if self.app:
             if self.quiet:
                 self.app.exit()  # immediately exit
@@ -258,6 +280,20 @@ class PyQtGraphPlotter:
     # ViewBoxes
     # --------------------------------------------------------------------------------------
 
+    def __get_window(self) -> GraphicsLayoutWidget:
+        """Returns a window to apply a plot to.
+
+        this is to handle implicit plot appending to the list
+        of windows, self.wins, unless a new window creation is
+        specified by Plotter.figure()"""
+        # check if at least 1 window avaiable, otherwise create
+        # a new one
+        if len(self.wins) < 1:
+            return self.create_window()
+        else:
+            return self.wins[-1]
+
+
     def get_text_viewbox(self, window_id: int) -> Optional[ViewBox]:
         """Returns the ViewBox associated with provided window_id"""
         if self.instrument_view:
@@ -377,7 +413,7 @@ class PyQtGraphPlotter:
                 input_text = input_text.replace(" ", "_")
                 for pitem in items:
                     export = ImageExporter(pitem)
-                    export.export(f"{JAPL_HOME_DIR}/output/{input_text}.png")
+                    export.export(f"{input_text}.png")
 
 
     def open_text_input_gui(self, win: QWidget) -> Generator:
@@ -477,6 +513,7 @@ class PyQtGraphPlotter:
             color = axes.get("color", simobj.plot.color)
             size = axes.get("size", 1)
             marker = axes.get("marker", None)
+            global_markers = axes.get("global_markers", {})
 
             # resolve color str to hex color code
             # or get random color
@@ -505,6 +542,30 @@ class PyQtGraphPlotter:
                 plot_item = win.getItem(row=i, col=0)
                 plot_item.addItem(marker_item)
                 simobj.plot.qt_markers += [marker_item]
+
+            # TODO: integrate this better...
+            ####################################################################################
+            # setup any global / static markers defined
+            for _title, _axes in global_markers.items():
+                _data = _axes.get("data", [0, 0])
+                _color = _axes.get("color", simobj.plot.color)
+                _size = _axes.get("size", 1)
+                _marker = _axes.get("marker", None)
+                _color_code = self.__get_color_code(_color)
+                _marker_pen = {"color": _color_code, "width": _size}
+                _marker_item = pg.ScatterPlotItem(x=[_data[0]], y=[_data[1]], pen=_marker_pen,
+                                                  useCache=self.draw_cache_mode,
+                                                  antialias=self.antialias,
+                                                  autoDownsample=True,
+                                                  downsampleMethod="peak",
+                                                  clipToView=True,
+                                                  skipFiniteCheck=True,
+                                                  symbol=_marker)
+                # refer to current plot in current window
+                plot_item = win.getItem(row=i, col=0)
+                plot_item.addItem(_marker_item)
+            ####################################################################################
+
             num_plots += 1
 
         # setup vehicle viewer widget
@@ -589,7 +650,7 @@ class PyQtGraphPlotter:
 
 
     def _animate_func(self, frame, simobj: SimObject, step_func: Callable,
-                      frame_rate: float, moving_bounds: bool = False):
+                      frame_rate: float, moving_bounds: bool = False) -> None:
 
         self.profiler()
 
@@ -600,7 +661,41 @@ class PyQtGraphPlotter:
             if self.istep <= self.Nt:
                 flag_sim_stop: bool = step_func(istep=self.istep)
                 if flag_sim_stop:
+                    plot_config = simobj.plot.get_config()
+                    for subplot_id, plot_name in enumerate(plot_config):
+                        # NOTE: DO final draw
+                        #########################################################################
+                        # get data from SimObject based on state_select user configuration
+                        # NOTE: can pass QPen to _update_patch_data
+                        xdata, ydata = simobj.get_plot_data(subplot_id, self.istep)
+                        simobj._update_patch_data(xdata, ydata, subplot_id=subplot_id)
+
+                        ##########################################
+                        # this code allows xlim, ylim ranges to be
+                        # defined and used until data goes outside
+                        # of bounds and autorange is enabled.
+                        ##########################################
+                        widget_items = list(self.wins[0].centralWidget.items.keys())  # type:ignore
+                        subplot = plot_config[plot_name]
+                        # xrange, yrange = widget_items[subplot_id].viewRange()
+                        xlim = subplot.get("xlim", None)
+                        ylim = subplot.get("ylim", None)
+                        if xlim:
+                            if (xdata[-1] < xlim[0]) or (xdata[-1] > xlim[1]):
+                                widget_items[subplot_id].enableAutoRange(x=True)
+                            else:
+                                widget_items[subplot_id].setRange(xRange=xlim)
+                        if ylim:
+                            if (ydata[-1] < ylim[0]) or (ydata[-1] > ylim[1]):
+                                widget_items[subplot_id].enableAutoRange(y=True)
+                            else:
+                                widget_items[subplot_id].setRange(yRange=ylim)
+                        #########################################################################
+                    # trim output arrays
+                    simobj.Y = simobj.Y[:self.istep + 1]
+                    simobj.U = simobj.U[:self.istep + 1]
                     self.exit()
+                    return
             else:
                 break
 
@@ -637,6 +732,15 @@ class PyQtGraphPlotter:
         # TODO generalize: each simobj has its own body to draw.
         if self.instrument_view:
             self._draw_instrument_view(simobj)
+
+        if self.save_gif_path:
+            # capture the widget as a QImage
+            qimage = self.wins[0].grab().toImage()
+            qimage = qimage.convertToFormat(qimage.Format_RGBA8888)
+            # convert QImage to PIL image and store in frames
+            buffer = qimage.bits().asstring(qimage.byteCount())  # type:ignore
+            image = Image.frombytes("RGBA", (qimage.width(), qimage.height()), buffer)
+            self.frames_gif.append(image)
 
 
     def _draw_instrument_view(self, _simobj: SimObject) -> None:
@@ -793,9 +897,14 @@ class PyQtGraphPlotter:
              marker_size: int = 1,
              window_id: int = 0,
              title: str = "",
-             xlabel: str = "",
-             ylabel: str = "",
+             xlabel: str = " ",
+             ylabel: str = " ",
+             linestyle: str = "-",
              legend_name: str = "",
+             title_size: int = 18,
+             font_size: int = 14,
+             xunits: str = "",
+             yunits: str = "",
              **kwargs) -> PlotItem:
 
         # convert mpl color to rgb
@@ -804,8 +913,19 @@ class PyQtGraphPlotter:
         else:
             color_code = next(self.color_cycle)
 
-        # data = {'x': x, 'y': y}
+        # create QPen info for plot draw
         pen = {"color": color_code, "width": size}
+        # add linestyle to QPen
+        match linestyle:
+            case "--":
+                pen["style"] = QtCore.Qt.DashLine  # type:ignore
+            case "-.":
+                pen["style"] = QtCore.Qt.DashDotLine  # type:ignore
+            case ".":
+                pen["style"] = QtCore.Qt.DotLine  # type:ignore
+            case _:
+                pass
+        # create QPen info for markers
         symbol_pen = {"color": color_code, "width": marker_size}
 
         # old
@@ -816,40 +936,59 @@ class PyQtGraphPlotter:
         # graphic_item.setData(data, symbol=marker, symbolPen=symbol_pen, **kwargs)
         ###########################################################################
 
-        # check if at least 1 window avaiable
-        # then get GraphicsItem at [0, 0] (default)
-        if len(self.wins) < 1:
-            win = self.create_window()
+        _font_type = "Arial"
+
+        _title_size = f"{str(int(title_size))}pt"
+
+        # left, top, right, bottom
+        _border_margins = [self._margin_base,
+                           self._margin_base,
+                           self._margin_base + (font_size * 2),
+                           self._margin_base]
+
+        win = self.__get_window()
+
+        # set window margins
+        win.centralWidget.layout.setContentsMargins(*_border_margins)  # type:ignore
+        win.centralWidget.layout.setSpacing(0)  # type:ignore
+
+        plot_item = win.getItem(row=0, col=0)
+        if plot_item is None:  # create new plotItem if row=0, col=0 exists
             plot_item: PlotItem = win.addPlot(row=0, col=0, title=title, name=title)
-            text_color_code = self.__get_color_code(self.text_color)
-            legend = plot_item.addLegend()
-            legend.setBrush('k')
-            legend.setPen({"color": self.__get_color_code("black")})
-            # style settings
-            plot_item.setTitle(title, color=self.text_color)
-            plot_item.setLabel("bottom", xlabel, color=self.text_color)
-            plot_item.setLabel("left", ylabel, color=self.text_color)
-            plot_item.getAxis("left").setPen({"color": text_color_code})
-            plot_item.getAxis("bottom").setPen({"color": text_color_code})
-        else:
-            win = self.wins[-1]  # get last created window
-            plot_item = win.getItem(row=0, col=0)
-            if plot_item is None:
-                plot_item: PlotItem = win.addPlot(row=0, col=0, title=title, name=title)
+            if self._use_legend:
                 legend = plot_item.addLegend()
                 legend.setBrush('k')
                 legend.setPen({"color": self.__get_color_code("black")})
-                # style settings
-                text_color_code = self.__get_color_code(self.text_color)
-                plot_item.setTitle(title, color=self.text_color)
-                plot_item.setLabel("bottom", xlabel, color=self.text_color)
-                plot_item.setLabel("left", ylabel, color=self.text_color)
-                plot_item.getAxis("left").setPen({"color": text_color_code})
-                plot_item.getAxis("bottom").setPen({"color": text_color_code})
-        scatter = pg.PlotCurveItem(x=x, y=y, pen=pen, symbol=marker, symbolPen=symbol_pen)
-        if plot_item.legend:
-            plot_item.legend.addItem(scatter, legend_name)  # type:ignore
-        plot_item.addItem(scatter)
+
+            # style settings
+            text_color_code = self.__get_color_code(self.text_color)
+            plot_item.setTitle(title, color=self.text_color, size=_title_size, bold=True)
+
+            left_axis = plot_item.getAxis("left")
+            bottom_axis = plot_item.getAxis("bottom")
+
+            left_axis.setLabel(ylabel, color=self.text_color, units=yunits)
+            left_axis.setPen({"color": text_color_code})
+            left_axis.setStyle(tickFont=QFont(_font_type, font_size))
+            left_axis.setTextPen(QColor(text_color_code))
+            left_axis.label.setFont(QFont(_font_type, font_size))
+
+            bottom_axis.setLabel(xlabel, color=self.text_color, units=xunits)
+            bottom_axis.setPen({"color": text_color_code})
+            bottom_axis.setStyle(tickFont=QFont(_font_type, font_size))
+            bottom_axis.setTextPen(QColor(text_color_code))
+            bottom_axis.label.setFont(QFont(_font_type, font_size))
+
+            # downsampling
+            plot_item.setDownsampling(auto=False, ds=1, mode="mean")
+
+        curve = plot_item.plot(x=x, y=y, pen=pen, symbol=marker, symbolPen=symbol_pen)
+
+        # set plot item border
+        plot_item.getViewBox().setBorder(mkPen(color='black', width=2))  # type:ignore
+
+        if self._use_legend and plot_item.legend:
+            plot_item.legend.addItem(curve, legend_name)  # type:ignore
         self.__apply_style_settings_to_plot(plot_item)
         return plot_item
 
@@ -862,8 +1001,13 @@ class PyQtGraphPlotter:
                 marker: str = "o",
                 window_id: int = 0,
                 title: str = "",
-                xlabel: str = "",
-                ylabel: str = "",
+                xlabel: str = " ",
+                ylabel: str = " ",
+                legend_name: str = "",
+                title_size: int = 18,
+                font_size: int = 14,
+                xunits: str = "",
+                yunits: str = "",
                 **kwargs) -> PlotItem:
 
         # convert mpl color to rgb
@@ -879,30 +1023,63 @@ class PyQtGraphPlotter:
         if not marker:
             marker = 'o'
 
-        # check if at least 1 window avaiable
-        # then get GraphicsItem at [0, 0] (default)
-        if len(self.wins) < 1:
-            win = self.create_window()
-            plot_item = win.addPlot(row=0, col=0, title=title, name=title)
-            # style settings
-            text_color_code = self.__get_color_code(self.text_color)
-            plot_item.setTitle(title, color=self.text_color)
-            plot_item.setLabel("bottom", xlabel, color=self.text_color)
-            plot_item.setLabel("left", ylabel, color=self.text_color)
-            plot_item.getAxis("left").setPen({"color": text_color_code})
-            plot_item.getAxis("bottom").setPen({"color": text_color_code})
-        else:
-            win = self.wins[-1]
-            plot_item = win.getItem(row=0, col=0)
-            # style settings
-            text_color_code = self.__get_color_code(self.text_color)
-            plot_item.setTitle(title, color=self.text_color)
-            plot_item.setLabel("bottom", xlabel, color=self.text_color)
-            plot_item.setLabel("left", ylabel, color=self.text_color)
-            plot_item.getAxis("left").setPen({"color": text_color_code})
-            plot_item.getAxis("bottom").setPen({"color": text_color_code})
+        _font_type = "Arial"
 
+        _title_size = f"{str(int(title_size))}pt"
+
+        # left, top, right, bottom
+        _border_margins = [self._margin_base,
+                           self._margin_base,
+                           self._margin_base + (font_size * 2),
+                           self._margin_base]
+
+        win = self.__get_window()
+
+        # set window margins
+        win.centralWidget.layout.setContentsMargins(*_border_margins)  # type:ignore
+        win.centralWidget.layout.setSpacing(0)  # type:ignore
+
+        plot_item = win.getItem(row=0, col=0)
+        if plot_item is None:  # create new plotItem if row=0, col=0 exists
+            plot_item: PlotItem = win.addPlot(row=0, col=0, title=title, name=title)
+            if self._use_legend:
+                legend = plot_item.addLegend()
+                legend.setBrush('k')
+                legend.setPen({"color": self.__get_color_code("black")})
+
+            # style settings
+            text_color_code = self.__get_color_code(self.text_color)
+            plot_item.setTitle(title, color=self.text_color, size=_title_size, bold=True)
+
+            left_axis = plot_item.getAxis("left")
+            bottom_axis = plot_item.getAxis("bottom")
+
+            left_axis.setLabel(ylabel, color=self.text_color, units=yunits)
+            left_axis.setPen({"color": text_color_code})
+            left_axis.setStyle(tickFont=QFont(_font_type, font_size))
+            left_axis.setTextPen(QColor(text_color_code))
+            left_axis.label.setFont(QFont(_font_type, font_size))
+
+            bottom_axis.setLabel(xlabel, color=self.text_color, units=xunits)
+            bottom_axis.setPen({"color": text_color_code})
+            bottom_axis.setStyle(tickFont=QFont(_font_type, font_size))
+            bottom_axis.setTextPen(QColor(text_color_code))
+            bottom_axis.label.setFont(QFont(_font_type, font_size))
+
+            # downsampling
+            plot_item.setDownsampling(auto=False, ds=1, mode="mean")
+
+        if not hasattr(x, "__len__"):
+            x = [x]
+        if not hasattr(y, "__len__"):
+            y = [y]
         scatter = pg.ScatterPlotItem(x=x, y=y, pen=pen, symbol=marker, symbolPen=symbol_pen)
+
+        # set plot item border
+        plot_item.getViewBox().setBorder(mkPen(color='black', width=2))  # type:ignore
+
+        if plot_item.legend:
+            plot_item.legend.addItem(scatter, legend_name)  # type:ignore
         plot_item.addItem(scatter)
         self.__apply_style_settings_to_plot(plot_item)
         return plot_item

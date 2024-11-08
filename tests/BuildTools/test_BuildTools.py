@@ -1,5 +1,6 @@
 import unittest
 from sympy import symbols, Matrix, Function, Symbol
+from sympy import MatrixSymbol
 from japl.BuildTools import BuildTools
 # from japl.BuildTools.DirectUpdate import DirectUpdate
 # from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
@@ -47,29 +48,51 @@ class TestBuildTools(unittest.TestCase):
         pass
 
 
-    def test_BuildTools_state_array_checks_case1(self):
+    def test_BuildTools_get_array_var_names(self):
         (t, dt, pos, vel, acc) = self.setup_symbols()
 
         pos_new = pos + vel * dt
         vel_new = vel + acc * dt
         pos_dot = pos_new.diff(dt)
         vel_dot = vel_new.diff(dt)
-        defs = (
-                (pos.diff(t), pos_dot),
-                (vel.diff(t), vel_dot),
-                )
         state = Matrix([pos, vel])
         input = Matrix([acc])
         dynamics = Matrix(state.diff(t))
-
-        (state, input, dynamics,
-         static,
-         state_direct_updates,
-         input_direct_updates) = BuildTools.build_model(state,
-                                                        input,
-                                                        dynamics,
-                                                        defs)
         names = BuildTools._get_array_var_names(state)
+        self.assertListEqual(names, ["pos_x", "pos_y", "pos_z",
+                                     "vel_x", "vel_y", "vel_z"])
+
+        # self.run_model(state_vars, input_vars, dynamics_expr)
+
+        # model = Model.from_expression(dt, state, input, dynamics,
+        #                               definitions=defs)
+        # pprint(model.dynamics_expr)
+
+
+    # def test_BuildTools_state_array_checks_case1(self):
+    #     (t, dt, pos, vel, acc) = self.setup_symbols()
+
+    #     pos_new = pos + vel * dt
+    #     vel_new = vel + acc * dt
+    #     pos_dot = pos_new.diff(dt)
+    #     vel_dot = vel_new.diff(dt)
+    #     defs = (
+    #             (pos.diff(t), pos_dot),
+    #             (vel.diff(t), vel_dot),
+    #             )
+    #     state = Matrix([pos, vel])
+    #     input = Matrix([acc])
+    #     dynamics = Matrix(state.diff(t))
+
+    #     (state, input, dynamics,
+    #      static,
+    #      state_direct_updates,
+    #      input_direct_updates) = BuildTools.build_model(state,
+    #                                                     input,
+    #                                                     dynamics,
+    #                                                     defs)
+    #     names = BuildTools._get_array_var_names(state)
+    #     print(names)
 
         # self.run_model(state_vars, input_vars, dynamics_expr)
 

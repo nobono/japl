@@ -1,17 +1,26 @@
 import os
-from typing import Any
+from typing import Any, Iterable
 from sympy import Matrix, Symbol, Function, Expr, Number, nan
 from sympy import Float
-from sympy import Derivative
+from sympy import Derivative, Piecewise
+from sympy import cse
+from sympy import symbols
 from sympy.matrices import MatrixSymbol
 from sympy.matrices.expressions.matexpr import MatrixElement
 from japl.Model.StateRegister import StateRegister
 from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
+from japl.Util.Util import iter_type_check
 from pprint import pformat
 from multiprocess import Pool  # type:ignore
 from multiprocess import cpu_count  # type:ignore
+from japl.Util.Util import flatten_list
 import dill as pickle
 from time import perf_counter
+import numpy as np
+from tqdm import tqdm
+from collections import defaultdict
+
+from sympy.codegen.ast import Assignment, Variable, Return
 
 
 
@@ -21,7 +30,7 @@ def dict_subs_func(key_expr: tuple[str, Any], subs: list) -> bytes:
     key, expr = pickle.loads(key_expr)
     for sub in subs:
         sub = pickle.loads(sub)
-        expr = expr.xreplace(sub).doit()
+        expr = expr.xreplace(sub)  # .doit()
     return pickle.dumps({key: expr})
 
 
@@ -31,7 +40,7 @@ def array_subs_func(expr, subs: list[dict]) -> bytes:
     expr = pickle.loads(expr)
     for sub in subs:
         sub = pickle.loads(sub)
-        expr = expr.xreplace(sub).doit()
+        expr = expr.xreplace(sub)  # .doit()
     return pickle.dumps(expr)
 
 
@@ -41,18 +50,79 @@ def create_error_header(msg: str, char: str = "-", char_len: int = 40) -> str:
     return header
 
 
-def parallel_subs(matrix: Matrix, subs: list):
+def parallel_subs(target_expr: Matrix|dict, subs: tuple[tuple, ...]|list[dict]|dict) -> Matrix|dict:
+    """A parallel sympy subs using multiprocess.
+
+    Arguments
+    ---------
+    target_expr:
+        sympy Matrix or dict which is the target for substitutions
+
+    subs:
+        dict of substitutions (e.g. {expr: replacement_expr}) or list of
+        substition dicts.
+
+    Returns
+    -------
+    returns the Matrix or dict which was passed.
+    """
+    # convert any subs paramters to list[dict]
+    if isinstance(subs, dict):
+        subs = [subs]
+    elif isinstance(subs, Iterable):  # type:ignore
+        if iter_type_check(subs, list[tuple]):
+            subs = [dict(subs)]  # type:ignore
+        elif iter_type_check(subs, list[dict]):
+            pass
+        else:
+            raise Exception("unhandled case. subs TypeError")
+
+    if isinstance(target_expr, dict):
+        subs_func = dict_subs_func
+        with Pool(processes=cpu_count()) as pool:
+            subs = [pickle.dumps(sub) for sub in subs]  # type:ignore
+            args = [(pickle.dumps((key, expr)), subs) for key, expr in target_expr.items()]
+            results = [pool.apply_async(subs_func, arg) for arg in args]
+            results = [pickle.loads(ret.get()) for ret in results]
+        for ret in results:
+            target_expr.update(ret)
+        return target_expr
+    elif isinstance(target_expr, Matrix):  # type:ignore
+        subs_func = array_subs_func
+        with Pool(processes=cpu_count()) as pool:
+            subs = [pickle.dumps(sub) for sub in subs]  # type:ignore
+            args = [(pickle.dumps(expr), subs) for expr in target_expr]
+            results = [pool.apply_async(subs_func, arg) for arg in args]
+            results = [pickle.loads(ret.get()) for ret in results]
+        return Matrix(results)
+    else:
+        raise Exception("unhandled case. target_expr TypeError")
+
+
+def cse_async(expr, id, *args, **kwargs):
+    expr = pickle.loads(expr)
+    temp_vars = symbols(f"X{id}_temp0:1000")
+    return pickle.dumps(cse(expr, temp_vars))
+
+
+def parallel_cse(matrix: Matrix) -> tuple[list, Matrix]:
     with Pool(processes=cpu_count()) as pool:
-        subs = [pickle.dumps(sub) for sub in subs]
-        args = [(pickle.dumps(expr), subs) for expr in matrix]
-        results = [pool.apply_async(array_subs_func, arg) for arg in args]
+        args = [(pickle.dumps(expr), id) for id, expr in enumerate(matrix)]  # type:ignore
+        results = [pool.apply_async(cse_async, arg) for arg in args]
         results = [pickle.loads(ret.get()) for ret in results]
-    return Matrix(results)
+    # replacements_iter = [i[0] for i in results]
+    # replacements = []
+    # for res in replacements_iter:
+    #     for pair in res:
+    #         replacements += [pair]
+    replacements = [i[0] for i in results]
+    expr_simples = Matrix([i[1] for i in results])
+    return (replacements, expr_simples)
 
 
 def build_model(state: Matrix,
                 input: Matrix,
-                dynamics: Matrix,
+                dynamics: Matrix = Matrix([]),
                 definitions: tuple = (),
                 static: Matrix = Matrix([]),
                 use_multiprocess_build: bool = True) -> tuple:
@@ -71,13 +141,33 @@ def build_model(state: Matrix,
     t = Symbol("t")
     dt = Symbol("dt")
 
+    ############################################################
     # give MatrixElement attr "name"
+    ############################################################
     for var in state:
         if isinstance(var, MatrixElement):
             setattr(var, "name", str(var))
         elif isinstance(var, DirectUpdateSymbol):
             if isinstance(var.state_expr, MatrixElement):
                 setattr(var.state_expr, "name", str(var))
+
+    for var in input:
+        if isinstance(var, MatrixElement):
+            setattr(var, "name", str(var))
+        elif isinstance(var, DirectUpdateSymbol):
+            if isinstance(var.state_expr, MatrixElement):
+                setattr(var.state_expr, "name", str(var))
+
+    for var in static:
+        if isinstance(var, MatrixElement):
+            setattr(var, "name", str(var))
+        elif isinstance(var, DirectUpdateSymbol):
+            if isinstance(var.state_expr, MatrixElement):
+                setattr(var.state_expr, "name", str(var))
+
+    ############################################################
+    # checks
+    ############################################################
 
     # state & input array checks
     _check_var_array_types(state, "state")
@@ -125,12 +215,22 @@ def build_model(state: Matrix,
     # 3: get state direct update array
     ############################################################
     print("building state direct updates array...")
+    definition_state_vars = flatten_list([state for (state, _) in definitions])
+    definition_subs = flatten_list([sub for (_, sub) in definitions])
     state_direct_updates = []
     for expr in state:
         if isinstance(expr, DirectUpdateSymbol):
             state_direct_updates += [expr.sub_expr]
             # ensure state_expr is not Function
             expr.state_expr = _name_to_symbolic(expr.state_expr)
+        # detect definition assignments that should
+        # be converted to DirectUpdates. These are
+        # definitions where the variable being assigned
+        # exists in the state array.
+        elif expr in definition_state_vars:
+            id = definition_state_vars.index(expr)
+            sub_expr = definition_subs[id]
+            state_direct_updates += [sub_expr]
         else:
             state_direct_updates += [nan]
     state_direct_updates = Matrix(state_direct_updates)
@@ -190,20 +290,23 @@ def build_model(state: Matrix,
     # - poly.terms() # list[(exps, coeffs), (exps, coeffs)]
     # - poly.gens # generator which provides order of terms
     ##################
-    print("applying substitions to dynamics...")
-    if use_multiprocess_build:
-        with Pool(processes=cpu_count()) as pool:
-            subs = [pickle.dumps(def_subs),
-                    pickle.dumps(state_subs),
-                    pickle.dumps(input_subs),
-                    pickle.dumps(static_subs)]
-            args = [(pickle.dumps(expr), subs) for expr in dynamics]
-            results = [pool.apply_async(array_subs_func, arg) for arg in args]
-            results = [pickle.loads(ret.get()) for ret in results]
-        dynamics = Matrix(results)
+    if dynamics:
+        print("applying substitions to dynamics...")
+        if use_multiprocess_build:
+            with Pool(processes=cpu_count()) as pool:
+                subs = [pickle.dumps(def_subs),
+                        pickle.dumps(state_subs),
+                        pickle.dumps(input_subs),
+                        pickle.dumps(static_subs)]
+                args = [(pickle.dumps(expr), subs) for expr in dynamics]
+                results = [pool.apply_async(array_subs_func, arg) for arg in args]
+                results = [pickle.loads(ret.get()) for ret in results]
+            dynamics = Matrix(results)
+        else:
+            dynamics = dynamics.subs(def_subs)
+            dynamics = dynamics.subs(state_subs).subs(input_subs)
     else:
-        dynamics = dynamics.subs(def_subs)
-        dynamics = dynamics.subs(state_subs).subs(input_subs)
+        dynamics = Matrix([np.nan] * len(state))
 
     ############################################################
     # 8: apply subs to direct updates
@@ -535,3 +638,262 @@ def _apply_definitions_to_array(array: Matrix, subs: dict):
                     array[ielem] = DirectUpdateSymbol(f"{str(elem.name)}", state_expr=elem, sub_expr=sub)  # type:ignore
                 else:
                     raise Exception("unhandled case.")
+
+
+
+def _subs_prune(replacements, expr_simple, nchunk: int = 2_000,
+                nchunk_subs: int = 500) -> tuple[dict, Matrix, int]:
+    # unpack to single iterable
+    reps = []
+    for rep in replacements:
+        if isinstance(rep, tuple) and (len(rep) == 2):
+            reps += [rep]
+        else:
+            for r in rep:
+                reps += [r]
+
+    # condense redundant replacements
+    dreps = {sub: rexpr for sub, rexpr in reps}
+    dreps_pops = []
+    new_subs = {}  # new subs for expression to take out redundant variables
+
+    # precompute and group subs by replacement expression
+    repl_to_subs = defaultdict(list)
+    # for sub, rexpr in dreps.items():
+    for sub, rexpr in reps:
+        repl_to_subs[rexpr].append(sub)
+
+    # iterate over grouped expressions
+    for sub, rexpr in tqdm(reps, ncols=100, desc="Pruning"):
+        # if rexpr appears more than once in dict, its redundant
+        if len(repl_to_subs[rexpr]) > 1:
+            redundant_vars = repl_to_subs[rexpr]
+            # replace redundant vars with first found var
+            if redundant_vars:
+                keep_var = redundant_vars[0]
+                for rvar in redundant_vars[1:]:
+                    new_subs.update({rvar: keep_var})
+                    dreps_pops += [rvar]
+
+    for var in dreps_pops:
+        if var in dreps:
+            dreps.pop(var)  # type:ignore
+
+    #########################
+    # nchunk = 2_000
+    remaining_chunk = [*dreps.items()]
+
+    if len(remaining_chunk) > nchunk:
+        chunked_dicts = []
+        for i in range(0, len(remaining_chunk), nchunk):
+            chunk = dict(remaining_chunk[i:i + nchunk])
+            chunked_dicts += [chunk]
+
+        chunked_new_subs = []
+        # nchunk_subs = 500
+        new_subs_list = [*new_subs.items()]
+        for i in range(0, len(new_subs), nchunk_subs):
+            chunk_new_subs = dict(new_subs_list[i:i + nchunk_subs])
+            chunked_new_subs += [chunk_new_subs]
+
+        # remaining_chunk = dict(remaining_chunk[nchunk:])
+        inter_reps = {}
+        for chunk in tqdm(chunked_dicts, ncols=70, desc="\tdict subs",
+                          ascii=" ="):
+            inter_reps.update(parallel_subs(chunk, chunked_new_subs))  # type:ignore
+        dreps = inter_reps
+    else:
+        dreps = parallel_subs(dict(remaining_chunk), [new_subs])
+
+    replacements = [*dreps.items()]  # type:ignore
+
+    expr_simple = parallel_subs(expr_simple, [new_subs])
+    return (replacements, expr_simple, len(dreps_pops))  # type:ignore
+
+
+def to_pycode(func_name: str,
+              expr: Expr|Matrix,
+              state_vars: list|Matrix,
+              input_vars: list|Matrix,
+              static_vars: list|Matrix = [],
+              filepath: str = "",
+              use_cse: bool = True,
+              imports: list[str] = [],
+              header_insert: str = "",
+              intermediates: list[tuple] = [],
+              extra_params: dict = {}):
+    if not filepath:
+        filepath = func_name + ".py"
+    # NOTE: in development
+    from sympy.codegen.ast import FunctionDefinition
+    from sympy.printing.pycode import PythonCodePrinter
+    from sympy.codegen.ast import real, float64
+    from sympy import IndexedBase
+    from sympy import pycode
+    from sympy import cse
+    from japl.BuildTools.CodeGeneratorBase import CodeGeneratorBase
+    from textwrap import dedent
+    import re
+
+    replacements = ()
+    if not use_cse:
+        expr_simple = expr
+    else:
+        # optimize expression
+        replacements, expr_simple = cse(expr)
+        expr_simple = expr_simple[0]  # type:ignore
+
+        # replacements, expr_simple = parallel_cse(expr)
+        # # must further optimize and make substitutions
+        # # between indices of expr
+        # NCHUNK = 10_000
+        # NCHUNK_SUBS = 5_000
+        # MAX_PRUNE_ITER = 10
+        # for _ in range(MAX_PRUNE_ITER):
+        #     replacements, expr_simple, nredundant = _subs_prune(replacements, expr_simple,
+        #                                                         nchunk=NCHUNK, nchunk_subs=NCHUNK_SUBS)
+        #     if nredundant == 0:
+        #         break
+
+    ##########################################################################
+    # Model uses standardized arg format: (t, X, U, S, dt)
+    vars: list = [Symbol("t"), state_vars, input_vars, static_vars, Symbol("dt")]
+    standard_args = ["t", "_X_stdarg", "_U_stdarg", "_S_stdarg", "dt"]
+    assert len(vars) == len(standard_args)
+    parameters = [Symbol(i, real=True) for i in standard_args]
+
+    # user-specified extra fucntion params
+    ##################################
+    # NOTE this is all temporary
+    ##################################
+    for i, (param_name, param) in enumerate(extra_params.items()):
+        # vars.insert(-1, param)
+        parameters.insert(-1, Symbol(param_name, real=True))
+        if hasattr(param, "__len__"):
+            vars.insert(-1, param)
+            standard_args.insert(-1, param_name)
+    ##################################
+
+    # unpack array-type parameters
+    unpack_assignments = []
+    for param, param_name in zip(vars, standard_args):
+        if hasattr(param, "__len__") or hasattr(param, "shape"):
+            for i, item in enumerate(flatten_list(param)):  # type:ignore
+                if isinstance(item, MatrixElement):
+                    # NOTE this if-stmt is temporary and can be removed.
+                    # this is for temp solution for extra_parameters
+                    pass
+                else:
+                    item_name = CodeGeneratorBase._get_expr_name(item)
+                    iter_param = IndexedBase(param_name, shape=(len(param),))
+                    unpack_assignments += [Assignment(Symbol(item_name, real=True), iter_param[i])]
+    ##########################################################################
+
+    mat_body = [Return(expr_simple)]  # type:ignore
+
+    if not use_cse:
+        body = unpack_assignments + mat_body
+    else:
+
+        # Build the assignments for common subexpressions
+        # assignments = [Assignment(var, rep) for var, rep in replacements]
+        # body = unpack_assignments + assignments + mat_body
+
+        assignments = []
+        for var, rep in replacements:
+            if isinstance(rep, Piecewise):
+                # NOTE: Piecewise assignment needs augmentation
+                expr_str = re.sub(r"\#.*?\n", "", str(pycode(rep, strict=False)))
+                assignments += [Assignment(var, Symbol(expr_str))]
+            else:
+                assignments += [Assignment(var, rep)]
+
+        intermed_assigns = []
+        for name, expr in intermediates:
+            temp_name = re.sub(r"\[*.\]", "_", name)
+            _reps, _expr = cse(expr, symbols(f"temp_{temp_name}0:500"))
+            _expr = _expr[0]  # type:ignore
+            for rep in _reps:
+                intermed_assigns += [Assignment(*rep)]
+            expr_str = re.sub(r"\#.*?\n", "", str(pycode(_expr, strict=False)))
+            expr_str = expr_str.replace("(t)", "")
+            intermed_assigns += [Assignment(Symbol(name), Symbol(expr_str))]
+
+        body = unpack_assignments + intermed_assigns + assignments + mat_body
+
+    # Define the full Python function
+    func_def = FunctionDefinition(
+        return_type=real,
+        name=func_name,
+        parameters=parameters,  # parameters for the function
+        body=body
+    )
+
+    code_str = pycode(func_def, strict=False)
+    # replace sympy Matrix types with numpy types
+    code_str = code_str.replace("ImmutableDenseMatrix", "np.array")
+    code_str = code_str.replace("MutableDenseMatrix", "np.array")
+    code_str = code_str.replace("math.sin", "np.sin")
+    code_str = code_str.replace("math.cos", "np.cos")
+    code_str = code_str.replace("math.asin", "np.arcsin")
+    code_str = code_str.replace("math.acos", "np.arccos")
+    code_str = code_str.replace("math.tan", "np.tan")
+    code_str = code_str.replace("math.atan", "np.arctan")
+    code_str = code_str.replace("math.atan2", "np.arctan2")
+    code_str = code_str.replace("math.sqrt", "np.sqrt")
+    code_str = code_str.replace("math.nan", "np.nan")
+    code_str = code_str.replace("Abs", "np.abs")
+
+    # handle Piecewise inside expression
+    # Regular expression to match arbitrary strings (allowing for different characters)
+    # NOTE: this only works for Piecewise with a condition and a default condition
+    pattern = r"Piecewise\(\(\s*([^,]+)\s*,\s*([^,]+)\s*\),\s*\(\s*([^,]+)\s*,\s*([^,]+)\s*\)\)"
+    code_str = re.sub(pattern, r"(\1) if (\2) else (\3)", code_str)
+
+    state_vars_dict = {id: CodeGeneratorBase._get_expr_name(var)
+                       for id, var in enumerate(flatten_list(state_vars))}  # type:ignore
+    input_vars_dict = {id: CodeGeneratorBase._get_expr_name(var)
+                       for id, var in enumerate(flatten_list(input_vars))}  # type:ignore
+    static_vars_dict = {id: CodeGeneratorBase._get_expr_name(var)
+                        for id, var in enumerate(flatten_list(static_vars))}  # type:ignore
+
+    import_header = ""
+    for i in imports:
+        import_header += i + "\n"
+
+    code_header = (f"""\
+            import numpy as np
+            from sympy import symbols
+            import math
+
+            nan = np.nan
+            sqrt = np.sqrt
+            sin = np.sin
+            cos = np.cos
+            tan = np.tan
+
+            {header_insert}
+
+            def get_dt_var():
+                return symbols("dt")
+
+            def get_state_vars():
+                state_vars = {str(state_vars_dict)}
+                return symbols([*state_vars.values()])
+
+            def get_input_vars():
+                input_vars = {str(input_vars_dict)}
+                return symbols([*input_vars.values()])
+
+            def get_static_vars():
+                static_vars = {str(static_vars_dict)}
+                return symbols([*static_vars.values()])
+            """)
+
+    if os.path.isfile(filepath):
+        os.remove(filepath)
+
+    with open(filepath, "a+") as f:
+        f.write(import_header)
+        f.write(dedent(code_header))
+        f.write(str(code_str))

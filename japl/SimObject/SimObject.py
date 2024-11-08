@@ -1,4 +1,5 @@
 import japl
+import re
 import numpy as np
 from collections.abc import Generator
 from typing import Optional, Callable
@@ -8,6 +9,9 @@ from pyqtgraph import ScatterPlotItem, PlotDataItem, mkPen
 from pyqtgraph.Qt.QtGui import QPen
 from matplotlib.lines import Line2D
 from matplotlib import colors as mplcolors
+from pandas import DataFrame
+from pandas import MultiIndex
+from japl.Util.Pubsub import Publisher
 # from sympy import Symbol
 # from pyqtgraph import GraphicsView, PlotCurveItem,
 # from pyqtgraph import CircleROI
@@ -113,8 +117,14 @@ class _PlotInterface:
 
 
 class SimObject:
+    __slots__ = ("_dtype", "name", "color", "size", "model",
+                 "state_dim", "input_dim", "static_dim",
+                 "X0", "U0", "S0", "Y", "U", "plot",
+                 "_T", "_istep", "publisher")
 
     """This is a base class for simulation objects"""
+
+
 
     def __init__(self, model: Model = Model(), **kwargs) -> None:
 
@@ -132,9 +142,11 @@ class SimObject:
         self.S0 = np.zeros((self.static_dim,))
         self.Y = np.array([], dtype=self._dtype)
         self.U = np.array([], dtype=self._dtype)
-        self.__T = np.array([])
+        self._T = np.array([])
+        self._istep: int = 1  # sim step counter set by Sim class
+        self.publisher = Publisher()
 
-        self._setup_model(**kwargs)
+        # self._setup_model(**kwargs)
 
         # interface for visualization
         self.plot = _PlotInterface(
@@ -146,18 +158,125 @@ class SimObject:
             self.color = self.plot.color
 
 
+    def _set_sim_step(self, istep: int):
+        self._istep = istep
+
+
     def set_draw(self, size: float = 1, color: str = "black") -> None:
         self.size = size
         self.color = color
 
 
-    def _setup_model(self, **kwargs) -> None:
-        # mass properties
-        self.mass: float = kwargs.get("mass", 1)
-        self.Ixx: float = kwargs.get("Ixx", 1)
-        self.Iyy: float = kwargs.get("Iyy", 1)
-        self.Izz: float = kwargs.get("Izz", 1)
-        self.cg: float = kwargs.get("cg", 0)
+    # @DeprecationWarning
+    # def _setup_model(self, **kwargs) -> None:
+    #     # mass properties
+    #     self.mass: float = kwargs.get("mass", 1)
+    #     self.Ixx: float = kwargs.get("Ixx", 1)
+    #     self.Iyy: float = kwargs.get("Iyy", 1)
+    #     self.Izz: float = kwargs.get("Izz", 1)
+    #     self.cg: float = kwargs.get("cg", 0)
+
+
+    def __getattr__(self, name) -> np.ndarray|float:
+        return self.get_current(name)
+
+
+    def __setattr__(self, name, val) -> None:
+        if name in self.__slots__:
+            super().__setattr__(name, val)
+        else:
+            return self.set(name, val)
+
+
+    def get_current(self, var_names: str|list[str]) -> np.ndarray|float:
+        """This method will get data from SimObject.Y array corresponding
+        to the state-name \"var_names\". but returns the current time step
+        of specific variable name in the running simulation.
+        """
+        ret = self.get(var_names)
+        if hasattr(ret, "shape"):
+            if len(ret.shape) > 1:
+                return ret[self._istep, :]
+            elif len(ret.shape) == 1:
+                return ret[self._istep]
+            else:
+                return ret
+        else:
+            return ret
+
+
+    def get(self, var_names: str|list[str]) -> np.ndarray:
+        """This method will get data from SimObject.Y array corresponding
+        to the state-name \"var_names\".
+
+        This method is more general, using extra checks, making is slower
+        than useing get_state_array, get_input_array, or get_static_array."""
+
+        # allow multiple names in a single string (e.g. "a, b, c")
+        if isinstance(var_names, str):
+            var_names = re.split(r"[,\s]", var_names)
+
+        if len(var_names) > 1:
+            ret = []
+            for var_name in var_names:
+                if var_name:  # string parsing may
+                    if var_name in self.model.state_register:
+                        ret += [self.Y[:, self.model.get_state_id(var_name)]]
+                    elif var_name in self.model.input_register:
+                        ret += [self.U[:, self.model.get_input_id(var_name)]]
+                    elif var_name in self.model.static_register:
+                        ret += [self.S0[self.model.get_static_id(var_name)]]
+                    else:
+                        raise Exception(f"SimObject: {self.name} cannot get model variable "
+                                        f"\"{var_names}\". variable not found.")
+            return np.asarray(ret).T
+        else:
+            if var_names[0] in self.model.state_register:
+                return self.Y[:, self.model.get_state_id(var_names[0])]
+            elif var_names[0] in self.model.input_register:
+                return self.U[:, self.model.get_input_id(var_names[0])]
+            elif var_names[0] in self.model.static_register:
+                return self.S0[self.model.get_static_id(var_names[0])]
+            else:
+                raise Exception(f"SimObject: {self.name} cannot get model variable "
+                                f"\"{var_names}\". variable not found.")
+
+
+    def set(self, var_names: str|list[str], vals: float|list|np.ndarray) -> None:
+        """This method will set data from SimObject.Y array corresponding
+        to the state-name \"var_names\" and the current Sim time step.
+
+        This method is more general, using extra checks, making is slower
+        than useing set_state_array, set_input_array, or set_static_array."""
+
+        # allow multiple names in a single string (e.g. "a, b, c")
+        if isinstance(var_names, str) and (',' in var_names)\
+                and ((names_list := var_names.split(',')).__len__() > 1):
+            var_names = [i.strip() for i in names_list]
+
+        if isinstance(var_names, list):
+            for var_name in var_names:
+                if var_name in self.model.state_register:
+                    self.set_state_array(self.Y[self._istep], var_name, vals)
+                elif var_name in self.model.input_register:
+                    self.set_input_array(self.U[self._istep], var_name, vals)
+                elif var_name in self.model.static_register:
+                    self.set_static_array(self.S0, var_name, vals)
+                else:
+                    raise Exception(f"SimObject: {self.name} cannot set model variable "
+                                    f"\"{var_names}\". variable not found.")
+        elif isinstance(var_names, str):  # type:ignore
+            if var_names in self.model.state_register:
+                self.set_state_array(self.Y[self._istep], var_names, vals)
+            elif var_names in self.model.input_register:
+                self.set_input_array(self.U[self._istep], var_names, vals)
+            elif var_names in self.model.static_register:
+                self.set_static_array(self.S0, var_names, vals)
+            else:
+                raise Exception(f"SimObject: {self.name} cannot get model variable "
+                                f"\"{var_names}\". variable not found.")
+        else:
+            raise Exception("unhandled case.")
 
 
     def get_state_array(self, state: np.ndarray, names: str|list[str]) -> np.ndarray:
@@ -256,13 +375,21 @@ class SimObject:
             raise AssertionError(f"{msg_header} initial state \"X0\" ill-configured")
 
         # check state / output register
-        if len(self.model.state_register) != self.model.state_dim:
+        # NOTE: ignore states in register with size > 1
+        # (matrices / array) since those are there as
+        # only a reference.
+        state_register_num_var = len([v["var"] for v in self.model.state_register.values()
+                                      if v["size"] == 1])
+        input_register_num_var = len([v["var"] for v in self.model.input_register.values()
+                                      if v["size"] == 1])
+
+        if state_register_num_var != self.model.state_dim:
             raise AssertionError(f"{msg_header} state register ill-configured\n\
                                  register-dim:{len(self.model.state_register)}\n\
                                  model-state_dim:{self.model.state_dim}")
 
         # check inputs
-        if len(self.model.input_register) != self.model.input_dim:
+        if input_register_num_var != self.model.input_dim:
             raise AssertionError(f"{msg_header} input register ill-configured\n\
                                  register-dim:{len(self.model.input_register)}\n\
                                  model-input_dim:{self.model.input_dim}")
@@ -373,7 +500,7 @@ class SimObject:
             return self.Y[:index, state_slice]
         elif isinstance(state_slice, str):  # type:ignore
             if state_slice.lower() in ['t', 'time']:
-                return self.__T[:index]
+                return self._T[:index]
             elif state_slice in self.model.state_register:
                 return self.Y[:index, self.model.state_register[state_slice]["id"]]
             elif state_slice in self.model.input_register:
@@ -386,12 +513,42 @@ class SimObject:
 
 
     def _set_T_array_ref(self, _T) -> None:
-        """This method is used to reference the internal __T time array to the
+        """This method is used to reference the internal _T time array to the
         Sim class Time array 'T'. This method exists to avoid redundant time arrays in
         various SimObjects."""
 
-        self.__T = _T
+        self._T = _T
 
 
     def _update_patch_data(self, xdata: np.ndarray, ydata: np.ndarray, subplot_id: int, **kwargs) -> None:
         self.plot._update_patch_data(xdata, ydata, subplot_id=subplot_id, **kwargs)
+
+
+    def to_dataframe(self) -> DataFrame:
+        """Creates DataFrame for each data array (state, input, static) on completion
+        of a simulation run."""
+        # define the multi-level column structure
+        column_structure = []
+        data = {}
+        for name in self.model.state_register.keys():
+            struct_tuple = ("state", name)
+            data[struct_tuple] = self.get(name)
+        for name in self.model.input_register.keys():
+            struct_tuple = ("input", name)
+            data[struct_tuple] = self.get(name)
+
+        columns = MultiIndex.from_tuples([*data.keys()])
+        df = DataFrame(data, index=self._T, columns=columns)
+        return df
+
+
+    def to_dict(self) -> dict:
+        """Creates DataFrame for each data array (state, input, static) on completion
+        of a simulation run."""
+        # define the multi-level column structure
+        data = {"state": {}, "input": {}}
+        for name in self.model.state_register.keys():
+            data["state"][name] = self.get(name)
+        for name in self.model.input_register.keys():
+            data["input"][name] = self.get(name)
+        return data

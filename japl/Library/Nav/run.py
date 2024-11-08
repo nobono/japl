@@ -8,6 +8,8 @@ from japl.Library.Nav.Nav import dt, state, input
 from japl.Library.Nav.Nav import state_info, input_info
 from japl.Library.Nav.Nav import variance_info, noise_info
 from japl.Library.Nav.Nav import get_mat_upper
+from japl.Library.Nav.Nav import accel_var, gyro_var
+from japl.Library.Nav.Nav import gps_pos_var, gps_vel_var
 from japl.Library.Sensors.OnboardSensors.ImuModel import ImuSensor
 from japl.Library.Sensors.OnboardSensors.ImuModel import SensorBase
 from japl import JAPL_HOME_DIR
@@ -70,30 +72,47 @@ np.random.seed(1234)
 
 # init
 X_init = np.array(list(state_info.values()))
-P_init = np.eye(NSTATE) * 0.3
+# NOTE: init small as we are certain in inital bias values
+P_init = np.eye(NSTATE) * 1e-6
+
+# initialize bias uncertainties high
+# pos_x_id = 4
+# pos_y_id = 5
+# pos_z_id = 6
+# vel_x_id = 7
+# vel_y_id = 8
+# vel_z_id = 9
+# accel_bias_x_id = 10
+# accel_bias_y_id = 11
+# accel_bias_z_id = 12
+# gyro_bias_x_id = 13
+# gyro_bias_y_id = 14
+# gyro_bias_z_id = 15
+# P_init[pos_x_id][pos_x_id] = 1e-6
+# P_init[pos_y_id][pos_y_id] = 1e-6
+# P_init[pos_z_id][pos_z_id] = 1e-6
+# P_init[vel_x_id][vel_x_id] = 1e-6
+# P_init[vel_y_id][vel_y_id] = 1e-6
+# P_init[vel_z_id][vel_z_id] = 1e-6
+# P_init[accel_bias_x_id][accel_bias_x_id] = 1e-6
+# P_init[accel_bias_y_id][accel_bias_y_id] = 1e-6
+# P_init[accel_bias_z_id][accel_bias_z_id] = 1e-1
+# P_init[gyro_bias_x_id][gyro_bias_x_id] = 1e-6
+# P_init[gyro_bias_y_id][gyro_bias_y_id] = 1e-6
+# P_init[gyro_bias_z_id][gyro_bias_z_id] = 1e-6
+
 X = X_init
 P = P_init
 
 count = 0
 
-accel_Hz = 100
-accel_noise_density = 10e-6 * 9.81  # (ug / sqrt(Hz))
-Racc = accel_noise_density**2 * accel_Hz
-Racc_std = np.sqrt(Racc)
+Racc_noise = [accel_var] * 3
+Rgyr_noise = [gyro_var] * 3
+Rgps_pos_noise = [gps_pos_var] * 3
+Rgps_vel_noise = [gps_vel_var] * 3
 
-gyro_Hz = 100
-gyro_noise_density = 3.5e-6  # ((udeg / s) / sqrt(Hz))
-Rgyr = gyro_noise_density**2 * gyro_Hz
-Rgyr_std = np.sqrt(Rgyr)
-
-Rgps_pos = 0.001**2
-Rgps_pos_std = np.sqrt(Rgps_pos)
-
-Rgps_vel = 0.002**2
-Rgps_vel_std = np.sqrt(Rgps_vel)
-
-gyro = SensorBase(noise=[Rgyr_std] * 3)
-accel = SensorBase(noise=[Racc_std] * 3)
+gyro = SensorBase(noise=gyro_var)
+accel = SensorBase(noise=accel_var)
 imu = ImuSensor(gyro=gyro, accel=accel)
 
 
@@ -111,18 +130,10 @@ def ekf_input_update(t, X, U, S, dt):
 def ekf_step(t, X, U, S, dt):
     global count
     global P
-    global Racc, Rgyr
     global imu
 
     variance = np.array(list(variance_info.values()))
     noise = np.array(list(noise_info.values()))
-
-    # gyro_meas = simobj.get_input_array(U, ["z_gyro_x", "z_gyro_y", "z_gyro_y"])
-    # accel_meas = simobj.get_input_array(U, ["z_accel_x", "z_accel_y", "z_accel_y"])
-    # gps_pos_meas = simobj.get_input_array(U, ["z_gps_pos_x", "z_gps_pos_y", "z_gps_pos_z"])
-    # gps_vel_meas = simobj.get_input_array(U, ["z_gps_vel_x", "z_gps_vel_y", "z_gps_vel_z"])
-
-    # meas = np.concatenate([gyro_meas, accel_meas, gps_pos_meas, gps_vel_meas])
 
     X = state_predict(X, U, get_mat_upper(P), variance, noise, dt)
     q = X[:4].copy()
@@ -133,92 +144,124 @@ def ekf_step(t, X, U, S, dt):
     X, P = accel_meas_update(X, U, get_mat_upper(P), variance, noise, dt)
 
     sim_hz = (1 / dt)
-    gps_hz = 2
+    gps_hz = 1
     gps_ratio = int(sim_hz / gps_hz)
     if count % gps_ratio == 0:
         X, P = gps_meas_update(X, U, get_mat_upper(P), variance, noise, dt)
 
     # print(t, np.linalg.norm(P))
 
-    # q = X[:4]
-    # p = X[4:7]
-    # v = X[7:10]
-    # b_acc = X[10:13]
-    # b_gyr = X[13:16]
-    # print(f"q:{q}",
-    #       f"p:{p}",
-    #       f"v:{v}",
-    #       f"b_acc:{b_acc}",
-    #       f"b_gyr:{b_gyr}")
+    q = X[:4]
+    p = X[4:7]
+    v = X[7:10]
+    b_acc = X[10:13]
+    b_gyr = X[13:16]
+
+    gyro = U[:3]
+    accel = U[3:6]
+    print(
+          # f"q:{q}",
+          f"p:{p}",
+          # f"v:{v}",
+          # f"b_acc:{b_acc}",
+          # f"b_gyr:{b_gyr}"
+          # f"gyro:{gyro}",
+          # f"accel:{accel}",
+          )
     # print(P)
     # array_print(X)
     count += 1
     return X
 
 
-plotter = PyQtGraphPlotter(frame_rate=30, figsize=[10, 8], aspect="auto")
+if __name__ == "__main__":
+    # plotter = PyQtGraphPlotter(frame_rate=30, figsize=[10, 8], aspect="auto")
+    ######
+    # model = Model.from_file(f"{JAPL_HOME_DIR}/data/ekf_expr.japl")
+    model = Model.from_file(f"{JAPL_HOME_DIR}/data/ekf_expr.japl")
+    simobj = SimObject(model)
+    simobj.init_state([X, get_mat_upper(P)])
+    # Y = simobj.X0
+    # ret = simobj.get_state_array(Y, "P")
+    # print(ret)
+    # quit()
+    ######
 
-print("Building Model...")
-model = Model.from_function(dt, state, input,
-                            state_update_func=ekf_step,
-                            input_update_func=ekf_input_update)
-simobj = SimObject(model)
-simobj.init_state(X)
-simobj.plot.set_config({
+    # print("Building Model...")
+    # model = Model.from_function(dt, state, input,
+    #                             state_update_func=ekf_step,
+    #                             input_update_func=ekf_input_update)
+    # simobj = SimObject(model)
+    # simobj.init_state(X)
+    simobj.plot.set_config({
 
-    "E": {
-        "xaxis": 'time',
-        "yaxis": 'pos_e',
-        "marker": 'o',
-        },
-    "U": {
-        "xaxis": 't',
-        "yaxis": 'pos_d',
-        "marker": 'o',
-        },
-    # "EU": {
-    #     "xaxis": 'pos_e',
-    #     "yaxis": 'pos_d',
-    #     "marker": 'o',
-    #     },
+        # "E": {
+        #     "xaxis": 'time',
+        #     "yaxis": 'pos_e',
+        #     "marker": 'o',
+        #     },
+        # "N": {
+        #     "xaxis": 'time',
+        #     "yaxis": 'pos_n',
+        #     "marker": 'o',
+        #     "color": "orange",
+        #     },
+        # "U": {
+        #     "xaxis": 't',
+        #     "yaxis": 'pos_d',
+        #     "marker": 'o',
+        #     "color": "green",
+        #     },
 
-    # "accel-x": {
-    #     "xaxis": 't',
-    #     "yaxis": 'z_accel_x',
-    #     "marker": 'o',
-    #     },
-    # "accel-y": {
-    #     "xaxis": 't',
-    #     "yaxis": 'z_accel_y',
-    #     "marker": 'o',
-    #     "color": "orange",
-    #     },
-    # "accel-z": {
-    #     "xaxis": 't',
-    #     "yaxis": 'z_accel_z',
-    #     "marker": 'o',
-    #     "color": "green",
-    #     },
+        "EU": {
+            "xaxis": 'pos_e',
+            "yaxis": 'pos_d',
+            "marker": 'o',
+            # "xlim": [-1, 1],
+            # "ylim": [-1, 1]
+            },
 
-    })
+        # "accel-x": {
+        #     "xaxis": 't',
+        #     "yaxis": 'z_accel_x',
+        #     "marker": 'o',
+        #     },
+        # "accel-y": {
+        #     "xaxis": 't',
+        #     "yaxis": 'z_accel_y',
+        #     "marker": 'o',
+        #     "color": "orange",
+        #     },
+        # "accel-z": {
+        #     "xaxis": 't',
+        #     "yaxis": 'z_accel_z',
+        #     "marker": 'o',
+        #     "color": "green",
+        #     },
 
-print("Starting Sim...")
-sim = Sim([0, 50], 0.01, [simobj])
-sim.run()
-sim.profiler.print_info()
-# plotter.animate(sim)
+        })
 
-iaccel_z = simobj.model.get_input_id("z_accel_z")
-ipos_n = simobj.model.get_state_id("pos_n")
-ipos_e = simobj.model.get_state_id("pos_e")
-ipos_d = simobj.model.get_state_id("pos_d")
-T = sim.T
-accel_z = simobj.U[:, iaccel_z]
-pos_n = simobj.Y[:, ipos_n]
-pos_e = simobj.Y[:, ipos_e]
-pos_d = simobj.Y[:, ipos_d]
+    print("Starting Sim...")
+    sim = Sim([0, 1], 0.01, [simobj])
+    sim.run()
+    sim.profiler.print_info()
+    # plotter.animate(sim)
 
-plotter.plot(T, pos_n)
-plotter.plot(T, pos_e)
-plotter.plot(T, pos_d)
-plotter.show()
+    iaccel_z = simobj.model.get_input_id("z_accel_z")
+    ipos_n = simobj.model.get_state_id("pos_n")
+    ipos_e = simobj.model.get_state_id("pos_e")
+    ipos_d = simobj.model.get_state_id("pos_d")
+    T = sim.T
+    accel_z = simobj.U[:, iaccel_z]
+    pos_n = simobj.Y[:, ipos_n]
+    pos_e = simobj.Y[:, ipos_e]
+    pos_d = simobj.Y[:, ipos_d]
+
+    # plotter.plot(T, pos_n)
+    # plotter.plot(T, pos_e)
+    # plotter.plot(T, pos_d)
+    # plotter.show()
+
+    Y = simobj.Y[-1]
+    print(simobj.get_state_array(Y, "P"))
+    # quit()
