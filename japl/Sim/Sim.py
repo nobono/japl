@@ -284,6 +284,7 @@ class Sim:
                             self.T = self.T[:self.istep + 1]
                             simobj.Y = simobj.Y[:self.istep + 1]
                             simobj.U = simobj.U[:self.istep + 1]
+                            simobj._set_T_array_ref(self.T)
                             flag_sim_stop = True
                         case _:
                             pass
