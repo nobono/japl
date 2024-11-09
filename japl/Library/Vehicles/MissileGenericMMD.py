@@ -751,52 +751,58 @@ if __name__ == "__main__":
                                               definitions=defs,
                                               use_multiprocess_build=True)
 
-    # model.save(path=JAPL_HOME_DIR + "/../mmd/", name="mmd")
+    ##################################################
+    # Python CodeGen
+    ##################################################
+    # # model.save(path=JAPL_HOME_DIR + "/../mmd/", name="mmd")
 
-    path = "./"
-    imports = ["from config import aerotable_get_CA",
-               "from config import aerotable_get_CNB",
-               "from config import aerotable_get_Sref",
-               "from config import atmosphere_density",
-               "from config import atmosphere_speed_of_sound",
-               "from config import aerotable_inv_aerodynamics"]
+    # path = "./"
+    # imports = ["from config import aerotable_get_CA",
+    #            "from config import aerotable_get_CNB",
+    #            "from config import aerotable_get_Sref",
+    #            "from config import atmosphere_density",
+    #            "from config import atmosphere_speed_of_sound",
+    #            "from config import aerotable_inv_aerodynamics"]
 
-    to_pycode(func_name="dynamics_func",
-              expr=model.dynamics_expr,
-              state_vars=state,
-              input_vars=input,
-              static_vars=static,
-              filepath=os.path.join(path, "mmd_dynamics.py"),
-              imports=imports)
+    # to_pycode(func_name="dynamics_func",
+    #           expr=model.dynamics_expr,
+    #           state_vars=state,
+    #           input_vars=input,
+    #           static_vars=static,
+    #           filepath=os.path.join(path, "mmd_dynamics.py"),
+    #           imports=imports)
 
-    to_pycode(func_name="state_update_func",
-              expr=model.state_direct_updates,
-              state_vars=state,
-              input_vars=input,
-              static_vars=static,
-              filepath=os.path.join(path, "mmd_state_update.py"),
-              imports=imports)
+    # to_pycode(func_name="state_update_func",
+    #           expr=model.state_direct_updates,
+    #           state_vars=state,
+    #           input_vars=input,
+    #           static_vars=static,
+    #           filepath=os.path.join(path, "mmd_state_update.py"),
+    #           imports=imports)
 
-    to_pycode(func_name="input_update_func",
-              expr=model.input_direct_updates,
-              state_vars=state,
-              input_vars=input,
-              static_vars=static,
-              filepath=os.path.join(path, "mmd_input_update.py"),
-              imports=imports)
+    # to_pycode(func_name="input_update_func",
+    #           expr=model.input_direct_updates,
+    #           state_vars=state,
+    #           input_vars=input,
+    #           static_vars=static,
+    #           filepath=os.path.join(path, "mmd_input_update.py"),
+    #           imports=imports)
 
-    # gen = CCodeGenerator()
-    # params = [t, state, input, static, dt]
-    # gen.add_function(expr=model.dynamics_expr,
-    #                  params=params,
-    #                  function_name="dynamics",
-    #                  return_name="Xdot")
-    # gen.add_function(expr=model.state_direct_updates,
-    #                  params=params,
-    #                  function_name="state_updates",
-    #                  return_name="Xnew")
-    # gen.add_function(expr=model.input_direct_updates,
-    #                  params=params,
-    #                  function_name="input_updates",
-    #                  return_name="Unew")
-    # gen.create_module(module_name="mmd", path="./")
+    ##################################################
+    # C++ CodeGen
+    ##################################################
+    gen = CCodeGenerator()
+    params = [t, state, input, static, dt]
+    gen.add_function(expr=model.dynamics_expr,
+                     params=params,
+                     function_name="dynamics",
+                     return_name="Xdot")
+    gen.add_function(expr=model.state_direct_updates,
+                     params=params,
+                     function_name="state_updates",
+                     return_name="Xnew")
+    gen.add_function(expr=model.input_direct_updates,
+                     params=params,
+                     function_name="input_updates",
+                     return_name="Unew")
+    gen.create_module(module_name="mmd", path="./")
