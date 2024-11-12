@@ -2,6 +2,11 @@ from textwrap import dedent
 from japl import Atmosphere
 
 
+# This files is used to generate data arrays used for atmosphere
+# interpolation to header files. Datatables are colleced from python
+# library Atmosphere which in turn uses the Ambiance python lib.
+
+
 atmos = Atmosphere()
 iters = [atmos._alts,
          atmos._atmos.pressure,
