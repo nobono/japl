@@ -353,6 +353,71 @@ public:
       return result[0];
     }
 
+    double operator()(py::tuple args) const {
+        const int naxes = args.size();
+        vector<dVec> axes(naxes);
+        vector<dVec> points;
+
+        for (size_t i=0; i<naxes; ++i) {
+            py::array axis = args[i];
+            axes[i] = array_t_to_vector(axis);
+        }
+
+        // iterate over each axis to create list of points
+        const int npoints = axes[0].size();
+        points.resize(npoints);
+        for (size_t i=0; i<npoints; i++) {
+            dVec point(naxes);
+            for (size_t j=0; j<naxes; j++) {
+                point[j] = axes[j][i];
+            }
+            points[i] = point;
+        }
+
+        vector<T> result(npoints);
+        array< vector<T>, N > coord_iter;
+        for (int i=0; i<N; i++) {
+            coord_iter[i].resize(npoints);
+            for (int j=0; j<npoints; j++) {
+              coord_iter[i][j] = points[j][i];
+          }
+        }
+
+        interp_vec(npoints, coord_iter.begin(), coord_iter.end(), result.begin());
+        return result[0];
+    }
+
+    double operator()(double args) const {
+        // same as interpolate() but only interpolates one
+        // point and returns double
+        const int naxes = 1; // args.size();
+        vector<dVec> axes = {{args}};
+        vector<dVec> points;
+
+        // iterate over each axis to create list of points
+        const int npoints = axes[0].size();
+        points.resize(npoints);
+        for (size_t i=0; i<npoints; i++) {
+            dVec point(naxes);
+            for (size_t j=0; j<naxes; j++) {
+                point[j] = axes[j][i];
+            }
+            points[i] = point;
+        }
+
+        vector<T> result(npoints);
+        array< vector<T>, N > coord_iter;
+        for (int i=0; i<N; i++) {
+            coord_iter[i].resize(npoints);
+            for (int j=0; j<npoints; j++) {
+              coord_iter[i][j] = points[j][i];
+          }
+        }
+
+        interp_vec(npoints, coord_iter.begin(), coord_iter.end(), result.begin());
+        return result[0];
+    }
+
     py::array_t<double> interpolate(py::tuple args) const {
 
         const int naxes = args.size();
@@ -434,55 +499,18 @@ public:
     }
     };	
 
-// typedef InterpSimplex<1,double> NDInterpolator_1_S;
-// typedef InterpSimplex<2,double> NDInterpolator_2_S;
-// typedef InterpSimplex<3,double> NDInterpolator_3_S;
-// typedef InterpSimplex<4,double> NDInterpolator_4_S;
-// typedef InterpSimplex<5,double> NDInterpolator_5_S;
+
 typedef InterpMultilinear<1,double> NDInterpolator_1_ML;
 typedef InterpMultilinear<2,double> NDInterpolator_2_ML;
 typedef InterpMultilinear<3,double> NDInterpolator_3_ML;
 typedef InterpMultilinear<4,double> NDInterpolator_4_ML;
 typedef InterpMultilinear<5,double> NDInterpolator_5_ML;
 
-// // C interface
-// extern "C" {
-//   void linterp_simplex_1(double **grids_begin, int *grid_len_begin, double *pF, int xi_len, double **xi_begin, double *pResult);
-//   void linterp_simplex_2(double **grids_begin, int *grid_len_begin, double *pF, int xi_len, double **xi_begin, double *pResult);
-//   void linterp_simplex_3(double **grids_begin, int *grid_len_begin, double *pF, int xi_len, double **xi_begin, double *pResult);  
-// }
 
-// void inline linterp_simplex_1(double **grids_begin, int *grid_len_begin, double *pF, int xi_len, double **xi_begin, double *pResult) {
-//   const int N=1;
-//   size_t total_size = 1;  
-//   for (int i=0; i<N; i++)	{     
-// 	total_size *= grid_len_begin[i];
-//   }      
-//   InterpSimplex<N, double, false> interp_obj(grids_begin, grid_len_begin, pF, pF + total_size);
-//   interp_obj.interp_vec(xi_len, xi_begin, xi_begin + N, pResult);
-// }
+vector<double> get_grid_point(vector<dVec> const &gridList, vector<int> const &index);
 
-// void inline linterp_simplex_2(double **grids_begin, int *grid_len_begin, double *pF, int xi_len, double **xi_begin, double *pResult) {
-//   const int N=2;
-//   size_t total_size = 1;  
-//   for (int i=0; i<N; i++)	{     
-// 	total_size *= grid_len_begin[i];
-//   }      
-//   InterpSimplex<N, double, false> interp_obj(grids_begin, grid_len_begin, pF, pF + total_size);
-//   interp_obj.interp_vec(xi_len, xi_begin, xi_begin + N, pResult);
-// }
-
-// void inline linterp_simplex_3(double **grids_begin, int *grid_len_begin, double *pF, int xi_len, double **xi_begin, double *pResult) {
-//   const int N=3;
-//   size_t total_size = 1;  
-//   for (int i=0; i<N; i++)	{     
-// 	total_size *= grid_len_begin[i];
-//   }      
-//   InterpSimplex<N, double, false> interp_obj(grids_begin, grid_len_begin, pF, pF + total_size);
-//   interp_obj.interp_vec(xi_len, xi_begin, xi_begin + N, pResult);
-// }
-
-
+template <class IterT>
+std::pair<vector<typename IterT::value_type::const_iterator>, vector<typename IterT::value_type::const_iterator> > get_begins_ends(IterT iters_begin, IterT iters_end);
 
 
 #endif //_linterp_h
