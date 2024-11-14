@@ -17,9 +17,11 @@ InterpMultilinear<N, T> AeroTable::create_interp_N(pybind11::tuple& axes, pybind
         f_sizes[i] = f_gridList[i].size();
     }
 
+    py::array_t<double> flat = data.attr("flatten")().cast<py::array_t<double>>();
+
     auto begins_ends = get_begins_ends(f_gridList.begin(), f_gridList.end());
     InterpMultilinear<N, T> interp_multilinear(begins_ends.first.begin(), f_sizes,
-                                           data.data(), data.data() + data.size());
+                                           flat.data(), flat.data() + flat.size());
 
     // store values to make interp class pickeable
     interp_multilinear._f_gridList = f_gridList;
