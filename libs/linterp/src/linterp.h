@@ -118,6 +118,30 @@ public:
 
     NDInterpolator() = default;
 
+    NDInterpolator(pybind11::tuple& axes, pybind11::array_t<double>& data) {
+        // store axes in gridList
+        vector<dVec> f_gridList = process_tuple_of_arrays(axes);
+
+        // create f_sizes
+        vector<int> f_sizes(N);
+        for (int i=0;i<f_gridList.size();i++) {
+            f_sizes[i] = f_gridList[i].size();
+        }
+
+        py::array_t<double> flat = data.attr("flatten")().cast<py::array_t<double>>();
+
+        auto begins_ends = get_begins_ends(f_gridList.begin(), f_gridList.end());
+        // InterpMultilinear<N, T> interp_multilinear(begins_ends.first.begin(), f_sizes,
+        //                                        data.data(), data.data() + data.size());
+
+        // store values to make interp class pickeable
+        // interp_multilinear._f_gridList = f_gridList;
+        // interp_multilinear._f_sizes = f_sizes;
+        // interp_multilinear._data = data.attr("copy")();
+        // return interp_multilinear;
+        init(begins_ends.first.begin(), f_sizes, flat.data(), flat.data() + flat.size());
+    }
+
     // constructors assume that [f_begin, f_end) is a contiguous array in C-order  
     // non ref-counted constructor.
     template <class IterT1, class IterT2, class IterT3>  
@@ -327,6 +351,10 @@ public:
     typedef NDInterpolator<N,T,CopyData,Continuous,ArrayRefCountT,GridRefCountT> super;
 
     InterpMultilinear() = default;
+
+    InterpMultilinear(pybind11::tuple& axes, pybind11::array_t<double>& data)
+      : super(axes, data)
+    {}
     
     template <class IterT1, class IterT2, class IterT3>  
     InterpMultilinear(IterT1 grids_begin, IterT2 grids_len_begin, IterT3 f_begin, IterT3 f_end)
@@ -519,11 +547,11 @@ typedef InterpMultilinear<4,double> NDInterpolator_4_ML;
 typedef InterpMultilinear<5,double> NDInterpolator_5_ML;
 
 // pybind factory for creating interpolation objects
-NDInterpolator_1_ML create_interp_1(pybind11::tuple axes, pybind11::array_t<double> data);
-NDInterpolator_2_ML create_interp_2(pybind11::tuple axes, pybind11::array_t<double> data);
-NDInterpolator_3_ML create_interp_3(pybind11::tuple axes, pybind11::array_t<double> data);
-NDInterpolator_4_ML create_interp_4(pybind11::tuple axes, pybind11::array_t<double> data);
-NDInterpolator_5_ML create_interp_5(pybind11::tuple axes, pybind11::array_t<double> data);
+// NDInterpolator_1_ML create_interp_1(pybind11::tuple axes, pybind11::array_t<double> data);
+// NDInterpolator_2_ML create_interp_2(pybind11::tuple axes, pybind11::array_t<double> data);
+// NDInterpolator_3_ML create_interp_3(pybind11::tuple axes, pybind11::array_t<double> data);
+// NDInterpolator_4_ML create_interp_4(pybind11::tuple axes, pybind11::array_t<double> data);
+// NDInterpolator_5_ML create_interp_5(pybind11::tuple axes, pybind11::array_t<double> data);
 
 
 #endif //_linterp_h
