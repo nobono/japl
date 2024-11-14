@@ -93,9 +93,11 @@ NDInterpolator_1_ML create_interp_1(pybind11::tuple axes, pybind11::array_t<doub
         f_sizes[i] = f_gridList[i].size();
     }
 
+    py::array_t<double> flat = data.attr("flatten")().cast<py::array_t<double>>();
+
     auto begins_ends = get_begins_ends(f_gridList.begin(), f_gridList.end());
     NDInterpolator_1_ML interp_multilinear(begins_ends.first.begin(), f_sizes,
-                                           data.data(), data.data() + data.size());
+                                           flat.data(), flat.data() + flat.size());
     // store values to make interp class pickeable
     interp_multilinear._f_gridList = f_gridList;
     interp_multilinear._f_sizes = f_sizes;
@@ -114,9 +116,11 @@ NDInterpolator_2_ML create_interp_2(pybind11::tuple axes, pybind11::array_t<doub
         f_sizes[i] = f_gridList[i].size();
     }
 
+    py::array_t<double> flat = data.attr("flatten")().cast<py::array_t<double>>();
+
     auto begins_ends = get_begins_ends(f_gridList.begin(), f_gridList.end());
     NDInterpolator_2_ML interp_multilinear(begins_ends.first.begin(), f_sizes,
-                                           data.data(), data.data() + data.size());
+                                           flat.data(), flat.data() + flat.size());
 
     interp_multilinear._f_gridList = f_gridList;
     interp_multilinear._f_sizes = f_sizes;
@@ -135,9 +139,11 @@ NDInterpolator_3_ML create_interp_3(pybind11::tuple axes, pybind11::array_t<doub
         f_sizes[i] = f_gridList[i].size();
     }
 
+    py::array_t<double> flat = data.attr("flatten")().cast<py::array_t<double>>();
+
     auto begins_ends = get_begins_ends(f_gridList.begin(), f_gridList.end());
     NDInterpolator_3_ML interp_multilinear(begins_ends.first.begin(), f_sizes,
-                                           data.data(), data.data() + data.size());
+                                           flat.data(), flat.data() + flat.size());
     interp_multilinear._f_gridList = f_gridList;
     interp_multilinear._f_sizes = f_sizes;
     interp_multilinear._data = data.attr("copy")();
@@ -155,9 +161,11 @@ NDInterpolator_4_ML create_interp_4(pybind11::tuple axes, pybind11::array_t<doub
         f_sizes[i] = f_gridList[i].size();
     }
 
+    py::array_t<double> flat = data.attr("flatten")().cast<py::array_t<double>>();
+
     auto begins_ends = get_begins_ends(f_gridList.begin(), f_gridList.end());
     NDInterpolator_4_ML interp_multilinear(begins_ends.first.begin(), f_sizes,
-                                           data.data(), data.data() + data.size());
+                                           flat.data(), flat.data() + flat.size());
 
     interp_multilinear._f_gridList = f_gridList;
     interp_multilinear._f_sizes = f_sizes;
@@ -176,9 +184,11 @@ NDInterpolator_5_ML create_interp_5(pybind11::tuple axes, pybind11::array_t<doub
         f_sizes[i] = f_gridList[i].size();
     }
 
+    py::array_t<double> flat = data.attr("flatten")().cast<py::array_t<double>>();
+
     auto begins_ends = get_begins_ends(f_gridList.begin(), f_gridList.end());
     NDInterpolator_5_ML interp_multilinear(begins_ends.first.begin(), f_sizes,
-                                           data.data(), data.data() + data.size());
+                                           flat.data(), flat.data() + flat.size());
 
     interp_multilinear._f_gridList = f_gridList;
     interp_multilinear._f_sizes = f_sizes;
