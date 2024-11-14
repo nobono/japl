@@ -934,7 +934,8 @@ class AeroTable:
         return stage.CNB_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
 
 
-    def _get_table_args(self, table: DataTable, **kwargs) -> tuple:
+    @staticmethod
+    def _get_table_args(table: DataTable, **kwargs) -> tuple:
         """This method handles arguments passed to DataTables dynamically
         according to the arguments passed and the axis_labels of the table
         being accessed."""
