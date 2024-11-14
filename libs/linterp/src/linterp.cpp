@@ -85,24 +85,17 @@ vector<dVec> process_tuple_of_arrays(pybind11::tuple input_tuple) {
 NDInterpolator_1_ML create_interp_1(pybind11::tuple axes, pybind11::array_t<double> data) {
     // store axes in gridList
     vector<dVec> f_gridList = process_tuple_of_arrays(axes);
+
     // create f_sizes
     const int N = f_gridList.size();
     vector<int> f_sizes(N);
     for (int i=0;i<f_gridList.size();i++) {
         f_sizes[i] = f_gridList[i].size();
     }
-    // process table values
-    pybind11::array_t<double> f(f_sizes);
-    vector<int> index(N);
-    vector<double> arg(N);
-    for (int i=0; i<f_sizes[0]; i++) {
-        index[0] = i;
-        arg = get_grid_point(f_gridList, index);
-        f.mutable_at(i) = *data.data(i);
-    }
+
     auto begins_ends = get_begins_ends(f_gridList.begin(), f_gridList.end());
     NDInterpolator_1_ML interp_multilinear(begins_ends.first.begin(), f_sizes,
-                                           f.data(), f.data() + f.size());
+                                           data.data(), data.data() + data.size());
     // store values to make interp class pickeable
     interp_multilinear._f_gridList = f_gridList;
     interp_multilinear._f_sizes = f_sizes;
@@ -113,126 +106,83 @@ NDInterpolator_1_ML create_interp_1(pybind11::tuple axes, pybind11::array_t<doub
 NDInterpolator_2_ML create_interp_2(pybind11::tuple axes, pybind11::array_t<double> data) {
     // store axes in gridList
     vector<dVec> f_gridList = process_tuple_of_arrays(axes);
+
     // create f_sizes
     const int N = f_gridList.size();
     vector<int> f_sizes(N);
     for (int i=0;i<f_gridList.size();i++) {
         f_sizes[i] = f_gridList[i].size();
     }
-    // process table values
-    pybind11::array_t<double> f(f_sizes);
-    vector<int> index(N);
-    vector<double> arg(N);
-    for (int i=0; i<f_sizes[0]; i++) {
-        for (int j=0; j<f_sizes[1]; j++) {
-            index[0] = i;
-            index[1] = j;
-            arg = get_grid_point(f_gridList, index);
-            f.mutable_at(i, j) = *data.data(i, j);
-        }
-    }
+
     auto begins_ends = get_begins_ends(f_gridList.begin(), f_gridList.end());
     NDInterpolator_2_ML interp_multilinear(begins_ends.first.begin(), f_sizes,
-                                           f.data(), f.data() + f.size());
+                                           data.data(), data.data() + data.size());
+
+    interp_multilinear._f_gridList = f_gridList;
+    interp_multilinear._f_sizes = f_sizes;
+    interp_multilinear._data = data.attr("copy")();
     return interp_multilinear;
 }
 
 NDInterpolator_3_ML create_interp_3(pybind11::tuple axes, pybind11::array_t<double> data) {
     // store axes in gridList
     vector<dVec> f_gridList = process_tuple_of_arrays(axes);
+
     // create f_sizes
     const int N = f_gridList.size();
     vector<int> f_sizes(N);
     for (int i=0;i<f_gridList.size();i++) {
         f_sizes[i] = f_gridList[i].size();
     }
-    // process table values
-    pybind11::array_t<double> f(f_sizes);
-    vector<int> index(N);
-    vector<double> arg(N);
-    for (int i=0; i<f_sizes[0]; i++) {
-        for (int j=0; j<f_sizes[1]; j++) {
-            for (int k=0; k<f_sizes[2]; k++) {
-                index[0] = i;
-                index[1] = j;
-                index[2] = k;
-                arg = get_grid_point(f_gridList, index);
-                f.mutable_at(i, j, k) = *data.data(i, j, k);
-            }
-        }
-    }
+
     auto begins_ends = get_begins_ends(f_gridList.begin(), f_gridList.end());
     NDInterpolator_3_ML interp_multilinear(begins_ends.first.begin(), f_sizes,
-                                           f.data(), f.data() + f.size());
+                                           data.data(), data.data() + data.size());
+    interp_multilinear._f_gridList = f_gridList;
+    interp_multilinear._f_sizes = f_sizes;
+    interp_multilinear._data = data.attr("copy")();
     return interp_multilinear;
 }
 
 NDInterpolator_4_ML create_interp_4(pybind11::tuple axes, pybind11::array_t<double> data) {
     // store axes in gridList
     vector<dVec> f_gridList = process_tuple_of_arrays(axes);
+
     // create f_sizes
     const int N = f_gridList.size();
     vector<int> f_sizes(N);
     for (int i=0;i<f_gridList.size();i++) {
         f_sizes[i] = f_gridList[i].size();
     }
-    // process table values
-    pybind11::array_t<double> f(f_sizes);
-    vector<int> index(N);
-    vector<double> arg(N);
-    for (int i=0; i<f_sizes[0]; i++) {
-        for (int j=0; j<f_sizes[1]; j++) {
-            for (int k=0; k<f_sizes[2]; k++) {
-                for (int l=0; l<f_sizes[3]; l++) {
-                    index[0] = i;
-                    index[1] = j;
-                    index[2] = k;
-                    index[3] = l;
-                    arg = get_grid_point(f_gridList, index);
-                    f.mutable_at(i, j, k, l) = *data.data(i, j, k, l);
-                }
-            }
-        }
-    }
+
     auto begins_ends = get_begins_ends(f_gridList.begin(), f_gridList.end());
     NDInterpolator_4_ML interp_multilinear(begins_ends.first.begin(), f_sizes,
-                                           f.data(), f.data() + f.size());
+                                           data.data(), data.data() + data.size());
+
+    interp_multilinear._f_gridList = f_gridList;
+    interp_multilinear._f_sizes = f_sizes;
+    interp_multilinear._data = data.attr("copy")();
     return interp_multilinear;
 }
 
 NDInterpolator_5_ML create_interp_5(pybind11::tuple axes, pybind11::array_t<double> data) {
     // store axes in gridList
     vector<dVec> f_gridList = process_tuple_of_arrays(axes);
+
     // create f_sizes
     const int N = f_gridList.size();
     vector<int> f_sizes(N);
     for (int i=0;i<f_gridList.size();i++) {
         f_sizes[i] = f_gridList[i].size();
     }
-    // process table values
-    pybind11::array_t<double> f(f_sizes);
-    vector<int> index(N);
-    vector<double> arg(N);
-    for (int i=0; i<f_sizes[0]; i++) {
-        for (int j=0; j<f_sizes[1]; j++) {
-            for (int k=0; k<f_sizes[2]; k++) {
-                for (int l=0; l<f_sizes[3]; l++) {
-                    for (int m=0; m<f_sizes[4]; m++) {
-                        index[0] = i;
-                        index[1] = j;
-                        index[2] = k;
-                        index[3] = l;
-                        index[4] = m;
-                        arg = get_grid_point(f_gridList, index);
-                        f.mutable_at(i, j, k, l, m) = *data.data(i, j, k, l, m);
-                    }
-                }
-            }
-        }
-    }
+
     auto begins_ends = get_begins_ends(f_gridList.begin(), f_gridList.end());
     NDInterpolator_5_ML interp_multilinear(begins_ends.first.begin(), f_sizes,
-                                           f.data(), f.data() + f.size());
+                                           data.data(), data.data() + data.size());
+
+    interp_multilinear._f_gridList = f_gridList;
+    interp_multilinear._f_sizes = f_sizes;
+    interp_multilinear._data = data.attr("copy")();
     return interp_multilinear;
 }
 
@@ -250,6 +200,8 @@ PYBIND11_MODULE(linterp, m) {
         .def(pybind11::init(&create_interp_1))
         .def("interpolate", &NDInterpolator_1_ML::interpolate, "interpolation method")
         .def("__call__", &NDInterpolator_1_ML::interpolate, "interpolation method")
+        .def_readonly("_f_gridList", &NDInterpolator_1_ML::_f_gridList, "")
+        .def_readonly("_data", &NDInterpolator_1_ML::_data, "")
         .def(py::pickle(
             [](const NDInterpolator_1_ML &p) { // __getstate__
                 /* Return a tuple that fully encodes the state of the object */
@@ -283,17 +235,25 @@ PYBIND11_MODULE(linterp, m) {
     pybind11::class_<NDInterpolator_2_ML>(m, "Interp2d")
         .def(pybind11::init(&create_interp_2))
         .def("interpolate", &NDInterpolator_2_ML::interpolate, "interpolation method")
-        .def("__call__", &NDInterpolator_2_ML::interpolate, "interpolation method");
+        .def("__call__", &NDInterpolator_2_ML::interpolate, "interpolation method")
+        .def_readonly("_f_gridList", &NDInterpolator_2_ML::_f_gridList, "")
+        .def_readonly("_data", &NDInterpolator_2_ML::_data, "");
     pybind11::class_<NDInterpolator_3_ML>(m, "Interp3d")
         .def(pybind11::init(&create_interp_3))
         .def("interpolate", &NDInterpolator_3_ML::interpolate, "interpolation method")
-        .def("__call__", &NDInterpolator_3_ML::interpolate, "interpolation method");
+        .def("__call__", &NDInterpolator_3_ML::interpolate, "interpolation method")
+        .def_readonly("_f_gridList", &NDInterpolator_3_ML::_f_gridList, "")
+        .def_readonly("_data", &NDInterpolator_3_ML::_data, "");
     pybind11::class_<NDInterpolator_4_ML>(m, "Interp4d")
         .def(pybind11::init(&create_interp_4))
         .def("interpolate", &NDInterpolator_4_ML::interpolate, "interpolation method")
-        .def("__call__", &NDInterpolator_4_ML::interpolate, "interpolation method");
+        .def("__call__", &NDInterpolator_4_ML::interpolate, "interpolation method")
+        .def_readonly("_f_gridList", &NDInterpolator_4_ML::_f_gridList, "")
+        .def_readonly("_data", &NDInterpolator_4_ML::_data, "");
     pybind11::class_<NDInterpolator_5_ML>(m, "Interp5d")
         .def(pybind11::init(&create_interp_5))
         .def("interpolate", &NDInterpolator_5_ML::interpolate, "interpolation method")
-        .def("__call__", &NDInterpolator_5_ML::interpolate, "interpolation method");
+        .def("__call__", &NDInterpolator_5_ML::interpolate, "interpolation method")
+        .def_readonly("_f_gridList", &NDInterpolator_5_ML::_f_gridList, "")
+        .def_readonly("_data", &NDInterpolator_5_ML::_data, "");
 }

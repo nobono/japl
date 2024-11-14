@@ -12,9 +12,16 @@ class DataTable(np.ndarray):
 
     def __new__(cls, input_array, axes: dict):
         input_array = cls.check_input_data(input_array)
-        obj = np.asarray(input_array).view(cls)
-        obj.axes = axes.copy()
-        obj.interp = None
+        data_table = np.asarray(input_array).view(cls)
+        obj = data_table
+        # allow None initialization for invalid DataTable
+        if input_array is None:
+            obj.axes = {}
+            obj.interp = None
+        else:
+            obj.axes = axes.copy()
+            _axes = obj._get_table_args(table=data_table, **axes)
+            obj.interp = LinearInterp(_axes, data_table)
         return obj
 
 
@@ -49,12 +56,8 @@ class DataTable(np.ndarray):
         if (mach is not None) and ("mach" in self.axes):
             mach = np.clip(mach, self.axes["mach"].min(), self.axes["mach"].max())
 
-        # create interpolation object on first execution
-        if self.interp is None:
-            axes = self._get_table_args(table=self, **self.axes)
-            self.interp = LinearInterp(axes, self)
         args = self._get_table_args(table=self, alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
-        ret = self.interp(args)
+        ret = self.interp(args)  # type:ignore
         if len(ret.shape) < 1:
             return ret.item()  # type:ignore
         else:
@@ -114,7 +117,8 @@ class DataTable(np.ndarray):
             return False
 
 
-    def _get_table_args(self, table: "DataTable", **kwargs) -> tuple:
+    @staticmethod
+    def _get_table_args(table: "DataTable", **kwargs) -> tuple:
         """This method handles arguments passed to DataTables dynamically
         according to the arguments passed and the axes of the table
         being accessed."""
