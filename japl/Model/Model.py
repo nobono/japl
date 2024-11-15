@@ -278,22 +278,21 @@ class Model:
         model.dynamics_expr = dynamics_expr
         model.state_direct_updates = state_direct_updates
         model.input_direct_updates = input_direct_updates
-        model.direct_state_update_func = model.__process_direct_state_updates(state_direct_updates)
-        model.direct_input_update_func = model.__process_direct_state_updates(input_direct_updates)
+        # model.direct_state_update_func = model.__process_direct_state_updates(state_direct_updates)
+        # model.direct_input_update_func = model.__process_direct_state_updates(input_direct_updates)
         model.state_dim = len(model.state_vars)
         model.input_dim = len(model.input_vars)
         model.static_dim = len(model.static_vars)
         # create lambdified function from symbolic expression
-        # dyn_vars = (Symbol("t"),) + model.vars
-        match dynamics_expr.__class__():  # type:ignore
-            case Expr():
-                model.dynamics_func = model.__process_direct_state_updates(dynamics_expr)
-            case Matrix():
-                model.dynamics_func = model.__process_direct_state_updates(dynamics_expr)
-            case MatrixSymbol():
-                model.dynamics_func = model.__process_direct_state_updates(dynamics_expr)
-            case _:
-                raise Exception("function provided is not Callable.")
+        # match dynamics_expr.__class__():  # type:ignore
+        #     case Expr():
+        #         model.dynamics_func = model.__process_direct_state_updates(dynamics_expr)
+        #     case Matrix():
+        #         model.dynamics_func = model.__process_direct_state_updates(dynamics_expr)
+        #     case MatrixSymbol():
+        #         model.dynamics_func = model.__process_direct_state_updates(dynamics_expr)
+        #     case _:
+        #         raise Exception("function provided is not Callable.")
         return model
 
 
