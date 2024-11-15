@@ -270,12 +270,14 @@ C_ecef_to_body = C_body_to_ecef.T
 f_b_T = Matrix([thrust, 0, 0])
 
 Sref = aerotable.get_Sref()
+CYB = aerotable.get_CYB(alpha, np.nan, M, np.nan)
 CNB = aerotable.get_CNB(alpha, np.nan, M, alt, np.nan)
 CA = aerotable.get_CA(alpha, np.nan, M, alt, np.nan, thrust)
 
 f_b_A_x = CA * q_bar * Sref
+f_b_A_y = CYB * q_bar * Sref
 f_b_A_z = CNB * q_bar * Sref
-f_b_A = Matrix([f_b_A_x, 0, f_b_A_z])
+f_b_A = Matrix([f_b_A_x, f_b_A_y, f_b_A_z])
 
 # (6)
 # g_i_m = Matrix([gacc, 0, 0])
@@ -759,6 +761,7 @@ if __name__ == "__main__":
     # path = "./"
     # imports = ["from config import aerotable_get_CA",
     #            "from config import aerotable_get_CNB",
+    #            "from config import aerotable_get_CYB",
     #            "from config import aerotable_get_Sref",
     #            "from config import atmosphere_density",
     #            "from config import atmosphere_speed_of_sound",
