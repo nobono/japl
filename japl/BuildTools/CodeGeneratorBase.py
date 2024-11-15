@@ -137,17 +137,27 @@ class CodeGeneratorBase:
             return False
 
 
-    def _get_function_parameters(self, params: list[Any], by_reference: dict = {}) -> tuple[str, str]:
+    def _get_function_parameters(self, params: list[Any], by_reference: dict = {},
+                                 use_std_args: bool = False) -> tuple[str, str]:
         """returns names of paramters as a string. If Matrix or list of
         parameters provided as one of the parameters, return the string
         which unpacks the dummy variables."""
-        dummy_prefix = "_Dummy_var"
+        # use standard Model args [t, X, U, S, dt]
+        if use_std_args:
+            if len(params) != 5:
+                raise Exception("exactly 3 function arguments must be specified"
+                                "in order to use standard Model args in CodeGeneration."
+                                "[state, input, static].")
+            dummy_names = ["t", "_X_arg", "_U_arg", "_S_arg", "dt"]
+        else:
+            dummy_names = [f"_Dummy_var{i}" for i in range(25)]
+
         arg_names = []
         arg_unpack_str = ""
-        for i, param in enumerate(params):
+        for i, (param, dummy_name) in enumerate(zip(params, dummy_names)):
             if self._is_array_type(param):
                 # unpack iterable param
-                dummy_name = dummy_prefix + str(i)
+                # dummy_name = dummy_prefix + str(i)
 
                 # check if array of params should be
                 # pass-by-reference
