@@ -14,6 +14,7 @@ from japl.Model.StateRegister import StateRegister
 from japl.Util.Desym import Desym
 
 from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
+from japl.BuildTools.CCodeGenerator import CCodeGenerator
 from japl.BuildTools import BuildTools
 
 # ---------------------------------------------------
@@ -702,3 +703,23 @@ class Model:
             obj.set_input(obj.input_vars)
             obj.set_static(obj.static_vars)
         return obj
+
+
+    def create_c_module(self, name: str, path: str = "./"):
+        gen = CCodeGenerator(use_std_args=True)
+        t = Symbol("t", real=True)
+        dt = Symbol("dt", real=True)
+        params = [t, self.state_vars, self.input_vars, self.static_vars, dt]
+        gen.add_function(expr=self.dynamics_expr,
+                         params=params,
+                         function_name="Model::dynamics",
+                         return_name="Xdot")
+        gen.add_function(expr=self.state_direct_updates,
+                         params=params,
+                         function_name="Model::state_updates",
+                         return_name="Xnew")
+        gen.add_function(expr=self.input_direct_updates,
+                         params=params,
+                         function_name="Model::input_updates",
+                         return_name="Unew")
+        gen.create_module(module_name=name, path=path)
