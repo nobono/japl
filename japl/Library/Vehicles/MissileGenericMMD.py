@@ -16,7 +16,6 @@ from japl.BuildTools.DirectUpdate import DirectUpdate
 from japl.Aero.AeroTableSymbolic import AeroTableSymbolic
 from japl.Math.RotationSymbolic import ecef_to_lla_sym
 from japl.Library.Earth.Earth import Earth
-from japl.BuildTools.CCodeGenerator import CCodeGenerator
 from japl.Util.Util import flatten_list
 from japl.BuildTools.BuildTools import to_pycode
 from japl import JAPL_HOME_DIR
@@ -794,18 +793,4 @@ if __name__ == "__main__":
     ##################################################
     # C++ CodeGen
     ##################################################
-    gen = CCodeGenerator()
-    params = [t, state, input, static, dt]
-    gen.add_function(expr=model.dynamics_expr,
-                     params=params,
-                     function_name="dynamics",
-                     return_name="Xdot")
-    gen.add_function(expr=model.state_direct_updates,
-                     params=params,
-                     function_name="state_updates",
-                     return_name="Xnew")
-    gen.add_function(expr=model.input_direct_updates,
-                     params=params,
-                     function_name="input_updates",
-                     return_name="Unew")
-    gen.create_module(module_name="mmd", path="./")
+    model.create_c_module(name="mmd", path="./")
