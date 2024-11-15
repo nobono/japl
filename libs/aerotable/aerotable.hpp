@@ -29,10 +29,13 @@ public:
     map<string, int> table_info{
     {"CA", 1},
     {"CNB", 2},
+    {"CYB", 3},
     };
 
     table_t CA;
     table_t CNB;
+
+    AeroTable() = default;
 
     AeroTable(const py::kwargs& kwargs);
 
@@ -43,6 +46,11 @@ public:
         }
         return keys;
     }
+
+    double get_Sref(void);
+    double get_CA(double alpha, double phi, double mach, double alt, double iota);
+    double get_CNB(void);
+    double get_CYB(void);
 
 private:
     // Creates 1D NDInterpolator object from 2 vectors
