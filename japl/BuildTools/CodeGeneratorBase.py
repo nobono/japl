@@ -93,8 +93,8 @@ class CodeGeneratorBase:
 
 
     def _write_function_to_file(self, path: str, function_name: str, expr: Expr,
-                               input_vars: list|tuple, return_var: Expr|str,
-                               is_symmetric: bool = False):
+                                input_vars: list|tuple, return_var: Expr|str,
+                                is_symmetric: bool = False):
         self.file_name = path
         self.file = open(self.file_name, 'w')
         expr_replacements, expr_simple = cse(expr, symbols("X_temp0:1000"), optimizations='basic')
@@ -108,12 +108,12 @@ class CodeGeneratorBase:
         self._write_header()
         self._print_string("Equations for state matrix prediction")
         self._write_function_definition(name=function_name,
-                                       params=input_vars,
-                                       returns=[return_var])
+                                        params=input_vars,
+                                        returns=[return_var])
         self._write_subexpressions(expr_replacements)
         self._write_matrix(matrix=Matrix(expr_simple),
-                          variable=return_var,
-                          is_symmetric=is_symmetric)
+                           variable=return_var,
+                           is_symmetric=is_symmetric)
         self._write_function_returns(expr=expr, return_names=[return_var])
         self._write_lines("")
         self._write_footer()
