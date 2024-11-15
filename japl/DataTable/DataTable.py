@@ -15,6 +15,7 @@ class DataTable(np.ndarray):
         data_table = np.asarray(input_array).view(cls)
         obj = data_table
         # allow None initialization for invalid DataTable
+        # invalid DataTable will always return zero.
         if input_array is None:
             obj.axes = {}
             obj.interp = None
@@ -57,7 +58,11 @@ class DataTable(np.ndarray):
             mach = np.clip(mach, self.axes["mach"].min(), self.axes["mach"].max())
 
         args = self._get_table_args(table=self, alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
-        ret = self.interp(args)  # type:ignore
+        if self.interp is None:
+            # default return value: 0
+            return 0.0
+        else:
+            ret = self.interp(args)
         if len(ret.shape) < 1:
             return ret.item()  # type:ignore
         else:
