@@ -21,6 +21,14 @@ typedef variant<
     py::object>
 table_t;
 
+struct AeroTableArgs {
+    double alpha = 0;
+    double phi = 0;
+    double mach = 0;
+    double alt = 0;
+    double iota = 0;
+};
+
 
 class AeroTable {
 
@@ -34,6 +42,9 @@ public:
 
     table_t CA;
     table_t CNB;
+    table_t CYB;
+    double Sref;
+    double Lref;
 
     AeroTable() = default;
 
@@ -47,7 +58,8 @@ public:
         return keys;
     }
 
-    double get_Sref(void);
+    double get_Sref(void) {return Sref;};
+    double get_Lref(void) {return Lref;};
     double get_CA(double alpha, double phi, double mach, double alt, double iota);
     double get_CNB(void);
     double get_CYB(void);
