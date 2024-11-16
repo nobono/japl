@@ -40,24 +40,26 @@ class DataTable(np.ndarray):
         return ret
 
 
-    def __call__(self,
-                 alpha: Optional[ArgType] = None,
-                 phi: Optional[ArgType] = None,
-                 mach: Optional[ArgType] = None,
-                 alt: Optional[ArgType] = None,
-                 iota: Optional[ArgType] = None) -> float|np.ndarray:
-
+    # def __call__(self,
+    #              alpha: Optional[ArgType] = None,
+    #              phi: Optional[ArgType] = None,
+    #              mach: Optional[ArgType] = None,
+    #              alt: Optional[ArgType] = None,
+    #              iota: Optional[ArgType] = None) -> float|np.ndarray:
         # TODO do this better
         # lower boundary on altitude
-        if (alt is not None) and ("alt" in self.axes):
-            alt = np.clip(alt, self.axes["alt"].min(), self.axes["alt"].max())
+        # if (alt is not None) and ("alt" in self.axes):
+        #     alt = np.clip(alt, self.axes["alt"].min(), self.axes["alt"].max())
 
         # TODO do this better
         # protection / boundary for mach
-        if (mach is not None) and ("mach" in self.axes):
-            mach = np.clip(mach, self.axes["mach"].min(), self.axes["mach"].max())
+        # if (mach is not None) and ("mach" in self.axes):
+        #     mach = np.clip(mach, self.axes["mach"].min(), self.axes["mach"].max())
 
-        args = self._get_table_args(table=self, alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+
+    def __call__(self, *args, **kwargs) -> float|np.ndarray:
+        # args = DataTable._get_table_args(table=self, alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+        args = DataTable._get_table_args(table=self, *args, **kwargs)
         if self.interp is None:
             # default return value: 0
             return 0.0
@@ -93,10 +95,13 @@ class DataTable(np.ndarray):
         return input_array
 
 
-    def mirror_axis(self, axis_id: int) -> "DataTable":
+    def mirror_axis(self, axis_name: str) -> "DataTable":
         """This method mirrors a table axis and appends it to the top
         of the table. This is mainly to deal with increment arrays not reflected
         accross zero point."""
+        if axis_name not in self.axes:
+            raise Exception(f"cannot find axis name {axis_name} in table axes.")
+        axis_id = list(self.axes.keys()).index(axis_name)
         # reflect table axis across its zero-axis
         slice_tuple = np.array([slice(None) for _ in range(len(self.shape))], dtype=object)
         slice_tuple.put(axis_id, slice(None, -1))  # type:ignore

@@ -468,12 +468,11 @@ class AeroTable:
         # check if alpha increments are reflected across zero
         # or need to be mirrored
         if Basic_axes["alpha"][0] == 0:
-            alpha_axis = 0
             for table_name in table_names:
                 _table = getattr(self, table_name)
                 if not _table.isnone():
                     if "alpha" in _table.axes:
-                        mirrored_table = _table.mirror_axis(alpha_axis)
+                        mirrored_table = _table.mirror_axis("alpha")
                         setattr(self, table_name, mirrored_table)
 
         # self.modules = {
