@@ -97,7 +97,6 @@ class DataTable(np.ndarray):
         return input_array
 
 
-
     @staticmethod
     def pad_with(vector, pad_width, iaxis, kwargs):
         flip_axis = kwargs["flip_axis"]
