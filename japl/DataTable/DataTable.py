@@ -60,6 +60,8 @@ class DataTable(np.ndarray):
     def __call__(self, *args, **kwargs) -> float|np.ndarray:
         # args = DataTable._get_table_args(table=self, alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
         args = DataTable._get_table_args(table=self, *args, **kwargs)
+        if len(args) != len(self.axes):
+            raise Exception(f"missing DataTable arguments for: {list(self.axes.keys())[len(args):]}")
         if self.interp is None:
             # default return value: 0
             return 0.0
@@ -95,22 +97,50 @@ class DataTable(np.ndarray):
         return input_array
 
 
+
+    @staticmethod
+    def pad_with(vector, pad_width, iaxis, kwargs):
+        flip_axis = kwargs["flip_axis"]
+        if flip_axis == iaxis:
+            if pad_width[0] > 0:
+                vec_to_reflect = vector[pad_width[0]:]
+                vector[:] = np.concatenate([-vec_to_reflect[::-1][:-1], vec_to_reflect])
+            elif pad_width[1] > 0:
+                vec_to_reflect = vector[pad_width[0]:]
+                vector[:] = np.concatenate([vec_to_reflect, -vec_to_reflect[::-1][:-1]])
+
+
     def mirror_axis(self, axis_name: str) -> "DataTable":
         """This method mirrors a table axis and appends it to the top
         of the table. This is mainly to deal with increment arrays not reflected
         accross zero point."""
         if axis_name not in self.axes:
             raise Exception(f"cannot find axis name {axis_name} in table axes.")
-        axis_id = list(self.axes.keys()).index(axis_name)
-        # reflect table axis across its zero-axis
-        slice_tuple = np.array([slice(None) for _ in range(len(self.shape))], dtype=object)
-        slice_tuple.put(axis_id, slice(None, -1))  # type:ignore
-        # reflect the axes info
-        axis_name = list(self.axes.keys())[axis_id]  # type:ignore
+
+        flip_axis = list(self.axes.keys()).index(axis_name)
+        axis = self.axes[axis_name]
+
+        # padding information
+        # see numpy.pad docs
+        pad_axes = ()
+        naxes = len(self.shape)
+        for iaxis in range(naxes):
+            if iaxis == flip_axis:
+                npadding = len(self.axes[axis_name]) - 1
+                if axis[0] == 0:
+                    pad_axes += ((npadding, 0),)
+                elif axis[-1] == 0:
+                    pad_axes += ((0, npadding),)
+            else:
+                pad_axes += ((0, 0),)
+
+        mirrored_table = np.pad(self, pad_axes, self.pad_with, flip_axis=flip_axis)
         axis_array = self.axes[axis_name]
-        mirrored_array = np.concatenate([-axis_array[::-1][:-1], axis_array])
-        self.axes[axis_name] = mirrored_array
-        return DataTable(np.concatenate([-self[::-1][*slice_tuple], self]), axes=self.axes)
+        mirrored_axis = np.concatenate([-axis_array[::-1][:-1], axis_array])
+
+        axes = self.axes.copy()
+        axes[axis_name] = mirrored_axis
+        return DataTable(mirrored_table, axes=axes)
 
 
     def isnone(self) -> bool:
