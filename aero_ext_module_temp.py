@@ -43,6 +43,7 @@ table = DataTable(data, daxes)
 # lt = LinearInterp(tuple([*t2.axes.values()]), np.array(t2), True)
 # t2.interp = lt  # type:ignore
 
+quit()
 diff_arg = "alpha"
 delta_alpha = np.radians(0.1)
 delta_arg = delta_alpha

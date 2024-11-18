@@ -21,7 +21,7 @@ class DataTable(np.ndarray):
             obj.interp = None
         else:
             obj.axes = axes.copy()
-            _axes = obj._get_table_args(table=data_table, **axes)
+            _axes = obj._get_table_args(**axes)
             obj.interp = LinearInterp(_axes, data_table)
         return obj
 
@@ -57,9 +57,8 @@ class DataTable(np.ndarray):
         #     mach = np.clip(mach, self.axes["mach"].min(), self.axes["mach"].max())
 
 
-    def __call__(self, *args, **kwargs) -> float|np.ndarray:
-        # args = DataTable._get_table_args(table=self, alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
-        args = DataTable._get_table_args(table=self, *args, **kwargs)
+    def __call__(self, **kwargs) -> float|np.ndarray:
+        args = self._get_table_args(**kwargs)
         if len(args) != len(self.axes):
             raise Exception(f"missing DataTable arguments for: {list(self.axes.keys())[len(args):]}")
         if self.interp is None:
@@ -156,13 +155,12 @@ class DataTable(np.ndarray):
             return False
 
 
-    @staticmethod
-    def _get_table_args(table: "DataTable", **kwargs) -> tuple:
+    def _get_table_args(self, **kwargs) -> tuple:
         """This method handles arguments passed to DataTables dynamically
         according to the arguments passed and the axes of the table
         being accessed."""
         args = ()
-        for label in table.axes:
+        for label in self.axes:
             arg_val = kwargs.get(label, None)
             if arg_val is not None:
                 args += (arg_val,)

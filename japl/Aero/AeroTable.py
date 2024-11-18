@@ -512,7 +512,7 @@ class AeroTable:
         min_alpha = min(table.axes.get(diff_arg))  # type:ignore
 
         # handle table args
-        val_args = self._get_table_args(table, **table.axes)
+        val_args = table._get_table_args(**table.axes)
         arg_grid = np.meshgrid(*val_args, indexing="ij")
         args = {str(k): v for k, v in zip(table.axes, arg_grid)}
 
