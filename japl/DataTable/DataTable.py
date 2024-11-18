@@ -8,7 +8,9 @@ ArgType = Union[float, list, np.ndarray]
 
 class DataTable(np.ndarray):
 
-    DEBUG = True  # debug flag allows extra checks for input args
+    """This class inherits from numpy.ndarray and is also a wrapper
+    for LinearInterp but includes additional checks for __call__()
+    arguments."""
 
     def __new__(cls, input_array, axes: dict):
         input_array = cls.check_input_data(input_array)
@@ -40,24 +42,17 @@ class DataTable(np.ndarray):
         return ret
 
 
-    # def __call__(self,
-    #              alpha: Optional[ArgType] = None,
-    #              phi: Optional[ArgType] = None,
-    #              mach: Optional[ArgType] = None,
-    #              alt: Optional[ArgType] = None,
-    #              iota: Optional[ArgType] = None) -> float|np.ndarray:
-        # TODO do this better
-        # lower boundary on altitude
-        # if (alt is not None) and ("alt" in self.axes):
-        #     alt = np.clip(alt, self.axes["alt"].min(), self.axes["alt"].max())
-
-        # TODO do this better
-        # protection / boundary for mach
-        # if (mach is not None) and ("mach" in self.axes):
-        #     mach = np.clip(mach, self.axes["mach"].min(), self.axes["mach"].max())
-
-
     def __call__(self, **kwargs) -> float|np.ndarray:
+        """Checks if kwargs matches table axes then calls LinearInterp.
+        Arguments
+        ----------
+        kwargs:
+            keyword args which should match table.axes dict
+
+        Returns
+        -------
+        float | numpy.ndarray
+        """
         args = self._get_table_args(**kwargs)
         if len(args) != len(self.axes):
             raise Exception(f"missing DataTable arguments for: {list(self.axes.keys())[len(args):]}")
