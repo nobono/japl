@@ -23,7 +23,7 @@ class CleanCommand(Command):
         shutil.rmtree('./build', ignore_errors=True)
         shutil.rmtree('./dist', ignore_errors=True)
         root_path = os.path.dirname(__file__)
-        file_patterns = ["*.so", "*.dll"]
+        file_patterns = ["*.so", "*.dll", "*.pyd"]
         for pattern in file_patterns:
             for file in glob.iglob(os.path.join(root_path, "**", pattern), recursive=True):
                 print("removing:", file)
