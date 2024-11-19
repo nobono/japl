@@ -239,11 +239,17 @@ class DataTable(np.ndarray):
 
         new_table2 = table2.reshape(new_shape2)
 
-        if new_s1_labels != new_s2_labels:
-            raise Exception(f"Error when aligning axes {new_s1_labels} != {new_s2_labels}")
+        # some checks
+        # if new_s1_labels != new_s2_labels:
+        #     # try to rearange table1
+        #     _combined_axes = {**table1.axes, **table2.axes}
+        #     # sort dict according to new labels1
+        #     _axes = {k: _combined_axes[k] for k in new_s1_labels}
+        #     table1 = DataTable(new_table1, axes=_axes)
+        #     raise Exception(f"Error when aligning axes {new_s1_labels} != {new_s2_labels}")
 
         combined_axes = {}
-        for label in new_s1_labels:
+        for label in new_s2_labels:
             if label in table1.axes:
                 combined_axes[label] = table1.axes[label]
             else:

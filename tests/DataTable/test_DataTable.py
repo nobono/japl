@@ -116,15 +116,21 @@ class TestDataTable(unittest.TestCase):
         self.assertTrue((ret == true).all())
 
 
-    # def test_add_case5(self):
-    #     """table add with different axes"""
-    #     axes2 = {"alpha": np.array([0., 1, 2]),
-    #              "alt": np.array([0., 1]),
-    #              "mach": np.array([0., 1, 2]),
-    #              }
-    #     data2 = np.ones((3, 2, 3))
-    #     t1 = DataTable(self.data, self.axes)
-    #     t2 = DataTable(data2, axes2)
+    def test_add_case5(self):
+        """table add with different axes.
+        This should be same as test_add_case4 when axes
+        are the same."""
+        axes2 = {"alpha": np.array([0., 1, 2]),
+                 "alt": np.array([0., 1]),
+                 "mach": np.array([0., 1, 2]),
+                 }
+        data2 = np.ones((3, 2, 3))
+        t1 = DataTable(self.data, self.axes)
+        t2 = DataTable(data2, axes2)
+
+        ret = t1 + t2
+        self.assertEqual(ret.shape, data2.shape)
+        self.assertEqual(tuple(ret.axes.keys()), tuple(axes2.keys()))
 
 
     def test_mul_case2(self):
