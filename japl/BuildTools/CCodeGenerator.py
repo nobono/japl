@@ -1,5 +1,6 @@
 import os
 import shutil
+from typing import Optional
 from tqdm import tqdm
 import numpy as np
 from japl.BuildTools.CodeGeneratorBase import CodeGeneratorBase
@@ -8,6 +9,7 @@ from sympy import Expr
 from sympy import Matrix
 from sympy import Symbol
 from sympy import cse
+from sympy import Piecewise
 from sympy.codegen.ast import float64, real
 from textwrap import dedent
 from japl.BuildTools.BuildTools import parallel_subs
@@ -43,11 +45,27 @@ class CCodeGenerator(CodeGeneratorBase):
         return ccode(expression, type_aliases={real: float64}, strict=self.strict)
 
 
+    def _handle_peicewise_recursive(self, expr: Expr) -> Expr:
+        def pw(expr) -> Optional[dict]:
+            if isinstance(expr, Piecewise):
+                return {expr: Symbol(self._get_code(expr))}
+            for arg in expr.args:
+                if arg.has(Piecewise):
+                    return pw(arg)
+
+        if expr.has(Piecewise):
+            ret = pw(expr)
+            if ret is not None:
+                expr = expr.subs(ret)  # type:ignore
+        return expr
+
+
     def _write_subexpressions(self, subexpressions: list|dict) -> str:
         if isinstance(subexpressions, dict):
             subexpressions = list(subexpressions.items())
         ret = ""
         for (lvalue, rvalue) in subexpressions:
+            rvalue = self._handle_peicewise_recursive(rvalue)  # handle Piecewise recursively
             assign_str = self._declare_variable(lvalue, prefix="const", assign=self._get_code(rvalue))  # type:ignore
             ret += assign_str
         return ret
@@ -575,6 +593,7 @@ class CCodeGenerator(CodeGeneratorBase):
         from setuptools.command.build_ext import build_ext
         from setuptools import Command
         from pybind11.setup_helpers import Pybind11Extension
+        from japl.global_opts import JAPL_HOME_DIR
 
 
 
