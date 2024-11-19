@@ -38,7 +38,9 @@ class DataTable(np.ndarray):
 
     def __repr__(self) -> str:
         ret = super().__repr__()
-        ret += f"\nAxis Info: {str(self.axes)}"
+        axis_info = [k + ': ' + str(v.shape) for k, v in self.axes.items()]
+        ret += f"\nShape: {self.shape}"
+        ret += f"\nAxis Info: {str(axis_info)}"
         return ret
 
 
