@@ -67,14 +67,16 @@ class DataTable(np.ndarray):
             return ret
 
 
-    def swap_to_label_order(self, labels : list[str]|tuple[str]) -> None:
+    def swap_to_label_order(self, set_labels : list[str]|tuple[str]):
         # NOTE: This isnt used
-        DEFAULT_LABEL_ORDER = ["alpha", "phi", "mach", "alt", "iota"]
+        # DEFAULT_LABEL_ORDER = ["alpha", "phi", "mach", "alt", "iota"]
+        current_labels = list(self.axes.keys())
         id_swap_order = []
-        for label in DEFAULT_LABEL_ORDER:
-            if label in labels:
-                id_swap_order += [labels.index(label)]
-        self.transpose(id_swap_order)
+        for label in set_labels:
+            if label in current_labels:
+                id_swap_order += [current_labels.index(label)]
+        self.axes = {key: self.axes[key] for key in set_labels}
+        return self.transpose(id_swap_order)
 
 
     @staticmethod
@@ -160,3 +162,120 @@ class DataTable(np.ndarray):
             if arg_val is not None:
                 args += (arg_val,)
         return args
+
+
+    @staticmethod
+    def _op_align_axes(table1: "DataTable",
+                       table2: "DataTable") -> tuple[np.ndarray, np.ndarray, dict]:
+        """operations between tables will be applied across dimensions of the same axis
+        definition.
+
+            a table with dimensions: ['alpha', 'mach'] + ['alpha', 'mach', 'alt']
+        will return: ['alpha', 'mach', 'alt'].
+        """
+        s1 = table1.shape
+        s2 = table2.shape
+        mapping = {}
+        used_axes_s2 = set()
+        unmatched_s1 = []
+
+        s1_sizes = list(s1)
+        s2_sizes = list(s2)
+
+        s1_labels = list(table1.axes.keys())
+        s2_labels = list(table2.axes.keys())
+
+        # map matching sizes between tables
+        for idx_s1, label_s1 in enumerate(s1_labels):
+            found = False
+            for idx_s2, label_s2 in enumerate(s2_labels):
+                if label_s1 == label_s2 and idx_s2 not in used_axes_s2:
+                    mapping[label_s1] = label_s2
+                    used_axes_s2.add(idx_s2)
+                    found = True
+                    break
+            if not found:
+                unmatched_s1.append((idx_s1, label_s1))
+
+        # create new shape for table1
+        new_shape1 = []
+        new_shape2 = list(s2)
+
+        new_s1_labels = s1_labels.copy()
+        new_s2_labels = s2_labels.copy()
+        for idx, label in unmatched_s1:
+            new_s2_labels.insert(idx, label)
+
+        # for each axis in table2, place size from table1 if mapped, else 1
+        for label_s2 in s2_labels:
+            # check if any axis in table1 maps to idx_s2
+            mapped_s1_axes = [label_s1 for label_s1, label_s2_mapped in mapping.items() if label_s2_mapped == label_s2]
+            if mapped_s1_axes:
+                label_s1 = mapped_s1_axes[0]
+                idx_s1 = s1_labels.index(label_s1)
+                size_s1 = s1_sizes[idx_s1]
+                new_shape1.append(size_s1)
+            else:
+                new_shape1.append(1)
+                new_s1_labels.append(label_s2)
+
+        for idx, label in unmatched_s1:
+            if label in table1.axes:
+                size = table1.axes[label].size
+            else:
+                size = table2.axes[label].size
+            new_shape1.insert(idx, size)
+
+        # reshape table1 to new shape
+        new_table1 = table1.reshape(new_shape1)
+
+        # build new shape for table2 by inserting size-1 dimensions for unmatched table1 dimensions
+        for idx, label in unmatched_s1:
+            if label in table1.axes:
+                size = table1.axes[label].size
+            else:
+                size = table2.axes[label].size
+            new_shape2.insert(idx, 1)
+
+        new_table2 = table2.reshape(new_shape2)
+
+        if new_s1_labels != new_s2_labels:
+            raise Exception(f"Error when aligning axes {new_s1_labels} != {new_s2_labels}")
+
+        combined_axes = {}
+        for label in new_s1_labels:
+            if label in table1.axes:
+                combined_axes[label] = table1.axes[label]
+            else:
+                combined_axes[label] = table2.axes[label]
+
+        return (np.asarray(new_table1), np.asarray(new_table2), combined_axes)
+
+
+    def __add__(self, other) -> "DataTable":
+        """addition operations between tables will be applied across dimensions of the same axis
+        definition.
+            a table with dimensions: ['alpha', 'mach'] + ['alpha', 'mach', 'alt']
+        will return: ['alpha', 'mach', 'alt'].
+        """
+        if isinstance(other, DataTable):
+            table1, table2, new_axes = self._op_align_axes(self, other)
+            return DataTable(table1 + table2, axes=new_axes)
+        else:
+            return super().__add__(other)
+
+
+    def __mul__(self, other) -> "DataTable":
+        if isinstance(other, DataTable):
+            table1, table2, new_axes = self._op_align_axes(self, other)
+            return DataTable(table1 * table2, axes=new_axes)
+        else:
+            return super().__mul__(other)
+
+
+    def __matmul__(self, other) -> "DataTable":
+        if isinstance(other, DataTable):
+            table1, table2, new_axes = self._op_align_axes(self, other)
+            return DataTable(table1 @ table2, axes=new_axes)
+        else:
+            return super().__matmul__(other)

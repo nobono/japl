@@ -54,6 +54,116 @@ class TestDataTable(unittest.TestCase):
         self.assertListEqual(mtable.axes["alpha"].tolist(), self.axes["alpha"].tolist())
 
 
+    def test_add_case2(self):
+        """table add"""
+        t1 = DataTable(self.data, self.axes)
+        t2 = DataTable(self.data, self.axes)
+        true = np.array([[0., 2., 4.],
+                         [6., 8., 10.],
+                         [12., 14., 16.]])
+        data = t1 + t2
+        self.assertTrue((true == data).all())
+        self.assertListEqual(data.axes["alpha"].tolist(), self.axes["alpha"].tolist())
+        self.assertListEqual(data.axes["mach"].tolist(), self.axes["mach"].tolist())
+
+
+    def test_op_align_axes(self):
+        axes2 = {"alpha": np.array([0., 1, 2]),
+                 "mach": np.array([0., 1, 2]),
+                 "alt": np.array([0., 1])}
+        data2 = np.ones((3, 2, 3))
+        t1 = DataTable(self.data, self.axes)
+        t2 = DataTable(data2, axes2)
+        table1, table2, new_axis = DataTable._op_align_axes(t1, t2)
+        true1 = [[[0.], [1.], [2.]],
+                 [[3.], [4.], [5.]],
+                 [[6.], [7.], [8.]]]
+        true2 = [[[1., 1., 1.,],
+                  [1., 1., 1.,]],
+                 [[1., 1., 1.,],
+                  [1., 1., 1.,]],
+                 [[1., 1., 1.,],
+                  [1., 1., 1.,]]]
+        self.assertListEqual(table1.tolist(), true1)
+        self.assertListEqual(table2.tolist(), true2)
+        self.assertTrue((new_axis["alpha"] == axes2["alpha"]).all())
+        self.assertTrue((new_axis["mach"] == axes2["mach"]).all())
+        self.assertTrue((new_axis["alt"] == axes2["alt"]).all())
+
+
+    def test_add_case3(self):
+        """scalar add"""
+        t1 = DataTable(self.data, self.axes)
+        true = np.array([[2., 3., 4.],
+                         [5., 6., 7.],
+                         [8., 9., 10.]])
+        data = t1 + 2
+        self.assertTrue((true == data).all())
+        self.assertListEqual(data.axes["alpha"].tolist(), self.axes["alpha"].tolist())
+        self.assertListEqual(data.axes["mach"].tolist(), self.axes["mach"].tolist())
+
+
+    def test_add_case4(self):
+        """table add with different axes"""
+        axes2 = {"alpha": np.array([0., 1, 2]),
+                 "mach": np.array([0., 1, 2]),
+                 "alt": np.array([0., 1])}
+        data2 = np.ones((3, 3, 2))
+        t1 = DataTable(self.data, self.axes)
+        t2 = DataTable(data2, axes2)
+        true = self.data[:, :, np.newaxis] + data2
+        ret = t1 + t2
+        self.assertTrue((ret == true).all())
+
+
+    # def test_add_case5(self):
+    #     """table add with different axes"""
+    #     axes2 = {"alpha": np.array([0., 1, 2]),
+    #              "alt": np.array([0., 1]),
+    #              "mach": np.array([0., 1, 2]),
+    #              }
+    #     data2 = np.ones((3, 2, 3))
+    #     t1 = DataTable(self.data, self.axes)
+    #     t2 = DataTable(data2, axes2)
+
+
+    def test_mul_case2(self):
+        """table mul"""
+        t1 = DataTable(self.data, self.axes)
+        t2 = DataTable(self.data, self.axes)
+        true = np.array([[0., 1., 4.],
+                         [9., 16., 25.],
+                         [36., 49., 64.]])
+        data = t1 * t2
+        self.assertTrue((true == data).all())
+        self.assertListEqual(data.axes["alpha"].tolist(), self.axes["alpha"].tolist())
+        self.assertListEqual(data.axes["mach"].tolist(), self.axes["mach"].tolist())
+
+
+    def test_mul_case3(self):
+        """table matmul"""
+        t1 = DataTable(self.data, self.axes)
+        t2 = DataTable(self.data, self.axes)
+        true = np.array([[15., 18., 21.],
+                         [42., 54., 66.],
+                         [69., 90., 111.]])
+        data = t1 @ t2
+        self.assertTrue((true == data).all())
+        self.assertListEqual(data.axes["alpha"].tolist(), self.axes["alpha"].tolist())
+        self.assertListEqual(data.axes["mach"].tolist(), self.axes["mach"].tolist())
+
+
+    def test_mul_case4(self):
+        """scalar mul"""
+        t1 = DataTable(self.data, self.axes)
+        true = np.array([[0., 2., 4.],
+                         [6., 8., 10.],
+                         [12., 14., 16.]])
+        data = t1 * 2
+        self.assertTrue((true == data).all())
+        self.assertListEqual(data.axes["alpha"].tolist(), self.axes["alpha"].tolist())
+        self.assertListEqual(data.axes["mach"].tolist(), self.axes["mach"].tolist())
+
 
 if __name__ == '__main__':
     unittest.main()
