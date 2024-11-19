@@ -458,7 +458,7 @@ public:
         return result[0];
     }
 
-    py::array_t<double> interpolate(py::tuple args) const {
+    py::array_t<double> interpolate(const py::tuple& args) const {
 
         const int naxes = args.size();
         vector<dVec> axes(naxes);
@@ -468,11 +468,6 @@ public:
             py::array axis = args[i];
             axes[i] = array_t_to_vector(axis);
         }
-
-        // ensure each axis has same dimensions
-        // printf("%lu\n", axes[0].size());
-        // printf("%lu\n", axes[1].size());
-        // printf("%lu\n", axes[2].size());
 
         // iterate over each axis to create list of points
         const int npoints = axes[0].size();
@@ -501,6 +496,28 @@ public:
         py::array axis0 = args[0];
         vector<ssize_t> shape(axis0.shape(), axis0.shape() + axis0.ndim());
         ret = ret.reshape(shape);
+        return ret;
+    }
+
+    py::array_t<double> interpolate(const vector<dVec>& points) const {
+
+        const int npoints = points.size();
+
+        // transpose input of [Npoints x Ndim] -> [Ndim x Npoints]
+        vector<dVec> coord_iter(N, vector<double>(npoints));
+        for (int i=0; i<npoints; ++i) {
+            for (int j=0; j<N; ++j) {
+                coord_iter[j][i] = points[i][j];
+            }
+        }
+
+        vector<T> result(npoints);
+        interp_vec(npoints, coord_iter.begin(), coord_iter.end(), result.begin());
+
+        // convert to numpy array
+        py::array_t<double> ret(result.size());
+        double* ret_ptr = static_cast<double*>(ret.mutable_data());
+        std::copy(result.begin(), result.end(), ret_ptr);
         return ret;
     }
         

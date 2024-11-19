@@ -208,8 +208,8 @@ typedef std::unique_ptr<array_type> array_type_ptr;
 PYBIND11_MODULE(linterp, m) {
     pybind11::class_<NDInterpolator_1_ML>(m, "Interp1d")
         .def(pybind11::init<py::tuple&, py::array_t<double>&>())
-        .def("interpolate", &NDInterpolator_1_ML::interpolate, "interpolation method")
-        .def("__call__", &NDInterpolator_1_ML::interpolate, "interpolation method")
+        .def("__call__", py::overload_cast<const py::tuple&>(&NDInterpolator_1_ML::interpolate, py::const_), "interpolation method")
+        .def("__call__", py::overload_cast<const vector<dVec>&>(&NDInterpolator_1_ML::interpolate, py::const_), "interpolation method")
         .def_readonly("_f_gridList", &NDInterpolator_1_ML::_f_gridList, "")
         .def_readonly("_data", &NDInterpolator_1_ML::_data, "")
         .def(py::pickle(
@@ -244,26 +244,26 @@ PYBIND11_MODULE(linterp, m) {
         ));
     pybind11::class_<NDInterpolator_2_ML>(m, "Interp2d")
         .def(pybind11::init<py::tuple&, py::array_t<double>&>())
-        .def("interpolate", &NDInterpolator_2_ML::interpolate, "interpolation method")
-        .def("__call__", &NDInterpolator_2_ML::interpolate, "interpolation method")
+        .def("__call__", py::overload_cast<const py::tuple&>(&NDInterpolator_2_ML::interpolate, py::const_), "interpolation method")
+        .def("__call__", py::overload_cast<const vector<dVec>&>(&NDInterpolator_2_ML::interpolate, py::const_), "interpolation method")
         .def_readonly("_f_gridList", &NDInterpolator_2_ML::_f_gridList, "")
         .def_readonly("_data", &NDInterpolator_2_ML::_data, "");
     pybind11::class_<NDInterpolator_3_ML>(m, "Interp3d")
         .def(pybind11::init<py::tuple&, py::array_t<double>&>())
-        .def("interpolate", &NDInterpolator_3_ML::interpolate, "interpolation method")
-        .def("__call__", &NDInterpolator_3_ML::interpolate, "interpolation method")
+        .def("__call__", py::overload_cast<const py::tuple&>(&NDInterpolator_3_ML::interpolate, py::const_), "interpolation method")
+        .def("__call__", py::overload_cast<const vector<dVec>&>(&NDInterpolator_3_ML::interpolate, py::const_), "interpolation method")
         .def_readonly("_f_gridList", &NDInterpolator_3_ML::_f_gridList, "")
         .def_readonly("_data", &NDInterpolator_3_ML::_data, "");
     pybind11::class_<NDInterpolator_4_ML>(m, "Interp4d")
         .def(pybind11::init<py::tuple&, py::array_t<double>&>())
-        .def("interpolate", &NDInterpolator_4_ML::interpolate, "interpolation method")
-        .def("__call__", &NDInterpolator_4_ML::interpolate, "interpolation method")
+        .def("__call__", py::overload_cast<const py::tuple&>(&NDInterpolator_4_ML::interpolate, py::const_), "interpolation method")
+        .def("__call__", py::overload_cast<const vector<dVec>&>(&NDInterpolator_4_ML::interpolate, py::const_), "interpolation method")
         .def_readonly("_f_gridList", &NDInterpolator_4_ML::_f_gridList, "")
         .def_readonly("_data", &NDInterpolator_4_ML::_data, "");
     pybind11::class_<NDInterpolator_5_ML>(m, "Interp5d")
         .def(pybind11::init<py::tuple&, py::array_t<double>&>())
-        .def("interpolate", &NDInterpolator_5_ML::interpolate, "interpolation method")
-        .def("__call__", &NDInterpolator_5_ML::interpolate, "interpolation method")
+        .def("__call__", py::overload_cast<const py::tuple&>(&NDInterpolator_5_ML::interpolate, py::const_), "interpolation method")
+        .def("__call__", py::overload_cast<const vector<dVec>&>(&NDInterpolator_5_ML::interpolate, py::const_), "interpolation method")
         .def_readonly("_f_gridList", &NDInterpolator_5_ML::_f_gridList, "")
         .def_readonly("_data", &NDInterpolator_5_ML::_data, "");
 }

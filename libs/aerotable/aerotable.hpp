@@ -21,6 +21,14 @@ typedef variant<
     py::object>
 table_t;
 
+struct AeroTableArgs {
+    double alpha = 0;
+    double phi = 0;
+    double mach = 0;
+    double alt = 0;
+    double iota = 0;
+};
+
 
 class AeroTable {
 
@@ -29,10 +37,16 @@ public:
     map<string, int> table_info{
     {"CA", 1},
     {"CNB", 2},
+    {"CYB", 3},
     };
 
     table_t CA;
     table_t CNB;
+    table_t CYB;
+    double Sref;
+    double Lref;
+
+    AeroTable() = default;
 
     AeroTable(const py::kwargs& kwargs);
 
@@ -43,6 +57,12 @@ public:
         }
         return keys;
     }
+
+    double get_Sref(void) {return Sref;};
+    double get_Lref(void) {return Lref;};
+    double get_CA(double alpha, double phi, double mach, double alt, double iota);
+    double get_CNB(void);
+    double get_CYB(void);
 
 private:
     // Creates 1D NDInterpolator object from 2 vectors

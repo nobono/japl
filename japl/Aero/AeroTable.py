@@ -369,38 +369,23 @@ class AeroTable:
         # Build Total DataTables from sub-tables
         #   (Basic + Increment) tables
         ############################################################
+        # self.CA_Boost.swap_to_label_order(["alpha", "phi", "mach", "alt", "iota"])
         if self.CA_Boost.isnone():
-            self.CA_Boost = DataTable(
-                    self.CA_Basic[:, :, :, np.newaxis, np.newaxis]
-                    + self.CA_0_Boost[np.newaxis, :, :, :, np.newaxis]
-                    + self.CA_IT[:, :, :, np.newaxis, :],
-                    axes=CA_Total_axes)
+            self.CA_Boost = self.CA_Basic + self.CA_0_Boost + self.CA_IT
         if self.CA_Coast.isnone():
-            self.CA_Coast = DataTable(
-                    self.CA_Basic[:, :, :, np.newaxis, np.newaxis]
-                    + self.CA_0_Coast[np.newaxis, :, :, :, np.newaxis]
-                    + self.CA_IT[:, :, :, np.newaxis, :],
-                    axes=CA_Total_axes)
+            self.CA_Coast = DataTable(self.CA_Basic + self.CA_0_Coast + self.CA_IT, axes=CA_Total_axes)
         if self.CNB.isnone():
             if not (self.CNB_Basic.isnone() and self.CNB_IT.isnone()):
-                self.CNB = DataTable(self.CNB_Basic[:, :, :, np.newaxis]
-                                     + self.CNB_IT,
-                                     axes=CNB_axes)
+                self.CNB = DataTable(self.CNB_Basic + self.CNB_IT, axes=CNB_axes)
         if self.CLMB.isnone():
             if not (self.CLMB_Basic.isnone() and self.CLMB_IT.isnone()):
-                self.CLMB = DataTable(self.CLMB_Basic[:, :, :, np.newaxis]
-                                      + self.CLMB_IT,
-                                      axes=IT_axes)
+                self.CLMB = DataTable(self.CLMB_Basic + self.CLMB_IT, axes=IT_axes)
         if self.CLNB.isnone():
             if not (self.CLNB_Basic.isnone() and self.CLNB_IT.isnone()):
-                self.CLNB = DataTable(self.CLNB_Basic[:, :, :, np.newaxis]
-                                      + self.CLNB_IT,
-                                      axes=IT_axes)
+                self.CLNB = DataTable(self.CLNB_Basic + self.CLNB_IT, axes=IT_axes)
         if self.CYB.isnone():
             if not (self.CYB_Basic.isnone() and self.CYB_IT.isnone()):
-                self.CYB = DataTable(self.CYB_Basic[:, :, :, np.newaxis]
-                                     + self.CYB_IT,
-                                     axes=IT_axes)
+                self.CYB = DataTable(self.CYB_Basic + self.CYB_IT, axes=IT_axes)
 
         ############################################################
         # For Momementless Dynamics, the following tables are
@@ -468,12 +453,11 @@ class AeroTable:
         # check if alpha increments are reflected across zero
         # or need to be mirrored
         if Basic_axes["alpha"][0] == 0:
-            alpha_axis = 0
             for table_name in table_names:
                 _table = getattr(self, table_name)
                 if not _table.isnone():
                     if "alpha" in _table.axes:
-                        mirrored_table = _table.mirror_axis(alpha_axis)
+                        mirrored_table = _table.mirror_axis("alpha")
                         setattr(self, table_name, mirrored_table)
 
         # self.modules = {
@@ -513,7 +497,7 @@ class AeroTable:
         min_alpha = min(table.axes.get(diff_arg))  # type:ignore
 
         # handle table args
-        val_args = self._get_table_args(table, **table.axes)
+        val_args = table._get_table_args(**table.axes)
         arg_grid = np.meshgrid(*val_args, indexing="ij")
         args = {str(k): v for k, v in zip(table.axes, arg_grid)}
 

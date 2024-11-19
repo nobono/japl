@@ -93,8 +93,8 @@ class CodeGeneratorBase:
 
 
     def _write_function_to_file(self, path: str, function_name: str, expr: Expr,
-                               input_vars: list|tuple, return_var: Expr|str,
-                               is_symmetric: bool = False):
+                                input_vars: list|tuple, return_var: Expr|str,
+                                is_symmetric: bool = False):
         self.file_name = path
         self.file = open(self.file_name, 'w')
         expr_replacements, expr_simple = cse(expr, symbols("X_temp0:1000"), optimizations='basic')
@@ -108,12 +108,12 @@ class CodeGeneratorBase:
         self._write_header()
         self._print_string("Equations for state matrix prediction")
         self._write_function_definition(name=function_name,
-                                       params=input_vars,
-                                       returns=[return_var])
+                                        params=input_vars,
+                                        returns=[return_var])
         self._write_subexpressions(expr_replacements)
         self._write_matrix(matrix=Matrix(expr_simple),
-                          variable=return_var,
-                          is_symmetric=is_symmetric)
+                           variable=return_var,
+                           is_symmetric=is_symmetric)
         self._write_function_returns(expr=expr, return_names=[return_var])
         self._write_lines("")
         self._write_footer()
@@ -137,17 +137,27 @@ class CodeGeneratorBase:
             return False
 
 
-    def _get_function_parameters(self, params: list[Any], by_reference: dict = {}) -> tuple[str, str]:
+    def _get_function_parameters(self, params: list[Any], by_reference: dict = {},
+                                 use_std_args: bool = False) -> tuple[str, str]:
         """returns names of paramters as a string. If Matrix or list of
         parameters provided as one of the parameters, return the string
         which unpacks the dummy variables."""
-        dummy_prefix = "_Dummy_var"
+        # use standard Model args [t, X, U, S, dt]
+        if use_std_args:
+            if len(params) != 5:
+                raise Exception("exactly 3 function arguments must be specified"
+                                "in order to use standard Model args in CodeGeneration."
+                                "[state, input, static].")
+            dummy_names = ["t", "_X_arg", "_U_arg", "_S_arg", "dt"]
+        else:
+            dummy_names = [f"_Dummy_var{i}" for i in range(25)]
+
         arg_names = []
         arg_unpack_str = ""
-        for i, param in enumerate(params):
+        for i, (param, dummy_name) in enumerate(zip(params, dummy_names)):
             if self._is_array_type(param):
                 # unpack iterable param
-                dummy_name = dummy_prefix + str(i)
+                # dummy_name = dummy_prefix + str(i)
 
                 # check if array of params should be
                 # pass-by-reference

@@ -29,7 +29,7 @@ class LinearInterp:
         #     self.ndim = len(axes)
 
 
-    def __call__(self, args: tuple[np.ndarray, ...]) -> np.ndarray:
+    def __call__(self, args) -> np.ndarray:
         return self.interp(args)
 
 
