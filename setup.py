@@ -56,16 +56,19 @@ def get_extension_modules() -> list:
     try:
         from pybind11.setup_helpers import Pybind11Extension
         linterp_ext = Pybind11Extension("linterp", ["libs/linterp/src/linterp.cpp"],
-                                        extra_compile_args=['-std=c++17'],
-                                        extra_link_args=['-std=c++17'])
+                                        extra_compile_args=[],
+                                        extra_link_args=[],
+                                        cxx_std=17)
         atmosphere_ext = Pybind11Extension("atmosphere", ["libs/atmosphere/atmosphere.cpp",
                                                           "libs/linterp/src/linterp.cpp"],
-                                           extra_compile_args=['-std=c++17'],
-                                           extra_link_args=['-std=c++17'])
+                                           extra_compile_args=[],
+                                           extra_link_args=[],
+                                           cxx_std=17)
         aerotable_ext = Pybind11Extension("aerotable", ["libs/aerotable/aerotable.cpp",
                                                         "libs/linterp/src/linterp.cpp"],
-                                          extra_compile_args=['-std=c++17'],
-                                          extra_link_args=['-std=c++17'])
+                                          extra_compile_args=[],
+                                          extra_link_args=[],
+                                          cxx_std=17)
         return [linterp_ext, atmosphere_ext, aerotable_ext]
     except ImportError:
         sys.exit("Error: pybind11 must be installed to build this package.")
