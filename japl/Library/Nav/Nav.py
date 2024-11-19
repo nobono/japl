@@ -752,6 +752,23 @@ if __name__ == "__main__":
               thrust, mass, lift, drag, gacc,
               Matrix([*innov.keys()]), dt]
 
+    model = Model.from_expression(
+            dt_var=dt,
+            state_vars=[X, *P],
+            input_vars=[U],
+            static_vars=[*variance, *R, thrust, mass, lift, drag, gacc, *Matrix([*innov.keys()])],
+            dynamics_expr=X_dot,
+            )
+
+    gen = CCodeGenerator()
+    params = [t, X, U, model.static_vars, dt]
+    gen.add_function(expr=model.dynamics_expr,
+                     params=params,
+                     function_name="dynamics",
+                     return_name="Xdot")
+    gen.create_module(module_name="test_nav", path="./")
+    quit()
+
     gen = CCodeGenerator()
     gen.add_function(expr=X_dot,
                      params=params,
