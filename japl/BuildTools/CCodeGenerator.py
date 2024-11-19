@@ -564,6 +564,7 @@ class CCodeGenerator(CodeGeneratorBase):
 
     def create_build_file(self, module_name: str, path: str, source: str):
         file_name = source.split('.')[0]
+        cxx_std = 17
 
         build_str = ("""\
         import os
@@ -613,8 +614,9 @@ class CCodeGenerator(CodeGeneratorBase):
         # Define extension module
         ext_module = Pybind11Extension(name="{module_name}",
                                        sources=sources,
-                                       extra_compile_args=['-std=c++17'],
-                                       extra_link_args=['-std=c++17'])
+                                       extra_compile_args=[],
+                                       extra_link_args=[],
+                                       cxx_std={cxx_std})
         """"""
 
         cmdclass = {'build_ext': build_ext,
