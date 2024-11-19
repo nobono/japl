@@ -45,7 +45,7 @@ class DataTable(np.ndarray):
         return ret
 
 
-    def __call__(self, **kwargs) -> float|np.ndarray:
+    def __call__(self, *args, **kwargs) -> float|np.ndarray:
         """Checks if kwargs matches table axes then calls LinearInterp.
         Arguments
         ----------
@@ -56,7 +56,7 @@ class DataTable(np.ndarray):
         -------
         float | numpy.ndarray
         """
-        args = self._get_table_args(**kwargs)
+        args = self._get_table_args(*args, **kwargs)
         if len(args) != len(self.axes):
             raise Exception(f"missing DataTable arguments for: {list(self.axes.keys())[len(args):]}")
         if self.interp is None:
@@ -78,7 +78,7 @@ class DataTable(np.ndarray):
         for label in set_labels:
             if label in current_labels:
                 id_swap_order += [current_labels.index(label)]
-        self.axes = {key: self.axes[key] for key in set_labels}
+        self.axes = {key: self.axes[key] for key in set_labels if key in self.axes}
         return self.transpose(id_swap_order)
 
 
@@ -155,16 +155,16 @@ class DataTable(np.ndarray):
             return False
 
 
-    def _get_table_args(self, **kwargs) -> tuple:
+    def _get_table_args(self, *args, **kwargs) -> tuple:
         """This method handles arguments passed to DataTables dynamically
         according to the arguments passed and the axes of the table
         being accessed."""
-        args = ()
+        # args = ()
         for label in self.axes:
             arg_val = kwargs.get(label, None)
             if arg_val is not None:
                 args += (arg_val,)
-        return args
+        return args[:len(self.axes)]
 
 
     @staticmethod
