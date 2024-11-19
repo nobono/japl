@@ -42,6 +42,10 @@ AeroTable::AeroTable(const py::kwargs& kwargs) :
         bool bitem_valid = !item.is_none();
 
         if (bitem_valid && bkey_in_table) {
+            // if DataTable is passed, get LinearInterp member
+            if (py::hasattr(item, "interp")) {
+                item = item.attr("interp").attr("interp_obj");
+            }
             py::tuple axes = item.attr("_f_gridList").cast<py::tuple>();
             int ndim = static_cast<int>(axes.size());
             py::array_t<double> data = item.attr("_data").cast<py::array_t<double>>();
@@ -63,7 +67,8 @@ AeroTable::AeroTable(const py::kwargs& kwargs) :
                     set_table_from_id<5, double>(key, axes, data);
                     break;
                 default:
-                    throw std::invalid_argument("unhandled interp dimensions");
+                    throw std::invalid_argument("unhandled interp dimensions. table ndim:"
+                                                + std::to_string(ndim));
             }
         }
     }

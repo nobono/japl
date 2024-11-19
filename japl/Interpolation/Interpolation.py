@@ -21,7 +21,7 @@ class LinearInterp:
         -------------------------------------------------------------------------
         """
         # try:
-        self.interp = self.create_linterp(axes, table)
+        self.interp_obj = self.create_linterp(axes, table)
         self.ndim = len(axes)
         # except Exception as e:
         #     print("linterp extension module not found. using RegularGridInterpolator", e)
@@ -30,7 +30,7 @@ class LinearInterp:
 
 
     def __call__(self, args) -> np.ndarray:
-        return self.interp(args)
+        return self.interp_obj(args)
 
 
     @staticmethod

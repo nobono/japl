@@ -33,7 +33,8 @@ class DataTable(np.ndarray):
         if obj is None:
             return
         self.axes = getattr(obj, "axes", {})
-        self.interp: Optional[LinearInterp] = None
+        # self.interp: Optional[LinearInterp] = None
+        self.interp: Optional[LinearInterp] = getattr(obj, "interp", None)
 
 
     def __repr__(self) -> str:
@@ -270,7 +271,7 @@ class DataTable(np.ndarray):
             table1, table2, new_axes = self._op_align_axes(self, other)
             return DataTable(table1 + table2, axes=new_axes)
         else:
-            return super().__add__(other)
+            return DataTable(np.asarray(self) + other, axes=self.axes)
 
 
     def __mul__(self, other) -> "DataTable":
@@ -278,7 +279,7 @@ class DataTable(np.ndarray):
             table1, table2, new_axes = self._op_align_axes(self, other)
             return DataTable(table1 * table2, axes=new_axes)
         else:
-            return super().__mul__(other)
+            return DataTable(np.asarray(self) * other, axes=self.axes)
 
 
     def __matmul__(self, other) -> "DataTable":
@@ -286,4 +287,4 @@ class DataTable(np.ndarray):
             table1, table2, new_axes = self._op_align_axes(self, other)
             return DataTable(table1 @ table2, axes=new_axes)
         else:
-            return super().__matmul__(other)
+            return DataTable(np.asarray(self) @ other, axes=self.axes)

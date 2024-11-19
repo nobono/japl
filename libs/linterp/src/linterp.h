@@ -131,14 +131,11 @@ public:
         py::array_t<double> flat = data.attr("flatten")().cast<py::array_t<double>>();
 
         auto begins_ends = get_begins_ends(f_gridList.begin(), f_gridList.end());
-        // InterpMultilinear<N, T> interp_multilinear(begins_ends.first.begin(), f_sizes,
-        //                                        data.data(), data.data() + data.size());
 
         // store values to make interp class pickeable
-        // interp_multilinear._f_gridList = f_gridList;
-        // interp_multilinear._f_sizes = f_sizes;
-        // interp_multilinear._data = data.attr("copy")();
-        // return interp_multilinear;
+        _f_gridList = f_gridList;
+        _f_sizes = f_sizes;
+        _data = data.attr("copy")();
         init(begins_ends.first.begin(), f_sizes, flat.data(), flat.data() + flat.size());
     }
 

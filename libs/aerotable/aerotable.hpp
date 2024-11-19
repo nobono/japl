@@ -36,11 +36,15 @@ public:
 
     map<string, int> table_info{
     {"CA", 1},
-    {"CNB", 2},
-    {"CYB", 3},
+    {"CA_boost", 2},
+    {"CA_coast", 3},
+    {"CNB", 4},
+    {"CYB", 5},
     };
 
     table_t CA;
+    table_t CA_boost;
+    table_t CA_coast;
     table_t CNB;
     table_t CYB;
     double Sref;
@@ -83,7 +87,16 @@ private:
                 CA = std::move(table);
                 break;
             case 2:
+                CA_boost = std::move(table);
+                break;
+            case 3:
+                CA_coast = std::move(table);
+                break;
+            case 4:
                 CNB = std::move(table);
+                break;
+            case 5:
+                CYB = std::move(table);
                 break;
             default:
                 throw std::invalid_argument("unhandled case.");
