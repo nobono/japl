@@ -93,5 +93,23 @@ class TestKwargFunction(unittest.TestCase):
         self.assertEqual(loaded_data.kwargs, {'a': 1, 'b': b})
 
 
+    def test_subs_case1(self):
+        """symbol args"""
+        b = Symbol('b')
+        func = KwargFunction('func')
+        expr = func(a=1, b=b) + 1
+        expr = expr.subs(b, 2)
+        self.assertEqual(expr, func(a=1, b=2) + 1)
+
+
+    def test_xreplace_case1(self):
+        """symbol args"""
+        b = Symbol('b')
+        func = KwargFunction('func')
+        expr = func(a=1, b=b) + 1
+        expr = expr.xreplace({b: 2})
+        self.assertEqual(expr, func(a=1, b=2) + 1)
+
+
 if __name__ == '__main__':
     unittest.main()
