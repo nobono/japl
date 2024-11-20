@@ -28,6 +28,7 @@ class CCodeGenerator(CodeGeneratorBase):
     endl: str = ";\n"
 
     header: list[str] = ["#include <iostream>",
+                         "#include <model.hpp>",
                          "#include <pybind11/pybind11.h>",
                          "#include <pybind11/numpy.h>",
                          "#include <pybind11/stl.h>  // Enables automatic conversion",
@@ -635,6 +636,7 @@ class CCodeGenerator(CodeGeneratorBase):
                                        sources=sources,
                                        extra_compile_args=[],
                                        extra_link_args=[],
+                                       include_dirs=[os.path.join(JAPL_HOME_DIR, "libs", "model")],
                                        cxx_std={cxx_std})
         """"""
 
