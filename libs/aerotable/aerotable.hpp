@@ -11,6 +11,7 @@
 using std::map;
 using std::variant;
 using std::string;
+namespace py = pybind11;
 
 typedef variant<
     InterpMultilinear<1,double>,
@@ -42,11 +43,17 @@ public:
     {"CYB", 5},
     };
 
-    table_t CA;
-    table_t CA_boost;
-    table_t CA_coast;
-    table_t CNB;
-    table_t CYB;
+    // table_t CA;
+    // table_t CA_boost;
+    // table_t CA_coast;
+    // table_t CNB;
+    // table_t CYB;
+
+    py::object CA;
+    py::object CA_boost;
+    py::object CA_coast;
+    py::object CNB;
+    py::object CYB;
     double Sref;
     double Lref;
 
@@ -73,15 +80,46 @@ private:
     template <int N, class T>
     InterpMultilinear<N, T> create_interp_N(pybind11::tuple& axes, pybind11::array_t<double>& data);
 
-    template <int N, class T>
-    void set_table_from_id(string name, pybind11::tuple& axes, pybind11::array_t<double>& data) {
-        InterpMultilinear<N, T> table = create_interp_N<N, T>(axes, data);
+    // -----------------------------------------------------------
+    // For c++ native DataTables
+    // -----------------------------------------------------------
+    // template <int N, class T>
+    // void set_table_from_id(string name, pybind11::tuple& axes, pybind11::array_t<double>& data) {
+    //     InterpMultilinear<N, T> table = create_interp_N<N, T>(axes, data);
+    //     int id = table_info[name];
+    //     set_table<N, T>(table, id);
+    // }
+
+    // template <int N, class T>
+    // void set_table(InterpMultilinear<N, T>& table, int& id) {
+    //     switch (id) {
+    //         case 1:
+    //             CA = std::move(table);
+    //             break;
+    //         case 2:
+    //             CA_boost = std::move(table);
+    //             break;
+    //         case 3:
+    //             CA_coast = std::move(table);
+    //             break;
+    //         case 4:
+    //             CNB = std::move(table);
+    //             break;
+    //         case 5:
+    //             CYB = std::move(table);
+    //             break;
+    //         default:
+    //             throw std::invalid_argument("unhandled case.");
+    //     }
+    // }
+    // -----------------------------------------------------------
+
+    void set_table_from_id(string name, py::object& table) {
         int id = table_info[name];
-        set_table<N, T>(table, id);
+        set_table(table, id);
     }
 
-    template <int N, class T>
-    void set_table(InterpMultilinear<N, T>& table, int& id) {
+    void set_table(py::object& table, int& id) {
         switch (id) {
             case 1:
                 CA = std::move(table);

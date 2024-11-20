@@ -42,34 +42,40 @@ AeroTable::AeroTable(const py::kwargs& kwargs) :
         bool bitem_valid = !item.is_none();
 
         if (bitem_valid && bkey_in_table) {
+            // -----------------------------------------------------------
+            // For c++ native DataTables
+            // -----------------------------------------------------------
             // if DataTable is passed, get LinearInterp member
-            if (py::hasattr(item, "interp")) {
-                item = item.attr("interp").attr("interp_obj");
-            }
-            py::tuple axes = item.attr("_f_gridList").cast<py::tuple>();
-            int ndim = static_cast<int>(axes.size());
-            py::array_t<double> data = item.attr("_data").cast<py::array_t<double>>();
+            // if (py::hasattr(item, "interp")) {
+            //     item = item.attr("interp").attr("interp_obj");
+            // }
+            // py::tuple axes = item.attr("_f_gridList").cast<py::tuple>();
+            // int ndim = static_cast<int>(axes.size());
+            // py::array_t<double> data = item.attr("_data").cast<py::array_t<double>>();
 
-            switch(ndim) {
-                case 1:
-                    set_table_from_id<1, double>(key, axes, data);
-                    break;
-                case 2:
-                    set_table_from_id<2, double>(key, axes, data);
-                    break;
-                case 3:
-                    set_table_from_id<3, double>(key, axes, data);
-                    break;
-                case 4:
-                    set_table_from_id<4, double>(key, axes, data);
-                    break;
-                case 5:
-                    set_table_from_id<5, double>(key, axes, data);
-                    break;
-                default:
-                    throw std::invalid_argument("unhandled interp dimensions. table ndim:"
-                                                + std::to_string(ndim));
-            }
+            // switch(ndim) {
+            //     case 1:
+            //         set_table_from_id<1, double>(key, axes, data);
+            //         break;
+            //     case 2:
+            //         set_table_from_id<2, double>(key, axes, data);
+            //         break;
+            //     case 3:
+            //         set_table_from_id<3, double>(key, axes, data);
+            //         break;
+            //     case 4:
+            //         set_table_from_id<4, double>(key, axes, data);
+            //         break;
+            //     case 5:
+            //         set_table_from_id<5, double>(key, axes, data);
+            //         break;
+            //     default:
+            //         throw std::invalid_argument("unhandled interp dimensions. table ndim:"
+            //                                     + std::to_string(ndim));
+            // }
+            // -----------------------------------------------------------
+
+            set_table_from_id(key, item);
         }
     }
 }
@@ -78,8 +84,13 @@ AeroTable::AeroTable(const py::kwargs& kwargs) :
 PYBIND11_MODULE(aerotable, m) {
     pybind11::class_<AeroTable>(m, "AeroTable")
         .def(py::init<py::kwargs>())
+        .def_readonly("Sref", &AeroTable::Sref, "")
+        .def_readonly("Lref", &AeroTable::Lref, "")
         .def_readonly("CA", &AeroTable::CA, "")
+        .def_readonly("CA_boost", &AeroTable::CA_boost, "")
+        .def_readonly("CA_coast", &AeroTable::CA_coast, "")
         .def_readonly("CNB", &AeroTable::CNB, "")
+        .def_readonly("CYB", &AeroTable::CYB, "")
         .def_readwrite("table_info", &AeroTable::table_info, "tables and their axes dimensions");
         ;
 }
