@@ -37,6 +37,22 @@ class DataTable(np.ndarray):
         self.interp: Optional[LinearInterp] = getattr(obj, "interp", None)
 
 
+    # TODO Datatable slicing
+    # slicing table must affect axes also
+    # should this be allowed?
+    # def __getitem__(self, index):
+    #     # when slicing table also slice axes
+    #     # for slice, axis_label in zip(index, self.axes.keys()):
+    #     #     self.axes[axis_label] = self.axes[axis_label][slice]
+    #     ret = super().__getitem__(index)
+    #     # axes_labels = list(self.axes.keys())
+    #     # new_axes = self.axes.copy()  # type:ignore
+    #     # for i, slc in enumerate(index):
+    #     #     new_axes[axes_labels[i]] = ret.axes[axes_labels[i]][slc]
+    #     # ret = DataTable(np.asarray(ret), new_axes)
+    #     return ret
+
+
     def __repr__(self) -> str:
         ret = super().__repr__()
         axis_info = [k + ': ' + str(v.shape) for k, v in self.axes.items()]
@@ -165,6 +181,31 @@ class DataTable(np.ndarray):
             if arg_val is not None:
                 args += (arg_val,)
         return args[:len(self.axes)]
+
+
+    def create_diff_table(self, diff_arg: str, delta_arg: float) -> "DataTable":
+        """This method differentiates a table wrt. an increment variable
+        name \"diff_arg\"."""
+        table = self
+        # get min and max values to keep diff within table range
+        max_alpha = max(table.axes.get(diff_arg))  # type:ignore
+        min_alpha = min(table.axes.get(diff_arg))  # type:ignore
+
+        # handle table args
+        val_args = table._get_table_args(**table.axes)
+        arg_grid = np.meshgrid(*val_args, indexing="ij")
+        args = {str(k): v for k, v in zip(table.axes, arg_grid)}
+
+        # create diff_arg plus & minus values for linear interpolation
+        args_plus = args.copy()
+        args_minus = args.copy()
+        args_plus[diff_arg] = np.clip(args[diff_arg] + delta_arg, min_alpha, max_alpha)
+        args_minus[diff_arg] = np.clip(args[diff_arg] - delta_arg, min_alpha, max_alpha)
+
+        val_plus = table(**args_plus)
+        val_minus = table(**args_minus)
+        diff_table = (val_plus - val_minus) / (args_plus[diff_arg] - args_minus[diff_arg])  # type:ignore
+        return DataTable(diff_table, axes=table.axes)
 
 
     @staticmethod
