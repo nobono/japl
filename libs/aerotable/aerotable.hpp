@@ -37,8 +37,8 @@ public:
 
     map<string, int> table_info{
     {"CA", 1},
-    {"CA_boost", 2},
-    {"CA_coast", 3},
+    {"CA_Boost", 2},
+    {"CA_Coast", 3},
     {"CNB", 4},
     {"CYB", 5},
     };
@@ -50,8 +50,8 @@ public:
     // table_t CYB;
 
     py::object CA;
-    py::object CA_boost;
-    py::object CA_coast;
+    py::object CA_Boost;
+    py::object CA_Coast;
     py::object CNB;
     py::object CYB;
     double Sref;
@@ -125,10 +125,10 @@ private:
                 CA = std::move(table);
                 break;
             case 2:
-                CA_boost = std::move(table);
+                CA_Boost = std::move(table);
                 break;
             case 3:
-                CA_coast = std::move(table);
+                CA_Coast = std::move(table);
                 break;
             case 4:
                 CNB = std::move(table);
