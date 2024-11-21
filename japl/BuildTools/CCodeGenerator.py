@@ -15,6 +15,7 @@ from textwrap import dedent
 from japl.BuildTools.BuildTools import parallel_subs
 from japl.BuildTools.BuildTools import parallel_cse
 from collections import defaultdict
+from japl.Symbolic.KwargFunction import KwargFunction
 
 
 
@@ -48,11 +49,11 @@ class CCodeGenerator(CodeGeneratorBase):
 
     def _handle_peicewise_recursive(self, expr: Expr) -> Expr:
         def pw(expr) -> Optional[dict]:
-            if isinstance(expr, Piecewise):
-                return {expr: Symbol(self._get_code(expr))}
             for arg in expr.args:
                 if arg.has(Piecewise):
                     return pw(arg)
+            if isinstance(expr, Piecewise):
+                return {expr: Symbol(self._get_code(expr))}
 
         if expr.has(Piecewise):
             ret = pw(expr)
