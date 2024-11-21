@@ -1,9 +1,9 @@
 from typing import Any, Optional, Callable
 from sympy import Function
+from sympy import Float
 from sympy.core.function import FunctionClass, UndefinedFunction
 from sympy import Symbol
 from sympy.core.cache import cacheit
-from sympy.core.relational import StrictGreaterThan, StrictLessThan
 
 
 
@@ -40,6 +40,7 @@ class KwargFunction(Function):
         # create the object
         kwargs = kwargs or {}
         args = tuple([v for v in kwargs.values()])
+        # args = ("fname",)
         obj = super().__new__(cls, *args)
         # attatch kwargs to the object
         obj.name = str(cls)
@@ -57,7 +58,6 @@ class KwargFunction(Function):
         """defines serialization of class object"""
         # return (self.__class__, (self.name, self.kwargs), self.__getstate__())
         state = {"kwargs": self.kwargs}
-        # return (self.__class__, (self.name, self.kwargs,), self.__getstate__())
         return (self.__class__, (tuple(self.kwargs.items()),), state)
 
 
@@ -175,5 +175,5 @@ class KwargFunction(Function):
         return in_args or in_free_symbols
 
 
-    # def _eval_derivative(self, sym):
-    #     return 0
+    def _eval_derivative(self, sym):
+        return
