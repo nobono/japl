@@ -12,7 +12,7 @@ class KwargFunction(Function):
     """This class inherits from sympy.Function and allows
     keyword arguments."""
 
-    __slots__ = ("name", "kwargs")
+    __slots__ = ("name", "kwargs", "parent")
 
     # @classmethod
     # def eval(cls, *args):
@@ -31,6 +31,11 @@ class KwargFunction(Function):
     #     return obj
 
 
+    def set_parent(self, parent: str):
+        self.parent = parent
+        self.name = f"{parent}.{self.name}"
+
+
     def __new__(cls, *args, **kwargs):
         # if args is tuple[tuple, ...], then __new__ is being
         # called from __setstate__ which passes keyword
@@ -40,11 +45,11 @@ class KwargFunction(Function):
         # create the object
         kwargs = kwargs or {}
         args = tuple([v for v in kwargs.values()])
-        # args = ("fname",)
         obj = super().__new__(cls, *args)
         # attatch kwargs to the object
         obj.name = str(cls)
         obj.kwargs = kwargs
+        obj.parent = ""
         return obj
 
 
@@ -68,7 +73,11 @@ class KwargFunction(Function):
     def __str__(self) -> str:
         _kwargs = ", ".join([f"{k}={v}" for k, v in self.kwargs.items()])
     #     return f"{self.name}({_kwargs})"
-        return f"{self.__class__}({_kwargs})"
+        if self.parent:
+            name = f"{self.parent}.{self.__class__}"
+        else:
+            name = self.name
+        return f"{name}({_kwargs})"
 
 
     def _pythoncode(self, *args, **kwargs):
@@ -84,7 +93,11 @@ class KwargFunction(Function):
         for k, v in self.kwargs.items():
             _kwargs += [f"py::kw(\"{k}\"_a={v})"]
         _kwargs = ", ".join(_kwargs)
-        return f"{self.name}({_kwargs})"
+        if self.parent:
+            name = f"{self.parent}.{self.__class__}"
+        else:
+            name = self.name
+        return f"{name}({_kwargs})"
 
 
     def _sympystr(self, printer):
