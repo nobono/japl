@@ -765,15 +765,17 @@ if __name__ == "__main__":
     # # model.save(path=JAPL_HOME_DIR + "/../mmd/", name="mmd")
 
     path = "./"
-    imports = ["from config import aerotable_get_CA",
-               "from config import aerotable_get_CA_Boost",
-               "from config import aerotable_get_CA_Coast",
-               "from config import aerotable_get_CNB",
-               "from config import aerotable_get_CYB",
-               "from config import aerotable_get_Sref",
-               "from config import atmosphere_density",
-               "from config import atmosphere_speed_of_sound",
-               "from config import aerotable_inv_aerodynamics"]
+    # imports = ["from config import aerotable_get_CA",
+    #            "from config import aerotable_get_CA_Boost",
+    #            "from config import aerotable_get_CA_Coast",
+    #            "from config import aerotable_get_CNB",
+    #            "from config import aerotable_get_CYB",
+    #            "from config import aerotable_get_Sref",
+    #            "from config import atmosphere_density",
+    #            "from config import atmosphere_speed_of_sound",
+    #            "from config import aerotable_inv_aerodynamics"]
+    imports = ["from aero import aerotable",
+               "from config import atmosphere"]
 
     to_pycode(func_name="dynamics_func",
               expr=model.dynamics_expr,
