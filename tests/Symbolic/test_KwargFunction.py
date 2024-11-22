@@ -66,7 +66,7 @@ class TestKwargFunction(unittest.TestCase):
         """symbol args"""
         b = Symbol('b')
         f = func(a=1, b=b)
-        self.assertEqual(ccode(f), "func(py::kw(\"a\"_a=1), py::kw(\"b\"_a=b))")
+        self.assertEqual(ccode(f), "func({{\"a\", 1}, {\"b\", b}})")
         self.assertEqual(f.args, (1, b))
         self.assertEqual(f.kwargs, {'a': 1, 'b': b})
         self.assertEqual(f.name, "func")
@@ -155,7 +155,7 @@ class TestKwargFunction(unittest.TestCase):
         self.assertEqual(f.name, "obj.method")
         self.assertEqual(str(f), "obj.method(a=1)")
         self.assertEqual(pycode(f), "obj.method(a=1)")
-        self.assertEqual(ccode(f), "obj.method(py::kw(\"a\"_a=1))")
+        self.assertEqual(ccode(f), "obj.method({{\"a\", 1}})")
 
 
     def test_name_case2(self):
@@ -166,7 +166,7 @@ class TestKwargFunction(unittest.TestCase):
         self.assertEqual(f.name, "obj.method")
         self.assertEqual(str(f), "obj.method(a=1)")
         self.assertEqual(pycode(f), "obj.method(a=1)")
-        self.assertEqual(ccode(f), "obj.method(py::kw(\"a\"_a=1))")
+        self.assertEqual(ccode(f), "obj.method({{\"a\", 1}})")
 
 
     # def test_compares_case1(self):

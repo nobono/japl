@@ -107,6 +107,7 @@ class KwargFunction(Function):
         else:
             for key, val in self.kwargs.items():
                 args_str += "{" + f"\"{key}\", " + str(val) + "}, "
+            args_str = args_str.strip(", ")
             args_str = "{" + args_str + "}"
 
         if self.parent:
