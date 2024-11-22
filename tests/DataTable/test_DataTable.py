@@ -25,9 +25,20 @@ class TestDataTable(unittest.TestCase):
 
 
     def test_required_args(self):
+        """missing mach arg"""
         table = DataTable(self.data, self.axes)
         with self.assertRaises(Exception):
             table(alpha=1)
+
+
+    def test_args(self):
+        """missing mach arg"""
+        table = DataTable(self.data, self.axes)
+        ret = table(1, 1)
+        kw_ret = table(alpha=1, mach=1)
+        dict_ret = table({"alpha": 1, "mach": 1})
+        self.assertEqual(ret, kw_ret)
+        self.assertEqual(ret, dict_ret)
 
 
     def test_mirror_axis_case1(self):
