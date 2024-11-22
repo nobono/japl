@@ -72,9 +72,17 @@ class DataTable(np.ndarray):
         -------
         float | numpy.ndarray
         """
+        # handle dict being passed
+        if len(args) == 1 and isinstance(args[0], dict):
+            kwargs = args[0]
+            args = ()
+
         args = self._get_table_args(*args, **kwargs)
+
+        # check required number of args
         if len(args) != len(self.axes):
             raise Exception(f"missing DataTable arguments for: {list(self.axes.keys())[len(args):]}")
+
         if self.interp is None:
             # default return value: 0
             return 0.0
