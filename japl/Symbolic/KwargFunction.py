@@ -12,7 +12,10 @@ class KwargFunction(Function):
     """This class inherits from sympy.Function and allows
     keyword arguments."""
 
-    __slots__ = ("name", "kwargs", "parent")
+    __slots__ = ("name", "kwargs")
+
+    parent = ""
+    no_keyword = False
 
     # @classmethod
     # def eval(cls, *args):
@@ -47,9 +50,11 @@ class KwargFunction(Function):
         args = tuple([v for v in kwargs.values()])
         obj = super().__new__(cls, *args)
         # attatch kwargs to the object
-        obj.name = str(cls)
+        if obj.parent:
+            obj.name = f"{obj.parent}.{str(cls)}"
+        else:
+            obj.name = str(cls)
         obj.kwargs = kwargs
-        obj.parent = ""
         return obj
 
 
@@ -89,15 +94,26 @@ class KwargFunction(Function):
     def _ccode(self, *args, **kwargs):
         """string representation of object when using sympy.ccode()
         for c-code generate"""
-        _kwargs = []
-        for k, v in self.kwargs.items():
-            _kwargs += [f"py::kw(\"{k}\"_a={v})"]
-        _kwargs = ", ".join(_kwargs)
+        # _kwargs = []
+        # for k, v in self.kwargs.items():
+        #     _kwargs += [f"py::kw(\"{k}\"_a={v})"]
+        # _kwargs = ", ".join(_kwargs)
+        # args = tuple([v for v in self.kwargs.values()])
+        # pass keyword args as a std::map
+        args_str = ""
+
+        if self.no_keyword:
+            args_str = ", ".join([str(v) for v in self.kwargs.values()])
+        else:
+            for key, val in self.kwargs.items():
+                args_str += "{" + f"\"{key}\", " + str(val) + "}, "
+            args_str = "{" + args_str + "}"
+
         if self.parent:
             name = f"{self.parent}.{self.__class__}"
         else:
             name = self.name
-        return f"{name}({_kwargs})"
+        return f"{name}({args_str})"
 
 
     def _sympystr(self, printer):

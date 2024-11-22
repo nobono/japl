@@ -158,6 +158,17 @@ class TestKwargFunction(unittest.TestCase):
         self.assertEqual(ccode(f), "obj.method(py::kw(\"a\"_a=1))")
 
 
+    def test_name_case2(self):
+        class method(KwargFunction):
+            parent = "obj"
+            pass
+        f = method(a=1)
+        self.assertEqual(f.name, "obj.method")
+        self.assertEqual(str(f), "obj.method(a=1)")
+        self.assertEqual(pycode(f), "obj.method(a=1)")
+        self.assertEqual(ccode(f), "obj.method(py::kw(\"a\"_a=1))")
+
+
     # def test_compares_case1(self):
     #     from sympy import Piecewise
     #     from sympy import Function
