@@ -8,58 +8,72 @@ from japl.Symbolic.KwargFunction import KwargFunction
 
 
 class get_CA(KwargFunction):
+    pass
     parent = "aerotable"
 
 
 class get_CA_Boost(KwargFunction):
+    pass
     parent = "aerotable"
 
 
 class get_CA_Coast(KwargFunction):
+    pass
     parent = "aerotable"
 
 
 class get_CNB(KwargFunction):
+    pass
     parent = "aerotable"
 
 
 class get_CLMB(KwargFunction):
+    pass
     parent = "aerotable"
 
 
 class get_CLNB(KwargFunction):
+    pass
     parent = "aerotable"
 
 
 class get_CYB(KwargFunction):
+    pass
     parent = "aerotable"
 
 
 class get_MRC(KwargFunction):
+    pass
     parent = "aerotable"
 
 
 class get_Sref(KwargFunction):
+    pass
     parent = "aerotable"
 
 
 class get_Lref(KwargFunction):
+    pass
     parent = "aerotable"
 
 
 class get_CA_Boost_alpha(KwargFunction):
+    pass
     parent = "aerotable"
 
 
 class get_CA_Coast_alpha(KwargFunction):
+    pass
     parent = "aerotable"
 
 
 class get_CNB_alpha(KwargFunction):
+    pass
     parent = "aerotable"
 
 
 class inv_aerodynamics(KwargFunction):
+    pass
     parent = "aerotable"
 
 

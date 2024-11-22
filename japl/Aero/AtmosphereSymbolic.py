@@ -6,33 +6,39 @@ from japl.Symbolic.KwargFunction import KwargFunction
 
 
 class pressure(KwargFunction):
+    pass
     parent = "atmosphere"
-    no_keyword = True
+    # no_keyword = True
 
 
 class density(KwargFunction):
+    pass
     parent = "atmosphere"
-    no_keyword = True
+    # no_keyword = True
 
 
 class temperature(KwargFunction):
+    pass
     parent = "atmosphere"
-    no_keyword = True
+    # no_keyword = True
 
 
 class speed_of_sound(KwargFunction):
+    pass
     parent = "atmosphere"
-    no_keyword = True
+    # no_keyword = True
 
 
 class grav_accel(KwargFunction):
+    pass
     parent = "atmosphere"
-    no_keyword = True
+    # no_keyword = True
 
 
 class dynamic_pressure(KwargFunction):
+    pass
     parent = "atmosphere"
-    no_keyword = True
+    # no_keyword = True
 
 
 class AtmosphereSymbolic:
