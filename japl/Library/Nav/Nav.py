@@ -198,6 +198,7 @@ vel_z = Symbol("vel_z", real=True)  # (t)
 thrust = Symbol("thrust", real=True)
 mass = Symbol("mass", real=True)
 lift = Symbol("lift", real=True)
+slip = Symbol("slip", real=True)
 drag = Symbol("drag", real=True)
 gacc = Symbol("gacc", real=True)
 
@@ -413,7 +414,7 @@ print("Building Observations...")
 # Body Frame Accelerometer Observation
 # obs_accel = C_eci_to_body * gravity_eci + acc_bias
 # obs_accel = (dcm_to_body * gravity_ef) + acc_bias
-acc_aero_body = Matrix([drag, 0, lift]) / mass
+acc_aero_body = Matrix([drag, slip, lift]) / mass
 # acc_thrust_body = Matrix([thrust, 0, 0]) / mass
 obs_accel = (gravity_body / 2) + acc_bias
 
@@ -749,25 +750,25 @@ if __name__ == "__main__":
     S = Matrix([])
 
     params = [t, X, U, S, P, variance, R,
-              thrust, mass, lift, drag, gacc,
+              thrust, mass, lift, slip, drag, gacc,
               Matrix([*innov.keys()]), dt]
 
     model = Model.from_expression(
             dt_var=dt,
             state_vars=[X, *P],
             input_vars=[U],
-            static_vars=[*variance, *R, thrust, mass, lift, drag, gacc, *Matrix([*innov.keys()])],
+            static_vars=[*variance, *R, thrust, mass, lift, slip, drag, gacc, *Matrix([*innov.keys()])],
             dynamics_expr=X_dot,
             )
 
-    gen = CCodeGenerator()
-    params = [t, X, U, model.static_vars, dt]
-    gen.add_function(expr=model.dynamics_expr,
-                     params=params,
-                     function_name="dynamics",
-                     return_name="Xdot")
-    gen.create_module(module_name="test_nav", path="./")
-    quit()
+    # gen = CCodeGenerator()
+    # params = [t, X, U, model.static_vars, dt]
+    # gen.add_function(expr=model.dynamics_expr,
+    #                  params=params,
+    #                  function_name="dynamics",
+    #                  return_name="Xdot")
+    # gen.create_module(module_name="test_nav", path="./")
+    # quit()
 
     gen = CCodeGenerator()
     gen.add_function(expr=X_dot,
@@ -799,16 +800,17 @@ if __name__ == "__main__":
                      is_symmetric=False,
                      by_reference=innov)
 
-    # gen.add_function(expr=X_gps_update,
-    #                  params=params,
-    #                  function_name="x_gps_update",
-    #                  return_name="X_gps_new")
+    gen.add_function(expr=X_gps_update,
+                     params=params,
+                     function_name="x_gps_update",
+                     return_name="X_gps_new")
 
-    # gen.add_function(expr=P_gps_update,
-    #                  params=params,
-    #                  function_name="p_gps_update",
-    #                  return_name="P_gps_new",
-    #                  is_symmetric=False)
+    gen.add_function(expr=P_gps_update,
+                     params=params,
+                     function_name="p_gps_update",
+                     return_name="P_gps_new",
+                     is_symmetric=False,
+                     by_reference=innov)
 
     profile(gen.create_module)(module_name="cpp_ekf", path="./")
     quit()
