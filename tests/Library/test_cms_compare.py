@@ -181,11 +181,13 @@ class TestCmsCompare(unittest.TestCase):
         q_bar = 30.953815676156566
         thrust = 50_000.0
 
-        angle_of_attack = aerotable.inv_aerodynamics(thrust,
-                                                     am_c,
-                                                     q_bar,
-                                                     mass,
-                                                     alpha,
+        angle_of_attack = aerotable.inv_aerodynamics(thrust=thrust,
+                                                     acc_cmd=am_c,
+                                                     dynamic_pressure=q_bar,
+                                                     mass=mass,
+                                                     alpha=alpha,
+                                                     beta=0,
+                                                     phi=0,
                                                      mach=mach,
                                                      alt=alt)
         out = np.radians(1.689392510892652854)
