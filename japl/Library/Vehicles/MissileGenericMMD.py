@@ -119,6 +119,7 @@ f_b_A_z = Function("f_b_A_z", real=True)(t)
 f_b_A = Matrix([f_b_A_x, f_b_A_y, f_b_A_z])
 
 lift = Symbol("lift", real=True)
+slip = Symbol("slip", real=True)
 drag = Symbol("drag", real=True)
 
 # ENU-frame vectors
@@ -269,9 +270,13 @@ C_ecef_to_body = C_body_to_ecef.T
 f_b_T = Matrix([thrust, 0, 0])
 
 Sref = aerotable.get_Sref()
-CYB = aerotable.get_CYB(alpha, np.nan, M, np.nan)
-CNB = aerotable.get_CNB(alpha, np.nan, M, alt, np.nan)
-CA = aerotable.get_CA(alpha, np.nan, M, alt, np.nan, thrust)
+CYB = aerotable.get_CYB(alpha=alpha, beta=beta, phi=np.nan, mach=M, iota=np.nan)
+CNB = aerotable.get_CNB(alpha=alpha, beta=beta, phi=np.nan, mach=M, alt=alt, iota=np.nan)
+# CA = aerotable.get_CA(alpha=alpha, phi=np.nan, mach=M, alt=alt, iota=np.nan, thrust=thrust)
+CA = Piecewise(
+        (aerotable.get_CA_Boost(alpha=alpha, beta=beta, phi=np.nan, mach=M, alt=alt, iota=np.nan), thrust > 0.),
+        (aerotable.get_CA_Coast(alpha=alpha, beta=beta, phi=np.nan, mach=M, alt=alt, iota=np.nan), True)
+        )
 
 f_b_A_x = CA * q_bar * Sref
 f_b_A_y = CYB * q_bar * Sref
@@ -501,15 +506,16 @@ a_c_new = sqrt(a_c_y**2 + a_c_z**2)  # type:ignore
 ##################################################
 
 alpha_total = aerotable.inv_aerodynamics(
-        thrust,  # type:ignore
-        a_c_new,
-        q_bar,
-        wet_mass,
-        alpha,
-        phi_hat,
-        M,
-        alt,
-        0.0,  # iota
+        thrust=thrust,  # type:ignore
+        acc_cmd=a_c_new,
+        beta=beta,
+        dynamic_pressure=q_bar,
+        mass=wet_mass,
+        alpha=alpha,
+        phi=phi_hat,
+        mach=M,
+        alt=alt,
+        iota=0.0,  # iota
         )
 
 # (51)
@@ -589,8 +595,8 @@ defs = (
        # (phi_c, 0),     # roll angle command
        # (T_r, 0.5),     # roll autopilot time constant
 
-       (C_s, atmosphere.speed_of_sound(alt)),
-       (rho, atmosphere.density(alt)),
+       (C_s, atmosphere.speed_of_sound(alt=alt)),
+       (rho, atmosphere.density(alt=alt)),
        )
 
 ##################################################
@@ -655,6 +661,7 @@ state = Matrix([
     DirectUpdate("q_bar", q_bar),  # 59
 
     DirectUpdate(drag, f_b_A[0]),  # 60 - 62
+    DirectUpdate(slip, f_b_A[1]),  # 60 - 62
     DirectUpdate(lift, f_b_A[2]),  # 63 - 65
     DirectUpdate(accel, accel_meas),
 
@@ -757,40 +764,42 @@ if __name__ == "__main__":
     ##################################################
     # # model.save(path=JAPL_HOME_DIR + "/../mmd/", name="mmd")
 
-    # path = "./"
-    # imports = ["from config import aerotable_get_CA",
-    #            "from config import aerotable_get_CNB",
-    #            "from config import aerotable_get_CYB",
-    #            "from config import aerotable_get_Sref",
-    #            "from config import atmosphere_density",
-    #            "from config import atmosphere_speed_of_sound",
-    #            "from config import aerotable_inv_aerodynamics"]
+    path = "./"
+    imports = ["from config import aerotable_get_CA",
+               "from config import aerotable_get_CA_Boost",
+               "from config import aerotable_get_CA_Coast",
+               "from config import aerotable_get_CNB",
+               "from config import aerotable_get_CYB",
+               "from config import aerotable_get_Sref",
+               "from config import atmosphere_density",
+               "from config import atmosphere_speed_of_sound",
+               "from config import aerotable_inv_aerodynamics"]
 
-    # to_pycode(func_name="dynamics_func",
-    #           expr=model.dynamics_expr,
-    #           state_vars=state,
-    #           input_vars=input,
-    #           static_vars=static,
-    #           filepath=os.path.join(path, "mmd_dynamics.py"),
-    #           imports=imports)
+    to_pycode(func_name="dynamics_func",
+              expr=model.dynamics_expr,
+              state_vars=state,
+              input_vars=input,
+              static_vars=static,
+              filepath=os.path.join(path, "mmd_dynamics.py"),
+              imports=imports)
 
-    # to_pycode(func_name="state_update_func",
-    #           expr=model.state_direct_updates,
-    #           state_vars=state,
-    #           input_vars=input,
-    #           static_vars=static,
-    #           filepath=os.path.join(path, "mmd_state_update.py"),
-    #           imports=imports)
+    to_pycode(func_name="state_update_func",
+              expr=model.state_direct_updates,
+              state_vars=state,
+              input_vars=input,
+              static_vars=static,
+              filepath=os.path.join(path, "mmd_state_update.py"),
+              imports=imports)
 
-    # to_pycode(func_name="input_update_func",
-    #           expr=model.input_direct_updates,
-    #           state_vars=state,
-    #           input_vars=input,
-    #           static_vars=static,
-    #           filepath=os.path.join(path, "mmd_input_update.py"),
-    #           imports=imports)
+    to_pycode(func_name="input_update_func",
+              expr=model.input_direct_updates,
+              state_vars=state,
+              input_vars=input,
+              static_vars=static,
+              filepath=os.path.join(path, "mmd_input_update.py"),
+              imports=imports)
 
     ##################################################
     # C++ CodeGen
     ##################################################
-    model.create_c_module(name="mmd", path="./")
+    # model.create_c_module(name="mmd", path="./")
