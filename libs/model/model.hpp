@@ -14,8 +14,10 @@ namespace py = pybind11;
 
 class Model {
 public:
-    Atmosphere atmosphere = Atmosphere();
-    AeroTable aerotable = AeroTable();
+    // Atmosphere atmosphere = Atmosphere();
+    // AeroTable aerotable = AeroTable();
+    py::object atmosphere = py::object();
+    py::object aerotable = py::object();
 
     Model() = default;
 
@@ -37,6 +39,13 @@ public:
                                       std::vector<double> _S_arg,
                                       double dt);
 
+    void set_aerotable(py::object aerotable) {
+        aerotable = aerotable;
+    }
+
+    void set_atmosphere(py::object atmosphere) {
+        atmosphere = atmosphere;
+    }
 };
 
 #endif

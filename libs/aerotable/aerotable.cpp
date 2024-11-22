@@ -87,10 +87,13 @@ PYBIND11_MODULE(aerotable, m) {
         .def_readonly("Sref", &AeroTable::Sref, "")
         .def_readonly("Lref", &AeroTable::Lref, "")
         .def_readonly("CA", &AeroTable::CA, "")
-        .def_readonly("CA_boost", &AeroTable::CA_Boost, "")
-        .def_readonly("CA_coast", &AeroTable::CA_Coast, "")
+        .def_readonly("CA_Boost", &AeroTable::CA_Boost, "")
+        .def_readonly("CA_Coast", &AeroTable::CA_Coast, "")
         .def_readonly("CNB", &AeroTable::CNB, "")
         .def_readonly("CYB", &AeroTable::CYB, "")
+        .def_readonly("CA_Boost_alpha", &AeroTable::CA_Boost_alpha, "")
+        .def_readonly("CA_Coast_alpha", &AeroTable::CA_Coast_alpha, "")
+        .def_readonly("CNB_alpha", &AeroTable::CA_Coast_alpha, "")
         .def_readwrite("table_info", &AeroTable::table_info, "tables and their axes dimensions");
         ;
 }

@@ -41,6 +41,9 @@ public:
     {"CA_Coast", 3},
     {"CNB", 4},
     {"CYB", 5},
+    {"CA_Boost_alpha", 6},
+    {"CA_Coast_alpha", 7},
+    {"CNB_alpha", 8},
     };
 
     // table_t CA;
@@ -54,6 +57,9 @@ public:
     py::object CA_Coast;
     py::object CNB;
     py::object CYB;
+    py::object CA_Boost_alpha;
+    py::object CA_Coast_alpha;
+    py::object CNB_alpha;
     double Sref;
     double Lref;
 
@@ -69,11 +75,13 @@ public:
         return keys;
     }
 
-    double get_Sref(void) {return Sref;};
-    double get_Lref(void) {return Lref;};
-    double get_CA(double alpha, double phi, double mach, double alt, double iota);
-    double get_CNB(void);
-    double get_CYB(void);
+    // double get_Sref(void) {return Sref;};
+    // double get_Lref(void) {return Lref;};
+    // double get_CA(map<string, double> args);
+    // double get_CA_Boost(double alpha, double phi, double mach, double alt, double iota);
+    // double get_CA_Coast(double alpha, double phi, double mach, double alt, double iota);
+    // double get_CNB(double alpha, double phi, double mach, double alt, double iota);
+    // double get_CYB(double alpha, double phi, double mach, double alt, double iota);
 
 private:
     // Creates 1D NDInterpolator object from 2 vectors
@@ -135,6 +143,15 @@ private:
                 break;
             case 5:
                 CYB = std::move(table);
+                break;
+            case 6:
+                CA_Boost_alpha = std::move(table);
+                break;
+            case 7:
+                CA_Coast_alpha = std::move(table);
+                break;
+            case 8:
+                CNB_alpha = std::move(table);
                 break;
             default:
                 throw std::invalid_argument("unhandled case.");
