@@ -555,10 +555,16 @@ class CCodeGenerator(CodeGeneratorBase):
         try:
             # get functions from register
             for func_name, info in tqdm(self.function_register.items(), ncols=80, desc="Build"):
+                # handle func_name references class method "Class::method"
+                class_ref = ""
+                if "::" in func_name:
+                    _func_str_split = func_name.split("::")
+                    class_ref = "".join(_func_str_split[0])
+                    func_name = "".join(_func_str_split[1:])
                 # build the function
                 writes = self._build_function(function_name=func_name, **info)
                 description = info["description"]
-                pybind_writes += [f"\tm.def(\"{func_name}\", &{func_name}, \"{description}\");"]
+                pybind_writes += [f"\tm.def(\"{func_name}\", &{class_ref}::{func_name}, \"{description}\");"]
                 for line in writes:
                     self._write_lines(line)
 
