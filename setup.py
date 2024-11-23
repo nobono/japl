@@ -69,7 +69,12 @@ def get_extension_modules() -> list:
                                           extra_compile_args=[],
                                           extra_link_args=[],
                                           cxx_std=17)
-        return [linterp_ext, atmosphere_ext, aerotable_ext]
+        model_ext = Pybind11Extension("aerotable", ["libs/model/model.cpp",
+                                                    "libs/linterp/src/linterp.cpp"],
+                                      extra_compile_args=[],
+                                      extra_link_args=[],
+                                      cxx_std=17)
+        return [linterp_ext, atmosphere_ext, aerotable_ext, model_ext]
     except ImportError:
         sys.exit("Error: pybind11 must be installed to build this package.")
 
