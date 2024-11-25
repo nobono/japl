@@ -69,7 +69,7 @@ def get_extension_modules() -> list:
                                           extra_compile_args=[],
                                           extra_link_args=[],
                                           cxx_std=17)
-        model_ext = Pybind11Extension("aerotable", ["libs/model/model.cpp",
+        model_ext = Pybind11Extension("model", ["libs/model/model.cpp",
                                                     "libs/linterp/src/linterp.cpp"],
                                       extra_compile_args=[],
                                       extra_link_args=[],
