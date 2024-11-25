@@ -53,28 +53,27 @@ def get_numpy_include():
 
 # Safely import pybind11 to get extension modules
 def get_extension_modules() -> list:
+    kwargs = dict(extra_compile_args=[],
+                  extra_link_args=[],
+                  cxx_std=17)
     try:
         from pybind11.setup_helpers import Pybind11Extension
         linterp_ext = Pybind11Extension("linterp", ["libs/linterp/src/linterp.cpp"],
-                                        extra_compile_args=[],
-                                        extra_link_args=[],
-                                        cxx_std=17)
+                                        **kwargs)
         atmosphere_ext = Pybind11Extension("atmosphere", ["libs/atmosphere/atmosphere.cpp",
                                                           "libs/linterp/src/linterp.cpp"],
-                                           extra_compile_args=[],
-                                           extra_link_args=[],
-                                           cxx_std=17)
+                                           **kwargs)
         aerotable_ext = Pybind11Extension("aerotable", ["libs/aerotable/aerotable.cpp",
                                                         "libs/linterp/src/linterp.cpp"],
-                                          extra_compile_args=[],
-                                          extra_link_args=[],
-                                          cxx_std=17)
+                                          **kwargs)
         model_ext = Pybind11Extension("model", ["libs/model/model.cpp",
-                                                    "libs/linterp/src/linterp.cpp"],
-                                      extra_compile_args=[],
-                                      extra_link_args=[],
-                                      cxx_std=17)
-        return [linterp_ext, atmosphere_ext, aerotable_ext, model_ext]
+                                                "libs/linterp/src/linterp.cpp"],
+                                      **kwargs)
+        datatable_ext = Pybind11Extension("datatable", ["libs/datatable/datatable.cpp",
+                                                        "libs/linterp/src/linterp.cpp"],
+                                          **kwargs)
+        return [linterp_ext, atmosphere_ext, aerotable_ext, model_ext,
+                datatable_ext]
     except ImportError:
         sys.exit("Error: pybind11 must be installed to build this package.")
 
