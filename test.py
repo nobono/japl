@@ -15,8 +15,6 @@ axes = {"alpha": np.array([0., 1, 2]),
         "mach": np.array([0., 1, 2])}
 
 
-# model.set_aerotable
-
 
 class TestCpp(unittest.TestCase):
 
