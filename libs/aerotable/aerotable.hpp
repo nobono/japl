@@ -13,6 +13,7 @@
 using std::map;
 using std::variant;
 using std::string;
+using std::get_if;
 namespace py = pybind11;
 
 typedef variant<
@@ -161,15 +162,24 @@ public:
 
     // }
     
+    // vector<vector<double>> args = {{1., 1.}};
+    // py::print(args, args.size(), CA.index());
+    // auto ret = get_if<InterpMultilinear<2, double>>(&CA);
+    // return ret->interpolate(args);
     py::array_t<double> get_CA(py::kwargs kwargs) {
-        // vector<vector<double>> args = _kwargs_to_args(kwargs);
-        py::tuple args = py::make_tuple(1, 1);
-        // for (auto i : args) {
-        //     std::cout << i << "\n";
-        // }
-        auto ret = std::get_if<InterpMultilinear<2, double>>(&CA);
-        return ret->interpolate(args);
+        vector<vector<double>> args = _kwargs_to_args(kwargs);
+        table_t* table_ptr = &CA;
+        switch(CA.index()) {
+            case 0: return get_if<InterpMultilinear<1, double>>(table_ptr)->interpolate(args);
+            case 1: return get_if<InterpMultilinear<2, double>>(table_ptr)->interpolate(args);
+            case 2: return get_if<InterpMultilinear<3, double>>(table_ptr)->interpolate(args);
+            case 3: return get_if<InterpMultilinear<4, double>>(table_ptr)->interpolate(args);
+            case 4: return get_if<InterpMultilinear<5, double>>(table_ptr)->interpolate(args);
+            default: throw std::invalid_argument("unhandled case.");
+        }
     }
+
+    // py::array_t<double> _call_table_interp() 
 
     vector<vector<double>> _kwargs_to_args(py::kwargs kwargs) {
         vector<vector<double>> args;
