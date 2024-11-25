@@ -207,7 +207,7 @@ typedef std::unique_ptr<array_type> array_type_ptr;
 // Binding the function to Python
 PYBIND11_MODULE(linterp, m) {
     pybind11::class_<NDInterpolator_1_ML>(m, "Interp1d")
-        .def(pybind11::init<py::tuple&, py::array_t<double>&>())
+        .def(py::init<py::tuple&, py::array_t<double>&>())
         .def("__call__", py::overload_cast<const py::tuple&>(&NDInterpolator_1_ML::interpolate, py::const_), "interpolation method")
         .def("__call__", py::overload_cast<const vector<dVec>&>(&NDInterpolator_1_ML::interpolate, py::const_), "interpolation method")
         .def_readonly("_f_gridList", &NDInterpolator_1_ML::_f_gridList, "")

@@ -496,7 +496,7 @@ public:
         return ret;
     }
 
-    py::array_t<double> interpolate(const vector<dVec>& points) const {
+    vector<T> interpolate(const vector<dVec>& points) const {
 
         const int npoints = points.size();
 
@@ -512,10 +512,14 @@ public:
         interp_vec(npoints, coord_iter.begin(), coord_iter.end(), result.begin());
 
         // convert to numpy array
-        py::array_t<double> ret(result.size());
-        double* ret_ptr = static_cast<double*>(ret.mutable_data());
-        std::copy(result.begin(), result.end(), ret_ptr);
-        return ret;
+        // py::array_t<double> ret(result.size());
+        // double* ret_ptr = static_cast<double*>(ret.mutable_data());
+        // std::copy(result.begin(), result.end(), ret_ptr);
+
+        // convert to vector<dVec>
+        // vector<dVec> ret(result.size());
+        // std::copy(result.begin(), result.end(), ret.data());
+        return result;
     }
         
     template <class IterT1, class IterT2>
