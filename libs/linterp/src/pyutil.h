@@ -5,15 +5,46 @@
 #include <float.h>
 #include <vector>
 #include <array>
+#include <string>
+#include <map>
 
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 
 using std::vector;
 using std::array;
+using std::string;
+using std::map;
 namespace py = pybind11;
 
+template<class T>
+inline py::array_t<T> convert_vec_to_numpy(const vector<T>& vec) {
+    /* convert 1D vector<T> to numpy py::array_t<T> */
+    py::array_t<T> ret(vec.size());
+    std::copy(vec.begin(), vec.end(), ret.mutable_data());
+    return ret;
+}
 
+// function to convert python dict or python kwargs to std::map
+template<class Tdict, class Tkey, class Tval>
+map<Tkey, Tval> convert_dict_to_map(const Tdict& py_dict_like) {
+    map<Tkey, Tval> ret = {};
+    for (const auto& item : py_dict_like) {
+        ret[py::cast<Tkey>(item.first)] = py::cast<Tval>(item.second);
+    }
+    return ret;
+}
+
+// void unpack_dict_with_cast(const py::dict& py_dict) {
+//     for (auto item : py_dict) {
+//         // Cast keys and values to specific types
+//         std::string key = py::cast<std::string>(item.first);
+//         double value = py::cast<double>(item.second);
+
+//         // Print the key and value
+//         std::cout << "Key: " << key << ", Value: " << value << std::endl;
+//     }
+// }
 
 inline vector<double> array_t_to_vector(py::array arr) {
     // Verify that the item is a NumPy array
