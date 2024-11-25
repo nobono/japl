@@ -32,50 +32,56 @@ class DataTable {
 public:
     map<string, dVec> axes = {};
     interp_table_t interp;
+    py::array_t<double> _data;
 
     DataTable() = default;
 
-    DataTable(py::array_t<double>& data, py::dict& axes) {
+    DataTable(py::array_t<double>& data, py::dict& axes);
 
-        vector<dVec> _axes;
+    DataTable(py::array_t<double>& data, vector<dVec>& axes);
 
-        for (auto item : axes) {
-            // Cast keys and values to specific types
-            string key = py::cast<std::string>(item.first);
-            py::array_t<double> val = py::cast<py::array_t<double>>(item.second);
-            // Convert to dVec
-            dVec axis_vec(val.size());
-            for (int i = 0; i < val.size(); ++i) {
-                axis_vec[i] = val.mutable_at(i);
-            }
-            // store axes
-            this->axes[key] = axis_vec;
+    // // copy constructor
+    // DataTable(const DataTable& other) {
+    //     _data = other._data;
+    //     interp = std::move(other.interp);
+    //     axes = other.axes;
+    // }
 
-            _axes.push_back(axis_vec);
-        }
+    // DataTable& operator=(const DataTable& other) {
+    //     if (this != &other) { // Prevent self-assignment
+    //         // Copy all members from `other` to `this`
+    //         this->_data = other._data;
+    //         this->axes = other.axes;
+    //         this->interp = other.interp;
 
-        int ndim = static_cast<int>(axes.size());
-        switch(ndim) {
-            case 1:
-                set_table<1, double>(_axes, data);
-                break;
-            case 2:
-                set_table<2, double>(_axes, data);
-                break;
-            case 3:
-                set_table<3, double>(_axes, data);
-                break;
-            case 4:
-                set_table<4, double>(_axes, data);
-                break;
-            case 5:
-                set_table<5, double>(_axes, data);
-                break;
-            default:
-                throw std::invalid_argument("unhandled interp dimensions. table ndim:"
-                                            + std::to_string(ndim));
-        }
-    };
+    //     }
+    //     return *this;
+    // }
+
+    // // Copy constructor
+    // DataTable(const DataTable& other) {
+    //     this->interp = std::visit(
+    //         [](auto&& arg) -> interp_table_t {
+    //             using T = std::decay_t<decltype(arg)>;
+    //             return T(arg); // Use copy constructor of the active type
+    //         },
+    //         other.interp
+    //     );
+    // }
+
+    // // Copy assignment operator
+    // DataTable& operator=(const DataTable& other) {
+    //     if (this != &other) {
+    //         interp = std::visit(
+    //             [](auto&& arg) -> interp_table_t {
+    //                 using T = std::decay_t<decltype(arg)>;
+    //                 return T(arg); // Use copy constructor of the active type
+    //             },
+    //             other.interp
+    //         );
+    //     }
+    //     return *this;
+    // }
 
     // Call interpolation table
     vector<double> operator()(const vector<dVec>& points) {
@@ -103,7 +109,21 @@ public:
         }
     }
 
-    dVec _get_table_args(map<string, double>& kwargs) {
+    // Call interpolation table (python keywords overload)
+    vector<double> operator()(const map<string, double>& kwargs) {
+        interp_table_t* table_ptr = &this->interp;
+        vector<dVec> points = {this->_get_table_args(kwargs)};
+        switch(this->interp.index()) {
+            case 0: return get_if<InterpMultilinear<1, double>>(table_ptr)->interpolate(points);
+            case 1: return get_if<InterpMultilinear<2, double>>(table_ptr)->interpolate(points);
+            case 2: return get_if<InterpMultilinear<3, double>>(table_ptr)->interpolate(points);
+            case 3: return get_if<InterpMultilinear<4, double>>(table_ptr)->interpolate(points);
+            case 4: return get_if<InterpMultilinear<5, double>>(table_ptr)->interpolate(points);
+            default: throw std::invalid_argument("unhandled case.");
+        }
+    }
+
+    dVec _get_table_args(const map<string, double>& kwargs) {
         dVec args;
 
         for (const auto& item : kwargs) {

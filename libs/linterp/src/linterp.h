@@ -139,6 +139,54 @@ public:
         init(begins_ends.first.begin(), f_sizes, flat.data(), flat.data() + flat.size());
     }
 
+   // // Copy constructor
+   //  NDInterpolator(const NDInterpolator& other)
+   //      : m_ref_F(other.m_ref_F),
+   //        m_F_copy(other.m_F_copy),
+   //        m_grid_list(other.m_grid_list),
+   //        m_grid_ref_list(other.m_grid_ref_list),
+   //        m_grid_copy_list(other.m_grid_copy_list),
+   //        _f_gridList(other._f_gridList),
+   //        _f_sizes(other._f_sizes),
+   //        _data(other._data) // Pybind arrays are typically shallow-copied
+   //  {
+   //      // Deep copy of m_pF if it exists
+   //      if (other.m_pF) {
+   //          m_pF = std::make_unique<array_type>(*other.m_pF);
+   //      }
+   //  }
+
+   //  // Copy assignment operator
+   //  NDInterpolator& operator=(const NDInterpolator& other) {
+   //      if (this == &other) {
+   //          return *this; // Handle self-assignment
+   //      }
+
+   //      // Copy reference-counted and value members
+   //      m_ref_F = other.m_ref_F;
+   //      m_F_copy = other.m_F_copy;
+   //      m_grid_list = other.m_grid_list;
+   //      m_grid_ref_list = other.m_grid_ref_list;
+   //      m_grid_copy_list = other.m_grid_copy_list;
+   //      _f_gridList = other._f_gridList;
+   //      _f_sizes = other._f_sizes;
+   //      _data = other._data; // Pybind arrays are typically shallow-copied
+
+   //      // Deep copy of m_pF if it exists
+   //      if (other.m_pF) {
+   //          m_pF = std::make_unique<array_type>(*other.m_pF);
+   //      } else {
+   //          m_pF.reset();
+   //      }
+
+   //      return *this;
+   //  }
+
+   //  ~NDInterpolator() = default;
+
+   //  // move assignment op
+   //  // NDInterpolator& operator=(NDInterpolator&& other) noexcept = default;
+
     // constructors assume that [f_begin, f_end) is a contiguous array in C-order  
     // non ref-counted constructor.
     template <class IterT1, class IterT2, class IterT3>  
@@ -352,7 +400,7 @@ public:
     InterpMultilinear(pybind11::tuple& axes, pybind11::array_t<double>& data)
       : super(axes, data)
     {}
-    
+
     template <class IterT1, class IterT2, class IterT3>  
     InterpMultilinear(IterT1 grids_begin, IterT2 grids_len_begin, IterT3 f_begin, IterT3 f_end)
       : super(grids_begin, grids_len_begin, f_begin, f_end)

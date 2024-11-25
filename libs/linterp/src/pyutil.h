@@ -8,6 +8,7 @@
 #include <string>
 #include <map>
 
+#include "../../boost/multi_array.hpp"
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 
@@ -27,12 +28,34 @@ inline py::array_t<T> convert_vec_to_numpy(const vector<T>& vec) {
 
 // function to convert python dict or python kwargs to std::map
 template<class Tdict, class Tkey, class Tval>
-map<Tkey, Tval> convert_dict_to_map(const Tdict& py_dict_like) {
+map<Tkey, Tval> convert_dictlike_to_map(const Tdict& py_dict_like) {
     map<Tkey, Tval> ret = {};
     for (const auto& item : py_dict_like) {
         ret[py::cast<Tkey>(item.first)] = py::cast<Tval>(item.second);
     }
     return ret;
+}
+
+template <class T, int N>
+boost::multi_array<T, N> _numpy_array_to_multi(py::array_t<T> table) {
+    // request buffer
+    py::buffer_info buf = table.request();
+
+    // create boost multi array
+    boost::multi_array<T, N> array;
+
+    // get shape of py::array_t with same dims
+    typename boost::multi_array<T, N>::extent_gen extents;
+    for (size_t i =0; i < N; ++i) {
+        extents.ranges_[i] = buf.shape[i];
+    }
+    array.resize(extents);
+
+    // copy data
+    const T* table_ptr = static_cast<T*>(buf.ptr);
+    std::copy(table_ptr, table_ptr + buf.size, array.data());
+
+    return array;
 }
 
 // void unpack_dict_with_cast(const py::dict& py_dict) {
