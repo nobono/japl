@@ -110,57 +110,15 @@ public:
         return args;
     }
 
-    // void cc_test(void) {
-    //     InterpMultilinear<2, double>* table = std::get_if<InterpMultilinear<2, double>>(&this->interp);
-    //     // InterpMultilinear<2, double>* thing = table;
-    //     //
-    //     py::print("in cc_test()");
-    //     // py::print("_data", table->_data);
-    //     // py::print("m_pF.size:", table->m_pF->size());
-    //     // py::print("m_grid_list", table->m_grid_list.size());
-
-    //     // for (int i=0;i<3;++i) {
-    //     //     for (int j=0;j<3;++j) {
-    //     //         array<int, 2> index({i, j});
-    //     //         // py::print((table->m_F_copy[i + j]));
-    //     //         py::print(((*table->m_pF)(index)));
-    //     //     }
-    //     //     py::print();
-    //     // }
-
-    //     // for (auto i : table->m_grid_list) {
-    //     //     for (auto j : i) {
-    //     //         std::cout << j << " ";
-    //     //     }
-    //     //     std::cout << "\n";
-    //     // }
-
-    //     vector<dVec> points = {{1., 1.}};
-    //     py::print("call()", table->interpolate(points));
-    //     py::print();
-    // }
-
 private:
     // Creates NDInterpolator object from 2 vectors
     template <int N, class T>
     InterpMultilinear<N, T> create_interp_N(const vector<dVec> axes, const py::array_t<double> data);
 
-    template <int N, class T>
-    void set_table(const vector<dVec> axes, const py::array_t<double> data) {
-        // InterpMultilinear<N, T> _interp = create_interp_N<N, T>(axes, data);
-        // interp = std::move(_interp);
-        InterpMultilinear<N, T> thing = create_interp_N<N, T>(axes, data);
-        // InterpMultilinear<N, T> thing = create_interp_N<N, T>(axes, data);
-        // InterpMultilinear<N, T>* table = std::get_if<InterpMultilinear<N, T>>(&this->interp);
-        // vector<dVec> points = {{1., 1.}};
-        // py::print("thing:", thing.interpolate(points));
-        // InterpMultilinear<N, T>* table = std::get_if<InterpMultilinear<N, T>>(&thing);
-        // py::print("table:", thing.interpolate(points));
-        // this->interp = _interp;
-        // py::print(_interp._data);
-        // py::print(_interp._f_gridList);
-        // py::print(_interp.m_grid_ref_list);
-    }
+    // template <int N, class T>
+    // void set_table(const vector<dVec> axes, const py::array_t<double> data) {
+    //     this->interp = create_interp_N<N, T>(axes, data);
+    // }
 };
 
 

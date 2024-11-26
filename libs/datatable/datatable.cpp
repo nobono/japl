@@ -49,19 +49,19 @@ DataTable::DataTable(py::array_t<double>& data, vector<dVec>& axes) {
     int ndim = static_cast<int>(axes.size());
     switch(ndim) {
         case 1:
-            set_table<1, double>(axes, data);
+            this->interp = create_interp_N<1, double>(axes, data);
             break;
         case 2:
-            set_table<2, double>(axes, data);
+            this->interp = create_interp_N<2, double>(axes, data);
             break;
         case 3:
-            set_table<3, double>(axes, data);
+            this->interp = create_interp_N<3, double>(axes, data);
             break;
         case 4:
-            set_table<4, double>(axes, data);
+            this->interp = create_interp_N<4, double>(axes, data);
             break;
         case 5:
-            set_table<5, double>(axes, data);
+            this->interp = create_interp_N<5, double>(axes, data);
             break;
         default:
             throw std::invalid_argument("unhandled interp dimensions. table ndim:"
