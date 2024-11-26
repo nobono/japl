@@ -147,7 +147,5 @@ PYBIND11_MODULE(datatable, m) {
         // .def_readwrite("_data", &DataTable::_data, "")
         .def_readwrite("axes", &DataTable::axes, "")
         .def_readonly("interp", &DataTable::interp, "")
-        // .def_readonly("interp2", &DataTable::interp2, "")
-        // .def("cc_test", &DataTable::cc_test)
         ;
 }
