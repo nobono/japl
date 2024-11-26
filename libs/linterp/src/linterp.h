@@ -66,7 +66,19 @@ vector<double> get_grid_point(vector<dVec> const &gridList, vector<int> const &i
 vector<dVec> process_tuple_of_arrays(pybind11::tuple input_tuple);
 
 template <class IterT>
-std::pair<vector<typename IterT::value_type::const_iterator>, vector<typename IterT::value_type::const_iterator> > get_begins_ends(IterT iters_begin, IterT iters_end);
+inline std::pair<vector<typename IterT::value_type::const_iterator>, vector<typename IterT::value_type::const_iterator> > get_begins_ends(IterT iters_begin, IterT iters_end) {
+    typedef typename IterT::value_type T;
+    typedef vector<typename T::const_iterator> VecT;
+    int N = iters_end - iters_begin;
+    std::pair<VecT, VecT> result;
+    result.first.resize(N);
+    result.second.resize(N);
+    for (int i=0; i<N; i++) {
+        result.first[i] = iters_begin[i].begin();
+        result.second[i] = iters_begin[i].end();
+    }
+    return result;
+}
 
 // TODO:
 //  - specify behavior past grid boundaries.
@@ -139,59 +151,84 @@ public:
         init(begins_ends.first.begin(), f_sizes, flat.data(), flat.data() + flat.size());
     }
 
-   // // Copy constructor
-   //  NDInterpolator(const NDInterpolator& other)
-   //      : m_ref_F(other.m_ref_F),
-   //        m_F_copy(other.m_F_copy),
-   //        m_grid_list(other.m_grid_list),
-   //        m_grid_ref_list(other.m_grid_ref_list),
-   //        m_grid_copy_list(other.m_grid_copy_list),
-   //        _f_gridList(other._f_gridList),
-   //        _f_sizes(other._f_sizes),
-   //        _data(other._data) // Pybind arrays are typically shallow-copied
-   //  {
-   //      // Deep copy of m_pF if it exists
-   //      if (other.m_pF) {
-   //          m_pF = std::make_unique<array_type>(*other.m_pF);
-   //      }
-   //  }
+    // Copy Constructor
+    NDInterpolator(const NDInterpolator& other)
+        // : m_pF(other.m_pF ? std::make_unique<array_type>(*other.m_pF) : nullptr),
+        :
+          m_pF(std::make_unique<array_type>(*other.m_pF)),
+          // m_ref_F(other.m_ref_F),
+          // m_F_copy(CopyData ? other.m_F_copy : vector<T>()),
+          m_F_copy(other.m_F_copy),
+          // m_grid_list(other.m_grid_list),
+          // m_grid_ref_list(other.m_grid_ref_list),
+          // m_grid_copy_list(CopyData ? other.m_grid_copy_list : vector<vector<T>>()),
+          m_grid_copy_list(other.m_grid_copy_list),
+          _f_gridList(other._f_gridList),
+          _f_sizes(other._f_sizes),
+          _data(other._data) {
+        // Re-initialize members .m_pF & .m_grid_list from other
+        auto begins_ends = get_begins_ends(other._f_gridList.begin(), other._f_gridList.end());
+        // py::array_t<double> flat = other._data.attr("flatten")().cast<py::array_t<double>>();
+        // init(begins_ends.first.begin(), other._f_sizes, flat.data(), flat.data() + flat.size());
+        init(begins_ends.first.begin(),
+             other._f_sizes,
+             other.m_F_copy.data(),
+             other.m_F_copy.data() + other.m_F_copy.size());
+    }
 
-   //  // Copy assignment operator
-   //  NDInterpolator& operator=(const NDInterpolator& other) {
-   //      if (this == &other) {
-   //          return *this; // Handle self-assignment
-   //      }
+    // // Move Constructor
+    // NDInterpolator(const NDInterpolator&& other)
+    //     // : m_pF(other.m_pF ? std::make_unique<array_type>(*other.m_pF) : nullptr),
+    //     : m_pF(other.m_pF ? std::make_unique<array_type>(*other.m_pF) : nullptr),
+    //       m_ref_F(other.m_ref_F),
+    //       // m_F_copy(CopyData ? other.m_F_copy : vector<T>()),
+    //       m_F_copy(other.m_F_copy),
+    //       m_grid_list(other.m_grid_list),
+    //       m_grid_ref_list(other.m_grid_ref_list),
+    //       // m_grid_copy_list(CopyData ? other.m_grid_copy_list : vector<vector<T>>()),
+    //       m_grid_copy_list(other.m_grid_copy_list),
+    //       _f_gridList(other._f_gridList),
+    //       _f_sizes(other._f_sizes),
+    //       _data(other._data) {}
 
-   //      // Copy reference-counted and value members
-   //      m_ref_F = other.m_ref_F;
-   //      m_F_copy = other.m_F_copy;
-   //      m_grid_list = other.m_grid_list;
-   //      m_grid_ref_list = other.m_grid_ref_list;
-   //      m_grid_copy_list = other.m_grid_copy_list;
-   //      _f_gridList = other._f_gridList;
-   //      _f_sizes = other._f_sizes;
-   //      _data = other._data; // Pybind arrays are typically shallow-copied
 
-   //      // Deep copy of m_pF if it exists
-   //      if (other.m_pF) {
-   //          m_pF = std::make_unique<array_type>(*other.m_pF);
-   //      } else {
-   //          m_pF.reset();
-   //      }
+    // Copy Assignment Operator
+    NDInterpolator& operator=(const NDInterpolator& other) {
+        if (this == &other) {
+            return *this; // Handle self-assignment
+        }
+        // Copy data members
+        // m_pF = other.m_pF ? std::make_unique<array_type>(*other.m_pF) : nullptr;
+        m_pF = std::make_unique<array_type>(*other.m_pF);
+        m_ref_F = other.m_ref_F;
+        // m_F_copy = CopyData ? other.m_F_copy : vector<T>();
+        // m_F_copy = other.m_F_copy;
+        m_grid_list = other.m_grid_list;
+        // m_grid_ref_list = other.m_grid_ref_list;
+        // m_grid_copy_list = CopyData ? other.m_grid_copy_list : vector<vector<T>>();
+        // m_grid_copy_list = other.m_grid_copy_list;
+        _f_gridList = other._f_gridList;
+        _f_sizes = other._f_sizes;
+        _data = other._data;
 
-   //      return *this;
-   //  }
+        return *this;
+    }
 
-   //  ~NDInterpolator() = default;
+    // // Move Assignment Operator
+    // NDInterpolator& operator=(const NDInterpolator&& other) noexcept {
+    //     return *this; // Handle self-assignment
+    // }
+
+    ~NDInterpolator() = default;
 
    //  // move assignment op
    //  // NDInterpolator& operator=(NDInterpolator&& other) noexcept = default;
 
     // constructors assume that [f_begin, f_end) is a contiguous array in C-order  
     // non ref-counted constructor.
-    template <class IterT1, class IterT2, class IterT3>  
+    template <class IterT1, class IterT2, class IterT3>
     NDInterpolator(IterT1 grids_begin, IterT2 grids_len_begin, IterT3 f_begin, IterT3 f_end) {
-        init(grids_begin, grids_len_begin, f_begin, f_end);  
+        init(grids_begin, grids_len_begin, f_begin, f_end);
     }
 
     // ref-counted constructor
@@ -200,7 +237,7 @@ public:
         init_refcount(grids_begin, grids_len_begin, f_begin, f_end, refF, grid_refs_begin);
     }	
 
-    template <class IterT1, class IterT2, class IterT3>  														
+    template <class IterT1, class IterT2, class IterT3>
     void init(IterT1 grids_begin, IterT2 grids_len_begin, IterT3 f_begin, IterT3 f_end) {    
         set_grids(grids_begin, grids_len_begin, m_bCopyData);
         set_f_array(f_begin, f_end, m_bCopyData);
@@ -213,28 +250,28 @@ public:
         set_f_refcount(refF);
     }	
 
-    template <class IterT1, class IterT2>  
+    template <class IterT1, class IterT2>
     void set_grids(IterT1 grids_begin, IterT2 grids_len_begin, bool bCopy) {
         m_grid_list.clear();
         m_grid_ref_list.clear();
         m_grid_copy_list.clear();
         for (int i=0; i<N; i++) {
             int gridLength = grids_len_begin[i];
-            if (bCopy == false) {	    
+            if (bCopy == false) {
                 T const *grid_ptr = &(*grids_begin[i]);
                 m_grid_list.push_back(grid_type(gridLength, (T*) grid_ptr ));	  				// use the given pointer
             } else {
                 m_grid_copy_list.push_back( vector<T>(grids_begin[i], grids_begin[i] + grids_len_begin[i]) );	// make our own copy of the grid
-            T *begin = &(m_grid_copy_list[i][0]);
+                T *begin = &(m_grid_copy_list[i][0]);
                 m_grid_list.push_back(grid_type(gridLength, begin));							// use our copy
             }
         }
-      }    
-      template <class IterT1, class RefCountIterT>  
+      }
+    template <class IterT1, class RefCountIterT>
     void set_grids_refcount(RefCountIterT refs_begin, RefCountIterT refs_end) {
-        assert(refs_end - refs_begin == N);	
+        assert(refs_end - refs_begin == N);
         m_grid_ref_list.assign(refs_begin, refs_begin + N);
-    }	
+    }
     
     // assumes that [f_begin, f_end) is a contiguous array in C-order  
     template <class IterT>
@@ -263,20 +300,20 @@ public:
         }
     }  
 
-    void set_f_refcount(ArrayRefCountT &refF) {    
+    void set_f_refcount(ArrayRefCountT &refF) {
       m_ref_F = refF;
     }
     
     // -1 is before the first grid point
     // N-1 (where grid.size() == N) is after the last grid point
-    int find_cell(int dim, T x) const {  
+    int find_cell(int dim, T x) const {
         grid_type const &grid(m_grid_list[dim]);
         if (x < *(grid.begin())) return -1;
         else if (x >= *(grid.end()-1)) return grid.size()-1;
         else {
             auto i_upper = std::upper_bound(grid.begin(), grid.end(), x);
             return i_upper - grid.begin() - 1;
-        }	
+        }
     }
     
     // return the value of f at the given cell and vertex

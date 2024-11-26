@@ -32,7 +32,8 @@ class DataTable {
 public:
     map<string, dVec> axes = {};
     interp_table_t interp;
-    py::array_t<double> _data;
+    interp_table_t interp2;
+    // py::array_t<double> _data;
 
     DataTable() = default;
 
@@ -40,12 +41,11 @@ public:
 
     DataTable(py::array_t<double>& data, vector<dVec>& axes);
 
-    // // copy constructor
-    // DataTable(const DataTable& other) {
-    //     _data = other._data;
-    //     interp = std::move(other.interp);
-    //     axes = other.axes;
-    // }
+    // copy constructor
+    // DataTable(const DataTable& other)
+    // :   axes(other.axes),
+    //     interp(other.interp),
+    //     _data(other._data) {}
 
     // DataTable& operator=(const DataTable& other) {
     //     if (this != &other) { // Prevent self-assignment
@@ -84,44 +84,13 @@ public:
     // }
 
     // Call interpolation table
-    vector<double> operator()(const vector<dVec>& points) {
-        interp_table_t* table_ptr = &this->interp;
-        switch(this->interp.index()) {
-            case 0: return get_if<InterpMultilinear<1, double>>(table_ptr)->interpolate(points);
-            case 1: return get_if<InterpMultilinear<2, double>>(table_ptr)->interpolate(points);
-            case 2: return get_if<InterpMultilinear<3, double>>(table_ptr)->interpolate(points);
-            case 3: return get_if<InterpMultilinear<4, double>>(table_ptr)->interpolate(points);
-            case 4: return get_if<InterpMultilinear<5, double>>(table_ptr)->interpolate(points);
-            default: throw std::invalid_argument("unhandled case.");
-        }
-    }
+    vector<double> operator()(const vector<dVec>& points);
 
     // Call interpolation table (python overload)
-    py::array_t<double> operator()(const py::array_t<double>& points) {
-        interp_table_t* table_ptr = &this->interp;
-        switch(this->interp.index()) {
-            case 0: return get_if<InterpMultilinear<1, double>>(table_ptr)->interpolate(points);
-            case 1: return get_if<InterpMultilinear<2, double>>(table_ptr)->interpolate(points);
-            case 2: return get_if<InterpMultilinear<3, double>>(table_ptr)->interpolate(points);
-            case 3: return get_if<InterpMultilinear<4, double>>(table_ptr)->interpolate(points);
-            case 4: return get_if<InterpMultilinear<5, double>>(table_ptr)->interpolate(points);
-            default: throw std::invalid_argument("unhandled case.");
-        }
-    }
+    py::array_t<double> operator()(const py::array_t<double>& points);
 
     // Call interpolation table (python keywords overload)
-    vector<double> operator()(const map<string, double>& kwargs) {
-        interp_table_t* table_ptr = &this->interp;
-        vector<dVec> points = {this->_get_table_args(kwargs)};
-        switch(this->interp.index()) {
-            case 0: return get_if<InterpMultilinear<1, double>>(table_ptr)->interpolate(points);
-            case 1: return get_if<InterpMultilinear<2, double>>(table_ptr)->interpolate(points);
-            case 2: return get_if<InterpMultilinear<3, double>>(table_ptr)->interpolate(points);
-            case 3: return get_if<InterpMultilinear<4, double>>(table_ptr)->interpolate(points);
-            case 4: return get_if<InterpMultilinear<5, double>>(table_ptr)->interpolate(points);
-            default: throw std::invalid_argument("unhandled case.");
-        }
-    }
+    vector<double> operator()(const map<string, double>& kwargs);
 
     dVec _get_table_args(const map<string, double>& kwargs) {
         dVec args;
@@ -141,15 +110,56 @@ public:
         return args;
     }
 
+    void cc_test(void) {
+        InterpMultilinear<2, double>* table = std::get_if<InterpMultilinear<2, double>>(&this->interp);
+        // InterpMultilinear<2, double>* thing = table;
+        //
+        py::print("in cc_test()");
+        // py::print("_data", table->_data);
+        // py::print("m_pF.size:", table->m_pF->size());
+        // py::print("m_grid_list", table->m_grid_list.size());
+
+        // for (int i=0;i<3;++i) {
+        //     for (int j=0;j<3;++j) {
+        //         array<int, 2> index({i, j});
+        //         // py::print((table->m_F_copy[i + j]));
+        //         py::print(((*table->m_pF)(index)));
+        //     }
+        //     py::print();
+        // }
+
+        // for (auto i : table->m_grid_list) {
+        //     for (auto j : i) {
+        //         std::cout << j << " ";
+        //     }
+        //     std::cout << "\n";
+        // }
+
+        vector<dVec> points = {{1., 1.}};
+        py::print("call()", table->interpolate(points));
+        py::print();
+    }
+
 private:
     // Creates NDInterpolator object from 2 vectors
     template <int N, class T>
-    InterpMultilinear<N, T> create_interp_N(const vector<dVec>& axes, const py::array_t<double>& data);
+    InterpMultilinear<N, T> create_interp_N(const vector<dVec> axes, const py::array_t<double> data);
 
     template <int N, class T>
-    void set_table(const vector<dVec>& axes, const py::array_t<double>& data) {
-        InterpMultilinear<N, T> _interp = create_interp_N<N, T>(axes, data);
-        interp = std::move(_interp);
+    void set_table(const vector<dVec> axes, const py::array_t<double> data) {
+        // InterpMultilinear<N, T> _interp = create_interp_N<N, T>(axes, data);
+        // interp = std::move(_interp);
+        InterpMultilinear<N, T> thing = create_interp_N<N, T>(axes, data);
+        // InterpMultilinear<N, T> thing = create_interp_N<N, T>(axes, data);
+        // InterpMultilinear<N, T>* table = std::get_if<InterpMultilinear<N, T>>(&this->interp);
+        // vector<dVec> points = {{1., 1.}};
+        // py::print("thing:", thing.interpolate(points));
+        // InterpMultilinear<N, T>* table = std::get_if<InterpMultilinear<N, T>>(&thing);
+        // py::print("table:", thing.interpolate(points));
+        // this->interp = _interp;
+        // py::print(_interp._data);
+        // py::print(_interp._f_gridList);
+        // py::print(_interp.m_grid_ref_list);
     }
 };
 
