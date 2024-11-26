@@ -32,7 +32,7 @@ class DataTable {
 public:
     map<string, dVec> axes = {};
     interp_table_t interp;
-    interp_table_t interp2;
+    // interp_table_t interp2;
     // py::array_t<double> _data;
 
     DataTable() = default;
@@ -110,35 +110,35 @@ public:
         return args;
     }
 
-    void cc_test(void) {
-        InterpMultilinear<2, double>* table = std::get_if<InterpMultilinear<2, double>>(&this->interp);
-        // InterpMultilinear<2, double>* thing = table;
-        //
-        py::print("in cc_test()");
-        // py::print("_data", table->_data);
-        // py::print("m_pF.size:", table->m_pF->size());
-        // py::print("m_grid_list", table->m_grid_list.size());
+    // void cc_test(void) {
+    //     InterpMultilinear<2, double>* table = std::get_if<InterpMultilinear<2, double>>(&this->interp);
+    //     // InterpMultilinear<2, double>* thing = table;
+    //     //
+    //     py::print("in cc_test()");
+    //     // py::print("_data", table->_data);
+    //     // py::print("m_pF.size:", table->m_pF->size());
+    //     // py::print("m_grid_list", table->m_grid_list.size());
 
-        // for (int i=0;i<3;++i) {
-        //     for (int j=0;j<3;++j) {
-        //         array<int, 2> index({i, j});
-        //         // py::print((table->m_F_copy[i + j]));
-        //         py::print(((*table->m_pF)(index)));
-        //     }
-        //     py::print();
-        // }
+    //     // for (int i=0;i<3;++i) {
+    //     //     for (int j=0;j<3;++j) {
+    //     //         array<int, 2> index({i, j});
+    //     //         // py::print((table->m_F_copy[i + j]));
+    //     //         py::print(((*table->m_pF)(index)));
+    //     //     }
+    //     //     py::print();
+    //     // }
 
-        // for (auto i : table->m_grid_list) {
-        //     for (auto j : i) {
-        //         std::cout << j << " ";
-        //     }
-        //     std::cout << "\n";
-        // }
+    //     // for (auto i : table->m_grid_list) {
+    //     //     for (auto j : i) {
+    //     //         std::cout << j << " ";
+    //     //     }
+    //     //     std::cout << "\n";
+    //     // }
 
-        vector<dVec> points = {{1., 1.}};
-        py::print("call()", table->interpolate(points));
-        py::print();
-    }
+    //     vector<dVec> points = {{1., 1.}};
+    //     py::print("call()", table->interpolate(points));
+    //     py::print();
+    // }
 
 private:
     // Creates NDInterpolator object from 2 vectors

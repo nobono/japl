@@ -22,25 +22,22 @@ DataTable::DataTable(py::array_t<double>& data, py::dict& axes) {
         _axes.push_back(axis_vec);
     }
 
-    // this->_data = data;
-
     int ndim = static_cast<int>(axes.size());
     switch(ndim) {
         case 1:
-            set_table<1, double>(_axes, data);
+            this->interp = create_interp_N<1, double>(_axes, data);
             break;
         case 2:
             this->interp = create_interp_N<2, double>(_axes, data);
-            // set_table<2, double>(_axes, data);
             break;
         case 3:
-            set_table<3, double>(_axes, data);
+            this->interp = create_interp_N<3, double>(_axes, data);
             break;
         case 4:
-            set_table<4, double>(_axes, data);
+            this->interp = create_interp_N<4, double>(_axes, data);
             break;
         case 5:
-            set_table<5, double>(_axes, data);
+            this->interp = create_interp_N<5, double>(_axes, data);
             break;
         default:
             throw std::invalid_argument("unhandled interp dimensions. table ndim:"
@@ -49,7 +46,6 @@ DataTable::DataTable(py::array_t<double>& data, py::dict& axes) {
 };
 
 DataTable::DataTable(py::array_t<double>& data, vector<dVec>& axes) {
-    // this->_data = data;
     int ndim = static_cast<int>(axes.size());
     switch(ndim) {
         case 1:
@@ -100,7 +96,6 @@ py::array_t<double> DataTable::operator()(const py::array_t<double>& points) {
 
 // Call interpolation table (python keywords overload)
 vector<double> DataTable::operator()(const map<string, double>& kwargs) {
-    // this->cc_test();
     interp_table_t* table_ptr = &this->interp;
     vector<dVec> points = {this->_get_table_args(kwargs)};
     switch(this->interp.index()) {
@@ -152,7 +147,7 @@ PYBIND11_MODULE(datatable, m) {
         // .def_readwrite("_data", &DataTable::_data, "")
         .def_readwrite("axes", &DataTable::axes, "")
         .def_readonly("interp", &DataTable::interp, "")
-        .def_readonly("interp2", &DataTable::interp2, "")
-        .def("cc_test", &DataTable::cc_test)
+        // .def_readonly("interp2", &DataTable::interp2, "")
+        // .def("cc_test", &DataTable::cc_test)
         ;
 }
