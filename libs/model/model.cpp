@@ -6,5 +6,7 @@ PYBIND11_MODULE(model, m) {
         .def(py::init<>())
         .def("set_aerotable", &Model::set_aerotable)
         .def("set_atmosphere", &Model::set_atmosphere)
+        .def_readonly("aerotable", &Model::aerotable)
+        .def_readonly("atmosphere", &Model::atmosphere)
     ;
 }
