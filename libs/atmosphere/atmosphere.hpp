@@ -5,12 +5,13 @@
 
 #include "../linterp/src/linterp.h"
 #include "../boost/multi_array.hpp"
-#include "data/_atmosphere_alts.hpp"
-#include "data/_atmosphere_density.hpp"
-#include "data/_atmosphere_temperature.hpp"
-#include "data/_atmosphere_pressure.hpp"
-#include "data/_atmosphere_speed_of_sound.hpp"
-#include "data/_atmosphere_grav_accel.hpp"
+
+extern vector<double> _alts;
+extern vector<double> _pressure;
+extern vector<double> _density;
+extern vector<double> _temperature;
+extern vector<double> _speed_of_sound;
+extern vector<double> _grav_accel;
 
 
 class Atmosphere {

@@ -16,15 +16,18 @@ class AeroTable {
 
 public:
 
-    map<string, int> table_info{
-    {"CA", 1},
-    {"CA_Boost", 2},
-    {"CA_Coast", 3},
-    {"CNB", 4},
-    {"CYB", 5},
-    {"CA_Boost_alpha", 6},
-    {"CA_Coast_alpha", 7},
-    {"CNB_alpha", 8},
+    map<string, int> table_info {
+        {"Sref", 1},
+        {"Lref", 2},
+        {"MRC", 3},
+        {"CA", 4},
+        {"CA_Boost", 5},
+        {"CA_Coast", 6},
+        {"CNB", 7},
+        {"CYB", 8},
+        {"CA_Boost_alpha", 9},
+        {"CA_Coast_alpha", 10},
+        {"CNB_alpha", 11},
     };
 
     DataTable CA;
@@ -42,6 +45,40 @@ public:
     AeroTable() = default;
 
     AeroTable(const py::kwargs& kwargs);
+
+    // copy constructor
+    AeroTable(const AeroTable& other)
+    :   table_info(other.table_info),
+        CA(other.CA),
+        CA_Boost(other.CA_Boost),
+        CA_Coast(other.CA_Coast),
+        CNB(other.CNB),
+        CYB(other.CYB),
+        CA_Boost_alpha(other.CA_Boost_alpha),
+        CA_Coast_alpha(other.CA_Coast_alpha),
+        CNB_alpha(other.CNB_alpha),
+        Sref(other.Sref),
+        Lref(other.Lref),
+        MRC(other.MRC) {}
+
+    AeroTable& operator=(const AeroTable& other) {
+        if (this == &other) {
+            return *this; // Handle self-assignment
+        }
+        this->table_info = other.table_info;
+        this->CA = other.CA;
+        this->CA_Boost = other.CA_Boost;
+        this->CA_Coast = other.CA_Coast;
+        this->CNB = other.CNB;
+        this->CYB = other.CYB;
+        this->CA_Boost_alpha = other.CA_Boost_alpha;
+        this->CA_Coast_alpha = other.CA_Coast_alpha;
+        this->CNB_alpha = other.CNB_alpha;
+        this->Sref = other.Sref;
+        this->Lref = other.Lref;
+        this->MRC = other.MRC;
+        return *this;
+    }
 
     inline vector<string> get_keys() {
         vector<string> keys;
@@ -61,30 +98,46 @@ public:
         return args;
     }
 
-    void set_table_from_id(DataTable& table, int& id) {
+    void set_attr_from_id(double& val, int& id) {
         switch (id) {
             case 1:
-                CA = table;
+                Sref = val;
                 break;
             case 2:
-                CA_Boost = table;
+                Lref = val;
                 break;
             case 3:
-                CA_Coast = table;
+                MRC = val;
                 break;
+            default:
+                throw std::invalid_argument("unhandled case.");
+        }
+    }
+
+    void set_table_from_id(DataTable& table, int& id) {
+        switch (id) {
             case 4:
-                CNB = table;
+                CA = table;
                 break;
             case 5:
-                CYB = table;
+                CA_Boost = table;
                 break;
             case 6:
-                CA_Boost_alpha = table;
+                CA_Coast = table;
                 break;
             case 7:
-                CA_Coast_alpha = table;
+                CNB = table;
                 break;
             case 8:
+                CYB = table;
+                break;
+            case 9:
+                CA_Boost_alpha = table;
+                break;
+            case 10:
+                CA_Coast_alpha = table;
+                break;
+            case 11:
                 CNB_alpha = table;
                 break;
             default:
