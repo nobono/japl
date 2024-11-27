@@ -32,8 +32,6 @@ class DataTable {
 public:
     map<string, dVec> axes = {};
     interp_table_t interp;
-    // interp_table_t interp2;
-    // py::array_t<double> _data;
 
     DataTable() = default;
 
@@ -42,46 +40,19 @@ public:
     DataTable(py::array_t<double>& data, vector<dVec>& axes);
 
     // copy constructor
-    // DataTable(const DataTable& other)
-    // :   axes(other.axes),
-    //     interp(other.interp),
-    //     _data(other._data) {}
+    DataTable(const DataTable& other)
+    :   axes(other.axes),
+        interp(other.interp) {}
 
-    // DataTable& operator=(const DataTable& other) {
-    //     if (this != &other) { // Prevent self-assignment
-    //         // Copy all members from `other` to `this`
-    //         this->_data = other._data;
-    //         this->axes = other.axes;
-    //         this->interp = other.interp;
-
-    //     }
-    //     return *this;
-    // }
-
-    // // Copy constructor
-    // DataTable(const DataTable& other) {
-    //     this->interp = std::visit(
-    //         [](auto&& arg) -> interp_table_t {
-    //             using T = std::decay_t<decltype(arg)>;
-    //             return T(arg); // Use copy constructor of the active type
-    //         },
-    //         other.interp
-    //     );
-    // }
-
-    // // Copy assignment operator
-    // DataTable& operator=(const DataTable& other) {
-    //     if (this != &other) {
-    //         interp = std::visit(
-    //             [](auto&& arg) -> interp_table_t {
-    //                 using T = std::decay_t<decltype(arg)>;
-    //                 return T(arg); // Use copy constructor of the active type
-    //             },
-    //             other.interp
-    //         );
-    //     }
-    //     return *this;
-    // }
+    // copy assignment operator
+    DataTable& operator=(const DataTable& other) {
+        if (this == &other) {
+            return *this; // Handle self-assignment
+        }
+        axes = other.axes;
+        interp = other.interp;
+        return *this;
+    }
 
     // Call interpolation table
     vector<double> operator()(const vector<dVec>& points);

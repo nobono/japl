@@ -154,12 +154,12 @@ public:
     // Copy Constructor
     NDInterpolator(const NDInterpolator& other)
         :
-          m_pF(std::make_unique<array_type>(*other.m_pF)),
-          m_F_copy(other.m_F_copy),
-          m_grid_copy_list(other.m_grid_copy_list),
-          _f_gridList(other._f_gridList),
-          _f_sizes(other._f_sizes),
-          _data(other._data) {
+        m_pF(std::make_unique<array_type>(*other.m_pF)),
+        m_F_copy(other.m_F_copy),
+        m_grid_copy_list(other.m_grid_copy_list),
+        _f_gridList(other._f_gridList),
+        _f_sizes(other._f_sizes),
+        _data(other._data) {
         // Re-initialize members .m_pF & .m_grid_list from other
         auto begins_ends = get_begins_ends(other._f_gridList.begin(), other._f_gridList.end());
         init(begins_ends.first.begin(),
@@ -167,22 +167,6 @@ public:
              other.m_F_copy.data(),
              other.m_F_copy.data() + other.m_F_copy.size());
     }
-
-    // // Move Constructor
-    // NDInterpolator(const NDInterpolator&& other)
-    //     // : m_pF(other.m_pF ? std::make_unique<array_type>(*other.m_pF) : nullptr),
-    //     : m_pF(other.m_pF ? std::make_unique<array_type>(*other.m_pF) : nullptr),
-    //       m_ref_F(other.m_ref_F),
-    //       // m_F_copy(CopyData ? other.m_F_copy : vector<T>()),
-    //       m_F_copy(other.m_F_copy),
-    //       m_grid_list(other.m_grid_list),
-    //       m_grid_ref_list(other.m_grid_ref_list),
-    //       // m_grid_copy_list(CopyData ? other.m_grid_copy_list : vector<vector<T>>()),
-    //       m_grid_copy_list(other.m_grid_copy_list),
-    //       _f_gridList(other._f_gridList),
-    //       _f_sizes(other._f_sizes),
-    //       _data(other._data) {}
-
 
     // Copy Assignment Operator
     NDInterpolator& operator=(const NDInterpolator& other) {
@@ -196,13 +180,14 @@ public:
         _f_gridList = other._f_gridList;
         _f_sizes = other._f_sizes;
         _data = other._data;
+        // Re-initialize members .m_pF & .m_grid_list from other
+        auto begins_ends = get_begins_ends(other._f_gridList.begin(), other._f_gridList.end());
+        init(begins_ends.first.begin(),
+             other._f_sizes,
+             other.m_F_copy.data(),
+             other.m_F_copy.data() + other.m_F_copy.size());
         return *this;
     }
-
-    // // Move Assignment Operator
-    // NDInterpolator& operator=(const NDInterpolator&& other) noexcept {
-    //     return *this; // Handle self-assignment
-    // }
 
     ~NDInterpolator() = default;
 
