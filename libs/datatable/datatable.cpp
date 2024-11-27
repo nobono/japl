@@ -139,12 +139,11 @@ PYBIND11_MODULE(datatable, m) {
         .def(py::init<py::array_t<double>&, vector<dVec>&>())
         .def("__call__", py::overload_cast<const vector<dVec>&>(&DataTable::operator()))
         .def("__call__", py::overload_cast<const map<string, double>&>(&DataTable::operator()))
-        // .def("__call__", [](DataTable& self, const py::kwargs& kwargs) {
-        //     map<string, double> kw_map = convert_dictlike_to_map<py::kwargs, string, double>(kwargs);
-        //     vector<dVec> args = {self._get_table_args(kw_map)};
-        //     return self(args);
-        // }, py::return_value_policy::copy, "call operator.")
-        // .def_readwrite("_data", &DataTable::_data, "")
+        .def("__call__", [](DataTable& self, const py::kwargs& kwargs) {
+            map<string, double> kw_map = convert_dictlike_to_map<py::kwargs, string, double>(kwargs);
+            vector<dVec> args = {self._get_table_args(kw_map)};
+            return self(args);
+        }, py::return_value_policy::copy, "call operator.")
         .def_readwrite("axes", &DataTable::axes, "")
         .def_readonly("interp", &DataTable::interp, "")
         ;
