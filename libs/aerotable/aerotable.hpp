@@ -12,30 +12,6 @@
 
 
 
-// using std::map;
-// using std::variant;
-// using std::string;
-// using std::get_if;
-// namespace py = pybind11;
-
-// typedef variant<
-//     InterpMultilinear<1,double>,
-//     InterpMultilinear<2,double>,
-//     InterpMultilinear<3,double>,
-//     InterpMultilinear<4,double>,
-//     InterpMultilinear<5,double>
-//     >
-// table_t;
-
-struct AeroTableArgs {
-    double alpha = 0;
-    double phi = 0;
-    double mach = 0;
-    double alt = 0;
-    double iota = 0;
-};
-
-
 class AeroTable {
 
 public:
@@ -75,29 +51,6 @@ public:
         return keys;
     }
 
-
-    // // vector<vector<double>> args = {{1., 1.}};
-    // // py::print(args, args.size(), CA.index());
-    // // auto ret = get_if<InterpMultilinear<2, double>>(&CA);
-    // // return ret->interpolate(args);
-    // py::array_t<double> get_CA(py::kwargs kwargs) {
-    //     // interp_table_t* table_ptr = &CA;
-    //     // vector<vector<double>> args = _kwargs_to_args(kwargs);
-    //     map<string, double> map_kwargs = convert_dictlike_to_map<py::kwargs, string, double>(kwargs);
-    //     // switch(CA.index()) {
-    //     //     case 0: return get_if<InterpMultilinear<1, double>>(table_ptr)->interpolate(args);
-    //     //     case 1: return get_if<InterpMultilinear<2, double>>(table_ptr)->interpolate(args);
-    //     //     case 2: return get_if<InterpMultilinear<3, double>>(table_ptr)->interpolate(args);
-    //     //     case 3: return get_if<InterpMultilinear<4, double>>(table_ptr)->interpolate(args);
-    //     //     case 4: return get_if<InterpMultilinear<5, double>>(table_ptr)->interpolate(args);
-    //     //     default: throw std::invalid_argument("unhandled case.");
-    //     // }
-    //     // dVec ret = get_if<InterpMultilinear<2, double>>(table_ptr)->interpolate(args);
-    //     // vector<dVec> args = {self._get_table_args(kw_map)};
-    //     dVec ret = this->CA(map_kwargs);
-    //     return convert_vec_to_numpy<double>(ret);
-    // }
-
     vector<vector<double>> _kwargs_to_args(py::kwargs kwargs) {
         vector<vector<double>> args;
         vector<double> point;
@@ -111,19 +64,28 @@ public:
     void set_table_from_id(DataTable& table, int& id) {
         switch (id) {
             case 1:
-                CA = std::move(table);
+                CA = table;
                 break;
             case 2:
-                CA_Boost = std::move(table);
+                CA_Boost = table;
                 break;
             case 3:
-                CA_Coast = std::move(table);
+                CA_Coast = table;
                 break;
             case 4:
-                CNB = std::move(table);
+                CNB = table;
                 break;
             case 5:
-                CYB = std::move(table);
+                CYB = table;
+                break;
+            case 6:
+                CA_Boost_alpha = table;
+                break;
+            case 7:
+                CA_Coast_alpha = table;
+                break;
+            case 8:
+                CNB_alpha = table;
                 break;
             default:
                 throw std::invalid_argument("unhandled case.");
