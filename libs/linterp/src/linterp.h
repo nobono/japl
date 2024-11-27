@@ -60,6 +60,14 @@ typedef vector<double> dVec;
 namespace py = pybind11;
 
 
+vector<double> get_grid_point(vector<dVec> const &gridList, vector<int> const &index);
+
+// unpack tuple to vector<>
+vector<dVec> process_tuple_of_arrays(pybind11::tuple input_tuple);
+
+template <class IterT>
+std::pair<vector<typename IterT::value_type::const_iterator>, vector<typename IterT::value_type::const_iterator> > get_begins_ends(IterT iters_begin, IterT iters_end);
+
 // TODO:
 //  - specify behavior past grid boundaries.
 //    1) clamp
@@ -107,6 +115,32 @@ public:
     vector<dVec> _f_gridList;
     vector<int> _f_sizes;
     py::array_t<double> _data;
+
+    NDInterpolator() = default;
+
+    NDInterpolator(pybind11::tuple& axes, pybind11::array_t<double>& data) {
+        // store axes in gridList
+        vector<dVec> f_gridList = process_tuple_of_arrays(axes);
+
+        // create f_sizes
+        vector<int> f_sizes(N);
+        for (int i=0;i<f_gridList.size();i++) {
+            f_sizes[i] = f_gridList[i].size();
+        }
+
+        py::array_t<double> flat = data.attr("flatten")().cast<py::array_t<double>>();
+
+        auto begins_ends = get_begins_ends(f_gridList.begin(), f_gridList.end());
+        // InterpMultilinear<N, T> interp_multilinear(begins_ends.first.begin(), f_sizes,
+        //                                        data.data(), data.data() + data.size());
+
+        // store values to make interp class pickeable
+        // interp_multilinear._f_gridList = f_gridList;
+        // interp_multilinear._f_sizes = f_sizes;
+        // interp_multilinear._data = data.attr("copy")();
+        // return interp_multilinear;
+        init(begins_ends.first.begin(), f_sizes, flat.data(), flat.data() + flat.size());
+    }
 
     // constructors assume that [f_begin, f_end) is a contiguous array in C-order  
     // non ref-counted constructor.
@@ -315,6 +349,12 @@ template <int N, class T, bool CopyData = true, bool Continuous = true, class Ar
 class InterpMultilinear : public NDInterpolator<N,T,CopyData,Continuous,ArrayRefCountT,GridRefCountT> {
 public:
     typedef NDInterpolator<N,T,CopyData,Continuous,ArrayRefCountT,GridRefCountT> super;
+
+    InterpMultilinear() = default;
+
+    InterpMultilinear(pybind11::tuple& axes, pybind11::array_t<double>& data)
+      : super(axes, data)
+    {}
     
     template <class IterT1, class IterT2, class IterT3>  
     InterpMultilinear(IterT1 grids_begin, IterT2 grids_len_begin, IterT3 f_begin, IterT3 f_end)
@@ -353,8 +393,7 @@ public:
       return result[0];
     }
 
-    py::array_t<double> interpolate(py::tuple args) const {
-
+    double operator()(py::tuple args) const {
         const int naxes = args.size();
         vector<dVec> axes(naxes);
         vector<dVec> points;
@@ -364,10 +403,71 @@ public:
             axes[i] = array_t_to_vector(axis);
         }
 
-        // ensure each axis has same dimensions
-        // printf("%lu\n", axes[0].size());
-        // printf("%lu\n", axes[1].size());
-        // printf("%lu\n", axes[2].size());
+        // iterate over each axis to create list of points
+        const int npoints = axes[0].size();
+        points.resize(npoints);
+        for (size_t i=0; i<npoints; i++) {
+            dVec point(naxes);
+            for (size_t j=0; j<naxes; j++) {
+                point[j] = axes[j][i];
+            }
+            points[i] = point;
+        }
+
+        vector<T> result(npoints);
+        array< vector<T>, N > coord_iter;
+        for (int i=0; i<N; i++) {
+            coord_iter[i].resize(npoints);
+            for (int j=0; j<npoints; j++) {
+              coord_iter[i][j] = points[j][i];
+          }
+        }
+
+        interp_vec(npoints, coord_iter.begin(), coord_iter.end(), result.begin());
+        return result[0];
+    }
+
+    double operator()(double args) const {
+        // same as interpolate() but only interpolates one
+        // point and returns double
+        const int naxes = 1; // args.size();
+        vector<dVec> axes = {{args}};
+        vector<dVec> points;
+
+        // iterate over each axis to create list of points
+        const int npoints = axes[0].size();
+        points.resize(npoints);
+        for (size_t i=0; i<npoints; i++) {
+            dVec point(naxes);
+            for (size_t j=0; j<naxes; j++) {
+                point[j] = axes[j][i];
+            }
+            points[i] = point;
+        }
+
+        vector<T> result(npoints);
+        array< vector<T>, N > coord_iter;
+        for (int i=0; i<N; i++) {
+            coord_iter[i].resize(npoints);
+            for (int j=0; j<npoints; j++) {
+              coord_iter[i][j] = points[j][i];
+          }
+        }
+
+        interp_vec(npoints, coord_iter.begin(), coord_iter.end(), result.begin());
+        return result[0];
+    }
+
+    py::array_t<double> interpolate(const py::tuple& args) const {
+
+        const int naxes = args.size();
+        vector<dVec> axes(naxes);
+        vector<dVec> points;
+
+        for (size_t i=0; i<naxes; ++i) {
+            py::array axis = args[i];
+            axes[i] = array_t_to_vector(axis);
+        }
 
         // iterate over each axis to create list of points
         const int npoints = axes[0].size();
@@ -396,6 +496,28 @@ public:
         py::array axis0 = args[0];
         vector<ssize_t> shape(axis0.shape(), axis0.shape() + axis0.ndim());
         ret = ret.reshape(shape);
+        return ret;
+    }
+
+    py::array_t<double> interpolate(const vector<dVec>& points) const {
+
+        const int npoints = points.size();
+
+        // transpose input of [Npoints x Ndim] -> [Ndim x Npoints]
+        vector<dVec> coord_iter(N, vector<double>(npoints));
+        for (int i=0; i<npoints; ++i) {
+            for (int j=0; j<N; ++j) {
+                coord_iter[j][i] = points[i][j];
+            }
+        }
+
+        vector<T> result(npoints);
+        interp_vec(npoints, coord_iter.begin(), coord_iter.end(), result.begin());
+
+        // convert to numpy array
+        py::array_t<double> ret(result.size());
+        double* ret_ptr = static_cast<double*>(ret.mutable_data());
+        std::copy(result.begin(), result.end(), ret_ptr);
         return ret;
     }
         
@@ -434,55 +556,19 @@ public:
     }
     };	
 
-// typedef InterpSimplex<1,double> NDInterpolator_1_S;
-// typedef InterpSimplex<2,double> NDInterpolator_2_S;
-// typedef InterpSimplex<3,double> NDInterpolator_3_S;
-// typedef InterpSimplex<4,double> NDInterpolator_4_S;
-// typedef InterpSimplex<5,double> NDInterpolator_5_S;
+
 typedef InterpMultilinear<1,double> NDInterpolator_1_ML;
 typedef InterpMultilinear<2,double> NDInterpolator_2_ML;
 typedef InterpMultilinear<3,double> NDInterpolator_3_ML;
 typedef InterpMultilinear<4,double> NDInterpolator_4_ML;
 typedef InterpMultilinear<5,double> NDInterpolator_5_ML;
 
-// // C interface
-// extern "C" {
-//   void linterp_simplex_1(double **grids_begin, int *grid_len_begin, double *pF, int xi_len, double **xi_begin, double *pResult);
-//   void linterp_simplex_2(double **grids_begin, int *grid_len_begin, double *pF, int xi_len, double **xi_begin, double *pResult);
-//   void linterp_simplex_3(double **grids_begin, int *grid_len_begin, double *pF, int xi_len, double **xi_begin, double *pResult);  
-// }
-
-// void inline linterp_simplex_1(double **grids_begin, int *grid_len_begin, double *pF, int xi_len, double **xi_begin, double *pResult) {
-//   const int N=1;
-//   size_t total_size = 1;  
-//   for (int i=0; i<N; i++)	{     
-// 	total_size *= grid_len_begin[i];
-//   }      
-//   InterpSimplex<N, double, false> interp_obj(grids_begin, grid_len_begin, pF, pF + total_size);
-//   interp_obj.interp_vec(xi_len, xi_begin, xi_begin + N, pResult);
-// }
-
-// void inline linterp_simplex_2(double **grids_begin, int *grid_len_begin, double *pF, int xi_len, double **xi_begin, double *pResult) {
-//   const int N=2;
-//   size_t total_size = 1;  
-//   for (int i=0; i<N; i++)	{     
-// 	total_size *= grid_len_begin[i];
-//   }      
-//   InterpSimplex<N, double, false> interp_obj(grids_begin, grid_len_begin, pF, pF + total_size);
-//   interp_obj.interp_vec(xi_len, xi_begin, xi_begin + N, pResult);
-// }
-
-// void inline linterp_simplex_3(double **grids_begin, int *grid_len_begin, double *pF, int xi_len, double **xi_begin, double *pResult) {
-//   const int N=3;
-//   size_t total_size = 1;  
-//   for (int i=0; i<N; i++)	{     
-// 	total_size *= grid_len_begin[i];
-//   }      
-//   InterpSimplex<N, double, false> interp_obj(grids_begin, grid_len_begin, pF, pF + total_size);
-//   interp_obj.interp_vec(xi_len, xi_begin, xi_begin + N, pResult);
-// }
-
-
+// pybind factory for creating interpolation objects
+// NDInterpolator_1_ML create_interp_1(pybind11::tuple axes, pybind11::array_t<double> data);
+// NDInterpolator_2_ML create_interp_2(pybind11::tuple axes, pybind11::array_t<double> data);
+// NDInterpolator_3_ML create_interp_3(pybind11::tuple axes, pybind11::array_t<double> data);
+// NDInterpolator_4_ML create_interp_4(pybind11::tuple axes, pybind11::array_t<double> data);
+// NDInterpolator_5_ML create_interp_5(pybind11::tuple axes, pybind11::array_t<double> data);
 
 
 #endif //_linterp_h

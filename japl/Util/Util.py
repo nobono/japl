@@ -1,3 +1,4 @@
+import numpy as np
 from typing import Any, Iterable
 from typing import get_args
 import timeit
@@ -35,3 +36,11 @@ def iter_type_check(iter: Iterable, typehint) -> bool:
             return False
     else:
         return False
+
+
+def unitize(vec):
+    # norm = np.sqrt(vec[0]**2 + vec[1]**2 + vec[2]**2)
+    norm = np.linalg.norm(vec)
+    if norm == 0.0:
+        return vec
+    return vec / norm

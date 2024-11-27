@@ -33,9 +33,10 @@ class CCodeGenerator(CodeGeneratorBase):
                          "namespace py = pybind11;",
                          ""]
 
-    def __init__(self, strict: bool = False):
+    def __init__(self, strict: bool = False, use_std_args: bool = False):
         self.strict = strict
         self.function_register = {}
+        self.use_std_args = use_std_args  # use standard Model args
 
 
     def _get_code(self, expression):
@@ -398,7 +399,8 @@ class CCodeGenerator(CodeGeneratorBase):
 
         return_type_str = self._get_return_type(expr_simple)
         params_list, params_unpack = self._get_function_parameters(params=params,
-                                                                   by_reference=by_reference)
+                                                                   by_reference=by_reference,
+                                                                   use_std_args=self.use_std_args)
         func_proto = f"{return_type_str} {function_name}({params_list})" + " {\n"  # }
         func_def = func_proto + self._indent_lines(params_unpack)
         # old
@@ -611,8 +613,8 @@ class CCodeGenerator(CodeGeneratorBase):
         # Define extension module
         ext_module = Pybind11Extension(name="{module_name}",
                                        sources=sources,
-                                       extra_compile_args=['-std=c++14'],
-                                       extra_link_args=['-std=c++14'])
+                                       extra_compile_args=['-std=c++17'],
+                                       extra_link_args=['-std=c++17'])
         """"""
 
         cmdclass = {'build_ext': build_ext,

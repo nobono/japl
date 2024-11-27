@@ -16,7 +16,6 @@ from japl.BuildTools.DirectUpdate import DirectUpdate
 from japl.Aero.AeroTableSymbolic import AeroTableSymbolic
 from japl.Math.RotationSymbolic import ecef_to_lla_sym
 from japl.Library.Earth.Earth import Earth
-from japl.BuildTools.CCodeGenerator import CCodeGenerator
 from japl.Util.Util import flatten_list
 from japl.BuildTools.BuildTools import to_pycode
 from japl import JAPL_HOME_DIR
@@ -270,12 +269,14 @@ C_ecef_to_body = C_body_to_ecef.T
 f_b_T = Matrix([thrust, 0, 0])
 
 Sref = aerotable.get_Sref()
+CYB = aerotable.get_CYB(alpha, np.nan, M, np.nan)
 CNB = aerotable.get_CNB(alpha, np.nan, M, alt, np.nan)
 CA = aerotable.get_CA(alpha, np.nan, M, alt, np.nan, thrust)
 
 f_b_A_x = CA * q_bar * Sref
+f_b_A_y = CYB * q_bar * Sref
 f_b_A_z = CNB * q_bar * Sref
-f_b_A = Matrix([f_b_A_x, 0, f_b_A_z])
+f_b_A = Matrix([f_b_A_x, f_b_A_y, f_b_A_z])
 
 # (6)
 # g_i_m = Matrix([gacc, 0, 0])
@@ -751,52 +752,45 @@ if __name__ == "__main__":
                                               definitions=defs,
                                               use_multiprocess_build=True)
 
-    # model.save(path=JAPL_HOME_DIR + "/../mmd/", name="mmd")
+    ##################################################
+    # Python CodeGen
+    ##################################################
+    # # model.save(path=JAPL_HOME_DIR + "/../mmd/", name="mmd")
 
-    path = "./"
-    imports = ["from config import aerotable_get_CA",
-               "from config import aerotable_get_CNB",
-               "from config import aerotable_get_Sref",
-               "from config import atmosphere_density",
-               "from config import atmosphere_speed_of_sound",
-               "from config import aerotable_inv_aerodynamics"]
+    # path = "./"
+    # imports = ["from config import aerotable_get_CA",
+    #            "from config import aerotable_get_CNB",
+    #            "from config import aerotable_get_CYB",
+    #            "from config import aerotable_get_Sref",
+    #            "from config import atmosphere_density",
+    #            "from config import atmosphere_speed_of_sound",
+    #            "from config import aerotable_inv_aerodynamics"]
 
-    to_pycode(func_name="dynamics_func",
-              expr=model.dynamics_expr,
-              state_vars=state,
-              input_vars=input,
-              static_vars=static,
-              filepath=os.path.join(path, "mmd_dynamics.py"),
-              imports=imports)
+    # to_pycode(func_name="dynamics_func",
+    #           expr=model.dynamics_expr,
+    #           state_vars=state,
+    #           input_vars=input,
+    #           static_vars=static,
+    #           filepath=os.path.join(path, "mmd_dynamics.py"),
+    #           imports=imports)
 
-    to_pycode(func_name="state_update_func",
-              expr=model.state_direct_updates,
-              state_vars=state,
-              input_vars=input,
-              static_vars=static,
-              filepath=os.path.join(path, "mmd_state_update.py"),
-              imports=imports)
+    # to_pycode(func_name="state_update_func",
+    #           expr=model.state_direct_updates,
+    #           state_vars=state,
+    #           input_vars=input,
+    #           static_vars=static,
+    #           filepath=os.path.join(path, "mmd_state_update.py"),
+    #           imports=imports)
 
-    to_pycode(func_name="input_update_func",
-              expr=model.input_direct_updates,
-              state_vars=state,
-              input_vars=input,
-              static_vars=static,
-              filepath=os.path.join(path, "mmd_input_update.py"),
-              imports=imports)
+    # to_pycode(func_name="input_update_func",
+    #           expr=model.input_direct_updates,
+    #           state_vars=state,
+    #           input_vars=input,
+    #           static_vars=static,
+    #           filepath=os.path.join(path, "mmd_input_update.py"),
+    #           imports=imports)
 
-    # gen = CCodeGenerator()
-    # params = [t, state, input, static, dt]
-    # gen.add_function(expr=model.dynamics_expr,
-    #                  params=params,
-    #                  function_name="dynamics",
-    #                  return_name="Xdot")
-    # gen.add_function(expr=model.state_direct_updates,
-    #                  params=params,
-    #                  function_name="state_updates",
-    #                  return_name="Xnew")
-    # gen.add_function(expr=model.input_direct_updates,
-    #                  params=params,
-    #                  function_name="input_updates",
-    #                  return_name="Unew")
-    # gen.create_module(module_name="mmd", path="./")
+    ##################################################
+    # C++ CodeGen
+    ##################################################
+    model.create_c_module(name="mmd", path="./")

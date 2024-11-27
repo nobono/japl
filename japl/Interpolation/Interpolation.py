@@ -20,15 +20,17 @@ class LinearInterp:
             - table: the data table to be interpolated.
         -------------------------------------------------------------------------
         """
-        try:
-            self._interp_obj = self.interp = self.create_linterp(axes, table)
-        except Exception as e:
-            print("linterp extension module not found. using RegularGridInterpolator", e)
-            self._interp_obj = self.interp = RegularGridInterpolator(axes, table)
+        # try:
+        self.interp = self.create_linterp(axes, table)
+        self.ndim = len(axes)
+        # except Exception as e:
+        #     print("linterp extension module not found. using RegularGridInterpolator", e)
+        #     self.interp = RegularGridInterpolator(axes, table)
+        #     self.ndim = len(axes)
 
 
-    def __call__(self, args: tuple[np.ndarray, ...]) -> np.ndarray:
-        return self._interp_obj(args)
+    def __call__(self, args) -> np.ndarray:
+        return self.interp(args)
 
 
     @staticmethod

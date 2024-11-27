@@ -14,6 +14,7 @@ from japl.Model.StateRegister import StateRegister
 from japl.Util.Desym import Desym
 
 from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
+from japl.BuildTools.CCodeGenerator import CCodeGenerator
 from japl.BuildTools import BuildTools
 
 # ---------------------------------------------------
@@ -278,22 +279,21 @@ class Model:
         model.dynamics_expr = dynamics_expr
         model.state_direct_updates = state_direct_updates
         model.input_direct_updates = input_direct_updates
-        model.direct_state_update_func = model.__process_direct_state_updates(state_direct_updates)
-        model.direct_input_update_func = model.__process_direct_state_updates(input_direct_updates)
+        # model.direct_state_update_func = model.__process_direct_state_updates(state_direct_updates)
+        # model.direct_input_update_func = model.__process_direct_state_updates(input_direct_updates)
         model.state_dim = len(model.state_vars)
         model.input_dim = len(model.input_vars)
         model.static_dim = len(model.static_vars)
         # create lambdified function from symbolic expression
-        # dyn_vars = (Symbol("t"),) + model.vars
-        match dynamics_expr.__class__():  # type:ignore
-            case Expr():
-                model.dynamics_func = model.__process_direct_state_updates(dynamics_expr)
-            case Matrix():
-                model.dynamics_func = model.__process_direct_state_updates(dynamics_expr)
-            case MatrixSymbol():
-                model.dynamics_func = model.__process_direct_state_updates(dynamics_expr)
-            case _:
-                raise Exception("function provided is not Callable.")
+        # match dynamics_expr.__class__():  # type:ignore
+        #     case Expr():
+        #         model.dynamics_func = model.__process_direct_state_updates(dynamics_expr)
+        #     case Matrix():
+        #         model.dynamics_func = model.__process_direct_state_updates(dynamics_expr)
+        #     case MatrixSymbol():
+        #         model.dynamics_func = model.__process_direct_state_updates(dynamics_expr)
+        #     case _:
+        #         raise Exception("function provided is not Callable.")
         return model
 
 
@@ -703,3 +703,23 @@ class Model:
             obj.set_input(obj.input_vars)
             obj.set_static(obj.static_vars)
         return obj
+
+
+    def create_c_module(self, name: str, path: str = "./"):
+        gen = CCodeGenerator(use_std_args=True)
+        t = Symbol("t", real=True)
+        dt = Symbol("dt", real=True)
+        params = [t, self.state_vars, self.input_vars, self.static_vars, dt]
+        gen.add_function(expr=self.dynamics_expr,
+                         params=params,
+                         function_name="Model::dynamics",
+                         return_name="Xdot")
+        gen.add_function(expr=self.state_direct_updates,
+                         params=params,
+                         function_name="Model::state_updates",
+                         return_name="Xnew")
+        gen.add_function(expr=self.input_direct_updates,
+                         params=params,
+                         function_name="Model::input_updates",
+                         return_name="Unew")
+        gen.create_module(module_name=name, path=path)
