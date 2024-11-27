@@ -56,23 +56,35 @@ def get_extension_modules() -> list:
     kwargs = dict(extra_compile_args=[],
                   extra_link_args=[],
                   cxx_std=17)
+
+    atmosphere_data_src = ["libs/atmosphere/data/_atmosphere_alts.cpp",
+                           "libs/atmosphere/data/_atmosphere_density.cpp",
+                           "libs/atmosphere/data/_atmosphere_grav_accel.cpp",
+                           "libs/atmosphere/data/_atmosphere_pressure.cpp",
+                           "libs/atmosphere/data/_atmosphere_speed_of_sound.cpp",
+                           "libs/atmosphere/data/_atmosphere_temperature.cpp"]
+
     try:
         from pybind11.setup_helpers import Pybind11Extension
-        linterp_ext = Pybind11Extension("linterp", ["libs/linterp/src/linterp.cpp"],
-                                        **kwargs)
-        atmosphere_ext = Pybind11Extension("atmosphere", ["libs/atmosphere/atmosphere.cpp",
-                                                          "libs/linterp/src/linterp.cpp"],
-                                           **kwargs)
+        linterp_ext = Pybind11Extension("linterp", ["libs/linterp/src/linterp.cpp"], **kwargs)
+
+        atmosphere_ext = Pybind11Extension("atmosphere", [*atmosphere_data_src,
+                                                          "libs/linterp/src/linterp.cpp",
+                                                          "libs/atmosphere/atmosphere.cpp"], **kwargs)
+
         aerotable_ext = Pybind11Extension("aerotable", ["libs/aerotable/aerotable.cpp",
                                                         "libs/datatable/datatable.cpp",
-                                                        "libs/linterp/src/linterp.cpp"],
-                                          **kwargs)
-        model_ext = Pybind11Extension("model", ["libs/model/model.cpp",
-                                                "libs/linterp/src/linterp.cpp"],
-                                      **kwargs)
+                                                        "libs/linterp/src/linterp.cpp"], **kwargs)
+
+        model_ext = Pybind11Extension("model", [*atmosphere_data_src,
+                                                "libs/model/model.cpp",
+                                                "libs/aerotable/aerotable.cpp",
+                                                "libs/atmosphere/atmosphere.cpp",
+                                                "libs/linterp/src/linterp.cpp"], **kwargs)
+
         datatable_ext = Pybind11Extension("datatable", ["libs/datatable/datatable.cpp",
-                                                        "libs/linterp/src/linterp.cpp"],
-                                          **kwargs)
+                                                        "libs/linterp/src/linterp.cpp"], **kwargs)
+
         return [linterp_ext, atmosphere_ext, aerotable_ext, model_ext, datatable_ext]
     except ImportError:
         sys.exit("Error: pybind11 must be installed to build this package.")
