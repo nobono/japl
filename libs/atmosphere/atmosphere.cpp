@@ -2,23 +2,23 @@
 
 
 double Atmosphere::pressure(double alt) {
-    return this->interp_pressure(alt);
+    return this->interp_pressure.interpolate(vector<dVec>({{alt}}))[0];
 }
 
 double Atmosphere::temperature(double alt) {
-    return this->interp_temperature(alt);
+    return this->interp_temperature.interpolate(vector<dVec>({{alt}}))[0];
 }
 
 double Atmosphere::density(double alt) {
-    return this->interp_density(alt);
+    return this->interp_density.interpolate(vector<dVec>({{alt}}))[0];
 }
 
 double Atmosphere::speed_of_sound(double alt) {
-    return this->interp_speed_of_sound(alt);
+    return this->interp_speed_of_sound.interpolate(vector<dVec>({{alt}}))[0];
 }
 
 double Atmosphere::grav_accel(double alt) {
-    return this->interp_grav_accel(alt);
+    return this->interp_grav_accel.interpolate(vector<dVec>({{alt}}))[0];
 }
 
 double Atmosphere::dynamics_pressure(vector<double> vel, double alt) {

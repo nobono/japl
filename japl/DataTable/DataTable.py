@@ -33,16 +33,35 @@ class DataTable(np.ndarray):
         if obj is None:
             return
         self.axes = getattr(obj, "axes", {})
-        self.interp: Optional[LinearInterp] = None
+        # self.interp: Optional[LinearInterp] = None
+        self.interp: Optional[LinearInterp] = getattr(obj, "interp", None)
+
+
+    # TODO Datatable slicing
+    # slicing table must affect axes also
+    # should this be allowed?
+    # def __getitem__(self, index):
+    #     # when slicing table also slice axes
+    #     # for slice, axis_label in zip(index, self.axes.keys()):
+    #     #     self.axes[axis_label] = self.axes[axis_label][slice]
+    #     ret = super().__getitem__(index)
+    #     # axes_labels = list(self.axes.keys())
+    #     # new_axes = self.axes.copy()  # type:ignore
+    #     # for i, slc in enumerate(index):
+    #     #     new_axes[axes_labels[i]] = ret.axes[axes_labels[i]][slc]
+    #     # ret = DataTable(np.asarray(ret), new_axes)
+    #     return ret
 
 
     def __repr__(self) -> str:
         ret = super().__repr__()
-        ret += f"\nAxis Info: {str(self.axes)}"
+        axis_info = [k + ': ' + str(v.shape) for k, v in self.axes.items()]
+        ret += f"\nShape: {self.shape}"
+        ret += f"\nAxis Info: {str(axis_info)}"
         return ret
 
 
-    def __call__(self, **kwargs) -> float|np.ndarray:
+    def __call__(self, *args, **kwargs) -> float|np.ndarray:
         """Checks if kwargs matches table axes then calls LinearInterp.
         Arguments
         ----------
@@ -53,9 +72,17 @@ class DataTable(np.ndarray):
         -------
         float | numpy.ndarray
         """
-        args = self._get_table_args(**kwargs)
+        # handle dict being passed
+        if len(args) == 1 and isinstance(args[0], dict):
+            kwargs = args[0]
+            args = ()
+
+        args = self._get_table_args(*args, **kwargs)
+
+        # check required number of args
         if len(args) != len(self.axes):
             raise Exception(f"missing DataTable arguments for: {list(self.axes.keys())[len(args):]}")
+
         if self.interp is None:
             # default return value: 0
             return 0.0
@@ -75,7 +102,7 @@ class DataTable(np.ndarray):
         for label in set_labels:
             if label in current_labels:
                 id_swap_order += [current_labels.index(label)]
-        self.axes = {key: self.axes[key] for key in set_labels}
+        self.axes = {key: self.axes[key] for key in set_labels if key in self.axes}
         return self.transpose(id_swap_order)
 
 
@@ -152,16 +179,41 @@ class DataTable(np.ndarray):
             return False
 
 
-    def _get_table_args(self, **kwargs) -> tuple:
+    def _get_table_args(self, *args, **kwargs) -> tuple:
         """This method handles arguments passed to DataTables dynamically
         according to the arguments passed and the axes of the table
         being accessed."""
-        args = ()
+        # args = ()
         for label in self.axes:
             arg_val = kwargs.get(label, None)
             if arg_val is not None:
                 args += (arg_val,)
-        return args
+        return args[:len(self.axes)]
+
+
+    def create_diff_table(self, diff_arg: str, delta_arg: float) -> "DataTable":
+        """This method differentiates a table wrt. an increment variable
+        name \"diff_arg\"."""
+        table = self
+        # get min and max values to keep diff within table range
+        max_alpha = max(table.axes.get(diff_arg))  # type:ignore
+        min_alpha = min(table.axes.get(diff_arg))  # type:ignore
+
+        # handle table args
+        val_args = table._get_table_args(**table.axes)
+        arg_grid = np.meshgrid(*val_args, indexing="ij")
+        args = {str(k): v for k, v in zip(table.axes, arg_grid)}
+
+        # create diff_arg plus & minus values for linear interpolation
+        args_plus = args.copy()
+        args_minus = args.copy()
+        args_plus[diff_arg] = np.clip(args[diff_arg] + delta_arg, min_alpha, max_alpha)
+        args_minus[diff_arg] = np.clip(args[diff_arg] - delta_arg, min_alpha, max_alpha)
+
+        val_plus = table(**args_plus)
+        val_minus = table(**args_minus)
+        diff_table = (val_plus - val_minus) / (args_plus[diff_arg] - args_minus[diff_arg])  # type:ignore
+        return DataTable(diff_table, axes=table.axes)
 
 
     @staticmethod
@@ -239,11 +291,17 @@ class DataTable(np.ndarray):
 
         new_table2 = table2.reshape(new_shape2)
 
-        if new_s1_labels != new_s2_labels:
-            raise Exception(f"Error when aligning axes {new_s1_labels} != {new_s2_labels}")
+        # some checks
+        # if new_s1_labels != new_s2_labels:
+        #     # try to rearange table1
+        #     _combined_axes = {**table1.axes, **table2.axes}
+        #     # sort dict according to new labels1
+        #     _axes = {k: _combined_axes[k] for k in new_s1_labels}
+        #     table1 = DataTable(new_table1, axes=_axes)
+        #     raise Exception(f"Error when aligning axes {new_s1_labels} != {new_s2_labels}")
 
         combined_axes = {}
-        for label in new_s1_labels:
+        for label in new_s2_labels:
             if label in table1.axes:
                 combined_axes[label] = table1.axes[label]
             else:
@@ -262,7 +320,7 @@ class DataTable(np.ndarray):
             table1, table2, new_axes = self._op_align_axes(self, other)
             return DataTable(table1 + table2, axes=new_axes)
         else:
-            return super().__add__(other)
+            return DataTable(np.asarray(self) + other, axes=self.axes)
 
 
     def __mul__(self, other) -> "DataTable":
@@ -270,7 +328,7 @@ class DataTable(np.ndarray):
             table1, table2, new_axes = self._op_align_axes(self, other)
             return DataTable(table1 * table2, axes=new_axes)
         else:
-            return super().__mul__(other)
+            return DataTable(np.asarray(self) * other, axes=self.axes)
 
 
     def __matmul__(self, other) -> "DataTable":
@@ -278,4 +336,4 @@ class DataTable(np.ndarray):
             table1, table2, new_axes = self._op_align_axes(self, other)
             return DataTable(table1 @ table2, axes=new_axes)
         else:
-            return super().__matmul__(other)
+            return DataTable(np.asarray(self) @ other, axes=self.axes)

@@ -25,9 +25,20 @@ class TestDataTable(unittest.TestCase):
 
 
     def test_required_args(self):
+        """missing mach arg"""
         table = DataTable(self.data, self.axes)
         with self.assertRaises(Exception):
             table(alpha=1)
+
+
+    def test_args(self):
+        """missing mach arg"""
+        table = DataTable(self.data, self.axes)
+        ret = table(1, 1)
+        kw_ret = table(alpha=1, mach=1)
+        dict_ret = table({"alpha": 1, "mach": 1})
+        self.assertEqual(ret, kw_ret)
+        self.assertEqual(ret, dict_ret)
 
 
     def test_mirror_axis_case1(self):
@@ -39,6 +50,7 @@ class TestDataTable(unittest.TestCase):
                          [6., 7., 8.]])
         mtable = table.mirror_axis("alpha")
         self.assertTrue((mtable == true).all())
+        self.assertTrue((true == mtable.interp.interp_obj._data).all())  # type:ignore
         self.assertListEqual(mtable.axes["alpha"].tolist(), [-2, -1, 0, 1, 2])
         self.assertListEqual(mtable.axes["mach"].tolist(), self.axes["mach"].tolist())
 
@@ -50,6 +62,7 @@ class TestDataTable(unittest.TestCase):
                          [-8., -7., 6., 7., 8.]])
         mtable = table.mirror_axis("mach")
         self.assertTrue((mtable == true).all())
+        self.assertTrue((true == mtable.interp.interp_obj._data).all())  # type:ignore
         self.assertListEqual(mtable.axes["mach"].tolist(), [-2, -1, 0, 1, 2])
         self.assertListEqual(mtable.axes["alpha"].tolist(), self.axes["alpha"].tolist())
 
@@ -63,6 +76,7 @@ class TestDataTable(unittest.TestCase):
                          [12., 14., 16.]])
         data = t1 + t2
         self.assertTrue((true == data).all())
+        self.assertTrue((true == data.interp.interp_obj._data).all())  # type:ignore
         self.assertListEqual(data.axes["alpha"].tolist(), self.axes["alpha"].tolist())
         self.assertListEqual(data.axes["mach"].tolist(), self.axes["mach"].tolist())
 
@@ -99,6 +113,7 @@ class TestDataTable(unittest.TestCase):
                          [8., 9., 10.]])
         data = t1 + 2
         self.assertTrue((true == data).all())
+        self.assertTrue((true == data.interp.interp_obj._data).all())  # type:ignore
         self.assertListEqual(data.axes["alpha"].tolist(), self.axes["alpha"].tolist())
         self.assertListEqual(data.axes["mach"].tolist(), self.axes["mach"].tolist())
 
@@ -116,15 +131,21 @@ class TestDataTable(unittest.TestCase):
         self.assertTrue((ret == true).all())
 
 
-    # def test_add_case5(self):
-    #     """table add with different axes"""
-    #     axes2 = {"alpha": np.array([0., 1, 2]),
-    #              "alt": np.array([0., 1]),
-    #              "mach": np.array([0., 1, 2]),
-    #              }
-    #     data2 = np.ones((3, 2, 3))
-    #     t1 = DataTable(self.data, self.axes)
-    #     t2 = DataTable(data2, axes2)
+    def test_add_case5(self):
+        """table add with different axes.
+        This should be same as test_add_case4 when axes
+        are the same."""
+        axes2 = {"alpha": np.array([0., 1, 2]),
+                 "alt": np.array([0., 1]),
+                 "mach": np.array([0., 1, 2]),
+                 }
+        data2 = np.ones((3, 2, 3))
+        t1 = DataTable(self.data, self.axes)
+        t2 = DataTable(data2, axes2)
+
+        ret = t1 + t2
+        self.assertEqual(ret.shape, data2.shape)
+        self.assertEqual(tuple(ret.axes.keys()), tuple(axes2.keys()))
 
 
     def test_mul_case2(self):
@@ -136,6 +157,7 @@ class TestDataTable(unittest.TestCase):
                          [36., 49., 64.]])
         data = t1 * t2
         self.assertTrue((true == data).all())
+        self.assertTrue((true == data.interp.interp_obj._data).all())  # type:ignore
         self.assertListEqual(data.axes["alpha"].tolist(), self.axes["alpha"].tolist())
         self.assertListEqual(data.axes["mach"].tolist(), self.axes["mach"].tolist())
 
@@ -149,6 +171,7 @@ class TestDataTable(unittest.TestCase):
                          [69., 90., 111.]])
         data = t1 @ t2
         self.assertTrue((true == data).all())
+        self.assertTrue((true == data.interp.interp_obj._data).all())  # type:ignore
         self.assertListEqual(data.axes["alpha"].tolist(), self.axes["alpha"].tolist())
         self.assertListEqual(data.axes["mach"].tolist(), self.axes["mach"].tolist())
 
@@ -161,6 +184,7 @@ class TestDataTable(unittest.TestCase):
                          [12., 14., 16.]])
         data = t1 * 2
         self.assertTrue((true == data).all())
+        self.assertTrue((true == data.interp.interp_obj._data).all())  # type:ignore
         self.assertListEqual(data.axes["alpha"].tolist(), self.axes["alpha"].tolist())
         self.assertListEqual(data.axes["mach"].tolist(), self.axes["mach"].tolist())
 

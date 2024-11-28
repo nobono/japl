@@ -23,7 +23,7 @@ class CleanCommand(Command):
         shutil.rmtree('./build', ignore_errors=True)
         shutil.rmtree('./dist', ignore_errors=True)
         root_path = os.path.dirname(__file__)
-        file_patterns = ["*.so", "*.dll"]
+        file_patterns = ["*.so", "*.dll", "*.pyd"]
         for pattern in file_patterns:
             for file in glob.iglob(os.path.join(root_path, "**", pattern), recursive=True):
                 print("removing:", file)
@@ -53,20 +53,42 @@ def get_numpy_include():
 
 # Safely import pybind11 to get extension modules
 def get_extension_modules() -> list:
+    kwargs = dict(extra_compile_args=[],
+                  extra_link_args=[],
+                  cxx_std=17)
+
+    atmosphere_data_src = ["libs/atmosphere/data/_atmosphere_alts.cpp",
+                           "libs/atmosphere/data/_atmosphere_density.cpp",
+                           "libs/atmosphere/data/_atmosphere_grav_accel.cpp",
+                           "libs/atmosphere/data/_atmosphere_pressure.cpp",
+                           "libs/atmosphere/data/_atmosphere_speed_of_sound.cpp",
+                           "libs/atmosphere/data/_atmosphere_temperature.cpp"]
+
     try:
         from pybind11.setup_helpers import Pybind11Extension
-        linterp_ext = Pybind11Extension("linterp", ["libs/linterp/src/linterp.cpp"],
-                                        extra_compile_args=['-std=c++17'],
-                                        extra_link_args=['-std=c++17'])
-        atmosphere_ext = Pybind11Extension("atmosphere", ["libs/atmosphere/atmosphere.cpp",
-                                                          "libs/linterp/src/linterp.cpp"],
-                                           extra_compile_args=['-std=c++17'],
-                                           extra_link_args=['-std=c++17'])
-        aerotable_ext = Pybind11Extension("aerotable", ["libs/aerotable/aerotable.cpp",
-                                                        "libs/linterp/src/linterp.cpp"],
-                                          extra_compile_args=['-std=c++17'],
-                                          extra_link_args=['-std=c++17'])
-        return [linterp_ext, atmosphere_ext, aerotable_ext]
+        linterp_ext = Pybind11Extension("linterp", ["libs/linterp/src/linterp.cpp"], **kwargs)
+
+        atmosphere_ext = Pybind11Extension("atmosphere", [*atmosphere_data_src,
+                                                          "libs/linterp/src/linterp.cpp",
+                                                          "libs/atmosphere/atmosphere.cpp"], **kwargs)
+
+        aerotable_ext = Pybind11Extension("aerotable", ["libs/linterp/src/linterp.cpp",
+                                                        "libs/datatable/datatable.cpp",
+                                                        "libs/aerotable/aerotable.cpp",
+                                                        ], **kwargs)
+
+        model_ext = Pybind11Extension("model", [*atmosphere_data_src,
+                                                "libs/linterp/src/linterp.cpp",
+                                                "libs/datatable/datatable.cpp",
+                                                "libs/aerotable/aerotable.cpp",
+                                                "libs/atmosphere/atmosphere.cpp",
+                                                "libs/model/model.cpp",
+                                                ], **kwargs)
+
+        datatable_ext = Pybind11Extension("datatable", ["libs/linterp/src/linterp.cpp",
+                                                        "libs/datatable/datatable.cpp"], **kwargs)
+
+        return [linterp_ext, atmosphere_ext, aerotable_ext, model_ext, datatable_ext]
     except ImportError:
         sys.exit("Error: pybind11 must be installed to build this package.")
 

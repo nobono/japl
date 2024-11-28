@@ -1,5 +1,6 @@
 import os
 import shutil
+from typing import Optional
 from tqdm import tqdm
 import numpy as np
 from japl.BuildTools.CodeGeneratorBase import CodeGeneratorBase
@@ -8,11 +9,13 @@ from sympy import Expr
 from sympy import Matrix
 from sympy import Symbol
 from sympy import cse
+from sympy import Piecewise
 from sympy.codegen.ast import float64, real
 from textwrap import dedent
 from japl.BuildTools.BuildTools import parallel_subs
 from japl.BuildTools.BuildTools import parallel_cse
 from collections import defaultdict
+from japl.Symbolic.KwargFunction import KwargFunction
 
 
 
@@ -26,6 +29,7 @@ class CCodeGenerator(CodeGeneratorBase):
     endl: str = ";\n"
 
     header: list[str] = ["#include <iostream>",
+                         "#include <model.hpp>",
                          "#include <pybind11/pybind11.h>",
                          "#include <pybind11/numpy.h>",
                          "#include <pybind11/stl.h>  // Enables automatic conversion",
@@ -43,11 +47,27 @@ class CCodeGenerator(CodeGeneratorBase):
         return ccode(expression, type_aliases={real: float64}, strict=self.strict)
 
 
+    def _handle_peicewise_recursive(self, expr: Expr) -> Expr:
+        def pw(expr) -> Optional[dict]:
+            for arg in expr.args:
+                if arg.has(Piecewise):
+                    return pw(arg)
+            if isinstance(expr, Piecewise):
+                return {expr: Symbol(self._get_code(expr))}
+
+        if expr.has(Piecewise):
+            ret = pw(expr)
+            if ret is not None:
+                expr = expr.subs(ret)  # type:ignore
+        return expr
+
+
     def _write_subexpressions(self, subexpressions: list|dict) -> str:
         if isinstance(subexpressions, dict):
             subexpressions = list(subexpressions.items())
         ret = ""
         for (lvalue, rvalue) in subexpressions:
+            rvalue = self._handle_peicewise_recursive(rvalue)  # handle Piecewise recursively
             assign_str = self._declare_variable(lvalue, prefix="const", assign=self._get_code(rvalue))  # type:ignore
             ret += assign_str
         return ret
@@ -535,10 +555,16 @@ class CCodeGenerator(CodeGeneratorBase):
         try:
             # get functions from register
             for func_name, info in tqdm(self.function_register.items(), ncols=80, desc="Build"):
+                # handle func_name references class method "Class::method"
+                class_ref = ""
+                if "::" in func_name:
+                    _func_str_split = func_name.split("::")
+                    class_ref = "".join(_func_str_split[0])
+                    func_name = "".join(_func_str_split[1:])
                 # build the function
                 writes = self._build_function(function_name=func_name, **info)
                 description = info["description"]
-                pybind_writes += [f"\tm.def(\"{func_name}\", &{func_name}, \"{description}\");"]
+                pybind_writes += [f"\tm.def(\"{func_name}\", &{class_ref}::{func_name}, \"{description}\");"]
                 for line in writes:
                     self._write_lines(line)
 
@@ -564,6 +590,7 @@ class CCodeGenerator(CodeGeneratorBase):
 
     def create_build_file(self, module_name: str, path: str, source: str):
         file_name = source.split('.')[0]
+        cxx_std = 17
 
         build_str = ("""\
         import os
@@ -574,6 +601,7 @@ class CCodeGenerator(CodeGeneratorBase):
         from setuptools.command.build_ext import build_ext
         from setuptools import Command
         from pybind11.setup_helpers import Pybind11Extension
+        from japl.global_opts import JAPL_HOME_DIR
 
 
 
@@ -613,8 +641,10 @@ class CCodeGenerator(CodeGeneratorBase):
         # Define extension module
         ext_module = Pybind11Extension(name="{module_name}",
                                        sources=sources,
-                                       extra_compile_args=['-std=c++17'],
-                                       extra_link_args=['-std=c++17'])
+                                       extra_compile_args=[],
+                                       extra_link_args=[],
+                                       include_dirs=[os.path.join(JAPL_HOME_DIR, "libs", "model")],
+                                       cxx_std={cxx_std})
         """"""
 
         cmdclass = {'build_ext': build_ext,

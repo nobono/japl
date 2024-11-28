@@ -12,6 +12,7 @@ from scipy.optimize import minimize_scalar
 
 class Increments:
     alpha = np.empty([])
+    beta = np.empty([])
     phi = np.empty([])
     mach = np.empty([])
     alt = np.empty([])
@@ -19,6 +20,7 @@ class Increments:
     iota_prime = np.empty([])
 
     nalpha = 0
+    nbeta = 0
     nphi = 0
     nmach = 0
     nalt = 0
@@ -319,6 +321,8 @@ class AeroTable:
         self.increments = Increments()
         if "alpha" in _total_axes:
             self.increments.alpha = _total_axes["alpha"]
+        if "beta" in _total_axes:
+            self.increments.beta = _total_axes["beta"]
         if "phi" in _total_axes:
             self.increments.phi = _total_axes["phi"]
         if "mach" in _total_axes:
@@ -673,6 +677,7 @@ class AeroTable:
     # TODO: move this to guidance module
     def ld_guidance(self,
                     alpha: float,
+                    beta: Optional[float] = None,
                     phi: Optional[float] = None,
                     mach: Optional[float] = None,
                     alt: Optional[float] = None,
@@ -685,8 +690,14 @@ class AeroTable:
         #     print("alpha clipping....")
 
         def ld_ratio(_alpha):
-            CA = stage.get_CA(alpha=_alpha, phi=phi, mach=mach, alt=alt, iota=iota, thrust=thrust)
-            CN = stage.get_CNB(alpha=_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            # CA = stage.get_CA(alpha=_alpha, phi=phi, mach=mach, alt=alt, iota=iota, thrust=thrust)
+            stage = self.get_stage()
+            boosting = (thrust > 0.0)
+            if boosting:
+                CA = stage.get_CA_Boost(alpha=abs(alpha), beta=beta, phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
+            else:
+                CA = stage.get_CA_Coast(alpha=abs(alpha), beta=beta, phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
+            CN = stage.get_CNB(alpha=_alpha, beta=beta, phi=phi, mach=mach, alt=alt, iota=iota)
             cosa = np.cos(_alpha)
             sina = np.sin(_alpha)
             CL = (CN * cosa) - (CA * sina)
@@ -697,8 +708,13 @@ class AeroTable:
         optimal_alpha = result.x
         ld_max = -result.fun
         # optimal CL, CD
-        CA = stage.get_CA(alpha=optimal_alpha, phi=phi, mach=mach, alt=alt, iota=iota, thrust=thrust)
-        CN = stage.get_CNB(alpha=optimal_alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+        # CA = stage.get_CA(alpha=optimal_alpha, phi=phi, mach=mach, alt=alt, iota=iota, thrust=thrust)
+        boosting = (thrust > 0.0)
+        if boosting:
+            CA = stage.get_CA_Boost(alpha=abs(alpha), beta=beta, phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
+        else:
+            CA = stage.get_CA_Coast(alpha=abs(alpha), beta=beta, phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
+        CN = stage.get_CNB(alpha=optimal_alpha, beta=beta, phi=phi, mach=mach, alt=alt, iota=iota)
         cosa = np.cos(optimal_alpha)
         sina = np.sin(optimal_alpha)
         opt_CL = (CN * cosa) - (CA * sina)
@@ -711,6 +727,7 @@ class AeroTable:
     def inv_aerodynamics(self,
                          thrust: float,
                          acc_cmd: float,
+                         beta: float,
                          dynamic_pressure: float,
                          mass: float,
                          alpha: float,
@@ -739,10 +756,10 @@ class AeroTable:
 
             # TODO switch between Boost / Coast
             # get coeffs from aerotable
-            CA = aerotable.get_CA(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota, thrust=thrust)
-            CN = aerotable.get_CNB(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
-            CA_alpha = aerotable.get_CA_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota, thrust=thrust)
-            CN_alpha = aerotable.get_CNB_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+            CA = aerotable.get_CA(alpha=alpha, beta=beta, phi=phi, mach=mach, alt=alt, iota=iota, thrust=thrust)
+            CN = aerotable.get_CNB(alpha=alpha, beta=beta, phi=phi, mach=mach, alt=alt, iota=iota)
+            CA_alpha = aerotable.get_CA_alpha(alpha=alpha, beta=beta, phi=phi, mach=mach, alt=alt, iota=iota, thrust=thrust)
+            CN_alpha = aerotable.get_CNB_alpha(alpha=alpha, beta=beta, phi=phi, mach=mach, alt=alt, iota=iota)
 
             # get derivative of CL wrt alpha
             cosa = np.cos(alpha)
@@ -789,6 +806,7 @@ class AeroTable:
 
     def get_CA(self,
                alpha: Optional[ArgType] = None,
+               beta: Optional[ArgType] = None,
                phi: Optional[ArgType] = None,
                mach: Optional[ArgType] = None,
                alt: Optional[ArgType] = None,
@@ -797,13 +815,14 @@ class AeroTable:
         stage = self.get_stage()
         boosting = (thrust > 0.0)
         if boosting:
-            return stage.get_CA_Boost(abs(alpha), phi, mach, alt, iota)  # type:ignore
+            return stage.get_CA_Boost(alpha=abs(alpha), beta=beta, phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
         else:
-            return stage.get_CA_Coast(abs(alpha), phi, mach, alt, iota)  # type:ignore
+            return stage.get_CA_Coast(alpha=abs(alpha), beta=beta, phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
 
 
     def get_CA_alpha(self,
                      alpha: Optional[ArgType] = None,
+                     beta: Optional[ArgType] = None,
                      phi: Optional[ArgType] = None,
                      mach: Optional[ArgType] = None,
                      alt: Optional[ArgType] = None,
@@ -812,13 +831,14 @@ class AeroTable:
         stage = self.get_stage()
         boosting = (thrust > 0.0)
         if boosting:
-            return stage.get_CA_Boost_alpha(abs(alpha), phi, mach, alt, iota)  # type:ignore
+            return stage.get_CA_Boost_alpha(alpha=abs(alpha), beta=beta, phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
         else:
-            return stage.get_CA_Coast_alpha(abs(alpha), phi, mach, alt, iota)  # type:ignore
+            return stage.get_CA_Coast_alpha(alpha=abs(alpha), beta=beta, phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
 
 
     def get_CA_Boost(self,
                      alpha: Optional[ArgType] = None,
+                     beta: Optional[ArgType] = None,
                      phi: Optional[ArgType] = None,
                      mach: Optional[ArgType] = None,
                      alt: Optional[ArgType] = None,
@@ -828,11 +848,12 @@ class AeroTable:
         stage = self.get_stage()
         if alpha is not None:
             alpha = np.clip(alpha, stage.CA_Boost.axes["alpha"].min(), stage.CA_Boost.axes["alpha"].max())
-        return stage.CA_Boost(alpha=abs(alpha), phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
+        return stage.CA_Boost(alpha=abs(alpha), beta=beta, phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
 
 
     def get_CA_Coast(self,
                      alpha: Optional[ArgType] = None,
+                     beta: Optional[ArgType] = None,
                      phi: Optional[ArgType] = None,
                      mach: Optional[ArgType] = None,
                      alt: Optional[ArgType] = None,
@@ -840,11 +861,12 @@ class AeroTable:
         stage = self.get_stage()
         if alpha is not None:
             alpha = np.clip(alpha, stage.CA_Boost.axes["alpha"].min(), stage.CA_Boost.axes["alpha"].max())
-        return stage.CA_Coast(alpha=abs(alpha), phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
+        return stage.CA_Coast(alpha=abs(alpha), beta=beta, phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
 
 
     def get_CNB(self,
                 alpha: Optional[ArgType] = None,
+                beta: Optional[ArgType] = None,
                 phi: Optional[ArgType] = None,
                 mach: Optional[ArgType] = None,
                 alt: Optional[ArgType] = None,
@@ -852,38 +874,42 @@ class AeroTable:
         stage = self.get_stage()
         if alpha is not None:
             alpha = np.clip(alpha, stage.CA_Boost.axes["alpha"].min(), stage.CA_Boost.axes["alpha"].max())
-        return stage.CNB(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+        return stage.CNB(alpha=alpha, beta=beta, phi=phi, mach=mach, alt=alt, iota=iota)
 
 
     def get_CLMB(self,
                  alpha: Optional[ArgType] = None,
+                 beta: Optional[ArgType] = None,
                  phi: Optional[ArgType] = None,
                  mach: Optional[ArgType] = None,
                  iota: Optional[ArgType] = None) -> float|np.ndarray:
         stage = self.get_stage()
-        return stage.CLMB(alpha=alpha, phi=phi, mach=mach, iota=iota)
+        return stage.CLMB(alpha=alpha, beta=beta, phi=phi, mach=mach, iota=iota)
 
 
     def get_CLNB(self,
                  alpha: Optional[ArgType] = None,
+                 beta: Optional[ArgType] = None,
                  phi: Optional[ArgType] = None,
                  mach: Optional[ArgType] = None,
                  iota: Optional[ArgType] = None) -> float|np.ndarray:
         stage = self.get_stage()
-        return stage.CLNB(alpha=alpha, phi=phi, mach=mach, iota=iota)
+        return stage.CLNB(alpha=alpha, beta=beta, phi=phi, mach=mach, iota=iota)
 
 
     def get_CYB(self,
                 alpha: Optional[ArgType] = None,
+                beta: Optional[ArgType] = None,
                 phi: Optional[ArgType] = None,
                 mach: Optional[ArgType] = None,
                 iota: Optional[ArgType] = None) -> float|np.ndarray:
         stage = self.get_stage()
-        return stage.CYB(alpha=alpha, phi=phi, mach=mach, iota=iota)
+        return stage.CYB(alpha=alpha, beta=beta, phi=phi, mach=mach, iota=iota)
 
 
     def get_CA_Boost_alpha(self,
                            alpha: Optional[ArgType] = None,
+                           beta: Optional[ArgType] = None,
                            phi: Optional[ArgType] = None,
                            mach: Optional[ArgType] = None,
                            alt: Optional[ArgType] = None,
@@ -891,11 +917,12 @@ class AeroTable:
         stage = self.get_stage()
         if alpha is not None:
             alpha = np.clip(alpha, stage.CA_Boost.axes["alpha"].min(), stage.CA_Boost.axes["alpha"].max())
-        return stage.CA_Boost_alpha(alpha=abs(alpha), phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
+        return stage.CA_Boost_alpha(alpha=abs(alpha), beta=beta, phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
 
 
     def get_CA_Coast_alpha(self,
                            alpha: Optional[ArgType] = None,
+                           beta: Optional[ArgType] = None,
                            phi: Optional[ArgType] = None,
                            mach: Optional[ArgType] = None,
                            alt: Optional[ArgType] = None,
@@ -903,11 +930,12 @@ class AeroTable:
         stage = self.get_stage()
         if alpha is not None:
             alpha = np.clip(alpha, stage.CA_Boost.axes["alpha"].min(), stage.CA_Boost.axes["alpha"].max())
-        return stage.CA_Coast_alpha(alpha=abs(alpha), phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
+        return stage.CA_Coast_alpha(alpha=abs(alpha), beta=beta, phi=phi, mach=mach, alt=alt, iota=iota)  # type:ignore
 
 
     def get_CNB_alpha(self,
                       alpha: Optional[ArgType] = None,
+                      beta: Optional[ArgType] = None,
                       phi: Optional[ArgType] = None,
                       mach: Optional[ArgType] = None,
                       alt: Optional[ArgType] = None,
@@ -915,7 +943,7 @@ class AeroTable:
         stage = self.get_stage()
         if alpha is not None:
             alpha = np.clip(alpha, stage.CA_Boost.axes["alpha"].min(), stage.CA_Boost.axes["alpha"].max())
-        return stage.CNB_alpha(alpha=alpha, phi=phi, mach=mach, alt=alt, iota=iota)
+        return stage.CNB_alpha(alpha=alpha, beta=beta, phi=phi, mach=mach, alt=alt, iota=iota)
 
 
     @staticmethod
