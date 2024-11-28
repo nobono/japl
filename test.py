@@ -93,23 +93,6 @@ class TestCpp(unittest.TestCase):
 # m = model.Model()
 # # m.atmosphere = atmos
 # m.aerotable = aero
-# print(m.aerotable.CA.interp._data)
-# print(m.aerotable.CNB.interp._data)
-# print(m.aerotable.CA_Boost.interp._data)
-
-# print(m.aerotable.CA.interp._data)
-
-# table = datatable.DataTable(data, axes)
-# table2 = datatable.DataTable(data * 2, axes)
-# aero = aerotable.AeroTable(CA=table, CNB=table2, Sref=123.)
-# aero = aerotable.AeroTable(CA=table, CNB=table2)
-# m = model.Model()
-# m.set_aerotable(aero)
-# print(m.aerotable.table_info)
-# print(m.aerotable.CA.interp._data)
-# print(m.aerotable.Sref)
-# m.aerotable.Sref = 123.
-# print(m.aerotable.Sref)
 
 if __name__ == '__main__':
     unittest.main()
