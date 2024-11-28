@@ -72,18 +72,21 @@ def get_extension_modules() -> list:
                                                           "libs/linterp/src/linterp.cpp",
                                                           "libs/atmosphere/atmosphere.cpp"], **kwargs)
 
-        aerotable_ext = Pybind11Extension("aerotable", ["libs/aerotable/aerotable.cpp",
+        aerotable_ext = Pybind11Extension("aerotable", ["libs/linterp/src/linterp.cpp",
                                                         "libs/datatable/datatable.cpp",
-                                                        "libs/linterp/src/linterp.cpp"], **kwargs)
+                                                        "libs/aerotable/aerotable.cpp",
+                                                        ], **kwargs)
 
         model_ext = Pybind11Extension("model", [*atmosphere_data_src,
-                                                "libs/model/model.cpp",
+                                                "libs/linterp/src/linterp.cpp",
+                                                "libs/datatable/datatable.cpp",
                                                 "libs/aerotable/aerotable.cpp",
                                                 "libs/atmosphere/atmosphere.cpp",
-                                                "libs/linterp/src/linterp.cpp"], **kwargs)
+                                                "libs/model/model.cpp",
+                                                ], **kwargs)
 
-        datatable_ext = Pybind11Extension("datatable", ["libs/datatable/datatable.cpp",
-                                                        "libs/linterp/src/linterp.cpp"], **kwargs)
+        datatable_ext = Pybind11Extension("datatable", ["libs/linterp/src/linterp.cpp",
+                                                        "libs/datatable/datatable.cpp"], **kwargs)
 
         return [linterp_ext, atmosphere_ext, aerotable_ext, model_ext, datatable_ext]
     except ImportError:

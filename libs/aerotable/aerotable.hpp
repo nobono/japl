@@ -38,17 +38,18 @@ public:
     DataTable CA_Boost_alpha;
     DataTable CA_Coast_alpha;
     DataTable CNB_alpha;
-    double Sref;
-    double Lref;
-    double MRC;
+    double Sref = 0.0;
+    double Lref = 0.0;
+    double MRC = 0.0;
 
     AeroTable() = default;
+    ~AeroTable() = default;
 
     AeroTable(const py::kwargs& kwargs);
 
     // copy constructor
     AeroTable(const AeroTable& other)
-    :   table_info(other.table_info),
+    :
         CA(other.CA),
         CA_Boost(other.CA_Boost),
         CA_Coast(other.CA_Coast),
@@ -65,8 +66,9 @@ public:
         if (this == &other) {
             return *this; // Handle self-assignment
         }
-        this->table_info = other.table_info;
         this->CA = other.CA;
+        this->CA.interp = other.CA.interp;
+        this->CA.axes = other.CA.axes;
         this->CA_Boost = other.CA_Boost;
         this->CA_Coast = other.CA_Coast;
         this->CNB = other.CNB;

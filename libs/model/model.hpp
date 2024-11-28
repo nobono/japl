@@ -16,10 +16,22 @@ class Model {
 public:
     Atmosphere atmosphere = Atmosphere();
     AeroTable aerotable = AeroTable();
-    // py::object atmosphere = py::object();
-    // py::object aerotable = py::object();
 
     Model() = default;
+    ~Model() = default;
+
+    Model(const Model& other)
+    :   atmosphere(other.atmosphere),
+        aerotable(other.aerotable) {}
+
+    Model& operator=(Model& other) {
+        if (this == &other) {
+            return *this; // Handle self-assignment
+        }
+        this->atmosphere = other.atmosphere;
+        this->aerotable = other.aerotable;
+        return *this;
+    }
 
     py::array_t<double> dynamics(double t,
                                  std::vector<double> _X_arg,
@@ -39,11 +51,11 @@ public:
                                       std::vector<double> _S_arg,
                                       double dt);
 
-    void set_aerotable(AeroTable& aerotable) {
+    void set_aerotable(const AeroTable& aerotable) {
         this->aerotable = aerotable;
     }
 
-    void set_atmosphere(Atmosphere& atmosphere) {
+    void set_atmosphere(const Atmosphere& atmosphere) {
         this->atmosphere = atmosphere;
     }
 };

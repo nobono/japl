@@ -33,7 +33,13 @@ public:
     map<string, dVec> axes = {};
     interp_table_t interp;
 
-    DataTable() = default;
+    DataTable() {
+        // Create empty Interp object
+        vector<dVec> axes = {{}};
+        py::array_t<double> data;
+        this->interp = create_interp_N<1, double>(axes, data);
+        this->axes = {{"null", vector<double>({})}};
+    };
 
     DataTable(py::array_t<double>& data, py::dict& axes);
 
@@ -63,33 +69,12 @@ public:
     // Call interpolation table (python keywords overload)
     vector<double> operator()(const map<string, double>& kwargs);
 
-    dVec _get_table_args(const map<string, double>& kwargs) {
-        dVec args;
+    // Handle passing kwargs -> args
+    dVec _get_table_args(const map<string, double>& kwargs);
 
-        for (const auto& item : kwargs) {
-            string label = item.first;
-            double val = static_cast<double>(item.second);
-            if (this->axes.count(label) > 0) {
-                args.push_back(val);
-            }
-        }
-
-        if (args.size() != this->axes.size()) {
-            throw std::invalid_argument("not enough arguments provided.");
-        }
-
-        return args;
-    }
-
-private:
     // Creates NDInterpolator object from 2 vectors
     template <int N, class T>
     InterpMultilinear<N, T> create_interp_N(const vector<dVec> axes, const py::array_t<double> data);
-
-    // template <int N, class T>
-    // void set_table(const vector<dVec> axes, const py::array_t<double> data) {
-    //     this->interp = create_interp_N<N, T>(axes, data);
-    // }
 };
 
 

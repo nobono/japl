@@ -161,11 +161,11 @@ public:
         _f_sizes(other._f_sizes),
         _data(other._data) {
         // Re-initialize members .m_pF & .m_grid_list from other
-        auto begins_ends = get_begins_ends(other._f_gridList.begin(), other._f_gridList.end());
+        auto begins_ends = get_begins_ends(_f_gridList.begin(), _f_gridList.end());
         init(begins_ends.first.begin(),
-             other._f_sizes,
-             other.m_F_copy.data(),
-             other.m_F_copy.data() + other.m_F_copy.size());
+             _f_sizes,
+             m_F_copy.data(),
+             m_F_copy.data() + m_F_copy.size());
     }
 
     // Copy Assignment Operator
@@ -174,18 +174,22 @@ public:
             return *this; // Handle self-assignment
         }
         // Copy data members
-        m_pF = std::make_unique<array_type>(*other.m_pF);
         m_ref_F = other.m_ref_F;
         m_grid_list = other.m_grid_list;
+        m_grid_ref_list = other.m_grid_ref_list;
+
+        m_pF = std::make_unique<array_type>(*other.m_pF);
+        m_F_copy = other.m_F_copy;
+        m_grid_copy_list = other.m_grid_copy_list;
         _f_gridList = other._f_gridList;
         _f_sizes = other._f_sizes;
         _data = other._data;
         // Re-initialize members .m_pF & .m_grid_list from other
-        auto begins_ends = get_begins_ends(other._f_gridList.begin(), other._f_gridList.end());
+        auto begins_ends = get_begins_ends(_f_gridList.begin(), _f_gridList.end());
         init(begins_ends.first.begin(),
-             other._f_sizes,
-             other.m_F_copy.data(),
-             other.m_F_copy.data() + other.m_F_copy.size());
+             _f_sizes,
+             m_F_copy.data(),
+             m_F_copy.data() + m_F_copy.size());
         return *this;
     }
 

@@ -8,6 +8,7 @@ using std::string;
 
 
 AeroTable::AeroTable(const py::kwargs& kwargs) {
+
     for (auto& item : kwargs) {
         // check if key exists
         string key = py::cast<string>(item.first);
@@ -42,15 +43,16 @@ PYBIND11_MODULE(aerotable, m) {
         // .def_readonly("Sref", &AeroTable::Sref)
         // .def_readonly("Lref", &AeroTable::Lref)
         // .def_readonly("MRC", &AeroTable::MRC)
-        // .def_readonly("CA", &AeroTable::CA)
+        // .def_readwrite("CA", &AeroTable::CA)
         // .def_readonly("CA_Boost", &AeroTable::CA_Boost)
         // .def_readonly("CA_Coast", &AeroTable::CA_Coast)
-        // .def_readonly("CNB", &AeroTable::CNB)
+        // .def_readwrite("CNB", &AeroTable::CNB)
         // .def_readonly("CYB", &AeroTable::CYB)
         // .def_readonly("CA_Boost_alpha", &AeroTable::CA_Boost_alpha)
         // .def_readonly("CA_Coast_alpha", &AeroTable::CA_Coast_alpha)
         // .def_readonly("CNB_alpha", &AeroTable::CNB_alpha)
-        .def_readwrite("table_info", &AeroTable::table_info, "tables and their axes dimensions")
+
+        .def_readonly("table_info", &AeroTable::table_info, "tables and their axes dimensions")
 
         .def_property("Sref",
                       [](const AeroTable& self) {return self.Sref;},  // getter
@@ -62,28 +64,28 @@ PYBIND11_MODULE(aerotable, m) {
                       [](const AeroTable& self) {return self.MRC;},  // getter
                       [](AeroTable& self, const decltype(AeroTable::MRC)& value) {self.MRC = value;})  // setter
         .def_property("CA",
-                      [](const AeroTable& self) {return self.CA;},  // getter
+                      [](const AeroTable& self) -> const DataTable& {return self.CA;},  // getter
                       [](AeroTable& self, const decltype(AeroTable::CA)& value) {self.CA = value;})  // setter
         .def_property("CA_Boost",
-                      [](const AeroTable& self) {return self.CA_Boost;},  // getter
+                      [](const AeroTable& self) -> const DataTable& {return self.CA_Boost;},  // getter
                       [](AeroTable& self, const decltype(AeroTable::CA_Boost)& value) {self.CA_Boost = value;})  // setter
         .def_property("CA_Coast",
-                      [](const AeroTable& self) {return self.CA_Coast;},  // getter
+                      [](const AeroTable& self) -> const DataTable& {return self.CA_Coast;},  // getter
                       [](AeroTable& self, const decltype(AeroTable::CA_Coast)& value) {self.CA_Coast = value;})  // setter
         .def_property("CNB",
-                      [](const AeroTable& self) {return self.CNB;},  // getter
+                      [](const AeroTable& self) -> const DataTable& {return self.CNB;},  // getter
                       [](AeroTable& self, const decltype(AeroTable::CNB)& value) {self.CNB = value;})  // setter
         .def_property("CYB",
-                      [](const AeroTable& self) {return self.CYB;},  // getter
+                      [](const AeroTable& self) -> const DataTable& {return self.CYB;},  // getter
                       [](AeroTable& self, const decltype(AeroTable::CYB)& value) {self.CYB = value;})  // setter
         .def_property("CA_Boost_alpha",
-                      [](const AeroTable& self) {return self.CA_Boost_alpha;},  // getter
+                      [](const AeroTable& self) -> const DataTable& {return self.CA_Boost_alpha;},  // getter
                       [](AeroTable& self, const decltype(AeroTable::CA_Boost_alpha)& value) {self.CA_Boost_alpha = value;})  // setter
         .def_property("CA_Coast_alpha",
-                      [](const AeroTable& self) {return self.CA_Coast_alpha;},  // getter
+                      [](const AeroTable& self) -> const DataTable& {return self.CA_Coast_alpha;},  // getter
                       [](AeroTable& self, const decltype(AeroTable::CA_Coast_alpha)& value) {self.CA_Coast_alpha = value;})  // setter
         .def_property("CNB_alpha",
-                      [](const AeroTable& self) {return self.CNB_alpha;},  // getter
+                      [](const AeroTable& self) -> const DataTable& {return self.CNB_alpha;},  // getter
                       [](AeroTable& self, const decltype(AeroTable::CNB_alpha)& value) {self.CNB_alpha = value;})  // setter
         ;
 }

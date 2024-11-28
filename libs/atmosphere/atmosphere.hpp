@@ -23,7 +23,52 @@ public:
     NDInterpolator_1_ML interp_speed_of_sound = _create_ndinterp(_alts, _speed_of_sound);
     NDInterpolator_1_ML interp_grav_accel = _create_ndinterp(_alts, _grav_accel);
 
-    Atmosphere() {};
+    Atmosphere() = default;
+    ~Atmosphere() = default;
+
+    // Copy constructor
+    Atmosphere(const Atmosphere& other)
+    // :   interp_pressure(other.interp_pressure),
+    //     interp_density(other.interp_density),
+    //     interp_temperature(other.interp_temperature),
+    //     interp_speed_of_sound(other.interp_speed_of_sound),
+    //     interp_grav_accel(other.interp_grav_accel) {}
+    {};
+
+    // Move constructor
+    Atmosphere(Atmosphere&& other) noexcept
+    // :   interp_pressure(std::move(other.interp_pressure)),
+    //     interp_density(std::move(other.interp_density)),
+    //     interp_temperature(std::move(other.interp_temperature)),
+    //     interp_speed_of_sound(std::move(other.interp_speed_of_sound)),
+    //     interp_grav_accel(std::move(other.interp_grav_accel)) {}
+    {};
+
+    // Copy assignment operator
+    Atmosphere& operator=(const Atmosphere& other) {
+        if (this == &other) {
+            return *this; // Handle self-assignment
+        }
+        // this->interp_pressure = other.interp_pressure;
+        // this->interp_density = other.interp_density;
+        // this->interp_temperature = other.interp_temperature;
+        // this->interp_speed_of_sound = other.interp_speed_of_sound;
+        // this->interp_grav_accel =  other.interp_grav_accel;
+        return *this;
+    }
+
+    // Move assignment operator
+    Atmosphere& operator=(Atmosphere&& other) noexcept {
+        if (this == &other) {
+            return *this; // Handle self-assignment
+        }
+        // this->interp_pressure = std::move(other.interp_pressure);
+        // this->interp_density = std::move(other.interp_density);
+        // this->interp_temperature = std::move(other.interp_temperature);
+        // this->interp_speed_of_sound = std::move(other.interp_speed_of_sound);
+        // this->interp_grav_accel =  std::move(other.interp_grav_accel);
+        return *this;
+    }
 
     double pressure(double alt);
     double temperature(double alt);
