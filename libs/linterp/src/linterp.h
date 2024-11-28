@@ -446,71 +446,72 @@ public:
       return result[0];
     }
 
-    double operator()(py::tuple args) const {
-        const int naxes = args.size();
-        vector<dVec> axes(naxes);
-        vector<dVec> points;
+    // double operator()(py::tuple args) const {
+    //     const int naxes = args.size();
+    //     vector<dVec> axes(naxes);
+    //     vector<dVec> points;
 
-        for (size_t i=0; i<naxes; ++i) {
-            py::array axis = args[i];
-            axes[i] = array_t_to_vector(axis);
-        }
+    //     for (size_t i=0; i<naxes; ++i) {
+    //         py::array axis = args[i];
+    //         axes[i] = array_t_to_vector(axis);
+    //     }
 
-        // iterate over each axis to create list of points
-        const int npoints = axes[0].size();
-        points.resize(npoints);
-        for (size_t i=0; i<npoints; i++) {
-            dVec point(naxes);
-            for (size_t j=0; j<naxes; j++) {
-                point[j] = axes[j][i];
-            }
-            points[i] = point;
-        }
+    //     // iterate over each axis to create list of points
+    //     const int npoints = axes[0].size();
+    //     points.resize(npoints);
+    //     for (size_t i=0; i<npoints; i++) {
+    //         dVec point(naxes);
+    //         for (size_t j=0; j<naxes; j++) {
+    //             point[j] = axes[j][i];
+    //         }
+    //         points[i] = point;
+    //     }
 
-        vector<T> result(npoints);
-        array< vector<T>, N > coord_iter;
-        for (int i=0; i<N; i++) {
-            coord_iter[i].resize(npoints);
-            for (int j=0; j<npoints; j++) {
-              coord_iter[i][j] = points[j][i];
-          }
-        }
+    //     vector<T> result(npoints);
+    //     array< vector<T>, N > coord_iter;
+    //     for (int i=0; i<N; i++) {
+    //         coord_iter[i].resize(npoints);
+    //         for (int j=0; j<npoints; j++) {
+    //           coord_iter[i][j] = points[j][i];
+    //       }
+    //     }
 
-        interp_vec(npoints, coord_iter.begin(), coord_iter.end(), result.begin());
-        return result[0];
-    }
+    //     interp_vec(npoints, coord_iter.begin(), coord_iter.end(), result.begin());
+    //     return result[0];
+    // }
 
-    double operator()(double args) const {
-        // same as interpolate() but only interpolates one
-        // point and returns double
-        const int naxes = 1; // args.size();
-        vector<dVec> axes = {{args}};
-        vector<dVec> points;
+    // double operator()(double args) const {
+    //     // same as interpolate() but only interpolates one
+    //     // point and returns double
+    //     const int naxes = 1; // args.size();
+    //     vector<dVec> axes = {{args}};
+    //     vector<dVec> points;
 
-        // iterate over each axis to create list of points
-        const int npoints = axes[0].size();
-        points.resize(npoints);
-        for (size_t i=0; i<npoints; i++) {
-            dVec point(naxes);
-            for (size_t j=0; j<naxes; j++) {
-                point[j] = axes[j][i];
-            }
-            points[i] = point;
-        }
+    //     // iterate over each axis to create list of points
+    //     const int npoints = axes[0].size();
+    //     points.resize(npoints);
+    //     for (size_t i=0; i<npoints; i++) {
+    //         dVec point(naxes);
+    //         for (size_t j=0; j<naxes; j++) {
+    //             point[j] = axes[j][i];
+    //         }
+    //         points[i] = point;
+    //     }
 
-        vector<T> result(npoints);
-        array< vector<T>, N > coord_iter;
-        for (int i=0; i<N; i++) {
-            coord_iter[i].resize(npoints);
-            for (int j=0; j<npoints; j++) {
-              coord_iter[i][j] = points[j][i];
-          }
-        }
+    //     vector<T> result(npoints);
+    //     array< vector<T>, N > coord_iter;
+    //     for (int i=0; i<N; i++) {
+    //         coord_iter[i].resize(npoints);
+    //         for (int j=0; j<npoints; j++) {
+    //           coord_iter[i][j] = points[j][i];
+    //       }
+    //     }
 
-        interp_vec(npoints, coord_iter.begin(), coord_iter.end(), result.begin());
-        return result[0];
-    }
+    //     interp_vec(npoints, coord_iter.begin(), coord_iter.end(), result.begin());
+    //     return result[0];
+    // }
 
+    // This overloaded method allows multidimensional gridded inputs
     py::array_t<double> interpolate(const py::tuple& args) const {
 
         const int naxes = args.size();
@@ -552,6 +553,7 @@ public:
         return ret;
     }
 
+    // This overload method handles passing an array of points
     vector<T> interpolate(const vector<dVec>& points) const {
 
         const int npoints = points.size();
@@ -566,15 +568,6 @@ public:
 
         vector<T> result(npoints);
         interp_vec(npoints, coord_iter.begin(), coord_iter.end(), result.begin());
-
-        // convert to numpy array
-        // py::array_t<double> ret(result.size());
-        // double* ret_ptr = static_cast<double*>(ret.mutable_data());
-        // std::copy(result.begin(), result.end(), ret_ptr);
-
-        // convert to vector<dVec>
-        // vector<dVec> ret(result.size());
-        // std::copy(result.begin(), result.end(), ret.data());
         return result;
     }
         
