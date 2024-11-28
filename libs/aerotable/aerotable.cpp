@@ -6,64 +6,31 @@ namespace py = pybind11;
 using std::string;
 
 
-template <int N, class T>
-InterpMultilinear<N, T> AeroTable::create_interp_N(pybind11::tuple& axes, pybind11::array_t<double>& data) {
-    // store axes in gridList
-    vector<dVec> f_gridList = process_tuple_of_arrays(axes);
 
-    // create f_sizes
-    vector<int> f_sizes(N);
-    for (int i=0;i<f_gridList.size();i++) {
-        f_sizes[i] = f_gridList[i].size();
-    }
+AeroTable::AeroTable(const py::kwargs& kwargs) {
 
-    py::array_t<double> flat = data.attr("flatten")().cast<py::array_t<double>>();
-
-    auto begins_ends = get_begins_ends(f_gridList.begin(), f_gridList.end());
-    InterpMultilinear<N, T> interp_multilinear(begins_ends.first.begin(), f_sizes,
-                                           flat.data(), flat.data() + flat.size());
-
-    // store values to make interp class pickeable
-    interp_multilinear._f_gridList = f_gridList;
-    interp_multilinear._f_sizes = f_sizes;
-    interp_multilinear._data = data.attr("copy")();
-    return interp_multilinear;
-}
-
-AeroTable::AeroTable(const py::kwargs& kwargs) :
-    // defaults
-    CA(py::none())
-{
-    for (auto key : get_keys()) {
+    for (auto& item : kwargs) {
         // check if key exists
-        py::object item = kwargs.attr("get")(key, py::none());
-
+        string key = py::cast<string>(item.first);
         bool bkey_in_table = (table_info.find(key) != table_info.end());
-        bool bitem_valid = !item.is_none();
 
-        if (bitem_valid && bkey_in_table) {
-            py::tuple axes = item.attr("_f_gridList").cast<py::tuple>();
-            int ndim = static_cast<int>(axes.size());
-            py::array_t<double> data = item.attr("_data").cast<py::array_t<double>>();
+        if (bkey_in_table) {
+            // if (std::is_same_v<>) {}
+            string key = py::cast<string>(item.first);
+            int id = this->table_info[key];
 
-            switch(ndim) {
-                case 1:
-                    set_table_from_id<1, double>(key, axes, data);
-                    break;
-                case 2:
-                    set_table_from_id<2, double>(key, axes, data);
-                    break;
-                case 3:
-                    set_table_from_id<3, double>(key, axes, data);
-                    break;
-                case 4:
-                    set_table_from_id<4, double>(key, axes, data);
-                    break;
-                case 5:
-                    set_table_from_id<5, double>(key, axes, data);
-                    break;
-                default:
-                    throw std::invalid_argument("unhandled interp dimensions");
+            if (py::isinstance<py::float_>(item.second)) {
+                double attr = py::cast<double>(item.second);
+                this->set_attr_from_id(attr, id);
+            } else if (py::isinstance<py::int_>(item.second)) {
+                double attr = py::cast<double>(item.second);
+                this->set_attr_from_id(attr, id);
+            } else if (py::isinstance<DataTable>(item.second)) {
+                DataTable table = py::cast<DataTable>(item.second);
+                this->set_table_from_id(table, id);
+            } else {
+                throw std::invalid_argument("argument type not accepted. "
+                                            "Accepted types are [int, double, DataTable]");
             }
         }
     }
@@ -72,9 +39,53 @@ AeroTable::AeroTable(const py::kwargs& kwargs) :
 
 PYBIND11_MODULE(aerotable, m) {
     pybind11::class_<AeroTable>(m, "AeroTable")
-        .def(py::init<py::kwargs>())
-        .def_readonly("CA", &AeroTable::CA, "")
-        .def_readonly("CNB", &AeroTable::CNB, "")
-        .def_readwrite("table_info", &AeroTable::table_info, "tables and their axes dimensions");
+        .def(py::init<py::kwargs&>())
+        // .def_readonly("Sref", &AeroTable::Sref)
+        // .def_readonly("Lref", &AeroTable::Lref)
+        // .def_readonly("MRC", &AeroTable::MRC)
+        // .def_readwrite("CA", &AeroTable::CA)
+        // .def_readonly("CA_Boost", &AeroTable::CA_Boost)
+        // .def_readonly("CA_Coast", &AeroTable::CA_Coast)
+        // .def_readwrite("CNB", &AeroTable::CNB)
+        // .def_readonly("CYB", &AeroTable::CYB)
+        // .def_readonly("CA_Boost_alpha", &AeroTable::CA_Boost_alpha)
+        // .def_readonly("CA_Coast_alpha", &AeroTable::CA_Coast_alpha)
+        // .def_readonly("CNB_alpha", &AeroTable::CNB_alpha)
+
+        .def_readonly("table_info", &AeroTable::table_info, "tables and their axes dimensions")
+
+        .def_property("Sref",
+                      [](const AeroTable& self) {return self.Sref;},  // getter
+                      [](AeroTable& self, const decltype(AeroTable::Sref)& value) {self.Sref = value;})  // setter
+        .def_property("Lref",
+                      [](const AeroTable& self) {return self.Lref;},  // getter
+                      [](AeroTable& self, const decltype(AeroTable::Lref)& value) {self.Lref = value;})  // setter
+        .def_property("MRC",
+                      [](const AeroTable& self) {return self.MRC;},  // getter
+                      [](AeroTable& self, const decltype(AeroTable::MRC)& value) {self.MRC = value;})  // setter
+        .def_property("CA",
+                      [](const AeroTable& self) -> const DataTable& {return self.CA;},  // getter
+                      [](AeroTable& self, const decltype(AeroTable::CA)& value) {self.CA = value;})  // setter
+        .def_property("CA_Boost",
+                      [](const AeroTable& self) -> const DataTable& {return self.CA_Boost;},  // getter
+                      [](AeroTable& self, const decltype(AeroTable::CA_Boost)& value) {self.CA_Boost = value;})  // setter
+        .def_property("CA_Coast",
+                      [](const AeroTable& self) -> const DataTable& {return self.CA_Coast;},  // getter
+                      [](AeroTable& self, const decltype(AeroTable::CA_Coast)& value) {self.CA_Coast = value;})  // setter
+        .def_property("CNB",
+                      [](const AeroTable& self) -> const DataTable& {return self.CNB;},  // getter
+                      [](AeroTable& self, const decltype(AeroTable::CNB)& value) {self.CNB = value;})  // setter
+        .def_property("CYB",
+                      [](const AeroTable& self) -> const DataTable& {return self.CYB;},  // getter
+                      [](AeroTable& self, const decltype(AeroTable::CYB)& value) {self.CYB = value;})  // setter
+        .def_property("CA_Boost_alpha",
+                      [](const AeroTable& self) -> const DataTable& {return self.CA_Boost_alpha;},  // getter
+                      [](AeroTable& self, const decltype(AeroTable::CA_Boost_alpha)& value) {self.CA_Boost_alpha = value;})  // setter
+        .def_property("CA_Coast_alpha",
+                      [](const AeroTable& self) -> const DataTable& {return self.CA_Coast_alpha;},  // getter
+                      [](AeroTable& self, const decltype(AeroTable::CA_Coast_alpha)& value) {self.CA_Coast_alpha = value;})  // setter
+        .def_property("CNB_alpha",
+                      [](const AeroTable& self) -> const DataTable& {return self.CNB_alpha;},  // getter
+                      [](AeroTable& self, const decltype(AeroTable::CNB_alpha)& value) {self.CNB_alpha = value;})  // setter
         ;
 }

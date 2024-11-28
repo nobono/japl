@@ -66,7 +66,19 @@ vector<double> get_grid_point(vector<dVec> const &gridList, vector<int> const &i
 vector<dVec> process_tuple_of_arrays(pybind11::tuple input_tuple);
 
 template <class IterT>
-std::pair<vector<typename IterT::value_type::const_iterator>, vector<typename IterT::value_type::const_iterator> > get_begins_ends(IterT iters_begin, IterT iters_end);
+inline std::pair<vector<typename IterT::value_type::const_iterator>, vector<typename IterT::value_type::const_iterator> > get_begins_ends(IterT iters_begin, IterT iters_end) {
+    typedef typename IterT::value_type T;
+    typedef vector<typename T::const_iterator> VecT;
+    int N = iters_end - iters_begin;
+    std::pair<VecT, VecT> result;
+    result.first.resize(N);
+    result.second.resize(N);
+    for (int i=0; i<N; i++) {
+        result.first[i] = iters_begin[i].begin();
+        result.second[i] = iters_begin[i].end();
+    }
+    return result;
+}
 
 // TODO:
 //  - specify behavior past grid boundaries.
@@ -131,22 +143,63 @@ public:
         py::array_t<double> flat = data.attr("flatten")().cast<py::array_t<double>>();
 
         auto begins_ends = get_begins_ends(f_gridList.begin(), f_gridList.end());
-        // InterpMultilinear<N, T> interp_multilinear(begins_ends.first.begin(), f_sizes,
-        //                                        data.data(), data.data() + data.size());
 
         // store values to make interp class pickeable
-        // interp_multilinear._f_gridList = f_gridList;
-        // interp_multilinear._f_sizes = f_sizes;
-        // interp_multilinear._data = data.attr("copy")();
-        // return interp_multilinear;
+        _f_gridList = f_gridList;
+        _f_sizes = f_sizes;
+        _data = data.attr("copy")();
         init(begins_ends.first.begin(), f_sizes, flat.data(), flat.data() + flat.size());
     }
 
+    // Copy Constructor
+    NDInterpolator(const NDInterpolator& other)
+        :
+        m_pF(std::make_unique<array_type>(*other.m_pF)),
+        m_F_copy(other.m_F_copy),
+        m_grid_copy_list(other.m_grid_copy_list),
+        _f_gridList(other._f_gridList),
+        _f_sizes(other._f_sizes),
+        _data(other._data) {
+        // Re-initialize members .m_pF & .m_grid_list from other
+        auto begins_ends = get_begins_ends(_f_gridList.begin(), _f_gridList.end());
+        init(begins_ends.first.begin(),
+             _f_sizes,
+             m_F_copy.data(),
+             m_F_copy.data() + m_F_copy.size());
+    }
+
+    // Copy Assignment Operator
+    NDInterpolator& operator=(const NDInterpolator& other) {
+        if (this == &other) {
+            return *this; // Handle self-assignment
+        }
+        // Copy data members
+        m_ref_F = other.m_ref_F;
+        m_grid_list = other.m_grid_list;
+        m_grid_ref_list = other.m_grid_ref_list;
+
+        m_pF = std::make_unique<array_type>(*other.m_pF);
+        m_F_copy = other.m_F_copy;
+        m_grid_copy_list = other.m_grid_copy_list;
+        _f_gridList = other._f_gridList;
+        _f_sizes = other._f_sizes;
+        _data = other._data;
+        // Re-initialize members .m_pF & .m_grid_list from other
+        auto begins_ends = get_begins_ends(_f_gridList.begin(), _f_gridList.end());
+        init(begins_ends.first.begin(),
+             _f_sizes,
+             m_F_copy.data(),
+             m_F_copy.data() + m_F_copy.size());
+        return *this;
+    }
+
+    ~NDInterpolator() = default;
+
     // constructors assume that [f_begin, f_end) is a contiguous array in C-order  
     // non ref-counted constructor.
-    template <class IterT1, class IterT2, class IterT3>  
+    template <class IterT1, class IterT2, class IterT3>
     NDInterpolator(IterT1 grids_begin, IterT2 grids_len_begin, IterT3 f_begin, IterT3 f_end) {
-        init(grids_begin, grids_len_begin, f_begin, f_end);  
+        init(grids_begin, grids_len_begin, f_begin, f_end);
     }
 
     // ref-counted constructor
@@ -155,7 +208,7 @@ public:
         init_refcount(grids_begin, grids_len_begin, f_begin, f_end, refF, grid_refs_begin);
     }	
 
-    template <class IterT1, class IterT2, class IterT3>  														
+    template <class IterT1, class IterT2, class IterT3>
     void init(IterT1 grids_begin, IterT2 grids_len_begin, IterT3 f_begin, IterT3 f_end) {    
         set_grids(grids_begin, grids_len_begin, m_bCopyData);
         set_f_array(f_begin, f_end, m_bCopyData);
@@ -168,28 +221,28 @@ public:
         set_f_refcount(refF);
     }	
 
-    template <class IterT1, class IterT2>  
+    template <class IterT1, class IterT2>
     void set_grids(IterT1 grids_begin, IterT2 grids_len_begin, bool bCopy) {
         m_grid_list.clear();
         m_grid_ref_list.clear();
         m_grid_copy_list.clear();
         for (int i=0; i<N; i++) {
             int gridLength = grids_len_begin[i];
-            if (bCopy == false) {	    
+            if (bCopy == false) {
                 T const *grid_ptr = &(*grids_begin[i]);
                 m_grid_list.push_back(grid_type(gridLength, (T*) grid_ptr ));	  				// use the given pointer
             } else {
                 m_grid_copy_list.push_back( vector<T>(grids_begin[i], grids_begin[i] + grids_len_begin[i]) );	// make our own copy of the grid
-            T *begin = &(m_grid_copy_list[i][0]);
+                T *begin = &(m_grid_copy_list[i][0]);
                 m_grid_list.push_back(grid_type(gridLength, begin));							// use our copy
             }
         }
-      }    
-      template <class IterT1, class RefCountIterT>  
+      }
+    template <class IterT1, class RefCountIterT>
     void set_grids_refcount(RefCountIterT refs_begin, RefCountIterT refs_end) {
-        assert(refs_end - refs_begin == N);	
+        assert(refs_end - refs_begin == N);
         m_grid_ref_list.assign(refs_begin, refs_begin + N);
-    }	
+    }
     
     // assumes that [f_begin, f_end) is a contiguous array in C-order  
     template <class IterT>
@@ -218,20 +271,20 @@ public:
         }
     }  
 
-    void set_f_refcount(ArrayRefCountT &refF) {    
+    void set_f_refcount(ArrayRefCountT &refF) {
       m_ref_F = refF;
     }
     
     // -1 is before the first grid point
     // N-1 (where grid.size() == N) is after the last grid point
-    int find_cell(int dim, T x) const {  
+    int find_cell(int dim, T x) const {
         grid_type const &grid(m_grid_list[dim]);
         if (x < *(grid.begin())) return -1;
         else if (x >= *(grid.end()-1)) return grid.size()-1;
         else {
             auto i_upper = std::upper_bound(grid.begin(), grid.end(), x);
             return i_upper - grid.begin() - 1;
-        }	
+        }
     }
     
     // return the value of f at the given cell and vertex
@@ -355,7 +408,7 @@ public:
     InterpMultilinear(pybind11::tuple& axes, pybind11::array_t<double>& data)
       : super(axes, data)
     {}
-    
+
     template <class IterT1, class IterT2, class IterT3>  
     InterpMultilinear(IterT1 grids_begin, IterT2 grids_len_begin, IterT3 f_begin, IterT3 f_end)
       : super(grids_begin, grids_len_begin, f_begin, f_end)
@@ -393,71 +446,72 @@ public:
       return result[0];
     }
 
-    double operator()(py::tuple args) const {
-        const int naxes = args.size();
-        vector<dVec> axes(naxes);
-        vector<dVec> points;
+    // double operator()(py::tuple args) const {
+    //     const int naxes = args.size();
+    //     vector<dVec> axes(naxes);
+    //     vector<dVec> points;
 
-        for (size_t i=0; i<naxes; ++i) {
-            py::array axis = args[i];
-            axes[i] = array_t_to_vector(axis);
-        }
+    //     for (size_t i=0; i<naxes; ++i) {
+    //         py::array axis = args[i];
+    //         axes[i] = array_t_to_vector(axis);
+    //     }
 
-        // iterate over each axis to create list of points
-        const int npoints = axes[0].size();
-        points.resize(npoints);
-        for (size_t i=0; i<npoints; i++) {
-            dVec point(naxes);
-            for (size_t j=0; j<naxes; j++) {
-                point[j] = axes[j][i];
-            }
-            points[i] = point;
-        }
+    //     // iterate over each axis to create list of points
+    //     const int npoints = axes[0].size();
+    //     points.resize(npoints);
+    //     for (size_t i=0; i<npoints; i++) {
+    //         dVec point(naxes);
+    //         for (size_t j=0; j<naxes; j++) {
+    //             point[j] = axes[j][i];
+    //         }
+    //         points[i] = point;
+    //     }
 
-        vector<T> result(npoints);
-        array< vector<T>, N > coord_iter;
-        for (int i=0; i<N; i++) {
-            coord_iter[i].resize(npoints);
-            for (int j=0; j<npoints; j++) {
-              coord_iter[i][j] = points[j][i];
-          }
-        }
+    //     vector<T> result(npoints);
+    //     array< vector<T>, N > coord_iter;
+    //     for (int i=0; i<N; i++) {
+    //         coord_iter[i].resize(npoints);
+    //         for (int j=0; j<npoints; j++) {
+    //           coord_iter[i][j] = points[j][i];
+    //       }
+    //     }
 
-        interp_vec(npoints, coord_iter.begin(), coord_iter.end(), result.begin());
-        return result[0];
-    }
+    //     interp_vec(npoints, coord_iter.begin(), coord_iter.end(), result.begin());
+    //     return result[0];
+    // }
 
-    double operator()(double args) const {
-        // same as interpolate() but only interpolates one
-        // point and returns double
-        const int naxes = 1; // args.size();
-        vector<dVec> axes = {{args}};
-        vector<dVec> points;
+    // double operator()(double args) const {
+    //     // same as interpolate() but only interpolates one
+    //     // point and returns double
+    //     const int naxes = 1; // args.size();
+    //     vector<dVec> axes = {{args}};
+    //     vector<dVec> points;
 
-        // iterate over each axis to create list of points
-        const int npoints = axes[0].size();
-        points.resize(npoints);
-        for (size_t i=0; i<npoints; i++) {
-            dVec point(naxes);
-            for (size_t j=0; j<naxes; j++) {
-                point[j] = axes[j][i];
-            }
-            points[i] = point;
-        }
+    //     // iterate over each axis to create list of points
+    //     const int npoints = axes[0].size();
+    //     points.resize(npoints);
+    //     for (size_t i=0; i<npoints; i++) {
+    //         dVec point(naxes);
+    //         for (size_t j=0; j<naxes; j++) {
+    //             point[j] = axes[j][i];
+    //         }
+    //         points[i] = point;
+    //     }
 
-        vector<T> result(npoints);
-        array< vector<T>, N > coord_iter;
-        for (int i=0; i<N; i++) {
-            coord_iter[i].resize(npoints);
-            for (int j=0; j<npoints; j++) {
-              coord_iter[i][j] = points[j][i];
-          }
-        }
+    //     vector<T> result(npoints);
+    //     array< vector<T>, N > coord_iter;
+    //     for (int i=0; i<N; i++) {
+    //         coord_iter[i].resize(npoints);
+    //         for (int j=0; j<npoints; j++) {
+    //           coord_iter[i][j] = points[j][i];
+    //       }
+    //     }
 
-        interp_vec(npoints, coord_iter.begin(), coord_iter.end(), result.begin());
-        return result[0];
-    }
+    //     interp_vec(npoints, coord_iter.begin(), coord_iter.end(), result.begin());
+    //     return result[0];
+    // }
 
+    // This overloaded method allows multidimensional gridded inputs
     py::array_t<double> interpolate(const py::tuple& args) const {
 
         const int naxes = args.size();
@@ -499,7 +553,8 @@ public:
         return ret;
     }
 
-    py::array_t<double> interpolate(const vector<dVec>& points) const {
+    // This overload method handles passing an array of points
+    vector<T> interpolate(const vector<dVec>& points) const {
 
         const int npoints = points.size();
 
@@ -513,12 +568,7 @@ public:
 
         vector<T> result(npoints);
         interp_vec(npoints, coord_iter.begin(), coord_iter.end(), result.begin());
-
-        // convert to numpy array
-        py::array_t<double> ret(result.size());
-        double* ret_ptr = static_cast<double*>(ret.mutable_data());
-        std::copy(result.begin(), result.end(), ret_ptr);
-        return ret;
+        return result;
     }
         
     template <class IterT1, class IterT2>
@@ -562,13 +612,6 @@ typedef InterpMultilinear<2,double> NDInterpolator_2_ML;
 typedef InterpMultilinear<3,double> NDInterpolator_3_ML;
 typedef InterpMultilinear<4,double> NDInterpolator_4_ML;
 typedef InterpMultilinear<5,double> NDInterpolator_5_ML;
-
-// pybind factory for creating interpolation objects
-// NDInterpolator_1_ML create_interp_1(pybind11::tuple axes, pybind11::array_t<double> data);
-// NDInterpolator_2_ML create_interp_2(pybind11::tuple axes, pybind11::array_t<double> data);
-// NDInterpolator_3_ML create_interp_3(pybind11::tuple axes, pybind11::array_t<double> data);
-// NDInterpolator_4_ML create_interp_4(pybind11::tuple axes, pybind11::array_t<double> data);
-// NDInterpolator_5_ML create_interp_5(pybind11::tuple axes, pybind11::array_t<double> data);
 
 
 #endif //_linterp_h

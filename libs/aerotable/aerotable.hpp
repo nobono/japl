@@ -4,51 +4,83 @@
 #include <variant>
 #include <map>
 
+#include "../datatable/datatable.hpp"
 #include <pybind11/stl.h>
 #include "../linterp/src/linterp.h"
 #include "../boost/multi_array.hpp"
+#include "../datatable/datatable.hpp"
 
-using std::map;
-using std::variant;
-using std::string;
-
-typedef variant<
-    InterpMultilinear<1,double>,
-    InterpMultilinear<2,double>,
-    InterpMultilinear<3,double>,
-    InterpMultilinear<4,double>,
-    InterpMultilinear<5,double>,
-    py::object>
-table_t;
-
-struct AeroTableArgs {
-    double alpha = 0;
-    double phi = 0;
-    double mach = 0;
-    double alt = 0;
-    double iota = 0;
-};
 
 
 class AeroTable {
 
 public:
 
-    map<string, int> table_info{
-    {"CA", 1},
-    {"CNB", 2},
-    {"CYB", 3},
+    map<string, int> table_info {
+        {"Sref", 1},
+        {"Lref", 2},
+        {"MRC", 3},
+        {"CA", 4},
+        {"CA_Boost", 5},
+        {"CA_Coast", 6},
+        {"CNB", 7},
+        {"CYB", 8},
+        {"CA_Boost_alpha", 9},
+        {"CA_Coast_alpha", 10},
+        {"CNB_alpha", 11},
     };
 
-    table_t CA;
-    table_t CNB;
-    table_t CYB;
-    double Sref;
-    double Lref;
+    DataTable CA;
+    DataTable CA_Boost;
+    DataTable CA_Coast;
+    DataTable CNB;
+    DataTable CYB;
+    DataTable CA_Boost_alpha;
+    DataTable CA_Coast_alpha;
+    DataTable CNB_alpha;
+    double Sref = 0.0;
+    double Lref = 0.0;
+    double MRC = 0.0;
 
     AeroTable() = default;
+    ~AeroTable() = default;
 
     AeroTable(const py::kwargs& kwargs);
+
+    // copy constructor
+    AeroTable(const AeroTable& other)
+    :
+        CA(other.CA),
+        CA_Boost(other.CA_Boost),
+        CA_Coast(other.CA_Coast),
+        CNB(other.CNB),
+        CYB(other.CYB),
+        CA_Boost_alpha(other.CA_Boost_alpha),
+        CA_Coast_alpha(other.CA_Coast_alpha),
+        CNB_alpha(other.CNB_alpha),
+        Sref(other.Sref),
+        Lref(other.Lref),
+        MRC(other.MRC) {}
+
+    AeroTable& operator=(const AeroTable& other) {
+        if (this == &other) {
+            return *this; // Handle self-assignment
+        }
+        this->CA = other.CA;
+        this->CA.interp = other.CA.interp;
+        this->CA.axes = other.CA.axes;
+        this->CA_Boost = other.CA_Boost;
+        this->CA_Coast = other.CA_Coast;
+        this->CNB = other.CNB;
+        this->CYB = other.CYB;
+        this->CA_Boost_alpha = other.CA_Boost_alpha;
+        this->CA_Coast_alpha = other.CA_Coast_alpha;
+        this->CNB_alpha = other.CNB_alpha;
+        this->Sref = other.Sref;
+        this->Lref = other.Lref;
+        this->MRC = other.MRC;
+        return *this;
+    }
 
     inline vector<string> get_keys() {
         vector<string> keys;
@@ -58,32 +90,57 @@ public:
         return keys;
     }
 
-    double get_Sref(void) {return Sref;};
-    double get_Lref(void) {return Lref;};
-    double get_CA(double alpha, double phi, double mach, double alt, double iota);
-    double get_CNB(void);
-    double get_CYB(void);
-
-private:
-    // Creates 1D NDInterpolator object from 2 vectors
-    template <int N, class T>
-    InterpMultilinear<N, T> create_interp_N(pybind11::tuple& axes, pybind11::array_t<double>& data);
-
-    template <int N, class T>
-    void set_table_from_id(string name, pybind11::tuple& axes, pybind11::array_t<double>& data) {
-        InterpMultilinear<N, T> table = create_interp_N<N, T>(axes, data);
-        int id = table_info[name];
-        set_table<N, T>(table, id);
+    vector<vector<double>> _kwargs_to_args(py::kwargs kwargs) {
+        vector<vector<double>> args;
+        vector<double> point;
+        for (auto& item : kwargs) {
+            point.push_back(item.second.cast<double>());
+        }
+        args.push_back(point);
+        return args;
     }
 
-    template <int N, class T>
-    void set_table(InterpMultilinear<N, T>& table, int& id) {
+    void set_attr_from_id(double& val, int& id) {
         switch (id) {
             case 1:
-                CA = std::move(table);
+                Sref = val;
                 break;
             case 2:
-                CNB = std::move(table);
+                Lref = val;
+                break;
+            case 3:
+                MRC = val;
+                break;
+            default:
+                throw std::invalid_argument("unhandled case.");
+        }
+    }
+
+    void set_table_from_id(DataTable& table, int& id) {
+        switch (id) {
+            case 4:
+                CA = table;
+                break;
+            case 5:
+                CA_Boost = table;
+                break;
+            case 6:
+                CA_Coast = table;
+                break;
+            case 7:
+                CNB = table;
+                break;
+            case 8:
+                CYB = table;
+                break;
+            case 9:
+                CA_Boost_alpha = table;
+                break;
+            case 10:
+                CA_Coast_alpha = table;
+                break;
+            case 11:
+                CNB_alpha = table;
                 break;
             default:
                 throw std::invalid_argument("unhandled case.");
