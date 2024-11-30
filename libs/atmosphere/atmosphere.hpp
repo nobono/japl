@@ -70,12 +70,19 @@ public:
         return *this;
     }
 
-    double pressure(double alt);
-    double temperature(double alt);
-    double density(double alt);
-    double speed_of_sound(double alt);
-    double grav_accel(double alt);
-    double dynamics_pressure(vector<double> vel, double alt);
+    double pressure(double& alt);
+    double temperature(double& alt);
+    double density(double& alt);
+    double speed_of_sound(double& alt);
+    double grav_accel(double& alt);
+    double dynamics_pressure(vector<double>& vel, double& alt);
+
+    double pressure(const map<string, double>& kwargs);
+    double temperature(const map<string, double>& kwargs);
+    double density(const map<string, double>& kwargs);
+    double speed_of_sound(const map<string, double>& kwargs);
+    double grav_accel(const map<string, double>& kwargs);
+    double dynamics_pressure(const map<string, double>& kwargs);
 
 private:
     // Creates 1D NDInterpolator object from 2 vectors
