@@ -35,6 +35,8 @@ class CCodeGenerator(CodeGeneratorBase):
                          "#include <pybind11/stl.h>  // Enables automatic conversion",
                          "",
                          "namespace py = pybind11;",
+                         "#define nan   NAN",
+                         "",
                          ""]
 
     def __init__(self, strict: bool = False, use_std_args: bool = False):
@@ -550,7 +552,12 @@ class CCodeGenerator(CodeGeneratorBase):
         header = self._write_header()
         self._write_lines(header)
 
+        class_bind_str = f"\tpybind11::class_<Model>(m, \"Model\")"
+        class_constructor_str = "\t\t.def(pybind11::init<>())"
+
         pybind_writes = ["", "", f"PYBIND11_MODULE({module_name}, m) " + "{"]  # }
+        pybind_writes += [class_bind_str]
+        pybind_writes += [class_constructor_str]
 
         try:
             # get functions from register
@@ -561,10 +568,14 @@ class CCodeGenerator(CodeGeneratorBase):
                     _func_str_split = func_name.split("::")
                     class_ref = "".join(_func_str_split[0])
                     func_name = "".join(_func_str_split[1:])
+
                 # build the function
-                writes = self._build_function(function_name=func_name, **info)
+                function_name_ref = f"{class_ref}::{func_name}"
+                writes = self._build_function(function_name=function_name_ref, **info)
                 description = info["description"]
-                pybind_writes += [f"\tm.def(\"{func_name}\", &{class_ref}::{func_name}, \"{description}\");"]
+                method_bind_str = f"\t\t.def(\"{func_name}\", &{function_name_ref}, \"{description}\")"
+
+                pybind_writes += [method_bind_str]
                 for line in writes:
                     self._write_lines(line)
 
@@ -573,6 +584,7 @@ class CCodeGenerator(CodeGeneratorBase):
                     f.write(self.__JAPL_EXT_MODULE_INIT_HEADER)
                     f.write(f"from {module_dir_name}.{module_dir_name} import {func_name}\n")
 
+            pybind_writes += ['\t;']
             pybind_writes += ["}"]
 
             for line in pybind_writes:
