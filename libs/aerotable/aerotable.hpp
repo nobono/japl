@@ -82,6 +82,50 @@ public:
         return *this;
     }
 
+    double get_Sref(const map<string, double>& kwargs) {
+        return this->Sref;
+    }
+
+    double get_Lref(const map<string, double>& kwargs) {
+        return this->Lref;
+    }
+
+    double get_MRC(const map<string, double>& kwargs) {
+        return this->MRC;
+    }
+
+    double get_CA(const map<string, double>& kwargs) {
+        return this->CA(kwargs)[0];
+    }
+
+    double get_CA_Boost(const map<string, double>& kwargs) {
+        return this->CA_Boost(kwargs)[0];
+    }
+
+    double get_CA_Coast(const map<string, double>& kwargs) {
+        return this->CA_Coast(kwargs)[0];
+    }
+
+    double get_CNB(const map<string, double>& kwargs) {
+        return this->CNB(kwargs)[0];
+    }
+
+    double get_CYB(const map<string, double>& kwargs) {
+        return this->CYB(kwargs)[0];
+    }
+
+    double get_CA_Boost_alpha(const map<string, double>& kwargs) {
+        return this->CA_Boost_alpha(kwargs)[0];
+    }
+
+    double get_CA_Coast_alpha(const map<string, double>& kwargs) {
+        return this->CA_Coast_alpha(kwargs)[0];
+    }
+
+    double get_CNB_alpha(const map<string, double>& kwargs) {
+        return this->CNB_alpha(kwargs)[0];
+    }
+
     inline vector<string> get_keys() {
         vector<string> keys;
         for (const auto& pair : table_info) {
