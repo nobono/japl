@@ -18,7 +18,7 @@ public:
     AeroTable aerotable = AeroTable();
 
     Model() = default;
-    ~Model() = default;
+    virtual ~Model() = default;
 
     Model(const Model& other)
     :   atmosphere(other.atmosphere),
@@ -33,19 +33,19 @@ public:
         return *this;
     }
 
-    py::array_t<double> dynamics(double t,
+    virtual py::array_t<double> dynamics(double t,
                                  std::vector<double> _X_arg,
                                  std::vector<double> _U_arg,
                                  std::vector<double> _S_arg,
                                  double dt);
 
-    py::array_t<double> state_updates(double t,
+    virtual py::array_t<double> state_updates(double t,
                                       std::vector<double> _X_arg,
                                       std::vector<double> _U_arg,
                                       std::vector<double> _S_arg,
                                       double dt);
 
-    py::array_t<double> input_updates(double t,
+    virtual py::array_t<double> input_updates(double t,
                                       std::vector<double> _X_arg,
                                       std::vector<double> _U_arg,
                                       std::vector<double> _S_arg,
