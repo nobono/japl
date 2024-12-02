@@ -1,4 +1,5 @@
 from typing import Any, Optional, Callable
+from sympy import ccode
 from sympy import Function
 from sympy import Float
 from sympy.core.function import FunctionClass, UndefinedFunction
@@ -106,7 +107,7 @@ class KwargFunction(Function):
             args_str = ", ".join([str(v) for v in self.kwargs.values()])
         else:
             for key, val in self.kwargs.items():
-                args_str += "{" + f"\"{key}\", " + str(val) + "}, "
+                args_str += "{" + f"\"{key}\", " + ccode(val) + "}, "
             args_str = args_str.strip(", ")
             args_str = "{" + args_str + "}"
 
