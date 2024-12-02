@@ -35,7 +35,6 @@ class CCodeGenerator(CodeGeneratorBase):
                          "#include <pybind11/stl.h>  // Enables automatic conversion",
                          "",
                          "namespace py = pybind11;",
-                         "#define nan   NAN",
                          "",
                          ""]
 
@@ -560,10 +559,11 @@ class CCodeGenerator(CodeGeneratorBase):
         pybind_writes += [class_constructor_str]
 
         try:
+            class_ref = ""
+
             # get functions from register
             for func_name, info in tqdm(self.function_register.items(), ncols=80, desc="Build"):
                 # handle func_name references class method "Class::method"
-                class_ref = ""
                 if "::" in func_name:
                     _func_str_split = func_name.split("::")
                     class_ref = "".join(_func_str_split[0])
@@ -579,10 +579,10 @@ class CCodeGenerator(CodeGeneratorBase):
                 for line in writes:
                     self._write_lines(line)
 
-                # create __init__.py file
-                with open(os.path.join(module_dir_path, "__init__.py"), "a+") as f:
-                    f.write(self.__JAPL_EXT_MODULE_INIT_HEADER)
-                    f.write(f"from {module_dir_name}.{module_dir_name} import {func_name}\n")
+            # create __init__.py file
+            with open(os.path.join(module_dir_path, "__init__.py"), "a+") as f:
+                f.write(self.__JAPL_EXT_MODULE_INIT_HEADER)
+                f.write(f"from {module_dir_name}.{module_dir_name} import {class_ref}\n")
 
             pybind_writes += ['\t;']
             pybind_writes += ["}"]
@@ -654,8 +654,18 @@ class CCodeGenerator(CodeGeneratorBase):
         ext_module = Pybind11Extension(name="{module_name}",
                                        sources=sources,
                                        extra_compile_args=[],
-                                       extra_link_args=[],
-                                       include_dirs=[os.path.join(JAPL_HOME_DIR, "libs", "model")],
+                                       extra_link_args=["./libs/src/linterp/linterp.o",
+                                                        "./libs/src/datatable.o",
+                                                        "./libs/src/atmosphere_alts.o",
+                                                        "./libs/src/atmosphere_density.o",
+                                                        "./libs/src/atmosphere_grav_accel.o",
+                                                        "./libs/src/atmosphere_pressure.o",
+                                                        "./libs/src/atmosphere_temperature.o",
+                                                        "./libs/src/atmosphere_speed_of_sound.o",
+                                                        "./libs/src/atmosphere.o",
+                                                        "./libs/src/aerotable.o",
+                                                        "./libs/src/model.o"],
+                                       include_dirs=[os.path.join(JAPL_HOME_DIR, "include")],
                                        cxx_std={cxx_std})
         """"""
 
