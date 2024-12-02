@@ -1,7 +1,7 @@
 
 #include <stdio.h>
 #include <ctime>
-#include "linterp.h"
+#include "../../include/linterp/linterp.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>

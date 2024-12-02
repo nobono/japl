@@ -1,4 +1,4 @@
-#include "../atmosphere.hpp"
+#include "../include/atmosphere.hpp"
 #include <vector>
 
 std::vector<double> _grav_accel = {

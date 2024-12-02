@@ -1,4 +1,4 @@
-#include "atmosphere.hpp"
+#include "../include/atmosphere.hpp"
 
 
 double Atmosphere::pressure(double& alt) {

@@ -4,11 +4,11 @@
 #include <variant>
 #include <map>
 
-#include "../datatable/datatable.hpp"
+#include "datatable.hpp"
 #include <pybind11/stl.h>
-#include "../linterp/src/linterp.h"
-#include "../boost/multi_array.hpp"
-#include "../datatable/datatable.hpp"
+#include "linterp/linterp.h"
+#include "boost/multi_array.hpp"
+#include "datatable.hpp"
 
 
 

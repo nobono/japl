@@ -1,4 +1,4 @@
-#include "aerotable.hpp"
+#include "../include/aerotable.hpp"
 
 #include <string>
 

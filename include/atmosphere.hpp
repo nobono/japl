@@ -3,8 +3,8 @@
 
 #include <vector>
 
-#include "../linterp/src/linterp.h"
-#include "../boost/multi_array.hpp"
+#include "linterp/linterp.h"
+#include "boost/multi_array.hpp"
 
 extern vector<double> _alts;
 extern vector<double> _pressure;
