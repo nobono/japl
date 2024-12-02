@@ -722,4 +722,5 @@ class Model:
                          params=params,
                          function_name="Model::input_updates",
                          return_name="Unew")
-        gen.create_module(module_name=name, path=path)
+        gen.create_module(module_name=name, path=path,
+                          class_properties=["aerotable", "atmosphere"])

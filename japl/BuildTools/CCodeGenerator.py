@@ -533,7 +533,8 @@ class CCodeGenerator(CodeGeneratorBase):
         return writes
 
 
-    def create_module(self, module_name: str, path: str = "."):
+    def create_module(self, module_name: str, path: str = ".",
+                      class_properties:list = []):
         # create extension module directory
         module_dir_name = module_name
         module_dir_path = os.path.join(path, module_dir_name)
@@ -578,6 +579,16 @@ class CCodeGenerator(CodeGeneratorBase):
                 pybind_writes += [method_bind_str]
                 for line in writes:
                     self._write_lines(line)
+
+            # write setters / getters for class properties
+            for property in class_properties:
+                get_sets = (f"\t\t.def_property(\"{property}\",\n"
+                            f"\t\t\t[](const Model& self) -> const decltype(Model::{property})& "
+                            "{"
+                            f"return self.{property}" + ";},\n"
+                            f"\t\t\t[](Model& self, const decltype(Model::{property})& value) "
+                            "{" + f"self.{property}" + " = value;})")
+                pybind_writes += [get_sets]
 
             # create __init__.py file
             with open(os.path.join(module_dir_path, "__init__.py"), "a+") as f:
