@@ -1,3 +1,4 @@
+# __JAPL_MODEL_SOURCE__
 import os
 import numpy as np
 from sympy import Matrix, Symbol, symbols
