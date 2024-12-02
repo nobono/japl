@@ -37,6 +37,50 @@ AeroTable::AeroTable(const py::kwargs& kwargs) {
 }
 
 
+// double inv_aerodynamics(const map<string, double>& kwargs) {
+//     double alpha_tol = 0.01;
+
+//     double alpha_max = std::max(aerotable.increments.alpha);
+//     Sref = aerotable.get_Sref()
+
+//     alpha_last = -1000
+//     count = 0
+
+//     boosting = (thrust > 0.0)
+
+//     # gradient search
+//     while ((abs(alpha - alpha_last) > alpha_tol) and (count < 10)):  # type:ignore
+//         count += 1
+//         alpha_last = alpha
+
+//         # TODO switch between Boost / Coast
+//         # get coeffs from aerotable
+//         CA = aerotable.get_CA(alpha=alpha, beta=beta, phi=phi, mach=mach, alt=alt, iota=iota, thrust=thrust)
+//         CN = aerotable.get_CNB(alpha=alpha, beta=beta, phi=phi, mach=mach, alt=alt, iota=iota)
+//         CA_alpha = aerotable.get_CA_alpha(alpha=alpha, beta=beta, phi=phi, mach=mach, alt=alt, iota=iota, thrust=thrust)
+//         CN_alpha = aerotable.get_CNB_alpha(alpha=alpha, beta=beta, phi=phi, mach=mach, alt=alt, iota=iota)
+
+//         # get derivative of CL wrt alpha
+//         cosa = np.cos(alpha)
+//         sina = np.sin(alpha)
+//         CL = (CN * cosa) - (CA * sina)
+//         CL_alpha = ((CN_alpha - CA) * cosa) - ((CA_alpha + CN) * sina)
+//         # CD = (CN * sina) + (CA * cosa)
+//         # CD_alpha = ((CA_alpha + CN) * cosa) + ((CN_alpha - CA) * sina)
+
+//         # calculate current normal acceleration, acc0, and normal acceleration due to
+//         # the change in alpha, acc_alpha. Use the difference between the two to
+//         # iteratively update alpha.
+//         acc_alpha = CL_alpha * dynamic_pressure * Sref / mass + thrust * np.cos(alpha) / mass
+//         acc0 = CL * dynamic_pressure * Sref / mass + thrust * np.sin(alpha) / mass
+//         alpha = alpha + (acc_cmd - acc0) / acc_alpha
+//         alpha = max(0, min(alpha, alpha_max))
+
+//     angle_of_attack = alpha
+//     return angle_of_attack
+// }
+
+
 PYBIND11_MODULE(aerotable, m) {
     pybind11::class_<AeroTable>(m, "AeroTable")
         .def(py::init<py::kwargs&>())
@@ -53,6 +97,22 @@ PYBIND11_MODULE(aerotable, m) {
         // .def_readonly("CNB_alpha", &AeroTable::CNB_alpha)
 
         .def_readonly("table_info", &AeroTable::table_info, "tables and their axes dimensions")
+
+        // .def_property("increments",
+        //             [](const AeroTable& self) {return self.increments;},  // getter
+        //             [](AeroTable& self, const map<string, py::array_t<double>>& value) {
+        //                 map<string, dVec> _increments;
+        //                 for (const auto& item : value) {
+        //                     string key = item.first;
+        //                     py::array_t<double> np_val = py::cast<py::array_t<double>>(item.second);
+
+        //                     py::buffer_info buf = np_val.request();
+        //                     double* ptr = static_cast<double*>(buf.ptr);
+        //                     dVec val(ptr, ptr + buf.shape[0]);
+        //                     _increments[key] = val;
+        //                 }
+        //                 self.increments = _increments;
+        //             })  // setter
 
         .def_property("Sref",
                       [](const AeroTable& self) {return self.Sref;},  // getter

@@ -30,6 +30,8 @@ public:
         {"CNB_alpha", 11},
     };
 
+    map<string, dVec> increments;
+
     DataTable CA;
     DataTable CA_Boost;
     DataTable CA_Coast;
@@ -124,6 +126,10 @@ public:
 
     double get_CNB_alpha(const map<string, double>& kwargs) {
         return this->CNB_alpha(kwargs)[0];
+    }
+
+    double inv_aerodynamics(const map<string, double>& kwargs) {
+        return 0.0;
     }
 
     inline vector<string> get_keys() {
