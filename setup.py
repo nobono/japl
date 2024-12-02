@@ -5,8 +5,59 @@ import glob
 from setuptools import setup
 from setuptools import find_packages
 from setuptools import Command
+from setuptools.command.build_ext import build_ext
+from setuptools.command.build import build
 import platform
 
+
+
+TEMP_LIBS_DIR = "libs"
+
+
+class BuildCommand(build):
+    user_options = build_ext.user_options + [
+            ("build-temp=", None, "Specify a directory fro temporary build files.")
+            ]
+
+
+    def initialize_options(self) -> None:
+        super().initialize_options()
+        self.build_temp = TEMP_LIBS_DIR  # default to None; can be set by user
+
+
+    def finalize_options(self) -> None:
+        super().finalize_options()
+        if self.build_temp:
+            os.makedirs(self.build_temp, exist_ok=True)
+
+
+    def run(self) -> None:
+        return super().run()
+
+
+class BuildExtCommand(build_ext):
+    user_options = build_ext.user_options + [
+            ("build-temp=", None, "Specify a directory fro temporary build files.")
+            ]
+
+
+    def initialize_options(self) -> None:
+        super().initialize_options()
+        self.build_temp = TEMP_LIBS_DIR  # default to None; can be set by user
+
+
+    def finalize_options(self) -> None:
+        super().finalize_options()
+        if self.build_temp:
+            os.makedirs(self.build_temp, exist_ok=True)
+
+
+    def build_extension(self, ext) -> None:
+        if self.build_temp:
+            # override the temporary build directory
+            self.build_temp = os.path.abspath(self.build_temp)
+            self.build_temp_dir = self.build_temp
+        return super().build_extension(ext)
 
 
 class CleanCommand(Command):
@@ -118,6 +169,8 @@ setup(
             ],
         cmdclass={
             "clean": CleanCommand,
+            "build_ext": BuildExtCommand,
+            "build": BuildCommand,
             },
         entry_points={
             "console_scripts": [
