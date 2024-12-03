@@ -789,17 +789,17 @@ if __name__ == "__main__":
                      is_symmetric=False,
                      by_reference=innov)
 
-    gen.add_function(expr=X_accel_update,
-                     params=params,
-                     function_name="x_accel_update",
-                     return_name="X_accel_new")
+    # gen.add_function(expr=X_accel_update,
+    #                  params=params,
+    #                  function_name="x_accel_update",
+    #                  return_name="X_accel_new")
 
-    gen.add_function(expr=P_accel_update,
-                     params=params,
-                     function_name="p_accel_update",
-                     return_name="P_accel_new",
-                     is_symmetric=False,
-                     by_reference=innov)
+    # gen.add_function(expr=P_accel_update,
+    #                  params=params,
+    #                  function_name="p_accel_update",
+    #                  return_name="P_accel_new",
+    #                  is_symmetric=False,
+    #                  by_reference=innov)
 
     # gen.add_function(expr=X_gps_update,
     #                  params=params,
