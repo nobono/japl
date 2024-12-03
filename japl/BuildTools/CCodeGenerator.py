@@ -394,7 +394,7 @@ class CCodeGenerator(CodeGeneratorBase):
             ######################################################
 
             replacements, expr_simple = cse(expr)
-            expr_simple = expr_simple[0]
+            expr_simple = expr_simple[0]  # type:ignore
 
             # must further optimize and make substitutions
             # between indices of expr
@@ -409,7 +409,7 @@ class CCodeGenerator(CodeGeneratorBase):
             if by_ref_nadds > 0:
                 expr_simple = expr_simple[:-by_ref_nadds]
                 for i, (k, v) in enumerate(by_reference.items()):
-                    by_reference[k] = expr_simple[-by_ref_nadds:][i]
+                    by_reference[k] = expr_simple[-by_ref_nadds:][i]  # type:ignore
             ######################################################
 
             # remove added reference expr which were
