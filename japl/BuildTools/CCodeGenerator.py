@@ -16,6 +16,8 @@ from japl.BuildTools.BuildTools import parallel_subs
 from japl.BuildTools.BuildTools import parallel_cse
 from collections import defaultdict
 from japl.Symbolic.KwargFunction import KwargFunction
+from japl.global_opts import JAPL_HOME_DIR
+from pathlib import Path
 import subprocess
 
 
@@ -619,11 +621,51 @@ class CCodeGenerator(CodeGeneratorBase):
             shutil.rmtree(module_dir_path, ignore_errors=True)
             raise Exception(e)
 
+        # copy over japl libs
+        try:
+            os.mkdir(Path(module_dir_path, "libs"))
+        except Exception as e:
+            print("Error moving libs to model dir", e)
+        # self.copy_files(os.path.join(JAPL_HOME_DIR, "libs"), module_dir_path)
+        self.copy_dir(os.path.join(JAPL_HOME_DIR, "libs"), Path(module_dir_path, "libs"))
+
         # try to build
         try:
             subprocess.run(["python", os.path.join(module_dir_path, "build.py")])
         except Exception as e:
             print("Error building model", e)
+
+
+    @staticmethod
+    def copy_dir(source_dir, target_dir) -> None:
+        """
+        Recursively copies all directories and files from source_dir to target_dir.
+
+        Parameters:
+        -----------
+            source_dir (str): The source directory to copy from.
+            target_dir (str): The target directory to copy to.
+
+        Raises:
+        -------
+            ValueError: If source_dir does not exist or is not a directory.
+        """
+        if not os.path.isdir(source_dir):
+            raise ValueError(f"Source directory '{source_dir}' does not exist or is not a directory.")
+
+        # Ensure the target directory exists
+        os.makedirs(target_dir, exist_ok=True)
+
+        for item in os.listdir(source_dir):
+            source_item = os.path.join(source_dir, item)
+            target_item = os.path.join(target_dir, item)
+
+            if os.path.isdir(source_item):
+                # Recursively copy directories
+                CCodeGenerator.copy_dir(source_item, target_item)
+            else:
+                # Copy files
+                shutil.copy2(source_item, target_item)
 
 
     def create_build_file(self, module_name: str, path: str, source: str):
@@ -680,17 +722,17 @@ class CCodeGenerator(CodeGeneratorBase):
         ext_module = Pybind11Extension(name="{module_name}",
                                        sources=sources,
                                        extra_compile_args=[],
-                                       extra_link_args=["./libs/src/linterp/linterp.o",
-                                                        "./libs/src/datatable.o",
-                                                        "./libs/src/atmosphere_alts.o",
-                                                        "./libs/src/atmosphere_density.o",
-                                                        "./libs/src/atmosphere_grav_accel.o",
-                                                        "./libs/src/atmosphere_pressure.o",
-                                                        "./libs/src/atmosphere_temperature.o",
-                                                        "./libs/src/atmosphere_speed_of_sound.o",
-                                                        "./libs/src/atmosphere.o",
-                                                        "./libs/src/aerotable.o",
-                                                        "./libs/src/model.o"],
+                                       extra_link_args=["{path}/libs/src/linterp/linterp.o",
+                                                        "{path}/libs/src/datatable.o",
+                                                        "{path}/libs/src/atmosphere_alts.o",
+                                                        "{path}/libs/src/atmosphere_density.o",
+                                                        "{path}/libs/src/atmosphere_grav_accel.o",
+                                                        "{path}/libs/src/atmosphere_pressure.o",
+                                                        "{path}/libs/src/atmosphere_temperature.o",
+                                                        "{path}/libs/src/atmosphere_speed_of_sound.o",
+                                                        "{path}/libs/src/atmosphere.o",
+                                                        "{path}/libs/src/aerotable.o",
+                                                        "{path}/libs/src/model.o"],
                                        include_dirs=[os.path.join(JAPL_HOME_DIR, "include")],
                                        cxx_std={cxx_std})
         """"""
