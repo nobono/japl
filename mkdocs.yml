@@ -1,9 +1,9 @@
 site_name: JAPL
 
 nav:
-- Home: index.md
-- About: about.md
-- Getting Started: getting_started.md
+  - Home: index.md
+  - About: about.md
+  - Getting Started: installation.md
 
 theme:
   name: material
@@ -13,19 +13,24 @@ theme:
   palette:
     # Palette toggle for light mode
     - scheme: default
+      primary: teal
+      accent: blue
       toggle:
         icon: material/brightness-7 
         name: Switch to dark mode
 
     # Palette toggle for dark mode
     - scheme: slate
+      primary: teal
+      accent: blue
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
-      primary: teal
-      accent: blue
 
 markdown_extensions:
+  # aligning images
+  - attr_list
+
   # mkdocs-material syntax highlighting
   - pymdownx.highlight:
       anchor_linenums: true
