@@ -172,7 +172,7 @@ def main():
                               type=int,
                               nargs="?",
                               help="id of available models to build")
-    build_parser.add_argument("--path",
+    build_parser.add_argument("-p", "--path",
                               default=".",
                               type=str,
                               nargs="?",
