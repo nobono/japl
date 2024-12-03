@@ -7,6 +7,7 @@ from textwrap import dedent
 from sympy import symbols, Matrix, Symbol, MatrixSymbol
 from sympy import cse
 from japl.BuildTools.CCodeGenerator import CCodeGenerator
+from japl.BuildTools.CCodeGenerator import FunctionInfo
 from japl import JAPL_HOME_DIR
 
 
@@ -134,35 +135,54 @@ class TestCCodeGenerator(unittest.TestCase):
     #########################################
 
     def test_function_parameters_case1(self):
-        x, y = sp.symbols("x, y")
+        x, y = symbols("x, y")
         params = [x, y]
         gen = CCodeGenerator()
-        arg_names, arg_unpack_str = gen._get_function_parameters(params=params)
-        self.assertEqual(arg_names, "double x, double y")
-        self.assertEqual(arg_unpack_str, "")
+        function_info = FunctionInfo(name="func", expr=x + y, params=params, by_reference={})
+        arg_names, arg_unpack_str = gen._get_function_parameters(function_info)
+        self.assertListEqual(arg_names, ["double x", "double y"])
+        self.assertEqual(arg_unpack_str, [])
 
 
     def test_function_parameters_case2(self):
         A = MatrixSymbol("A", 3, 1).as_mutable()
-        x, y = sp.symbols("x, y")
+        x, y = symbols("x, y")
         params = [x, y, A]
         gen = CCodeGenerator()
-        arg_names, arg_unpack_str = gen._get_function_parameters(params=params)
-        self.assertEqual(arg_names, "double x, double y, std::vector<double> A")
-        self.assertEqual(arg_unpack_str, "")
+        function_info = FunctionInfo(name="func", expr=x + y, params=params, by_reference={})
+        arg_names, arg_unpack_str = gen._get_function_parameters(function_info)
+        self.assertEqual(arg_names, ["double x", "double y", "std::vector<double> A"])
+        self.assertEqual(arg_unpack_str, [])
 
 
     def test_function_parameters_case3(self):
         A = Matrix(symbols("a1, a2, a3"))
-        x = Symbol("x")
-        y = Symbol("y")
+        x, y = symbols("x, y")
         params = [x, y, *A]
         gen = CCodeGenerator()
-        arg_names, arg_unpack_str = gen._get_function_parameters(params=params)
-        self.assertEqual(arg_names, "double x, double y, double a1, double a2, double a3")
-        self.assertEqual(arg_unpack_str, "")
+        function_info = FunctionInfo(name="func", expr=x + y, params=params, by_reference={})
+        arg_names, arg_unpack_str = gen._get_function_parameters(function_info)
+        self.assertEqual(arg_names, ["double x", "double y", "double a1", "double a2", "double a3"])
+        self.assertEqual(arg_unpack_str, [])
         # print(arg_names)
         # print(arg_unpack_str)
+
+
+    # def test_function_parameters_by_ref_case_1(self):
+    #     A = Matrix(symbols("a1, a2, a3"))
+    #     x, y = symbols("x, y")
+    #     z = symbols("z")
+    #     params = [x, y]
+    #     gen = CCodeGenerator()
+    #     expr = x + y
+    #     by_reference = {"z": [x + y]}
+    #     function_info = FunctionInfo(name="func", expr=expr,
+    #                                  params=params, by_reference=by_reference)
+    #     function_info = gen._build_function_prototype(function_info=function_info,
+    #                                                   expr=expr)  # type:ignore
+    #     # writes = gen._handle_pass_by_reference_params(function_info=function_info)
+    #     print(function_info.params_list)
+
 
     # TODO: handle MatrixSymbol
     # def test_function_parameters_case4(self):
@@ -193,7 +213,7 @@ class TestCCodeGenerator(unittest.TestCase):
         expr, _ = self.get_model()
         gen = CCodeGenerator()
         ret = gen._write_function_returns(expr=expr, return_names=["Ret"])
-        self.assertEqual(ret, "return py::array_t<double>(Ret.size(), Ret.data());\n")
+        self.assertEqual(ret, "return Ret;\n")
 
     # def test_write_function_returns_case3(self):
     #     """matrix"""
@@ -240,43 +260,43 @@ class TestCCodeGenerator(unittest.TestCase):
     # Function Building
     #########################################
 
-    def test_write_function_definition_case1(self):
-        """single vars - type double"""
-        expr, params = self.get_small_model()
-        gen = CCodeGenerator()
-        ret = gen._write_function_definition(name="func", expr=expr, params=params)
-        self.assertEqual(ret, "double func(double a, double b) {\n\n")  # }
+    # def test_write_function_definition_case1(self):
+    #     """single vars - type double"""
+    #     expr, params = self.get_small_model()
+    #     gen = CCodeGenerator()
+    #     ret = gen._write_function_definition(name="func", expr=expr, params=params)
+    #     self.assertEqual(ret, "double func(double a, double b) {\n\n")  # }
 
 
-    def test_write_function_definition_case2(self):
-        """single vars - type int"""
-        a = Symbol("a", integer=True)
-        b = Symbol("b", integer=True)
-        expr = a + b  # type:ignore
-        params = [a, b]
-        gen = CCodeGenerator()
-        ret = gen._write_function_definition(name="func", expr=expr, params=params)
-        self.assertEqual(ret, "int func(int a, int b) {\n\n")  # }
+    # def test_write_function_definition_case2(self):
+    #     """single vars - type int"""
+    #     a = Symbol("a", integer=True)
+    #     b = Symbol("b", integer=True)
+    #     expr = a + b  # type:ignore
+    #     params = [a, b]
+    #     gen = CCodeGenerator()
+    #     ret = gen._write_function_definition(name="func", expr=expr, params=params)
+    #     self.assertEqual(ret, "int func(int a, int b) {\n\n")  # }
 
 
-    def test_write_function_definition_case3(self):
-        """arrays and single vars"""
-        expr, params = self.get_model()
-        gen = CCodeGenerator()
-        ret = gen._write_function_definition(name="func", expr=expr, params=params)
-        truth = """\
-        py::array_t<double> func(std::vector<double> _Dummy_var0, std::vector<double> _Dummy_var1, std::vector<double> _Dummy_var2, double dt) {
-        \tdouble pos_x = _Dummy_var0[0];
-        \tdouble pos_y = _Dummy_var0[1];
-        \tdouble pos_z = _Dummy_var0[2];
-        \tdouble vel_x = _Dummy_var1[0];
-        \tdouble vel_y = _Dummy_var1[1];
-        \tdouble vel_z = _Dummy_var1[2];
-        \tdouble acc_x = _Dummy_var2[0];
-        \tdouble acc_y = _Dummy_var2[1];
-        \tdouble acc_z = _Dummy_var2[2];
-        """ # noqa
-        self.assertEqual(ret, dedent(truth))
+    # def test_write_function_definition_case3(self):
+    #     """arrays and single vars"""
+    #     expr, params = self.get_model()
+    #     gen = CCodeGenerator()
+    #     ret = gen._write_function_definition(name="func", expr=expr, params=params)
+    #     truth = """\
+    #     vector<double> func(std::vector<double> _Dummy_var0, std::vector<double> _Dummy_var1, std::vector<double> _Dummy_var2, double dt) {
+    #     \tdouble pos_x = _Dummy_var0[0];
+    #     \tdouble pos_y = _Dummy_var0[1];
+    #     \tdouble pos_z = _Dummy_var0[2];
+    #     \tdouble vel_x = _Dummy_var1[0];
+    #     \tdouble vel_y = _Dummy_var1[1];
+    #     \tdouble vel_z = _Dummy_var1[2];
+    #     \tdouble acc_x = _Dummy_var2[0];
+    #     \tdouble acc_y = _Dummy_var2[1];
+    #     \tdouble acc_z = _Dummy_var2[2];
+    #     """ # noqa
+    #     self.assertEqual(ret, dedent(truth))
 
 
     def test_write_subexpressions_case1(self):

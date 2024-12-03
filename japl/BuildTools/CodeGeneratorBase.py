@@ -10,6 +10,7 @@ from sympy import cse
 from sympy import Add, Mul
 from sympy.codegen.ast import Any, float32, real
 from sympy.matrices.expressions.matexpr import MatrixElement
+from japl.BuildTools.FunctionInfo import FunctionInfo
 from japl.Util.Util import flatten_list
 
 
@@ -137,11 +138,13 @@ class CodeGeneratorBase:
             return False
 
 
-    def _get_function_parameters(self, params: list[Any], by_reference: dict = {},
-                                 use_std_args: bool = False) -> tuple[str, str]:
+    def _get_function_parameters(self, function_info: FunctionInfo,
+                                 use_std_args: bool = False) -> tuple[list[str], list[str]]:
         """returns names of paramters as a string. If Matrix or list of
         parameters provided as one of the parameters, return the string
         which unpacks the dummy variables."""
+        params = function_info.params
+        by_reference = function_info.by_reference
         # use standard Model args [t, X, U, S, dt]
         if use_std_args:
             if len(params) != 5:
@@ -153,7 +156,7 @@ class CodeGeneratorBase:
             dummy_names = [f"_Dummy_var{i}" for i in range(25)]
 
         arg_names = []
-        arg_unpack_str = ""
+        arg_unpack_str = []
         for i, (param, dummy_name) in enumerate(zip(params, dummy_names)):
             if self._is_array_type(param):
                 # unpack iterable param
@@ -176,7 +179,7 @@ class CodeGeneratorBase:
                             unpack_var = self._declare_parameter(param=p,
                                                                  by_reference=by_reference)
                             accessor_str = self.pre_bracket + str(ip) + self.post_bracket
-                            arg_unpack_str += f"{unpack_var} = {dummy_name}{accessor_str}" + self.endl
+                            arg_unpack_str += [f"{unpack_var} = {dummy_name}{accessor_str}" + self.endl]
 
                     # store dummy var in arg_names
                     arg_names += [self._declare_parameter(param,
@@ -187,8 +190,8 @@ class CodeGeneratorBase:
                 param_str = self._declare_parameter(param=param,
                                                     by_reference=by_reference)
                 arg_names += [param_str]
-        arg_names_str = ", ".join(arg_names)
-        return (arg_names_str, arg_unpack_str)
+        # arg_names_str = ", ".join(arg_names)
+        return (arg_names, arg_unpack_str)
 
 
     @staticmethod

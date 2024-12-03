@@ -4,6 +4,7 @@ from typing import Optional
 from tqdm import tqdm
 import numpy as np
 from japl.BuildTools.CodeGeneratorBase import CodeGeneratorBase
+from japl.BuildTools.FunctionInfo import FunctionInfo
 from sympy import ccode
 from sympy import Expr
 from sympy import Matrix
@@ -19,6 +20,7 @@ from japl.Symbolic.KwargFunction import KwargFunction
 from japl.global_opts import JAPL_HOME_DIR
 from pathlib import Path
 import subprocess
+
 
 
 
@@ -43,7 +45,7 @@ class CCodeGenerator(CodeGeneratorBase):
 
     def __init__(self, strict: bool = False, use_std_args: bool = False):
         self.strict = strict
-        self.function_register = {}
+        self.function_register: dict[str, FunctionInfo] = {}
         self.use_std_args = use_std_args  # use standard Model args
 
 
@@ -127,17 +129,8 @@ class CCodeGenerator(CodeGeneratorBase):
             type_str = primitive_type
         else:
             primitive_type = "double"
-            type_str = f"py::array_t<{primitive_type}>"
+            type_str = f"vector<{primitive_type}>"
         return type_str
-
-
-    def _write_function_definition(self, name: str, expr: Expr|Matrix, params: list,
-                                   by_reference: dict = {}):
-        return_type_str = self._get_return_type(expr)
-        params_list, params_unpack = self._get_function_parameters(params=params,
-                                                                   by_reference=by_reference)
-        func_proto = f"{return_type_str} {name}({params_list})" + " {\n"  # }
-        return func_proto + self._indent_lines(params_unpack)
 
 
     def _write_function_returns(self, expr: Expr|Matrix, return_names: list[str]):
@@ -145,12 +138,13 @@ class CCodeGenerator(CodeGeneratorBase):
             raise Exception("CCodeGenerator currently only supports returns of a"
                             "single object.")
         return_name = return_names[0]
-        if self._is_array_type(expr):
-            # convert vector to array_t
-            return_str = "py::array_t<double>(" + return_name + ".size(), " + return_name + ".data())"
-            return f"return {return_str}" + self.endl
-        else:
-            return f"return {return_name}" + self.endl
+        # if self._is_array_type(expr):
+        #     # convert vector to array_t
+        #     return_str = "vector<double>(" + return_name + ".size(), " + return_name + ".data())"
+        #     return f"return {return_str}" + self.endl
+        # else:
+        #     return f"return {return_name}" + self.endl
+        return f"return {return_name}" + self.endl
 
 
     @staticmethod
@@ -272,16 +266,16 @@ class CCodeGenerator(CodeGeneratorBase):
 
         # register function info
         self.function_register.update({
-            function_name: dict(
-                expr=expr,
-                params=params,
-                return_name=return_name,
-                use_cse=use_cse,
-                is_symmetric=is_symmetric,
-                description=description,
-                by_reference=by_reference,
-                )
-            })
+                function_name: FunctionInfo(
+                    name=function_name,
+                    expr=expr,
+                    params=params,
+                    return_name=return_name,
+                    use_cse=use_cse,
+                    is_symmetric=is_symmetric,
+                    description=description,
+                    by_reference=by_reference)
+                })
 
 
     @staticmethod
@@ -354,104 +348,29 @@ class CCodeGenerator(CodeGeneratorBase):
         return (replacements, expr_simple, len(dreps_pops))  # type:ignore
 
 
-    def _build_function(self, function_name: str, **func_register_info) -> list[str]:
-
-        MAX_PRUNE_ITER = 10
-
-        expr = func_register_info.get("expr")
-        params = func_register_info.get("params")
-        return_name = func_register_info.get("return_name")
-        use_cse = func_register_info.get("use_cse")
-        is_symmetric = func_register_info.get("is_symmetric")
-        by_reference = func_register_info.get("by_reference", {})
-        assert expr
-        assert params
-        assert return_name
-        assert isinstance(use_cse, bool)
-        assert isinstance(is_symmetric, bool)
-
-        if use_cse:
-            # old method
-            # expr_replacements, expr_simple = cse(expr, symbols("X_temp0:1000"), optimizations='basic')
-
-            # NOTE: handles MatrixSymbols in expression.
-            # wrapping in Matrix() simplifies the form of
-            # any matrix operation expressions.
-            if expr.is_Matrix:
-                expr = Matrix(expr)
-
-            ######################################################
-            # optimize pass-by-reference exprs
-            ######################################################
-            # add by_reference expressions to expr and
-            # do cse optimization to get substitutions.
-            # then split main expr & pass-by-reference
-            # expression again for individual processing
-            by_ref_nadds = len(by_reference)
-            if by_ref_nadds > 0:
-                by_ref_expr = Matrix([*by_reference.values()])
-                expr = Matrix([*expr, *by_ref_expr])
-            ######################################################
-
-            replacements, expr_simple = cse(expr)
-            expr_simple = expr_simple[0]  # type:ignore
-
-            # must further optimize and make substitutions
-            # between indices of expr
-            for _ in range(MAX_PRUNE_ITER):
-                replacements, expr_simple, nredundant = self._subs_prune(replacements, expr_simple)
-                if nredundant == 0:
-                    break
-
-            ######################################################
-            # optimize pass-by-reference exprs
-            ######################################################
-            if by_ref_nadds > 0:
-                expr_simple = expr_simple[:-by_ref_nadds]
-                for i, (k, v) in enumerate(by_reference.items()):
-                    by_reference[k] = expr_simple[-by_ref_nadds:][i]  # type:ignore
-            ######################################################
-
-            # remove added reference expr which were
-            # added for cse()
-            if by_ref_nadds > 0:
-                expr = Matrix(expr[:-by_ref_nadds])
-
-        else:
-            replacements = []
-            expr_simple = expr
-
-        return_type_str = self._get_return_type(expr_simple)
-        params_list, params_unpack = self._get_function_parameters(params=params,
-                                                                   by_reference=by_reference,
+    def _build_function_prototype(self, function_info: FunctionInfo, expr: Expr|Matrix) -> FunctionInfo:
+        function_name = function_info.name
+        return_type_str = self._get_return_type(expr)
+        params_list, params_unpack = self._get_function_parameters(function_info=function_info,
                                                                    use_std_args=self.use_std_args)
-        func_proto = f"{return_type_str} {function_name}({params_list})" + " {\n"  # }
-        func_def = func_proto + self._indent_lines(params_unpack)
-        # old
-        # func_def = self._write_function_definition(name=function_name,
-        #                                            expr=expr_simple,
-        #                                            params=params,
-        #                                            by_reference=by_reference)
+        params_list_str = ", ".join(params_list)
+        params_unpack_str = "".join(params_unpack)
+        func_proto = f"{return_type_str} {function_name}({params_list_str})" + " {\n"  # }
+        func_def = self._indent_lines(params_unpack_str)
+        function_info.params_list = params_list
+        function_info.params_unpack = params_unpack
+        function_info.proto = func_proto
+        function_info.body += func_def
+        return function_info
 
-        return_array = self._instantiate_return_variable(expr=expr, name=return_name)
-        sub_expr = self._write_subexpressions(replacements)  # type:ignore
-        func_body = self._write_matrix(matrix=Matrix(expr_simple),
-                                       variable=return_name,
-                                       is_symmetric=is_symmetric)
-        func_ret = self._write_function_returns(expr=expr, return_names=[return_name])
 
-        writes = [
-                  func_def,
-                  self._indent_lines(return_array),
-                  self._indent_lines(sub_expr),
-                  self._indent_lines(func_body),
-                  ]
-
-        #######################################
-        # write other defined subexpressions
-        #######################################
+    def _handle_pass_by_reference_params(self, function_info: FunctionInfo) -> list[str]:
+        writes = []
+        params_list = function_info.params_list
+        by_reference = function_info.by_reference
         # find '&' (pass-by-reference) params in parameter name list
-        by_ref_params_list = [i for i in params_list.split(",") if ('&' in i) or ("py::array" in i)]
+        params_list_str = ", ".join(params_list)
+        by_ref_params_list = [i for i in params_list_str.split(",") if ('&' in i) or ("py::array" in i)]
         for ref_param in by_ref_params_list:
             if '&' in ref_param:
                 ref_param_type, ref_param_name = ref_param.split('&')
@@ -505,28 +424,184 @@ class CCodeGenerator(CodeGeneratorBase):
                     by_ref_subexpr_str += assign_str
 
                 # usr_sub_expr_simple = parallel_subs(by_reference, replacements)
-                writes += [self._indent_lines(by_ref_ptr_str),
-                           self._indent_lines(by_ref_subexpr_str)]
+                writes = [self._indent_lines(by_ref_ptr_str),
+                          self._indent_lines(by_ref_subexpr_str)]
 
             else:
                 raise Exception("unhandled case, but also make this code better.")
+        return writes
 
-            ###################################################
-            # by_ref_param_name = ref_param_name
-            # by_ref_ptr_name = f"{by_ref_param_name}_ptr"
-            # by_ref_ptr_str = (f"double* {by_ref_ptr_name} = static_cast<double*>"
-            #                   f"({by_ref_param_name}.mutable_data())" + self.endl)
-            ###################################################
 
-            # apply subs from previous code to subexpressions
-            # breakpoint()
-            # by_ref_replacements, by_ref_expr_simple = parallel_cse(Matrix([*by_reference.values()]))
-            # breakpoint()
-            # by_reference = parallel_subs(by_reference, [replacements])  # type:ignore
-            # for _ in range(MAX_PRUNE_ITER):
-            #     replacements, expr_simple, nredundant = self._subs_prune(replacements, Matrix([*by_reference.values()]))
-            #     if nredundant == 0:
-            #         break
+
+    def _build_function(self, function_name: str, func_info: FunctionInfo) -> list[str]:
+
+        MAX_PRUNE_ITER = 10
+
+        expr = func_info.expr
+        params = func_info.params
+        return_name = func_info.return_name
+        use_cse = func_info.use_cse
+        is_symmetric = func_info.is_symmetric
+        by_reference = func_info.by_reference
+        assert expr
+        assert params
+        assert return_name
+        assert isinstance(use_cse, bool)
+        assert isinstance(is_symmetric, bool)
+
+        if use_cse:
+            # old method
+            # expr_replacements, expr_simple = cse(expr, symbols("X_temp0:1000"), optimizations='basic')
+
+            # NOTE: handles MatrixSymbols in expression.
+            # wrapping in Matrix() simplifies the form of
+            # any matrix operation expressions.
+            if expr.is_Matrix:
+                expr = Matrix(expr)
+
+                ######################################################
+                # optimize pass-by-reference exprs
+                ######################################################
+                # add by_reference expressions to expr and
+                # do cse optimization to get substitutions.
+                # then split main expr & pass-by-reference
+                # expression again for individual processing
+                by_ref_nadds = len(by_reference)
+                if by_ref_nadds > 0:
+                    by_ref_expr = Matrix([*by_reference.values()])
+                    expr = Matrix([*expr, *by_ref_expr])
+                ######################################################
+
+                replacements, expr_simple = cse(expr)
+                expr_simple = expr_simple[0]  # type:ignore
+
+                # must further optimize and make substitutions
+                # between indices of expr
+                for _ in range(MAX_PRUNE_ITER):
+                    replacements, expr_simple, nredundant = self._subs_prune(replacements, expr_simple)
+                    if nredundant == 0:
+                        break
+
+                ######################################################
+                # optimize pass-by-reference exprs
+                ######################################################
+                if by_ref_nadds > 0:
+                    expr_simple = expr_simple[:-by_ref_nadds]
+                    for i, (k, v) in enumerate(by_reference.items()):
+                        by_reference[k] = expr_simple[-by_ref_nadds:][i]  # type:ignore
+                ######################################################
+
+                # remove added reference expr which were
+                # added for cse()
+                if by_ref_nadds > 0:
+                    expr = Matrix(expr[:-by_ref_nadds])
+
+            # if expr is not Matrix
+            else:
+                expr_simple = expr
+
+        else:
+            replacements = []
+            expr_simple = expr
+
+        func_info = self._build_function_prototype(function_info=func_info, expr=expr_simple)  # type:ignore
+        return_array = self._instantiate_return_variable(expr=expr, name=return_name)
+        sub_expr = self._write_subexpressions(replacements)  # type:ignore
+        func_body = self._write_matrix(matrix=Matrix(expr_simple),
+                                       variable=return_name,
+                                       is_symmetric=is_symmetric)
+        func_ret = self._write_function_returns(expr=expr, return_names=[return_name])
+
+        writes = [
+                  func_info.proto,
+                  func_info.body,
+                  self._indent_lines(return_array),
+                  self._indent_lines(sub_expr),
+                  self._indent_lines(func_body),
+                  ]
+
+        #######################################
+        # write other defined subexpressions
+        #######################################
+        # # find '&' (pass-by-reference) params in parameter name list
+        # params_list_str = ", ".join(func_info.params_list)
+        # by_ref_params_list = [i for i in params_list_str.split(",") if ('&' in i) or ("py::array" in i)]
+        # for ref_param in by_ref_params_list:
+        #     if '&' in ref_param:
+        #         ref_param_type, ref_param_name = ref_param.split('&')
+        #         # TODO this does nothing
+        #     elif "py::array" in ref_param:
+        #         ref_param_type, ref_param_name = ref_param.split('py::array')
+
+        #         #####
+        #         ref_param_type = ref_param_type.strip()
+        #         ref_param_name = ref_param_name.strip()
+
+        #         # add line which gets pointer to data from py::array type
+        #         by_ref_param_name = ref_param_name
+
+        #         by_ref_size_check_str = (f"if ({by_ref_param_name}.size() != {len(by_reference)})"
+        #                                  " {\n"  # }
+        #                                  f"\tthrow std::length_error(\""  # )
+        #                                  f"expected length of {len(by_reference)} for argument"
+        #                                  f"{by_ref_param_name} but instead got length \" "
+        #                                  f"+ std::to_string({by_ref_param_name}.size())){self.endl}"
+        #                                  "}\n"
+        #                                  )
+
+        #         by_ref_buf_name = f"{by_ref_param_name}_buf"
+        #         by_ref_buf_str = f"py::buffer_info {by_ref_buf_name} = {by_ref_param_name}.request()" + self.endl
+
+        #         by_ref_ptr_name = f"{by_ref_param_name}_ptr"
+        #         by_ref_ptr_str = (f"double* {by_ref_ptr_name} = static_cast<double*>"
+        #                           f"({by_ref_buf_name}.ptr)" + self.endl)
+        #         by_ref_dtype = f"{by_ref_buf_name}.format"
+
+        #         by_ref_check_dtype_str = (f"if ({by_ref_dtype} != \"d\") "
+        #                                   "{\n"
+        #                                   f"\tthrow py::type_error(\"attempting to pass argument "  # )
+        #                                   f"{by_ref_param_name}, but "
+        #                                   f"must be of type double\"){self.endl}"
+        #                                   "}\n")
+        #         by_ref_ptr_str = by_ref_size_check_str + by_ref_buf_str + by_ref_ptr_str + by_ref_check_dtype_str
+        #         #####
+        #         # NOTE: this is an augmented _write_subexpressions()
+        #         # allowing the specification of:
+        #         #   - lvalue variable name
+        #         #   - lvalue variable being array-type and accessed
+        #         #   - type being pointer
+        #         by_ref_subexpr_str = ""
+        #         for i, (lvalue, rvalue) in enumerate(by_reference.items()):  # type:ignore
+        #             # type_str = self._get_type(lvalue)
+        #             accessor_str = self.pre_bracket + str(i) + self.post_bracket
+        #             lvalue_str = f"{by_ref_ptr_name}{accessor_str}"
+        #             assign_str = self._assign_variable(lvalue_str, self._get_code(rvalue))  # type:ignore
+        #             by_ref_subexpr_str += assign_str
+
+        #         # usr_sub_expr_simple = parallel_subs(by_reference, replacements)
+        #         writes += [self._indent_lines(by_ref_ptr_str),
+        #                    self._indent_lines(by_ref_subexpr_str)]
+
+        #     else:
+        #         raise Exception("unhandled case, but also make this code better.")
+
+        #     ###################################################
+        #     # by_ref_param_name = ref_param_name
+        #     # by_ref_ptr_name = f"{by_ref_param_name}_ptr"
+        #     # by_ref_ptr_str = (f"double* {by_ref_ptr_name} = static_cast<double*>"
+        #     #                   f"({by_ref_param_name}.mutable_data())" + self.endl)
+        #     ###################################################
+
+        #     # apply subs from previous code to subexpressions
+        #     # breakpoint()
+        #     # by_ref_replacements, by_ref_expr_simple = parallel_cse(Matrix([*by_reference.values()]))
+        #     # breakpoint()
+        #     # by_reference = parallel_subs(by_reference, [replacements])  # type:ignore
+        #     # for _ in range(MAX_PRUNE_ITER):
+        #     #     replacements, expr_simple, nredundant = self._subs_prune(replacements,
+        #     #                                                              Matrix([*by_reference.values()]))
+        #     #     if nredundant == 0:
+        #     #         break
 
 
         # close function
@@ -583,9 +658,15 @@ class CCodeGenerator(CodeGeneratorBase):
 
                 # build the function
                 function_name_ref = f"{class_ref}::{func_name}"
-                writes = self._build_function(function_name=function_name_ref, **info)
-                description = info["description"]
+                writes = self._build_function(function_name=function_name_ref, func_info=info)
+                description = info.description
                 method_bind_str = f"\t\t.def(\"{func_name}\", &{function_name_ref}, \"{description}\")"
+                # getter_str = (f"\t\t.def_property(\"{property}\",\n"
+                #               f"\t\t\t[](Model& self) -> const decltype(Model::{property})& "
+                #               "{"
+                #               f"return self.{property}" + ";},\n"
+                #               f"\t\t\t[](Model& self, const decltype(Model::{property})& value) "
+                #               "{" + f"self.{property}" + " = value;})")
 
                 pybind_writes += [method_bind_str]
                 for line in writes:
@@ -593,13 +674,13 @@ class CCodeGenerator(CodeGeneratorBase):
 
             # write setters / getters for class properties
             for property in class_properties:
-                get_sets = (f"\t\t.def_property(\"{property}\",\n"
-                            f"\t\t\t[](const Model& self) -> const decltype(Model::{property})& "
-                            "{"
-                            f"return self.{property}" + ";},\n"
-                            f"\t\t\t[](Model& self, const decltype(Model::{property})& value) "
-                            "{" + f"self.{property}" + " = value;})")
-                pybind_writes += [get_sets]
+                gets_sets = (f"\t\t.def_property(\"{property}\",\n"
+                             f"\t\t\t[](const Model& self) -> const decltype(Model::{property})& "
+                             "{"
+                             f"return self.{property}" + ";},\n"
+                             f"\t\t\t[](Model& self, const decltype(Model::{property})& value) "
+                             "{" + f"self.{property}" + " = value;})")
+                pybind_writes += [gets_sets]
 
             # create __init__.py file
             with open(os.path.join(module_dir_path, "__init__.py"), "a+") as f:
@@ -626,7 +707,6 @@ class CCodeGenerator(CodeGeneratorBase):
             os.mkdir(Path(module_dir_path, "libs"))
         except Exception as e:
             print("Error moving libs to model dir", e)
-        # self.copy_files(os.path.join(JAPL_HOME_DIR, "libs"), module_dir_path)
         self.copy_dir(os.path.join(JAPL_HOME_DIR, "libs"), Path(module_dir_path, "libs"))
 
         # try to build
