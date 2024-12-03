@@ -33,23 +33,23 @@ public:
         return *this;
     }
 
-    vector<double> dynamics(double t,
-                                 std::vector<double> _X_arg,
-                                 std::vector<double> _U_arg,
-                                 std::vector<double> _S_arg,
-                                 double dt);
+    vector<double> dynamics(double& t,
+                            std::vector<double>& _X_arg,
+                            std::vector<double>& _U_arg,
+                            std::vector<double>& _S_arg,
+                            double& dt);
 
-    vector<double> state_updates(double t,
-                                      std::vector<double> _X_arg,
-                                      std::vector<double> _U_arg,
-                                      std::vector<double> _S_arg,
-                                      double dt);
+    vector<double> state_updates(double& t,
+                                 std::vector<double>& _X_arg,
+                                 std::vector<double>& _U_arg,
+                                 std::vector<double>& _S_arg,
+                                 double& dt);
 
-    vector<double> input_updates(double t,
-                                      std::vector<double> _X_arg,
-                                      std::vector<double> _U_arg,
-                                      std::vector<double> _S_arg,
-                                      double dt);
+    vector<double> input_updates(double& t,
+                                 std::vector<double>& _X_arg,
+                                 std::vector<double>& _U_arg,
+                                 std::vector<double>& _S_arg,
+                                 double& dt);
 
     void set_aerotable(const AeroTable& aerotable) {
         this->aerotable = aerotable;
