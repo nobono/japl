@@ -3,6 +3,7 @@ site_name: JAPL
 nav:
 - Home: index.md
 - About: about.md
+- Getting Started: getting_started.md
 
 theme:
   name: material
