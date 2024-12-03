@@ -138,7 +138,6 @@ def find_src_models(start_dir: str = '.', max_depth: int = 20) -> dict:
 
 
 def build_model(found_models: dict, **kwargs):
-    model_dir = kwargs.get("dir")
     model_id = kwargs.get("id")
     model_name = kwargs.get("name")
     if model_id is not None:
