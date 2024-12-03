@@ -534,10 +534,18 @@ class CCodeGenerator(CodeGeneratorBase):
 
 
     def create_module(self, module_name: str, path: str = ".",
-                      class_properties:list = []):
+                      class_properties: list = []):
         # create extension module directory
         module_dir_name = module_name
         module_dir_path = os.path.join(path, module_dir_name)
+        if os.path.exists(module_dir_path):
+            input_str = f"{module_dir_path} already exists. Overwrite? (y/n):"
+            if input(input_str).strip().lower() == "y":
+                shutil.rmtree(module_dir_path)
+            else:
+                print("exiting.")
+                quit()
+
         os.mkdir(module_dir_path)
 
         # output directory warning
