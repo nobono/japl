@@ -8,11 +8,11 @@ from textwrap import dedent
 from pathlib import Path
 import importlib
 
-__JAPL_EXT_MODULE_INIT_HEADER = "#__japl_extension_module__"
-__JAPL_MODEL_SOURCE_HEADER = "#__japl_model_source__"
+__JAPL_EXT_MODULE_INIT_HEADER__ = "#__japl_extension_module__"
+__JAPL_MODEL_SOURCE_HEADER__ = "#__japl_model_source__"
 
-__IGNORE_DIRS = [".git", "build", "bin", "src", "include", "libs", "tests", "typings",
-                 "__pycache__"]
+__IGNORE_DIRS__ = [".git", "build", "bin", "src", "include", "libs", "tests", "typings",
+                   "__pycache__"]
 
 
 # def main(stdscr):
@@ -47,13 +47,42 @@ __IGNORE_DIRS = [".git", "build", "bin", "src", "include", "libs", "tests", "typ
 #             break
 
 
+def file_is_model_source(root: str, file: str):
+    # look for model source files in dir
+    # look for JAPL model source header
+    first_line = ""
+    is_pyfile = file.split('.')[-1] == "py"
+    not_dot_file = not file[0] == '.'
+    if not_dot_file and is_pyfile:
+        with open(os.path.join(root, file)) as f:
+            first_line = f.readline()
+        first_line = first_line.lower().replace(" ", "").strip("\n")
+        if first_line == __JAPL_MODEL_SOURCE_HEADER__:
+            return True
+        else:
+            return False
+
+
+def dir_is_ext_module(root: str, files: list):
+    init_file = "__init__.py"
+    build_file = "build.py"
+    # for root, dirs, files in os.walk(path):
+    if (build_file in files) and (init_file in files):  # look for build.py & __init__.py in dir
+        with open(os.path.join(root, init_file)) as f:  # look for JAPL ext_module header
+            first_line = f.readline()
+        first_line = first_line.lower().replace(" ", "").strip("\n")
+        if first_line == __JAPL_EXT_MODULE_INIT_HEADER__:
+            return True
+        else:
+            return False
+
 
 def find_ext_models(start_dir: str = '.', max_depth: int = 20) -> dict:
     """finds already build japl Models which may or may not be already compiled."""
     init_file = "__init__.py"
     build_file = "build.py"
     found_models = {}
-    ignores = __IGNORE_DIRS
+    ignores = __IGNORE_DIRS__
 
     # Get the length of the start directory path for depth calculation
     start_depth = start_dir.rstrip(os.path.sep).count(os.path.sep)
@@ -70,17 +99,10 @@ def find_ext_models(start_dir: str = '.', max_depth: int = 20) -> dict:
             # return early
             return found_models
 
-        # look for build.py & __init__.py in dir
-        if (build_file in files) and (init_file in files):
-            # look for JAPL ext_module header
-            first_line = ""
-            with open(os.path.join(root, init_file)) as f:
-                first_line = f.readline()
-                first_line = first_line.lower().replace(" ", "").strip("\n")
-            if first_line == __JAPL_EXT_MODULE_INIT_HEADER:
-                model_name = os.path.basename(root)
-                model_path = os.path.join(root)
-                found_models[model_name] = model_path
+        if dir_is_ext_module(root, files):
+            model_name = os.path.basename(root)
+            model_path = os.path.join(root)
+            found_models[model_name] = model_path
 
     return found_models
 
@@ -88,7 +110,7 @@ def find_ext_models(start_dir: str = '.', max_depth: int = 20) -> dict:
 def find_src_models(start_dir: str = '.', max_depth: int = 20) -> dict:
     """finds source code which is intended to generate japl Models."""
     found_models = {}
-    ignores = __IGNORE_DIRS
+    ignores = __IGNORE_DIRS__
 
     # Get the length of the start directory path for depth calculation
     start_depth = start_dir.rstrip(os.path.sep).count(os.path.sep)
@@ -105,20 +127,11 @@ def find_src_models(start_dir: str = '.', max_depth: int = 20) -> dict:
             # return early
             return found_models
 
-        # look for model source files in dir
-        # look for JAPL model source header
-        first_line = ""
         for file in files:
-            is_pyfile = file.split('.')[-1] == "py"
-            not_dot_file = not file[0] == '.'
-            if not_dot_file and is_pyfile:
-                with open(os.path.join(root, file)) as f:
-                    first_line = f.readline()
-                    first_line = first_line.lower().replace(" ", "").strip("\n")
-                if first_line == __JAPL_MODEL_SOURCE_HEADER:
-                    model_name = os.path.basename(file.split('.')[0])
-                    model_path = os.path.join(root, file)
-                    found_models[model_name] = model_path
+            if file_is_model_source(root, file):
+                model_name = os.path.basename(file.split('.')[0])
+                model_path = os.path.join(root, file)
+                found_models[model_name] = model_path
 
     return found_models
 
@@ -160,16 +173,16 @@ def main():
                               type=int,
                               nargs="?",
                               help="id of available models to build")
-    build_parser.add_argument("path",
+    build_parser.add_argument("--path",
                               default=".",
                               type=str,
                               nargs="?",
                               help="Name of available models to build")
-    # build_parser.add_argument("-n", "--name",
-    #                           default=None,
-    #                           type=str,
-    #                           nargs="?",
-    #                           help="name (filename) of available models to build")
+    build_parser.add_argument("-n", "--name",
+                              default=None,
+                              type=str,
+                              nargs="?",
+                              help="name (filename) of available models to build")
     list_parser.add_argument("path",
                              default=".",
                              nargs="?",
