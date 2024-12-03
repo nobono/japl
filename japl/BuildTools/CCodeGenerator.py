@@ -604,7 +604,7 @@ class CCodeGenerator(CodeGeneratorBase):
             # create __init__.py file
             with open(os.path.join(module_dir_path, "__init__.py"), "a+") as f:
                 f.write(self.__JAPL_EXT_MODULE_INIT_HEADER)
-                f.write(f"from {module_dir_name}.{module_dir_name} import {class_ref}\n")
+                f.write(f"from {module_dir_name}.{module_dir_name} import *\n")
 
             pybind_writes += ['\t;']
             pybind_writes += ["}"]
