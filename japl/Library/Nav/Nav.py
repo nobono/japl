@@ -1,3 +1,4 @@
+# __JAPL_MODEL_SOURCE__
 import os
 import time
 import dill as pickle
@@ -800,17 +801,17 @@ if __name__ == "__main__":
                      is_symmetric=False,
                      by_reference=innov)
 
-    gen.add_function(expr=X_gps_update,
-                     params=params,
-                     function_name="x_gps_update",
-                     return_name="X_gps_new")
+    # gen.add_function(expr=X_gps_update,
+    #                  params=params,
+    #                  function_name="x_gps_update",
+    #                  return_name="X_gps_new")
 
-    gen.add_function(expr=P_gps_update,
-                     params=params,
-                     function_name="p_gps_update",
-                     return_name="P_gps_new",
-                     is_symmetric=False,
-                     by_reference=innov)
+    # gen.add_function(expr=P_gps_update,
+    #                  params=params,
+    #                  function_name="p_gps_update",
+    #                  return_name="P_gps_new",
+    #                  is_symmetric=False,
+    #                  by_reference=innov)
 
     profile(gen.create_module)(module_name="cpp_ekf", path="./")
     quit()
