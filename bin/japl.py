@@ -5,6 +5,8 @@ import subprocess
 # import curses
 import argparse
 from textwrap import dedent
+from pathlib import Path
+import importlib
 
 __JAPL_EXT_MODULE_INIT_HEADER = "#__japl_extension_module__"
 __JAPL_MODEL_SOURCE_HEADER = "#__japl_model_source__"
@@ -127,23 +129,15 @@ def build_model(found_models: dict, **kwargs):
     model_id = kwargs.get("id")
     model_name = kwargs.get("name")
     if model_id is not None:
-        # print(found_models, model_id)
-        src_path = [*found_models.values()][model_id]
-        os.system(f"python {src_path}")
+        src_path = Path([*found_models.values()][model_id])
     elif model_name is not None:
-        src_path = found_models[model_name]
-        os.system(f"python {src_path}")
-    # if model_dir:
-    #     build_file_path = os.path.join(model_dir, "build.py")
-    #     dir_exists = os.path.isdir(model_dir)
-    #     build_file_exists = os.path.isfile(build_file_path)
-
-    #     if dir_exists and build_file_exists:
-    #         result = subprocess.run(["python", build_file_path],
-    #                                 capture_output=True, text=True, check=True)
-    # else:
-    #     pass
-    pass
+        src_path = Path(found_models[model_name])
+    else:
+        raise Exception("unhandled case.")
+    # import_first = '.'.join(src_path.parts[:-1])
+    # import_second = src_path.parts[-1].split('.')[0]
+    # load_module_str = f"from {import_first} import {import_second}"
+    os.system(f"python {src_path}")  # run model source file
 
 
 def show(found_models: dict):
