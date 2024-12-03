@@ -16,6 +16,7 @@ from japl.BuildTools.BuildTools import parallel_subs
 from japl.BuildTools.BuildTools import parallel_cse
 from collections import defaultdict
 from japl.Symbolic.KwargFunction import KwargFunction
+import subprocess
 
 
 
@@ -617,6 +618,12 @@ class CCodeGenerator(CodeGeneratorBase):
         except Exception as e:
             shutil.rmtree(module_dir_path, ignore_errors=True)
             raise Exception(e)
+
+        # try to build
+        try:
+            subprocess.run(["python", os.path.join(module_dir_path, "build.py")])
+        except Exception as e:
+            print("Error building model", e)
 
 
     def create_build_file(self, module_name: str, path: str, source: str):
