@@ -8,7 +8,7 @@
 #include <string>
 #include <map>
 
-#include "../../boost/multi_array.hpp"
+#include "../boost/multi_array.hpp"
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 
