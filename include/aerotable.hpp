@@ -30,6 +30,10 @@ public:
         {"CNB_alpha", 11},
     };
 
+    vector<AeroTable> stages;
+    int stage_id = 0;
+    bool is_stage = true;
+
     map<string, dVec> increments;
 
     DataTable CA;
@@ -128,8 +132,33 @@ public:
         return this->CNB_alpha(kwargs)[0];
     }
 
-    double inv_aerodynamics(const map<string, double>& kwargs) {
-        return 0.0;
+    double inv_aerodynamics(const map<string, double>& kwargs);
+
+    void add_stage(AeroTable& aerotable) {
+        this->is_stage = false;
+        aerotable.is_stage = true;
+        this->stages.push_back(aerotable);
+    }
+
+    void set_stage(int& stage) {
+        /*
+         * Set the current stage index for the aerotable. This is
+         * so that \"get_stage()\" will return the corresponding aerotable.
+        */
+        if (stage >= this->stages.size()) {
+            string err_msg = "cannot access stage " + std::to_string(stage) +
+                " for container of size " + std::to_string(this->stages.size());
+            throw std::invalid_argument(err_msg);
+        }
+        this->stage_id = stage;
+    }
+
+    AeroTable get_stage(void) {
+        if (this->is_stage) {
+            return *this;
+        } else {
+            return this->stages[this->stage_id];
+        }
     }
 
     inline vector<string> get_keys() {

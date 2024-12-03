@@ -1,6 +1,7 @@
 #include "../include/aerotable.hpp"
 
 #include <string>
+#include <algorithm>
 
 namespace py = pybind11;
 using std::string;
@@ -37,48 +38,77 @@ AeroTable::AeroTable(const py::kwargs& kwargs) {
 }
 
 
-// double inv_aerodynamics(const map<string, double>& kwargs) {
-//     double alpha_tol = 0.01;
+double AeroTable::inv_aerodynamics(const map<string, double>& kwargs) {
+    // unpack kwargs
+    double thrust = kwargs.at("thrust");
+    double acc_cmd = kwargs.at("acc_cmd");
+    double dynamic_pressure = kwargs.at("dynamic_pressure");
+    double mass = kwargs.at("mass");
+    double alpha = kwargs.at("alpha");
+    double beta = kwargs.at("beta");
+    double phi = kwargs.at("phi");
+    double mach = kwargs.at("mach");
+    double alt = kwargs.at("alt");
+    double iota = kwargs.at("iota");
 
-//     double alpha_max = std::max(aerotable.increments.alpha);
-//     Sref = aerotable.get_Sref()
+    AeroTable stage = this->get_stage();
+    double alpha_tol = 0.01;
+    dVec increment_alpha = this->increments["alpha"];
+    double alpha_max = *std::max_element(increment_alpha.begin(), increment_alpha.end());
+    Sref = this->get_Sref({});
 
-//     alpha_last = -1000
-//     count = 0
+    double alpha_last = -1000.0;
+    int count = 0;
 
-//     boosting = (thrust > 0.0)
+    bool boosting = (thrust > 0.0);
 
-//     # gradient search
-//     while ((abs(alpha - alpha_last) > alpha_tol) and (count < 10)):  # type:ignore
-//         count += 1
-//         alpha_last = alpha
+    // gradient search
+    while ((abs(alpha - alpha_last) > alpha_tol) and (count < 10)) {
+        count += 1;
+        alpha_last = alpha;
 
-//         # TODO switch between Boost / Coast
-//         # get coeffs from aerotable
-//         CA = aerotable.get_CA(alpha=alpha, beta=beta, phi=phi, mach=mach, alt=alt, iota=iota, thrust=thrust)
-//         CN = aerotable.get_CNB(alpha=alpha, beta=beta, phi=phi, mach=mach, alt=alt, iota=iota)
-//         CA_alpha = aerotable.get_CA_alpha(alpha=alpha, beta=beta, phi=phi, mach=mach, alt=alt, iota=iota, thrust=thrust)
-//         CN_alpha = aerotable.get_CNB_alpha(alpha=alpha, beta=beta, phi=phi, mach=mach, alt=alt, iota=iota)
+        double CA;
+        double CN;
+        double CA_alpha;
+        double CN_alpha;
 
-//         # get derivative of CL wrt alpha
-//         cosa = np.cos(alpha)
-//         sina = np.sin(alpha)
-//         CL = (CN * cosa) - (CA * sina)
-//         CL_alpha = ((CN_alpha - CA) * cosa) - ((CA_alpha + CN) * sina)
-//         # CD = (CN * sina) + (CA * cosa)
-//         # CD_alpha = ((CA_alpha + CN) * cosa) + ((CN_alpha - CA) * sina)
+        // TODO switch between Boost / Coast
+        // get coeffs from aerotable
+        map<string, double> table_args({{"alpha", alpha}, {"beta", beta}, {"phi", phi}, {"mach", mach}, {"alt", alt}, {"iota", iota}});
+        if (boosting) {
+            CA = stage.get_CA_Boost(table_args);
+        } else {
+            CA = stage.get_CA_Coast(table_args);
+        }
+        CN = stage.get_CNB(table_args);
 
-//         # calculate current normal acceleration, acc0, and normal acceleration due to
-//         # the change in alpha, acc_alpha. Use the difference between the two to
-//         # iteratively update alpha.
-//         acc_alpha = CL_alpha * dynamic_pressure * Sref / mass + thrust * np.cos(alpha) / mass
-//         acc0 = CL * dynamic_pressure * Sref / mass + thrust * np.sin(alpha) / mass
-//         alpha = alpha + (acc_cmd - acc0) / acc_alpha
-//         alpha = max(0, min(alpha, alpha_max))
+        if (boosting) {
+            CA_alpha = stage.get_CA_Boost_alpha(table_args);
+        } else {
+            CA_alpha = stage.get_CA_Coast_alpha(table_args);
+        }
+        CN = stage.get_CNB_alpha(table_args);
 
-//     angle_of_attack = alpha
-//     return angle_of_attack
-// }
+        // get derivative of CL wrt alpha
+        double cosa = cos(alpha);
+        double sina = sin(alpha);
+        double CL = (CN * cosa) - (CA * sina);
+        double CL_alpha = ((CN_alpha - CA) * cosa) - ((CA_alpha + CN) * sina);
+        // CD = (CN * sina) + (CA * cosa)
+        // CD_alpha = ((CA_alpha + CN) * cosa) + ((CN_alpha - CA) * sina)
+
+        // calculate current normal acceleration, acc0, and normal acceleration due to
+        // the change in alpha, acc_alpha. Use the difference between the two to
+        // iteratively update alpha.
+        double acc_alpha = CL_alpha * dynamic_pressure * Sref / mass + thrust * cos(alpha) / mass;
+        double acc0 = CL * dynamic_pressure * Sref / mass + thrust * sin(alpha) / mass;
+        alpha = alpha + (acc_cmd - acc0) / acc_alpha;
+        alpha = fmax(0.0, fmin(alpha, alpha_max));
+    }
+
+    double angle_of_attack = alpha;
+    return angle_of_attack;
+}
 
 
 PYBIND11_MODULE(aerotable, m) {
@@ -98,30 +128,40 @@ PYBIND11_MODULE(aerotable, m) {
 
         .def_readonly("table_info", &AeroTable::table_info, "tables and their axes dimensions")
 
-        // .def_property("increments",
-        //             [](const AeroTable& self) {return self.increments;},  // getter
-        //             [](AeroTable& self, const map<string, py::array_t<double>>& value) {
-        //                 map<string, dVec> _increments;
-        //                 for (const auto& item : value) {
-        //                     string key = item.first;
-        //                     py::array_t<double> np_val = py::cast<py::array_t<double>>(item.second);
+        .def_property("increments",
+                    [](const AeroTable& self) -> const decltype(AeroTable::increments)& {
+                        // py::dict ret;
+                        // for (const auto& item : self.increments) {
+                        //     const char* key = item.first.c_str();
+                        //     py::array_t<double> np_arr(item.second.size());
+                        //     std::copy(item.second.begin(), item.second.end(), np_arr.mutable_data());
+                        //     ret[key] = np_arr;
+                        // }
+                        // return ret;
+                        return self.increments;
+                    },  // getter
+                    [](AeroTable& self, const map<string, py::array_t<double>>& value) {
+                        map<string, dVec> _increments;
+                        for (const auto& item : value) {
+                            string key = item.first;
+                            py::array_t<double> np_val = py::cast<py::array_t<double>>(item.second);
 
-        //                     py::buffer_info buf = np_val.request();
-        //                     double* ptr = static_cast<double*>(buf.ptr);
-        //                     dVec val(ptr, ptr + buf.shape[0]);
-        //                     _increments[key] = val;
-        //                 }
-        //                 self.increments = _increments;
-        //             })  // setter
+                            py::buffer_info buf = np_val.request();
+                            double* ptr = static_cast<double*>(buf.ptr);
+                            dVec val(ptr, ptr + buf.shape[0]);
+                            _increments[key] = val;
+                        }
+                        self.increments = _increments;
+                    })  // setter
 
         .def_property("Sref",
-                      [](const AeroTable& self) {return self.Sref;},  // getter
+                      [](const AeroTable& self) -> const double& {return self.Sref;},  // getter
                       [](AeroTable& self, const decltype(AeroTable::Sref)& value) {self.Sref = value;})  // setter
         .def_property("Lref",
-                      [](const AeroTable& self) {return self.Lref;},  // getter
+                      [](const AeroTable& self) -> const double& {return self.Lref;},  // getter
                       [](AeroTable& self, const decltype(AeroTable::Lref)& value) {self.Lref = value;})  // setter
         .def_property("MRC",
-                      [](const AeroTable& self) {return self.MRC;},  // getter
+                      [](const AeroTable& self) -> const double& {return self.MRC;},  // getter
                       [](AeroTable& self, const decltype(AeroTable::MRC)& value) {self.MRC = value;})  // setter
         .def_property("CA",
                       [](const AeroTable& self) -> const DataTable& {return self.CA;},  // getter
