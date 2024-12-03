@@ -107,13 +107,13 @@ class TestCCodeGenerator(unittest.TestCase):
     def test_declare_parameter_case1(self):
         a = symbols("a")
         ret = CCodeGenerator._declare_parameter(a)
-        self.assertEqual(ret, "double a")
+        self.assertEqual(ret, "double& a")
 
 
     def test_declare_parameter_case2(self):
         a = symbols("a", integer=True)
         ret = CCodeGenerator._declare_parameter(a)
-        self.assertEqual(ret, "int a")
+        self.assertEqual(ret, "int& a")
 
 
     def test_declare_parameter_case3(self):
@@ -121,8 +121,8 @@ class TestCCodeGenerator(unittest.TestCase):
         A_str = CCodeGenerator._declare_parameter(A, force_name="A")
         B = MatrixSymbol("A", 3, 3)
         B_str = CCodeGenerator._declare_parameter(B, force_name="B")
-        self.assertEqual(A_str, "std::vector<double> A")
-        self.assertEqual(B_str, "std::vector<double> B")
+        self.assertEqual(A_str, "std::vector<double>& A")
+        self.assertEqual(B_str, "std::vector<double>& B")
 
 
     def test_declare_parameter_case4(self):
@@ -140,7 +140,7 @@ class TestCCodeGenerator(unittest.TestCase):
         gen = CCodeGenerator()
         function_info = FunctionInfo(name="func", expr=x + y, params=params, by_reference={})
         arg_names, arg_unpack_str = gen._get_function_parameters(function_info)
-        self.assertListEqual(arg_names, ["double x", "double y"])
+        self.assertListEqual(arg_names, ["double& x", "double& y"])
         self.assertEqual(arg_unpack_str, [])
 
 
@@ -151,7 +151,7 @@ class TestCCodeGenerator(unittest.TestCase):
         gen = CCodeGenerator()
         function_info = FunctionInfo(name="func", expr=x + y, params=params, by_reference={})
         arg_names, arg_unpack_str = gen._get_function_parameters(function_info)
-        self.assertEqual(arg_names, ["double x", "double y", "std::vector<double> A"])
+        self.assertEqual(arg_names, ["double& x", "double& y", "std::vector<double>& A"])
         self.assertEqual(arg_unpack_str, [])
 
 
@@ -162,7 +162,7 @@ class TestCCodeGenerator(unittest.TestCase):
         gen = CCodeGenerator()
         function_info = FunctionInfo(name="func", expr=x + y, params=params, by_reference={})
         arg_names, arg_unpack_str = gen._get_function_parameters(function_info)
-        self.assertEqual(arg_names, ["double x", "double y", "double a1", "double a2", "double a3"])
+        self.assertEqual(arg_names, ["double& x", "double& y", "double& a1", "double& a2", "double& a3"])
         self.assertEqual(arg_unpack_str, [])
         # print(arg_names)
         # print(arg_unpack_str)
@@ -175,13 +175,14 @@ class TestCCodeGenerator(unittest.TestCase):
     #     params = [x, y]
     #     gen = CCodeGenerator()
     #     expr = x + y
-    #     by_reference = {"z": [x + y]}
+    #     by_reference = {"z": Matrix([x + y])}
     #     function_info = FunctionInfo(name="func", expr=expr,
     #                                  params=params, by_reference=by_reference)
     #     function_info = gen._build_function_prototype(function_info=function_info,
     #                                                   expr=expr)  # type:ignore
-    #     # writes = gen._handle_pass_by_reference_params(function_info=function_info)
-    #     print(function_info.params_list)
+    #     writes = gen._handle_pass_by_reference_params(function_info=function_info)
+    #     # print(function_info.params_list)
+    #     # print(writes)
 
 
     # TODO: handle MatrixSymbol

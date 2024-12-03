@@ -35,11 +35,13 @@ class CCodeGenerator(CodeGeneratorBase):
 
     header: list[str] = ["#include <iostream>",
                          "#include <model.hpp>",
+                         "#include <vector>",
                          "#include <pybind11/pybind11.h>",
                          "#include <pybind11/numpy.h>",
                          "#include <pybind11/stl.h>  // Enables automatic conversion",
                          "",
                          "namespace py = pybind11;",
+                         "using std::vector;",
                          "",
                          ""]
 
@@ -216,7 +218,7 @@ class CCodeGenerator(CodeGeneratorBase):
         # TODO: probably move this to _get_type
         # handle pass-by-reference
         # NOTE: currently does not work for array types
-        ref_char = ''
+        ref_char = '&'
         if CodeGeneratorBase._is_array_type(param):
             pass
         #     # check if all items in param are defined
@@ -232,7 +234,7 @@ class CCodeGenerator(CodeGeneratorBase):
             if param in by_reference:
                 ref_char = '&'
 
-        param_str = f"{type_str} {ref_char}{param_name}"
+        param_str = f"{type_str}{ref_char} {param_name}"
         return param_str
 
 
@@ -369,13 +371,13 @@ class CCodeGenerator(CodeGeneratorBase):
         params_list = function_info.params_list
         by_reference = function_info.by_reference
         # find '&' (pass-by-reference) params in parameter name list
-        params_list_str = ", ".join(params_list)
-        by_ref_params_list = [i for i in params_list_str.split(",") if ('&' in i) or ("py::array" in i)]
-        for ref_param in by_ref_params_list:
-            if '&' in ref_param:
-                ref_param_type, ref_param_name = ref_param.split('&')
-                # TODO this does nothing
-            elif "py::array" in ref_param:
+        # params_list_str = ", ".join(params_list)
+        # by_ref_params_list = [i for i in params_list_str.split(",") if ('&' in i) or ("py::array" in i)]
+        for ref_param in params_list:
+            # NOTE: right now by_reference is assigned type "py::array"
+            # this is the only way to match function param name to
+            # by_reference items.
+            if "py::array" in ref_param:
                 ref_param_type, ref_param_name = ref_param.split('py::array')
 
                 #####
@@ -426,9 +428,6 @@ class CCodeGenerator(CodeGeneratorBase):
                 # usr_sub_expr_simple = parallel_subs(by_reference, replacements)
                 writes = [self._indent_lines(by_ref_ptr_str),
                           self._indent_lines(by_ref_subexpr_str)]
-
-            else:
-                raise Exception("unhandled case, but also make this code better.")
         return writes
 
 
@@ -523,6 +522,7 @@ class CCodeGenerator(CodeGeneratorBase):
         #######################################
         # write other defined subexpressions
         #######################################
+        writes += self._handle_pass_by_reference_params(function_info=func_info)
         # # find '&' (pass-by-reference) params in parameter name list
         # params_list_str = ", ".join(func_info.params_list)
         # by_ref_params_list = [i for i in params_list_str.split(",") if ('&' in i) or ("py::array" in i)]

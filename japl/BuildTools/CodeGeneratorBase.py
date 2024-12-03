@@ -176,10 +176,11 @@ class CodeGeneratorBase:
                         if isinstance(p, MatrixElement):
                             dummy_name = p.parent.name
                         else:
-                            unpack_var = self._declare_parameter(param=p,
-                                                                 by_reference=by_reference)
                             accessor_str = self.pre_bracket + str(ip) + self.post_bracket
-                            arg_unpack_str += [f"{unpack_var} = {dummy_name}{accessor_str}" + self.endl]
+                            unpack_var = self._declare_variable(param=p,
+                                                                prefix="const",
+                                                                assign=f"{dummy_name}{accessor_str}")
+                            arg_unpack_str += [unpack_var]
 
                     # store dummy var in arg_names
                     arg_names += [self._declare_parameter(param,
