@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 
 import os
-import subprocess
 # import curses
 import argparse
 from textwrap import dedent
 from pathlib import Path
-import importlib
+from metadata import JAPL_HOME_DIR
 
 __JAPL_EXT_MODULE_INIT_HEADER__ = "#__japl_extension_module__"
 __JAPL_MODEL_SOURCE_HEADER__ = "#__japl_model_source__"
@@ -115,23 +114,24 @@ def find_src_models(start_dir: str = '.', max_depth: int = 20) -> dict:
     # Get the length of the start directory path for depth calculation
     start_depth = start_dir.rstrip(os.path.sep).count(os.path.sep)
 
-    for root, dirs, files in os.walk(start_dir):
-        # skip ignored dirs
-        for ignore in ignores:
-            if ignore in dirs:
-                dirs.remove(ignore)
+    for st_dir in [start_dir, JAPL_HOME_DIR]:
+        for root, dirs, files in os.walk(st_dir):
+            # skip ignored dirs
+            for ignore in ignores:
+                if ignore in dirs:
+                    dirs.remove(ignore)
 
-        # Calculate the current depth by counting the separators in the path
-        current_depth = root.count(os.path.sep) - start_depth
-        if current_depth >= max_depth:
-            # return early
-            return found_models
+            # Calculate the current depth by counting the separators in the path
+            current_depth = root.count(os.path.sep) - start_depth
+            if current_depth >= max_depth:
+                # return early
+                return found_models
 
-        for file in files:
-            if file_is_model_source(root, file):
-                model_name = os.path.basename(file.split('.')[0])
-                model_path = os.path.join(root, file)
-                found_models[model_name] = model_path
+            for file in files:
+                if file_is_model_source(root, file):
+                    model_name = os.path.basename(file.split('.')[0])
+                    model_path = os.path.join(root, file)
+                    found_models[model_name] = model_path
 
     return found_models
 
