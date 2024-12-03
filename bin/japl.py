@@ -155,21 +155,21 @@ def main():
     list_parser = subparsers.add_parser("list", help="List of available models")
     build_parser = subparsers.add_parser("build", help="Build an available model")
 
+    build_parser.add_argument("id",
+                              default=None,
+                              type=int,
+                              nargs="?",
+                              help="id of available models to build")
     build_parser.add_argument("path",
                               default=".",
                               type=str,
                               nargs="?",
                               help="Name of available models to build")
-    build_parser.add_argument("-i", "--id",
-                              default=None,
-                              type=int,
-                              nargs="?",
-                              help="id of available models to build")
-    build_parser.add_argument("-n", "--name",
-                              default=None,
-                              type=str,
-                              nargs="?",
-                              help="name (filename) of available models to build")
+    # build_parser.add_argument("-n", "--name",
+    #                           default=None,
+    #                           type=str,
+    #                           nargs="?",
+    #                           help="name (filename) of available models to build")
     list_parser.add_argument("path",
                              default=".",
                              nargs="?",
@@ -196,7 +196,7 @@ def main():
             found_models = find_src_models(args.path)
             show(found_models)
             if (args.id is not None) or (args.name is not None):
-                kwargs = {"dir": args.path, "id": args.id, "name": args.name}
+                kwargs = {"id": args.id}
                 build_model(found_models, **kwargs)
 
         case _:
