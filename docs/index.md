@@ -1,10 +1,17 @@
+# Welcome to JAPL
+
+Just Another Prototyping Layer
+
+---
+
 This is a test
 of several things
 
-| Syntax | Description |
-| ----------- | ----------- |
-| Header | Title |
-| Paragraph | Text |
+| Syntax    | Description |
+| --------- | ----------- |
+| Header    | Title       |
+| Paragraph | Text        |
+
 
 ```
 {
@@ -21,6 +28,8 @@ term
 
 I need to highlight these ==very important words==.
 
+> this is a block quote here for demonstration purposes.
+
 H~2~O
 
-X^2^
+X^2
