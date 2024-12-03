@@ -77,6 +77,17 @@ class TestCpp(unittest.TestCase):
         self.assertListEqual(aero.CA(alpha=1, mach=1).tolist(), [5.])
 
 
+    def test_aero_increments_case_1(self):
+        aero = aerotable.AeroTable()
+        self.assertEqual(aero.increments, {})
+
+
+    def test_aero_increments_case_2(self):
+        aero = aerotable.AeroTable()
+        aero.increments = {"alpha": np.array([1., 2, 3])}
+        self.assertEqual(aero.increments, {"alpha": [1., 2., 3.]})
+
+
     def test_model_1(self):
         """test model implicit setter / getter"""
         table = datatable.DataTable(self.data, self.axes)
