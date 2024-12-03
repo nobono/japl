@@ -26,13 +26,6 @@ np.set_printoptions(suppress=True, precision=8)
 
 
 
-class MissileGenericMMD(Model):
-    pass
-
-
-model = MissileGenericMMD()
-
-
 ################################################
 # Tables
 ################################################
@@ -751,14 +744,14 @@ modules = [atmosphere.modules,
            aerotable.modules]
 
 if __name__ == "__main__":
-    model = MissileGenericMMD.from_expression(dt,
-                                              state,
-                                              input,
-                                              dynamics,
-                                              static_vars=static,
-                                              modules=modules,
-                                              definitions=defs,
-                                              use_multiprocess_build=True)
+    model = Model.from_expression(dt,
+                                  state,
+                                  input,
+                                  dynamics,
+                                  static_vars=static,
+                                  modules=modules,
+                                  definitions=defs,
+                                  use_multiprocess_build=True)
 
     ##################################################
     # Python CodeGen
