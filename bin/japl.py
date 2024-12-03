@@ -78,8 +78,6 @@ def dir_is_ext_module(root: str, files: list):
 
 def find_ext_models(start_dir: str = '.', max_depth: int = 20) -> dict:
     """finds already build japl Models which may or may not be already compiled."""
-    init_file = "__init__.py"
-    build_file = "build.py"
     found_models = {}
     ignores = __IGNORE_DIRS__
 
