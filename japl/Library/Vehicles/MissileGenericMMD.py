@@ -31,8 +31,7 @@ np.set_printoptions(suppress=True, precision=8)
 ################################################
 
 atmosphere = AtmosphereSymbolic()
-aerotable = AeroTableSymbolic(JAPL_HOME_DIR + "/aeromodel/stage_1_aero.mat",
-                              from_template="orion")
+aerotable = AeroTableSymbolic()
 # aerotable = AeroTableSymbolic()
 
 ##################################################

@@ -17,7 +17,7 @@ from japl.BuildTools.BuildTools import parallel_subs
 from japl.BuildTools.BuildTools import parallel_cse
 from collections import defaultdict
 from japl.Symbolic.KwargFunction import KwargFunction
-from japl.global_opts import JAPL_HOME_DIR
+from japl.global_opts import get_root_dir
 from pathlib import Path
 import subprocess
 
@@ -669,11 +669,11 @@ class CCodeGenerator(CodeGeneratorBase):
             os.mkdir(Path(module_dir_path, "libs"))
         except Exception as e:
             print("Error moving libs to model dir", e)
-        self.copy_dir(os.path.join(JAPL_HOME_DIR, "libs"), Path(module_dir_path, "libs"))
+        self.copy_dir(Path(get_root_dir(), "libs"), Path(module_dir_path, "libs"))
 
         # try to build
         try:
-            subprocess.run(["python", os.path.join(module_dir_path, "build.py")])
+            subprocess.run(["python", Path(module_dir_path, "build.py")])
         except Exception as e:
             print("Error building model", e)
 
@@ -723,7 +723,7 @@ class CCodeGenerator(CodeGeneratorBase):
         from setuptools.command.build_ext import build_ext
         from setuptools import Command
         from pybind11.setup_helpers import Pybind11Extension
-        from japl.global_opts import JAPL_HOME_DIR
+        from japl.global_opts import get_root_dir
 
 
 
@@ -775,7 +775,7 @@ class CCodeGenerator(CodeGeneratorBase):
                                                         "{path}/libs/src/atmosphere.o",
                                                         "{path}/libs/src/aerotable.o",
                                                         "{path}/libs/src/model.o"],
-                                       include_dirs=[os.path.join(JAPL_HOME_DIR, "include")],
+                                       include_dirs=[os.path.join(get_root_dir(), "include")],
                                        cxx_std={cxx_std})
         """"""
 

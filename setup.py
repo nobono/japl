@@ -7,28 +7,60 @@ from setuptools import find_packages
 from setuptools import Command
 from setuptools.command.build_ext import build_ext
 from setuptools.command.build import build
+from pathlib import Path
 import platform
 
 
 
-TEMP_LIBS_DIR = "libs"
+ROOT_DIR = Path(os.path.dirname(__file__))
+
+
+def copy_dir(source_dir, target_dir) -> None:
+    """
+    Recursively copies all directories and files from source_dir to target_dir.
+
+    Parameters:
+    -----------
+        source_dir (str): The source directory to copy from.
+        target_dir (str): The target directory to copy to.
+
+    Raises:
+    -------
+        ValueError: If source_dir does not exist or is not a directory.
+    """
+    if not os.path.isdir(source_dir):
+        raise ValueError(f"Source directory '{source_dir}' does not exist or is not a directory.")
+
+    # Ensure the target directory exists
+    os.makedirs(target_dir, exist_ok=True)
+
+    for item in os.listdir(source_dir):
+        source_item = os.path.join(source_dir, item)
+        target_item = os.path.join(target_dir, item)
+
+        if os.path.isdir(source_item):
+            # Recursively copy directories
+            copy_dir(source_item, target_item)
+        else:
+            # Copy files
+            shutil.copy2(source_item, target_item)
 
 
 class BuildCommand(build):
-    user_options = build_ext.user_options + [
-            ("build-temp=", None, "Specify a directory fro temporary build files.")
-            ]
+    # user_options = build_ext.user_options + [
+    #         ("build-temp=", None, "Specify a directory fro temporary build files.")
+    #         ]
 
 
-    def initialize_options(self) -> None:
-        super().initialize_options()
-        self.build_temp = TEMP_LIBS_DIR  # default to None; can be set by user
+    # def initialize_options(self) -> None:
+    #     super().initialize_options()
+    #     self.build_temp = TEMP_LIBS_DIR  # default to None; can be set by user
 
 
-    def finalize_options(self) -> None:
-        super().finalize_options()
-        if self.build_temp:
-            os.makedirs(self.build_temp, exist_ok=True)
+    # def finalize_options(self) -> None:
+    #     super().finalize_options()
+    #     if self.build_temp:
+    #         os.makedirs(self.build_temp, exist_ok=True)
 
 
     def run(self) -> None:
@@ -43,7 +75,7 @@ class BuildExtCommand(build_ext):
 
     def initialize_options(self) -> None:
         super().initialize_options()
-        self.build_temp = TEMP_LIBS_DIR  # default to None; can be set by user
+        self.build_temp = "libs"  # default to None; can be set by user
 
 
     def finalize_options(self) -> None:
@@ -53,11 +85,32 @@ class BuildExtCommand(build_ext):
 
 
     def build_extension(self, ext) -> None:
+        # override the temporary build directory
         if self.build_temp:
-            # override the temporary build directory
             self.build_temp = os.path.abspath(self.build_temp)
             self.build_temp_dir = self.build_temp
         return super().build_extension(ext)
+
+
+    def build_extensions(self) -> None:
+        self.parallel = 5
+        super().build_extensions()
+
+        # Define source and destination directories
+        build_temp = self.build_temp  # Temporary build directory
+        libs_dest_dir = Path(self.build_lib, "libs")  # Installation directory
+
+        include_dir = Path(ROOT_DIR, "include")
+        include_dest_dir = Path(self.build_lib, "include")  # Installation directory
+
+        # Create the destination directory if it doesn't exist
+        os.makedirs(libs_dest_dir, exist_ok=True)
+        os.makedirs(include_dest_dir, exist_ok=True)
+
+        # Copy all .o files to the destination directory
+        copy_dir(build_temp, libs_dest_dir)
+        # copy all .hpp files to destination directory
+        copy_dir(include_dir, include_dest_dir)
 
 
 class CleanCommand(Command):
@@ -157,8 +210,7 @@ setup(
         name='japl',
         version='0.1',
         install_requires=get_install_requires(),
-        packages=find_packages('.'),
-        package_dir={'': '.'},
+        packages=find_packages(),
         ext_modules=get_extension_modules(),
         libraries=[],
         author="nobono",
@@ -173,6 +225,7 @@ setup(
             "build_ext": BuildExtCommand,
             "build": BuildCommand,
             },
+        package_data={"japl": ["libs/*.o", "include/*"]},
         entry_points={
             "console_scripts": [
                 "japl = bin.japl:main"  # make 'japl' callable
