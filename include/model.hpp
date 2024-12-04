@@ -2,6 +2,7 @@
 #define _MODEL_H_
 
 #include <vector>
+#include <functional>
 
 #include "atmosphere.hpp"
 #include "aerotable.hpp"
@@ -10,12 +11,16 @@
 #include <pybind11/numpy.h>
 
 namespace py = pybind11;
+using std::function;
 
 
 class Model {
 public:
     Atmosphere atmosphere = Atmosphere();
     AeroTable aerotable = AeroTable();
+
+    function<void(double)> user_input_function;
+    vector<function<void(double)>> user_insert_functions;
 
     Model() = default;
     ~Model() = default;
@@ -57,6 +62,14 @@ public:
 
     void set_atmosphere(const Atmosphere& atmosphere) {
         this->atmosphere = atmosphere;
+    }
+
+    void set_input_function(function<void(double)> func) {
+        this->user_input_function = std::move(func);
+    }
+
+    void set_insert_functions(function<void(double)> func) {
+        this->user_insert_functions.emplace_back(std::move(func));
     }
 };
 

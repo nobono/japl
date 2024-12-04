@@ -12,5 +12,7 @@ PYBIND11_MODULE(model, m) {
         .def_property("aerotable",
                       [](const Model& self) -> const AeroTable& {return self.aerotable;},  // getter
                       [](Model& self, const decltype(Model::aerotable)& value) {self.aerotable = value;})  // setter
+        .def("set_input_function", &Model::set_input_function)
+        .def("set_insert_functions", &Model::set_insert_functions)
     ;
 }
