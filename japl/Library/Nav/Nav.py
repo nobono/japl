@@ -614,69 +614,30 @@ gyro_var = gyro_noise_density * np.sqrt(gyro_bandwidth)
 gps_pos_var = .1**2
 gps_vel_var = .01**2
 
-variance_info = {
-        gyro_x_var: 10,
-        gyro_y_var: 10,
-        gyro_z_var: 10,
-        accel_x_var: 10,
-        accel_y_var: 10,
-        accel_z_var: 10,
-        gps_pos_x_var: .001,
-        gps_pos_y_var: .001,
-        gps_pos_z_var: .001,
-        gps_vel_x_var: .001,
-        gps_vel_y_var: .001,
-        gps_vel_z_var: .001,
-        }
+variance_vars = [gyro_x_var,
+                 gyro_y_var,
+                 gyro_z_var,
+                 accel_x_var,
+                 accel_y_var,
+                 accel_z_var,
+                 gps_pos_x_var,
+                 gps_pos_y_var,
+                 gps_pos_z_var,
+                 gps_vel_x_var,
+                 gps_vel_y_var,
+                 gps_vel_z_var]
 
 # measurement noise
-noise_info = {
-        R_accel_x: accel_var,
-        R_accel_y: accel_var,
-        R_accel_z: accel_var,
-        R_gps_pos_x: gps_pos_var,
-        R_gps_pos_y: gps_pos_var,
-        R_gps_pos_z: gps_pos_var,
-        R_gps_vel_x: gps_vel_var,
-        R_gps_vel_y: gps_vel_var,
-        R_gps_vel_z: gps_vel_var,
-        }
+noise_vars = [R_accel_x,
+              R_accel_y,
+              R_accel_z,
+              R_gps_pos_x,
+              R_gps_pos_y,
+              R_gps_pos_z,
+              R_gps_vel_x,
+              R_gps_vel_y,
+              R_gps_vel_z]
 
-# sensor measurements
-input_info = {
-        z_gyro_x: 0,
-        z_gyro_y: 0,
-        z_gyro_z: 0,
-        z_accel_x: 0,
-        z_accel_y: 0,
-        z_accel_z: 0,
-        z_gps_pos_x: 0,
-        z_gps_pos_y: 0,
-        z_gps_pos_z: 0,
-        z_gps_vel_x: 0,
-        z_gps_vel_y: 0,
-        z_gps_vel_z: 0,
-        }
-# TODO:
-# TODO:
-# TODO:
-# TODO: input_subs accel and meas_subs z_accel both
-#       existing is a problem because they are the same
-#       thing. need to fix this.
-
-#################################################
-# Sympy lambdify funcs
-#################################################
-
-vars = [
-        list(state_info.keys()),
-        list(input_info.keys()),
-        list(get_mat_upper(P)),
-        list(variance_info.keys()),
-        list(noise_info.keys()),
-        # list(meas_info.keys()),
-        dt,
-        ]
 
 if __name__ == "__main__":
 
@@ -734,9 +695,6 @@ if __name__ == "__main__":
     # C++ CodeGen
     ##################################################
 
-    noise = list(noise_info.keys())
-    variance = list(variance_info.keys())
-    input = list(input_info.keys())
     innov = {"innov_var_accel_x": norm_innov_var_accel_x,
              "innov_var_accel_y": norm_innov_var_accel_y,
              "innov_var_accel_z": norm_innov_var_accel_z,
