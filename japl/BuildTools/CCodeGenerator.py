@@ -660,13 +660,21 @@ class CCodeGenerator(CodeGeneratorBase):
                 function_name_ref = f"{class_ref}::{func_name}"
                 writes = self._build_function(function_name=function_name_ref, func_info=info)
                 description = info.description
-                method_bind_str = f"\t\t.def(\"{func_name}\", &{function_name_ref}, \"{description}\")"
-                # getter_str = (f"\t\t.def_property(\"{property}\",\n"
-                #               f"\t\t\t[](Model& self) -> const decltype(Model::{property})& "
-                #               "{"
-                #               f"return self.{property}" + ";},\n"
-                #               f"\t\t\t[](Model& self, const decltype(Model::{property})& value) "
-                #               "{" + f"self.{property}" + " = value;})")
+                # method_bind_str = f"\t\t.def(\"{func_name}\", &{function_name_ref}, \"{description}\")"
+
+                # lambda wrapper to convert return of vector<> to py::array_t<>
+                _std_args = ("double& t, vector<double>& _X_arg, vector<double>& _U_arg, "
+                             "vector<double>& _S_arg, double& dt")
+                _std_args_names = ("t, _X_arg, _U_arg, _S_arg, dt")
+                method_bind_str = (f"\t\t.def(\"{func_name}\",\n"
+                                   f"\t\t\t[](Model& self, {_std_args}) -> py::array_t<double> "
+                                   "{\n"
+                                   f"\t\t\tvector<double> ret = self.{func_name}({_std_args_names});\n"
+                                   "\t\t\t\tpy::array_t<double> np_ret(ret.size());\n"
+                                   "\t\t\t\tstd::copy(ret.begin(), ret.end(), np_ret.mutable_data());\n"
+                                   "\t\t\t\treturn np_ret;\n"
+                                   "\t\t\t}"
+                                   f", \"{description}\")")
 
                 pybind_writes += [method_bind_str]
                 for line in writes:
