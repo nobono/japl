@@ -73,6 +73,7 @@ class CleanCommand(Command):
     def run(self):
         shutil.rmtree('./build', ignore_errors=True)
         shutil.rmtree('./dist', ignore_errors=True)
+        shutil.rmtree('./libs', ignore_errors=True)
         root_path = os.path.dirname(__file__)
         file_patterns = ["*.so", "*.dll", "*.pyd"]
         for pattern in file_patterns:
