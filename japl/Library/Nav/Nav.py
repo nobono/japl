@@ -730,22 +730,22 @@ if __name__ == "__main__":
     # quit()
 
     gen = CCodeGenerator()
-    gen.add_function(expr=X_dot,
-                     params=params,
-                     function_name="x_dynamics",
-                     return_name="X_dot")
+    # gen.add_function(expr=X_dot,
+    #                  params=params,
+    #                  function_name="x_dynamics",
+    #                  return_name="X_dot")
 
     gen.add_function(expr=X_new,
                      params=params,
                      function_name="x_predict",
                      return_name="X_new")
 
-    gen.add_function(expr=P_new,
-                     params=params,
-                     function_name="p_predict",
-                     return_name="P_new",
-                     is_symmetric=False,
-                     by_reference=innov)
+    # gen.add_function(expr=P_new,
+    #                  params=params,
+    #                  function_name="p_predict",
+    #                  return_name="P_new",
+    #                  is_symmetric=False,
+    #                  by_reference=innov)
 
     # gen.add_function(expr=X_accel_update,
     #                  params=params,
