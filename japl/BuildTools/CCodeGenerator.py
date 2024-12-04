@@ -22,6 +22,8 @@ from pathlib import Path
 import subprocess
 
 
+Writes = list[str]
+
 
 
 class CCodeGenerator(CodeGeneratorBase):
@@ -501,7 +503,7 @@ class CCodeGenerator(CodeGeneratorBase):
         return replacements, expr_simple
 
 
-    def _build_function(self, function_name: str, function_info: FunctionInfo) -> list[str]:
+    def _build_function(self, function_name: str, function_info: FunctionInfo) -> Writes:
         expr = function_info.expr
         params = function_info.params
         return_name = function_info.return_name
@@ -558,6 +560,49 @@ class CCodeGenerator(CodeGeneratorBase):
         return module_dir_path
 
 
+    @staticmethod
+    def _parse_class_func(func_name: str) -> tuple[str, str]:
+        # handle func_name references class method "Class::method"
+        class_ref = ""
+        if "::" in func_name:
+            _func_str_split = func_name.split("::")
+            class_ref = "".join(_func_str_split[0])
+            func_name = "".join(_func_str_split[1:])
+        return class_ref, func_name
+
+
+    def _write_function_call_wrapper(self, func_name: str, description: str) -> Writes:
+        class_def, func_name = self._parse_class_func(func_name)
+        # lambda wrapper to convert return of vector<> to py::array_t<>
+        _std_params_str = ", ".join([f"{typ} {var}" for typ, var in zip(self.std_args_types, self.std_args)])
+        _std_params_names_str = ", ".join([i for i in self.std_args])
+        method_bind_str = (f"\t\t.def(\"{func_name}\",\n"
+                           f"\t\t\t[](Model& self, {_std_params_str}) -> py::array_t<double> "
+                           "{\n"
+                           f"\t\t\t\tvector<double> ret = self.{func_name}({_std_params_names_str});\n"
+                           "\t\t\t\tpy::array_t<double> np_ret(ret.size());\n"
+                           "\t\t\t\tstd::copy(ret.begin(), ret.end(), np_ret.mutable_data());\n"
+                           "\t\t\t\treturn np_ret;\n"
+                           "\t\t\t}"
+                           f", \"{description}\")")
+        return [method_bind_str]
+
+
+    def _write_sets_gets(self, class_properties: list) -> Writes:
+        # write setters / getters for class properties
+        ret = []
+        for property in class_properties:
+            gets_sets = (f"\t\t.def_property(\"{property}\",\n"
+                         f"\t\t\t[](const Model& self) -> const decltype(Model::{property})& "
+                         "{"
+                         f"return self.{property}" + ";},\n"
+                         f"\t\t\t[](Model& self, const decltype(Model::{property})& value) "
+                         "{" + f"self.{property}" + " = value;})")
+            ret += [gets_sets]
+        return ret
+
+
+
     def create_module(self, module_name: str, path: str = ".",
                       class_properties: list = []):
 
@@ -578,56 +623,26 @@ class CCodeGenerator(CodeGeneratorBase):
         class_bind_str = "\tpybind11::class_<Model>(m, \"Model\")"
         class_constructor_str = "\t\t.def(pybind11::init<>())"
 
+        function_writes = []
         pybind_writes = ["", "", f"PYBIND11_MODULE({module_name}, m) " + "{"]  # }
         pybind_writes += [class_bind_str]
         pybind_writes += [class_constructor_str]
 
         try:
-            class_ref = ""
-
             # get functions from register
             for func_name, info in tqdm(self.function_register.items(), ncols=80, desc="Build"):
-                # handle func_name references class method "Class::method"
-                if "::" in func_name:
-                    _func_str_split = func_name.split("::")
-                    class_ref = "".join(_func_str_split[0])
-                    func_name = "".join(_func_str_split[1:])
+                print(func_name)
+                description = info.description
 
                 # build the function
-                function_name_ref = f"{class_ref}::{func_name}"
-                writes = self._build_function(function_name=function_name_ref, function_info=info)
-                description = info.description
-                # method_bind_str = f"\t\t.def(\"{func_name}\", &{function_name_ref}, \"{description}\")"
+                function_writes += self._build_function(function_name=func_name, function_info=info)
 
-                # lambda wrapper to convert return of vector<> to py::array_t<>
-                # _std_args = ("double& t, vector<double>& _X_arg, vector<double>& _U_arg, "
-                #              "vector<double>& _S_arg, double& dt")
-                # _std_args_names = ("t, _X_arg, _U_arg, _S_arg, dt")
-                _std_params_str = ", ".join([f"{typ} {var}" for typ, var in zip(self.std_args_types, self.std_args)])
-                _std_params_names_str = ", ".join([i for i in self.std_args])
-                method_bind_str = (f"\t\t.def(\"{func_name}\",\n"
-                                   f"\t\t\t[](Model& self, {_std_params_str}) -> py::array_t<double> "
-                                   "{\n"
-                                   f"\t\t\tvector<double> ret = self.{func_name}({_std_params_names_str});\n"
-                                   "\t\t\t\tpy::array_t<double> np_ret(ret.size());\n"
-                                   "\t\t\t\tstd::copy(ret.begin(), ret.end(), np_ret.mutable_data());\n"
-                                   "\t\t\t\treturn np_ret;\n"
-                                   "\t\t\t}"
-                                   f", \"{description}\")")
-
-                pybind_writes += [method_bind_str]
-                for line in writes:
-                    self._write_lines(line)
+                # handles casting of pytypes to ctypes
+                pybind_writes += self._write_function_call_wrapper(func_name=func_name,
+                                                                   description=description)
 
             # write setters / getters for class properties
-            for property in class_properties:
-                gets_sets = (f"\t\t.def_property(\"{property}\",\n"
-                             f"\t\t\t[](const Model& self) -> const decltype(Model::{property})& "
-                             "{"
-                             f"return self.{property}" + ";},\n"
-                             f"\t\t\t[](Model& self, const decltype(Model::{property})& value) "
-                             "{" + f"self.{property}" + " = value;})")
-                pybind_writes += [gets_sets]
+            pybind_writes += self._write_sets_gets(class_properties)
 
             # create __init__.py file
             with open(os.path.join(module_dir_path, "__init__.py"), "a+") as f:
@@ -637,13 +652,13 @@ class CCodeGenerator(CodeGeneratorBase):
             pybind_writes += ['\t;']
             pybind_writes += ["}"]
 
+            for line in function_writes:
+                self._write_lines(line)
             for line in pybind_writes:
                 self._write_lines(line)
-
             self.create_build_file(path=module_dir_path,
                                    module_name=module_name,
                                    source=self.file_name)
-
             self._close()
         except Exception as e:
             shutil.rmtree(module_dir_path, ignore_errors=True)
