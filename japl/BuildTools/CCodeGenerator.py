@@ -16,7 +16,6 @@ from textwrap import dedent
 from japl.BuildTools.BuildTools import parallel_subs
 from japl.BuildTools.BuildTools import parallel_cse
 from collections import defaultdict
-from japl.Symbolic.KwargFunction import KwargFunction
 from japl.global_opts import get_root_dir
 from pathlib import Path
 import subprocess

@@ -3,76 +3,76 @@ from typing import Optional
 from sympy import Symbol
 from japl import AeroTable
 from japl.Util.Matlab import MatFile
-from japl.Symbolic.KwargFunction import KwargFunction
+from japl.Symbolic.JaplFunction import JaplFunction
 
 
 
-class get_CA(KwargFunction):
+class get_CA(JaplFunction):
     pass
     parent = "aerotable"
 
 
-class get_CA_Boost(KwargFunction):
+class get_CA_Boost(JaplFunction):
     pass
     parent = "aerotable"
 
 
-class get_CA_Coast(KwargFunction):
+class get_CA_Coast(JaplFunction):
     pass
     parent = "aerotable"
 
 
-class get_CNB(KwargFunction):
+class get_CNB(JaplFunction):
     pass
     parent = "aerotable"
 
 
-class get_CLMB(KwargFunction):
+class get_CLMB(JaplFunction):
     pass
     parent = "aerotable"
 
 
-class get_CLNB(KwargFunction):
+class get_CLNB(JaplFunction):
     pass
     parent = "aerotable"
 
 
-class get_CYB(KwargFunction):
+class get_CYB(JaplFunction):
     pass
     parent = "aerotable"
 
 
-class get_MRC(KwargFunction):
+class get_MRC(JaplFunction):
     pass
     parent = "aerotable"
 
 
-class get_Sref(KwargFunction):
+class get_Sref(JaplFunction):
     pass
     parent = "aerotable"
 
 
-class get_Lref(KwargFunction):
+class get_Lref(JaplFunction):
     pass
     parent = "aerotable"
 
 
-class get_CA_Boost_alpha(KwargFunction):
+class get_CA_Boost_alpha(JaplFunction):
     pass
     parent = "aerotable"
 
 
-class get_CA_Coast_alpha(KwargFunction):
+class get_CA_Coast_alpha(JaplFunction):
     pass
     parent = "aerotable"
 
 
-class get_CNB_alpha(KwargFunction):
+class get_CNB_alpha(JaplFunction):
     pass
     parent = "aerotable"
 
 
-class inv_aerodynamics(KwargFunction):
+class inv_aerodynamics(JaplFunction):
     pass
     parent = "aerotable"
 

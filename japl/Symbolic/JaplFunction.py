@@ -8,7 +8,7 @@ from sympy.core.cache import cacheit
 
 
 
-class KwargFunction(Function):
+class JaplFunction(Function):
 
     """This class inherits from sympy.Function and allows
     keyword arguments."""
