@@ -67,7 +67,6 @@ class JaplFunction(Function):
 
     def __reduce__(self) -> str | tuple[Any, ...]:
         """defines serialization of class object"""
-        # return (self.__class__, (self.name, self.kwargs), self.__getstate__())
         state = {"kwargs": self.kwargs}
         return (self.__class__, (tuple(self.kwargs.items()),), state)
 
@@ -78,7 +77,6 @@ class JaplFunction(Function):
 
     def __str__(self) -> str:
         _kwargs = ", ".join([f"{k}={v}" for k, v in self.kwargs.items()])
-    #     return f"{self.name}({_kwargs})"
         if self.parent:
             name = f"{self.parent}.{self.__class__}"
         else:
@@ -95,11 +93,6 @@ class JaplFunction(Function):
     def _ccode(self, *args, **kwargs):
         """string representation of object when using sympy.ccode()
         for c-code generate"""
-        # _kwargs = []
-        # for k, v in self.kwargs.items():
-        #     _kwargs += [f"py::kw(\"{k}\"_a={v})"]
-        # _kwargs = ", ".join(_kwargs)
-        # args = tuple([v for v in self.kwargs.values()])
         # pass keyword args as a std::map
         args_str = ""
 
@@ -123,19 +116,10 @@ class JaplFunction(Function):
         return self.__str__()
 
 
-    # def __call__(self, *args, **kwargs):
-    #     args = tuple([v for v in kwargs.values()])
-    #     obj = super().__new__(self.__class__, *args)
-    #     obj.kwargs = kwargs
-    #     obj.name = self.name
-    #     return obj
-
-
     def func(self, *args):  # type:ignore
         """This overrides @property func. which is used to rebuild
         the object. This is used in sympy cse."""
         new_kwargs = {key: val for key, val in zip(self.kwargs.keys(), args)}
-        # return self.__class__(self.name, new_kwargs)
         return self.__class__(**new_kwargs)
 
 
@@ -154,8 +138,6 @@ class JaplFunction(Function):
         # if subs changes the args, return new instance to apply
         # changes
         if new_kwargs != self.kwargs:
-            # return self.func(self.name, new_kwargs)
-            # return self.__class__(self.name, new_kwargs)
             return self.__class__(**new_kwargs)
 
         # no subs applied
@@ -180,8 +162,6 @@ class JaplFunction(Function):
             args = tuple(args)
             if changed:
                 new_kwargs = {key: val for key, val in zip(self.kwargs.keys(), args)}
-                # return self.func(self.name, new_kwargs), True
-                # return self.__class__(self.name, new_kwargs), True
                 return self.__class__(**new_kwargs), True
         return self, False
 
