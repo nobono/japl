@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 
 import os
+import sys
+import importlib.util
 # import curses
 import argparse
 from textwrap import dedent
 from pathlib import Path
-from metadata import JAPL_HOME_DIR
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 __JAPL_EXT_MODULE_INIT_HEADER__ = "#__japl_extension_module__"
 __JAPL_MODEL_SOURCE_HEADER__ = "#__japl_model_source__"
@@ -44,6 +46,16 @@ __IGNORE_DIRS__ = [".git", "build", "bin", "src", "include", "libs", "tests", "t
 #         # Quit on 'q'
 #         if key == ord('q'):
 #             break
+
+
+def get_root_dir():
+    # Find the module spec for the japl package
+    spec = importlib.util.find_spec("japl")
+    if spec is None or spec.origin is None:
+        raise RuntimeError("japl package is not installed or cannot be found.")
+    # Get the root directory of the japl package
+    root_dir = os.path.dirname(spec.origin)
+    return root_dir
 
 
 def file_is_model_source(root: str, file: str):
@@ -112,7 +124,7 @@ def find_src_models(start_dir: str = '.', max_depth: int = 20) -> dict:
     # Get the length of the start directory path for depth calculation
     start_depth = start_dir.rstrip(os.path.sep).count(os.path.sep)
 
-    for st_dir in [start_dir, JAPL_HOME_DIR]:
+    for st_dir in [start_dir, get_root_dir()]:
         for root, dirs, files in os.walk(st_dir):
             # skip ignored dirs
             for ignore in ignores:
