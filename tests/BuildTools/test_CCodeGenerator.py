@@ -205,7 +205,7 @@ class TestCCodeGenerator(unittest.TestCase):
         """single var"""
         expr, _ = self.get_small_model()
         gen = CCodeGenerator()
-        ret = gen._write_function_returns(expr=expr, return_names=["Ret"])
+        ret = gen._write_function_returns(return_names=["Ret"])
         self.assertEqual(ret, "return Ret;\n")  # }
 
 
@@ -213,7 +213,7 @@ class TestCCodeGenerator(unittest.TestCase):
         """array"""
         expr, _ = self.get_model()
         gen = CCodeGenerator()
-        ret = gen._write_function_returns(expr=expr, return_names=["Ret"])
+        ret = gen._write_function_returns(return_names=["Ret"])
         self.assertEqual(ret, "return Ret;\n")
 
     # def test_write_function_returns_case3(self):
