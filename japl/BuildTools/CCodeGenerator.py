@@ -53,6 +53,8 @@ class CCodeGenerator(CodeGeneratorBase):
                       "vector<double>&",
                       "double&")
 
+    NUM_FUNC_RETURNS = 1
+
     def __init__(self, strict: bool = False, use_std_args: bool = False):
         self.strict = strict
         self.function_register: dict[str, FunctionInfo] = {}
@@ -143,17 +145,11 @@ class CCodeGenerator(CodeGeneratorBase):
         return type_str
 
 
-    def _write_function_returns(self, expr: Expr|Matrix, return_names: list[str]):
-        if len(return_names) > 1:
+    def _write_function_returns(self, return_names: list[str]):
+        if len(return_names) > self.NUM_FUNC_RETURNS:
             raise Exception("CCodeGenerator currently only supports returns of a"
                             "single object.")
         return_name = return_names[0]
-        # if self._is_array_type(expr):
-        #     # convert vector to array_t
-        #     return_str = "vector<double>(" + return_name + ".size(), " + return_name + ".data())"
-        #     return f"return {return_str}" + self.endl
-        # else:
-        #     return f"return {return_name}" + self.endl
         return f"return {return_name}" + self.endl
 
 
@@ -520,13 +516,14 @@ class CCodeGenerator(CodeGeneratorBase):
 
         replacements, expr_simple = self._optimize_expression(function_info=function_info)
 
-        func_info = self._build_function_prototype(function_info=function_info, expr=expr_simple)  # type:ignore
+        func_info = self._build_function_prototype(function_info=function_info,  # NOTE: this modifies function_info
+                                                   expr=expr_simple)  # type:ignore
         return_array = self._instantiate_return_variable(expr=expr, name=return_name)
         sub_expr = self._write_subexpressions(replacements)  # type:ignore
         func_body = self._write_matrix(matrix=Matrix(expr_simple),
                                        variable=return_name,
                                        is_symmetric=is_symmetric)
-        func_ret = self._write_function_returns(expr=expr, return_names=[return_name])
+        func_ret = self._write_function_returns(return_names=[return_name])
 
         writes = [
                   func_info.proto,

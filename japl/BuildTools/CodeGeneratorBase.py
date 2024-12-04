@@ -51,7 +51,7 @@ class CodeGeneratorBase:
         return ""
 
 
-    def _write_function_returns(self, expr: Expr, return_names: list) -> str:
+    def _write_function_returns(self, return_names: list) -> str:
         return ""
 
 
@@ -117,7 +117,7 @@ class CodeGeneratorBase:
         self._write_matrix(matrix=Matrix(expr_simple),
                            variable=return_var,
                            is_symmetric=is_symmetric)
-        self._write_function_returns(expr=expr, return_names=[return_var])
+        self._write_function_returns(return_names=[return_var])
         self._write_lines("")
         self._write_footer()
         self._close()
