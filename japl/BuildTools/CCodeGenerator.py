@@ -28,7 +28,7 @@ Writes = list[str]
 
 class CCodeGenerator(CodeGeneratorBase):
 
-    __JAPL_EXT_MODULE_INIT_HEADER = "# __JAPL_EXTENSION_MODULE__\n"
+    JAPL_EXT_MODULE_INIT_HEADER__ = "# __JAPL_EXTENSION_MODULE__\n"
     comment_prefix: str = "//"
     pre_bracket: str = "["
     post_bracket: str = "]"
@@ -646,7 +646,11 @@ class CCodeGenerator(CodeGeneratorBase):
 
             # create __init__.py file
             with open(os.path.join(module_dir_path, "__init__.py"), "a+") as f:
-                f.write(self.__JAPL_EXT_MODULE_INIT_HEADER)
+                f.write(self.JAPL_EXT_MODULE_INIT_HEADER__)
+                f.write("import linterp\n")
+                f.write("import datatable\n")
+                f.write("import aerotable\n")
+                f.write("import atmosphere\n")
                 f.write(f"from {module_name}.{module_name} import *\n")
 
             pybind_writes += ['\t;']
