@@ -45,6 +45,14 @@ class CCodeGenerator(CodeGeneratorBase):
                          "",
                          ""]
 
+
+    std_args = ("t", "_X_arg", "_U_arg", "_S_arg", "dt")
+    std_args_types = ("double&",
+                      "vector<double>&",
+                      "vector<double>&",
+                      "vector<double>&",
+                      "double&")
+
     def __init__(self, strict: bool = False, use_std_args: bool = False):
         self.strict = strict
         self.function_register: dict[str, FunctionInfo] = {}
@@ -431,23 +439,22 @@ class CCodeGenerator(CodeGeneratorBase):
         return writes
 
 
-
-    def _build_function(self, function_name: str, func_info: FunctionInfo) -> list[str]:
-
+    def _optimize_expression(self, function_info: FunctionInfo):
         MAX_PRUNE_ITER = 10
-
-        expr = func_info.expr
-        params = func_info.params
-        return_name = func_info.return_name
-        use_cse = func_info.use_cse
-        is_symmetric = func_info.is_symmetric
-        by_reference = func_info.by_reference
+        expr = function_info.expr
+        params = function_info.params
+        return_name = function_info.return_name
+        use_cse = function_info.use_cse
+        is_symmetric = function_info.is_symmetric
+        by_reference = function_info.by_reference
         assert expr
         assert params
         assert return_name
         assert isinstance(use_cse, bool)
         assert isinstance(is_symmetric, bool)
 
+        replacements = []
+        expr_simple = expr
         if use_cse:
             # old method
             # expr_replacements, expr_simple = cse(expr, symbols("X_temp0:1000"), optimizations='basic')
@@ -495,15 +502,25 @@ class CCodeGenerator(CodeGeneratorBase):
                 if by_ref_nadds > 0:
                     expr = Matrix(expr[:-by_ref_nadds])
 
-            # if expr is not Matrix
-            else:
-                expr_simple = expr
+        return replacements, expr_simple
 
-        else:
-            replacements = []
-            expr_simple = expr
 
-        func_info = self._build_function_prototype(function_info=func_info, expr=expr_simple)  # type:ignore
+    def _build_function(self, function_name: str, function_info: FunctionInfo) -> list[str]:
+        expr = function_info.expr
+        params = function_info.params
+        return_name = function_info.return_name
+        use_cse = function_info.use_cse
+        is_symmetric = function_info.is_symmetric
+        by_reference = function_info.by_reference
+        assert expr
+        assert params
+        assert return_name
+        assert isinstance(use_cse, bool)
+        assert isinstance(is_symmetric, bool)
+
+        replacements, expr_simple = self._optimize_expression(function_info=function_info)
+
+        func_info = self._build_function_prototype(function_info=function_info, expr=expr_simple)  # type:ignore
         return_array = self._instantiate_return_variable(expr=expr, name=return_name)
         sub_expr = self._write_subexpressions(replacements)  # type:ignore
         func_body = self._write_matrix(matrix=Matrix(expr_simple),
@@ -523,99 +540,16 @@ class CCodeGenerator(CodeGeneratorBase):
         # write other defined subexpressions
         #######################################
         writes += self._handle_pass_by_reference_params(function_info=func_info)
-        # # find '&' (pass-by-reference) params in parameter name list
-        # params_list_str = ", ".join(func_info.params_list)
-        # by_ref_params_list = [i for i in params_list_str.split(",") if ('&' in i) or ("py::array" in i)]
-        # for ref_param in by_ref_params_list:
-        #     if '&' in ref_param:
-        #         ref_param_type, ref_param_name = ref_param.split('&')
-        #         # TODO this does nothing
-        #     elif "py::array" in ref_param:
-        #         ref_param_type, ref_param_name = ref_param.split('py::array')
-
-        #         #####
-        #         ref_param_type = ref_param_type.strip()
-        #         ref_param_name = ref_param_name.strip()
-
-        #         # add line which gets pointer to data from py::array type
-        #         by_ref_param_name = ref_param_name
-
-        #         by_ref_size_check_str = (f"if ({by_ref_param_name}.size() != {len(by_reference)})"
-        #                                  " {\n"  # }
-        #                                  f"\tthrow std::length_error(\""  # )
-        #                                  f"expected length of {len(by_reference)} for argument"
-        #                                  f"{by_ref_param_name} but instead got length \" "
-        #                                  f"+ std::to_string({by_ref_param_name}.size())){self.endl}"
-        #                                  "}\n"
-        #                                  )
-
-        #         by_ref_buf_name = f"{by_ref_param_name}_buf"
-        #         by_ref_buf_str = f"py::buffer_info {by_ref_buf_name} = {by_ref_param_name}.request()" + self.endl
-
-        #         by_ref_ptr_name = f"{by_ref_param_name}_ptr"
-        #         by_ref_ptr_str = (f"double* {by_ref_ptr_name} = static_cast<double*>"
-        #                           f"({by_ref_buf_name}.ptr)" + self.endl)
-        #         by_ref_dtype = f"{by_ref_buf_name}.format"
-
-        #         by_ref_check_dtype_str = (f"if ({by_ref_dtype} != \"d\") "
-        #                                   "{\n"
-        #                                   f"\tthrow py::type_error(\"attempting to pass argument "  # )
-        #                                   f"{by_ref_param_name}, but "
-        #                                   f"must be of type double\"){self.endl}"
-        #                                   "}\n")
-        #         by_ref_ptr_str = by_ref_size_check_str + by_ref_buf_str + by_ref_ptr_str + by_ref_check_dtype_str
-        #         #####
-        #         # NOTE: this is an augmented _write_subexpressions()
-        #         # allowing the specification of:
-        #         #   - lvalue variable name
-        #         #   - lvalue variable being array-type and accessed
-        #         #   - type being pointer
-        #         by_ref_subexpr_str = ""
-        #         for i, (lvalue, rvalue) in enumerate(by_reference.items()):  # type:ignore
-        #             # type_str = self._get_type(lvalue)
-        #             accessor_str = self.pre_bracket + str(i) + self.post_bracket
-        #             lvalue_str = f"{by_ref_ptr_name}{accessor_str}"
-        #             assign_str = self._assign_variable(lvalue_str, self._get_code(rvalue))  # type:ignore
-        #             by_ref_subexpr_str += assign_str
-
-        #         # usr_sub_expr_simple = parallel_subs(by_reference, replacements)
-        #         writes += [self._indent_lines(by_ref_ptr_str),
-        #                    self._indent_lines(by_ref_subexpr_str)]
-
-        #     else:
-        #         raise Exception("unhandled case, but also make this code better.")
-
-        #     ###################################################
-        #     # by_ref_param_name = ref_param_name
-        #     # by_ref_ptr_name = f"{by_ref_param_name}_ptr"
-        #     # by_ref_ptr_str = (f"double* {by_ref_ptr_name} = static_cast<double*>"
-        #     #                   f"({by_ref_param_name}.mutable_data())" + self.endl)
-        #     ###################################################
-
-        #     # apply subs from previous code to subexpressions
-        #     # breakpoint()
-        #     # by_ref_replacements, by_ref_expr_simple = parallel_cse(Matrix([*by_reference.values()]))
-        #     # breakpoint()
-        #     # by_reference = parallel_subs(by_reference, [replacements])  # type:ignore
-        #     # for _ in range(MAX_PRUNE_ITER):
-        #     #     replacements, expr_simple, nredundant = self._subs_prune(replacements,
-        #     #                                                              Matrix([*by_reference.values()]))
-        #     #     if nredundant == 0:
-        #     #         break
-
 
         # close function
-        writes += [self._indent_lines(func_ret),
-                   "}"]
-
+        writes += [self._indent_lines(func_ret)]
+        writes += ["}"]
         return writes
 
 
-    def create_module(self, module_name: str, path: str = ".",
-                      class_properties: list = []):
+    def _create_module_directory(self, name: str, path: str) -> Path:
         # create extension module directory
-        module_dir_name = module_name
-        module_dir_path = os.path.join(path, module_dir_name)
+        module_dir_path = Path(path, name)
         if os.path.exists(module_dir_path):
             input_str = f"{module_dir_path} already exists. Overwrite? (y/n):"
             if input(input_str).strip().lower() == "y":
@@ -623,8 +557,14 @@ class CCodeGenerator(CodeGeneratorBase):
             else:
                 print("exiting.")
                 quit()
-
         os.mkdir(module_dir_path)
+        return module_dir_path
+
+
+    def create_module(self, module_name: str, path: str = ".",
+                      class_properties: list = []):
+
+        module_dir_path = self._create_module_directory(name=module_name, path=path)
 
         # output directory warning
         # if os.path.isdir(module_dir_path):
@@ -632,13 +572,13 @@ class CCodeGenerator(CodeGeneratorBase):
 
         self.path = path
         self.file_name = module_name + ".cpp"
-        file_path = os.path.join(module_dir_path, self.file_name)
+        file_path = Path(module_dir_path, self.file_name)
         self.file = open(file_path, "w")
 
         header = self._write_header()
         self._write_lines(header)
 
-        class_bind_str = f"\tpybind11::class_<Model>(m, \"Model\")"
+        class_bind_str = "\tpybind11::class_<Model>(m, \"Model\")"
         class_constructor_str = "\t\t.def(pybind11::init<>())"
 
         pybind_writes = ["", "", f"PYBIND11_MODULE({module_name}, m) " + "{"]  # }
@@ -658,18 +598,20 @@ class CCodeGenerator(CodeGeneratorBase):
 
                 # build the function
                 function_name_ref = f"{class_ref}::{func_name}"
-                writes = self._build_function(function_name=function_name_ref, func_info=info)
+                writes = self._build_function(function_name=function_name_ref, function_info=info)
                 description = info.description
                 # method_bind_str = f"\t\t.def(\"{func_name}\", &{function_name_ref}, \"{description}\")"
 
                 # lambda wrapper to convert return of vector<> to py::array_t<>
-                _std_args = ("double& t, vector<double>& _X_arg, vector<double>& _U_arg, "
-                             "vector<double>& _S_arg, double& dt")
-                _std_args_names = ("t, _X_arg, _U_arg, _S_arg, dt")
+                # _std_args = ("double& t, vector<double>& _X_arg, vector<double>& _U_arg, "
+                #              "vector<double>& _S_arg, double& dt")
+                # _std_args_names = ("t, _X_arg, _U_arg, _S_arg, dt")
+                _std_params_str = ", ".join([f"{typ} {var}" for typ, var in zip(self.std_args_types, self.std_args)])
+                _std_params_names_str = ", ".join([i for i in self.std_args])
                 method_bind_str = (f"\t\t.def(\"{func_name}\",\n"
-                                   f"\t\t\t[](Model& self, {_std_args}) -> py::array_t<double> "
+                                   f"\t\t\t[](Model& self, {_std_params_str}) -> py::array_t<double> "
                                    "{\n"
-                                   f"\t\t\tvector<double> ret = self.{func_name}({_std_args_names});\n"
+                                   f"\t\t\tvector<double> ret = self.{func_name}({_std_params_names_str});\n"
                                    "\t\t\t\tpy::array_t<double> np_ret(ret.size());\n"
                                    "\t\t\t\tstd::copy(ret.begin(), ret.end(), np_ret.mutable_data());\n"
                                    "\t\t\t\treturn np_ret;\n"
@@ -693,7 +635,7 @@ class CCodeGenerator(CodeGeneratorBase):
             # create __init__.py file
             with open(os.path.join(module_dir_path, "__init__.py"), "a+") as f:
                 f.write(self.__JAPL_EXT_MODULE_INIT_HEADER)
-                f.write(f"from {module_dir_name}.{module_dir_name} import *\n")
+                f.write(f"from {module_name}.{module_name} import *\n")
 
             pybind_writes += ['\t;']
             pybind_writes += ["}"]
@@ -756,7 +698,7 @@ class CCodeGenerator(CodeGeneratorBase):
                 shutil.copy2(source_item, target_item)
 
 
-    def create_build_file(self, module_name: str, path: str, source: str):
+    def create_build_file(self, module_name: str, path: str|Path, source: str):
         file_name = source.split('.')[0]
         cxx_std = 17
 

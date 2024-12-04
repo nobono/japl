@@ -29,6 +29,8 @@ class CodeGeneratorBase:
     header: list[str] = []
     footer: list[str] = []
 
+    std_args = ("t, _X_arg, _U_arg, _S_arg, dt")
+
     def _print_string(self, string: str) -> None:
         self.file.write(f"{self.comment_prefix} " + string + "\n")
 
@@ -151,7 +153,7 @@ class CodeGeneratorBase:
                 raise Exception("exactly 3 function arguments must be specified"
                                 "in order to use standard Model args in CodeGeneration."
                                 "[state, input, static].")
-            dummy_names = ["t", "_X_arg", "_U_arg", "_S_arg", "dt"]
+            dummy_names = self.std_args
         else:
             dummy_names = [f"_Dummy_var{i}" for i in range(25)]
 
