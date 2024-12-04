@@ -1,6 +1,6 @@
 import unittest
 from sympy import Symbol
-from japl.Symbolic.KwargFunction import KwargFunction
+from japl.Symbolic.JaplFunction import JaplFunction
 from sympy import pycode
 from sympy import ccode
 from sympy import cse
@@ -9,15 +9,15 @@ import io
 
 
 
-class func(KwargFunction):
+class func(JaplFunction):
     pass
 
 
-class func2(KwargFunction):
+class func2(JaplFunction):
     pass
 
 
-class TestKwargFunction(unittest.TestCase):
+class TestJaplFunction(unittest.TestCase):
 
 
     def setUp(self) -> None:
@@ -148,7 +148,7 @@ class TestKwargFunction(unittest.TestCase):
 
 
     def test_name(self):
-        class method(KwargFunction):
+        class method(JaplFunction):
             pass
         f = method(a=1)
         f.set_parent("obj")
@@ -159,7 +159,7 @@ class TestKwargFunction(unittest.TestCase):
 
 
     def test_name_case2(self):
-        class method(KwargFunction):
+        class method(JaplFunction):
             parent = "obj"
             pass
         f = method(a=1)
@@ -177,10 +177,10 @@ class TestKwargFunction(unittest.TestCase):
     #     b = Symbol('b')
     #     c = a + b  # type:ignore
     #     d = Symbol('d')
-    #     func = KwargFunction('func')
+    #     func = JaplFunction('func')
     #     func = func(a=c, b=c)
 
-    #     func2 = KwargFunction('func2')(j=2, k=3)
+    #     func2 = JaplFunction('func2')(j=2, k=3)
     #     print(func)
     #     print(func2)
 
