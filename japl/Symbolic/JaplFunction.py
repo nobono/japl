@@ -21,6 +21,7 @@ class JaplFunction(Function):
                  "codegen_function")
 
     parent = ""
+    codegen_function: CodegenFunction
     # no_keyword = False
 
     # @classmethod
