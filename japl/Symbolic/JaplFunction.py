@@ -1,11 +1,13 @@
 from typing import Any, Optional, Callable
-from sympy import ccode
+from sympy import ccode, pycode
 from sympy import Function
 from sympy import Float
 from sympy.core.function import FunctionClass, UndefinedFunction
 from sympy import Symbol
 from sympy.core.cache import cacheit
-
+from japl.BuildTools.CodeGeneratorBase import CodeGeneratorBase
+from japl.Util.Util import iter_type_check
+from japl.Symbolic.Ast import CodegenFunction
 
 
 class JaplFunction(Function):
@@ -13,10 +15,13 @@ class JaplFunction(Function):
     """This class inherits from sympy.Function and allows
     keyword arguments."""
 
-    __slots__ = ("name", "kwargs")
+    __slots__ = ("name",
+                 "kwargs",  # function kwargs
+                 "fargs",  # function args
+                 "codegen_function")
 
     parent = ""
-    no_keyword = False
+    # no_keyword = False
 
     # @classmethod
     # def eval(cls, *args):
@@ -24,51 +29,42 @@ class JaplFunction(Function):
     #     # return super().eval(*args)
     #     return None
 
-
-    # def __new__(cls, name: str, kwargs: dict = {}):
-    #     # create the object
-    #     args = tuple([v for v in kwargs.values()])
-    #     obj = super().__new__(cls, name, *args)
-    #     # attatch kwargs to the object
-    #     obj.name = name
-    #     obj.kwargs = kwargs
-    #     return obj
-
-
-    def set_parent(self, parent: str):
-        self.parent = parent
-        self.name = f"{parent}.{self.name}"
-
-
     def __new__(cls, *args, **kwargs):
         # if args is tuple[tuple, ...], then __new__ is being
         # called from __setstate__ which passes keyword
         # arguments into *args as a tuple[tuple, ...]
-        if len(args) and isinstance(args[0], tuple):
-            kwargs = dict(args[0])
-        # create the object
-        kwargs = kwargs or {}
-        args = tuple([v for v in kwargs.values()])
-        obj = super().__new__(cls, *args)
+        all_args = ()
+        found_args = ()
+        found_kwargs = {}
+        for arg in args:
+            if iter_type_check(arg, tuple[tuple]):
+                found_kwargs.update(dict(arg))
+            elif isinstance(arg, tuple):
+                found_args += arg
+            else:
+                found_args += (arg,)
+        found_kwargs.update(kwargs)
+
+        all_args += found_args
+        all_args += tuple(found_kwargs.values())
+
+        obj = super().__new__(cls, *all_args)
+
         # attatch kwargs to the object
         if obj.parent:
-            obj.name = f"{obj.parent}.{str(cls)}"
+            obj.name = f"{obj.parent}.{str(cls)}"  # for "class.method" naming
         else:
-            obj.name = str(cls)
-        obj.kwargs = kwargs
+            obj.name = str(cls)  # function name is name of class
+        obj.kwargs = found_kwargs
+        obj.fargs = found_args
+        obj.codegen_function = CodegenFunction(obj.name, found_args, found_kwargs)
         return obj
-
-
-    # def __setstate__(self, state: dict):
-    #     kwargs = state.get("kwargs", {})
-    #     self.name = state.get("name", str(self.__class__))
-    #     self.kwargs = kwargs
 
 
     def __reduce__(self) -> str | tuple[Any, ...]:
         """defines serialization of class object"""
         state = {"kwargs": self.kwargs}
-        return (self.__class__, (tuple(self.kwargs.items()),), state)
+        return (self.__class__, (self.fargs, tuple(self.kwargs.items()),), state)
 
 
     def __repr__(self) -> str:
@@ -76,39 +72,25 @@ class JaplFunction(Function):
 
 
     def __str__(self) -> str:
-        _kwargs = ", ".join([f"{k}={v}" for k, v in self.kwargs.items()])
-        if self.parent:
-            name = f"{self.parent}.{self.__class__}"
-        else:
-            name = self.name
-        return f"{name}({_kwargs})"
+        return str(self.codegen_function)  # type:ignore
+
+
+    def set_parent(self, parent: str):
+        self.parent = parent
+        self.name = f"{parent}.{self.name}"
+        self.codegen_function.name = self.name
 
 
     def _pythoncode(self, *args, **kwargs):
         """string representation of object when using sympy.pycode()
         for python code generation"""
-        return self.__str__()
+        return pycode(self.codegen_function)
 
 
     def _ccode(self, *args, **kwargs):
         """string representation of object when using sympy.ccode()
         for c-code generate"""
-        # pass keyword args as a std::map
-        args_str = ""
-
-        if self.no_keyword:
-            args_str = ", ".join([str(v) for v in self.kwargs.values()])
-        else:
-            for key, val in self.kwargs.items():
-                args_str += "{" + f"\"{key}\", " + ccode(val) + "}, "
-            args_str = args_str.strip(", ")
-            args_str = "{" + args_str + "}"
-
-        if self.parent:
-            name = f"{self.parent}.{self.__class__}"
-        else:
-            name = self.name
-        return f"{name}({args_str})"
+        return ccode(self.codegen_function)
 
 
     def _sympystr(self, printer):
@@ -188,3 +170,9 @@ class JaplFunction(Function):
 
     def _eval_derivative(self, sym):
         return
+
+    # -----------------------------------------
+    # Func definition codegen
+    # -----------------------------------------
+
+    # def _get_def_parameters(self)
