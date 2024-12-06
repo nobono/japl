@@ -7,7 +7,7 @@ from sympy import Symbol
 from sympy.core.cache import cacheit
 from japl.BuildTools.CodeGeneratorBase import CodeGeneratorBase
 from japl.Util.Util import iter_type_check
-from japl.Symbolic.Ast import CodegenFunction
+from japl.Symbolic.Ast import CodegenFunctionCall
 
 
 class JaplFunction(Function):
@@ -18,10 +18,10 @@ class JaplFunction(Function):
     __slots__ = ("name",
                  "kwargs",  # function kwargs
                  "fargs",  # function args
-                 "codegen_function")
+                 "codegen_function_call")
 
     parent = ""
-    codegen_function: CodegenFunction
+    codegen_function_call: CodegenFunctionCall
     # no_keyword = False
 
     # @classmethod
@@ -58,7 +58,7 @@ class JaplFunction(Function):
             obj.name = str(cls)  # function name is name of class
         obj.kwargs = found_kwargs
         obj.fargs = found_args
-        obj.codegen_function = CodegenFunction(obj.name, found_args, found_kwargs)
+        obj.codegen_function_call = CodegenFunctionCall(obj.name, found_args, found_kwargs)
         return obj
 
 
@@ -73,25 +73,25 @@ class JaplFunction(Function):
 
 
     def __str__(self) -> str:
-        return str(self.codegen_function)  # type:ignore
+        return str(self.codegen_function_call)  # type:ignore
 
 
     def set_parent(self, parent: str):
         self.parent = parent
         self.name = f"{parent}.{self.name}"
-        self.codegen_function.name = self.name
+        self.codegen_function_call.name = self.name
 
 
     def _pythoncode(self, *args, **kwargs):
         """string representation of object when using sympy.pycode()
         for python code generation"""
-        return pycode(self.codegen_function)
+        return pycode(self.codegen_function_call)
 
 
     def _ccode(self, *args, **kwargs):
         """string representation of object when using sympy.ccode()
         for c-code generate"""
-        return ccode(self.codegen_function)
+        return ccode(self.codegen_function_call)
 
 
     def _sympystr(self, printer):

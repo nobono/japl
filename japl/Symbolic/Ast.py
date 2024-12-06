@@ -2,8 +2,30 @@ from sympy.codegen.ast import FunctionCall
 from sympy.codegen.ast import Token
 from sympy.codegen.ast import String
 from sympy.codegen.ast import Tuple
-from sympy import ccode
+from sympy.codegen.ast import Type
+from sympy import ccode, pycode
 
+
+
+class CTypes:
+    bool = Type("bool")
+    int = Type("int")
+    double = Type("double")
+    vector = Type("vector<double>")
+    ndarray = Type("py::array_t<double>")
+
+
+class KwargsToken(Token):
+
+    """Token but accepts kwargs input"""
+
+    def __new__(cls, *args, **kwargs):
+        _pops = ["exclude", "apply"]
+        kwargs_passthrough = {k: v for k, v in kwargs.items() if k in _pops}
+        if kwargs:
+            args += (kwargs,)
+        obj = super().__new__(cls, *args, **kwargs_passthrough)
+        return obj
 
 
 class Dict(Token):
@@ -36,8 +58,51 @@ class Dict(Token):
         kwargs_str = "{" + kwargs_str + "}"
         return kwargs_str
 
+    def _pythoncode(self, *args, **kwargs):
+        kwargs_str = ", ".join([f"{key}: {pycode(val)}" for key, val in self.kwpairs.items()])
+        kwargs_str = kwargs_str.strip(", ")
+        kwargs_str = "{" + kwargs_str + "}"
+        return kwargs_str
 
-class CodegenFunction(FunctionCall):
+
+class Kwargs(KwargsToken):
+    __slots__ = _fields = ("kwpairs",)
+    defaults = {"kwpairs": {}}
+
+    @staticmethod
+    def _construct_kwpairs(pairs):
+        return dict(pairs)
+
+    def __str__(self):
+        return str(self.kwpairs)
+
+    def __len__(self):
+        return self.kwpairs.__len__()
+
+    def items(self):
+        return ((key, val) for key, val in self.kwpairs.items())
+
+    def values(self):
+        return (val for val in self.kwpairs.values())
+
+    def keys(self):
+        return (key for key in self.kwpairs.keys())
+
+    def _ccode(self, *args, **kwargs):
+        kwargs_str = ", ".join(["{" + f"\"{key}\", " + ccode(val) + "}"
+                                for key, val in self.kwpairs.items()])
+        kwargs_str = kwargs_str.strip(", ")
+        kwargs_str = "{" + kwargs_str + "}"
+        return kwargs_str
+
+    def _pythoncode(self, *args, **kwargs):
+        kwargs_str = ", ".join([f"{key}={pycode(val)}" for key, val in self.kwpairs.items()])
+        kwargs_str = kwargs_str.strip(", ")
+        # kwargs_str = "{" + kwargs_str + "}"
+        return kwargs_str
+
+
+class CodegenFunctionCall(FunctionCall, KwargsToken):
     """ Represents a call to a function in the code.
 
     Parameters
@@ -57,11 +122,11 @@ class CodegenFunction(FunctionCall):
 
     """
     __slots__ = _fields = ('name', 'function_args', 'function_kwargs')
-    defaults = {"function_args": Tuple(), "function_kwargs": Dict()}
+    defaults = {"function_args": Tuple(), "function_kwargs": Kwargs()}
 
     _construct_name = String
     _construct_function_args = staticmethod(lambda args: Tuple(*args))
-    _construct_function_kwargs = staticmethod(lambda kwargs: Dict(kwargs))
+    _construct_function_kwargs = staticmethod(lambda kwargs: Kwargs(kwargs))
 
 
     @staticmethod
@@ -87,12 +152,35 @@ class CodegenFunction(FunctionCall):
 
     def _pythoncode(self, *args, **kwargs):
         params_str = ""
-        params_str = ", ".join([ccode(i) for i in self.function_args])
+        params_str = ", ".join([pycode(i) for i in self.function_args])
         if len(self.function_args) and len(self.function_kwargs):
             params_str += ", "
         if (kwargs_str := self._dict_to_kwargs_str(self.function_kwargs)):
             params_str += f"{kwargs_str}"
         return f"{self.name}({params_str})"
+
+
+# class CodegenFunction:
+
+#     def __init__(self, japl_function) -> None:
+#         self.japl_function = japl_function
+#         self.return_type = self.deduce_return_type()
+#     #     f = CodegenFunctionProto(return_type=CTypes.double,
+#     #                              name="func",
+#     #                              parameters=[a, b])
+
+#     @staticmethod
+#     def deduce_return_type(expr) -> str:
+#         # determine return shape
+#         return_shape = Matrix([expr]).shape
+
+#         if np.prod(return_shape) == 1:
+#             primitive_type = CCodeGenerator._get_primitive_type(expr)  # type:ignore
+#             type_str = primitive_type
+#         else:
+#             primitive_type = "double"
+#             type_str = f"vector<{primitive_type}>"
+#         return type_str
 
 
 # # TESTS
@@ -103,11 +191,11 @@ class CodegenFunction(FunctionCall):
 # bvar = Variable(b, type=double)
 # cvar = Variable(c, type=double)
 
-# # Dict
-# assert ccode(Dict()) == "{}"
-# assert ccode(Dict({})) == "{}"
-# assert ccode(Dict({"x": 1, 'y': 2.0})) == "{{\"x\", 1}, {\"y\", 2.0}}"
-# assert ccode(Dict({"x": a, 'y': bvar})) == "{{\"x\", a}, {\"y\", b}}"
+# # Kwargs
+# assert ccode(Kwargs()) == "{}"
+# assert ccode(Kwargs({})) == "{}"
+# assert ccode(Kwargs({"x": 1, 'y': 2.0})) == "{{\"x\", 1}, {\"y\", 2.0}}"
+# assert ccode(Kwargs({"x": a, 'y': bvar})) == "{{\"x\", a}, {\"y\", b}}"
 
 # # Function
 # assert ccode(Func("func")) == "func()"
