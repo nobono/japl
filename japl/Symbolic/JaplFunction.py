@@ -22,7 +22,6 @@ class JaplFunction(Function):
 
     parent = ""
     codegen_function_call: CodegenFunctionCall
-    # no_keyword = False
 
     # @classmethod
     # def eval(cls, *args):

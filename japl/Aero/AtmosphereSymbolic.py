@@ -6,39 +6,27 @@ from japl.Symbolic.JaplFunction import JaplFunction
 
 
 class pressure(JaplFunction):
-    pass
     parent = "atmosphere"
-    # no_keyword = True
 
 
 class density(JaplFunction):
-    pass
     parent = "atmosphere"
-    # no_keyword = True
 
 
 class temperature(JaplFunction):
-    pass
     parent = "atmosphere"
-    # no_keyword = True
 
 
 class speed_of_sound(JaplFunction):
-    pass
     parent = "atmosphere"
-    # no_keyword = True
 
 
 class grav_accel(JaplFunction):
-    pass
     parent = "atmosphere"
-    # no_keyword = True
 
 
 class dynamic_pressure(JaplFunction):
-    pass
     parent = "atmosphere"
-    # no_keyword = True
 
 
 class AtmosphereSymbolic:
