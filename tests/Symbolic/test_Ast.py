@@ -7,6 +7,7 @@ from sympy.codegen.ast import String
 from japl.Symbolic.Ast import Tuple
 from japl.Symbolic.Ast import Kwargs
 from japl.Symbolic.Ast import Dict
+from japl.Symbolic.Ast import CType
 from japl.Symbolic.Ast import CTypes
 from japl.Symbolic.Ast import CodegenFunctionCall
 from sympy.codegen.ast import Variable
@@ -18,6 +19,18 @@ class TestAst(unittest.TestCase):
 
     def setUp(self) -> None:
         pass
+
+
+    def test_CType_case1(self):
+        double = CType("double")
+        self.assertEqual(double.name, "double")
+        self.assertEqual(ccode(double.as_vector()), "vector<double>")
+        self.assertEqual(ccode(double.as_ndarray()), "py::array_t<double>")
+        self.assertEqual(ccode(double.as_map()), "map<string, double>")
+        self.assertEqual(ccode(double.as_const()), "const double")
+        self.assertEqual(ccode(double.as_vector().as_const()), "const vector<double>")
+        self.assertEqual(ccode(double.as_ref()), "double&")
+        self.assertEqual(ccode(double.as_vector().as_const().as_ref()), "const vector<double>&")
 
 
     def test_dict_case1(self):

@@ -1,18 +1,34 @@
 from sympy.codegen.ast import FunctionCall
+from sympy.codegen.ast import FunctionPrototype
+from sympy.codegen.ast import FunctionDefinition
+from sympy.codegen.ast import Declaration
+from sympy.codegen.ast import Variable
 from sympy.codegen.ast import Token
 from sympy.codegen.ast import String
 from sympy.codegen.ast import Tuple
 from sympy.codegen.ast import Type
-from sympy import ccode, pycode
+from sympy.codegen.ast import Node
+# from sympy.codegen.ast import complex_
+from sympy import ccode
+from sympy import pycode
+from sympy import Float, Integer, Matrix
+from sympy.printing.c import C99CodePrinter
 
 
 
-class CTypes:
-    bool = Type("bool")
-    int = Type("int")
-    double = Type("double")
-    vector = Type("vector<double>")
-    ndarray = Type("py::array_t<double>")
+# class CodeGenPrinter(C99CodePrinter):
+
+#     def _print_FunctionPrototype(self, expr):
+#         pars = ', '.join((self._print(Declaration(arg)) for arg in expr.parameters))
+#         return "%s %s(%s)" % (
+#             tuple((self._print(arg) for arg in (expr.return_type, expr.name))) + (pars,)
+#         )
+
+
+# def ccode(expr, **kwargs):
+#     printer = CodeGenPrinter()
+#     return printer.doprint(expr, **kwargs)
+
 
 
 class KwargsToken(Token):
@@ -22,13 +38,14 @@ class KwargsToken(Token):
     def __new__(cls, *args, **kwargs):
         _pops = ["exclude", "apply"]
         kwargs_passthrough = {k: v for k, v in kwargs.items() if k in _pops}
+        # kwargs_passthrough["type"] = CTypes.as_map(CTypes.float64)
         if kwargs:
             args += (kwargs,)
         obj = super().__new__(cls, *args, **kwargs_passthrough)
         return obj
 
 
-class Dict(Token):
+class Dict(Type):
     __slots__ = _fields = ("kwpairs",)
     defaults = {"kwpairs": {}}
 
@@ -66,12 +83,16 @@ class Dict(Token):
 
 
 class Kwargs(KwargsToken):
-    __slots__ = _fields = ("kwpairs",)
-    defaults = {"kwpairs": {}}
+    __slots__ = _fields = ("kwpairs", "type")
+    defaults = {"kwpairs": {}, "type": Type("MAP<string, double>")}
 
     @staticmethod
     def _construct_kwpairs(pairs):
         return dict(pairs)
+
+    @staticmethod
+    def _construct_type(type_):
+        return type_
 
     def __str__(self):
         return str(self.kwpairs)
@@ -100,6 +121,110 @@ class Kwargs(KwargsToken):
         kwargs_str = kwargs_str.strip(", ")
         # kwargs_str = "{" + kwargs_str + "}"
         return kwargs_str
+
+
+class CType(Type):
+
+    """Token class but has modifier methods
+    - as_vector
+    - as_ndarray
+    - ...etc
+    """
+
+    __slots__ = _fields = ("name",)
+    defaults = {"name": "CType"}
+
+    @staticmethod
+    def _construct_name(name):
+        return name
+
+
+    def as_vector(self):
+        return CType(f"vector<{self.name}>")
+
+
+    def as_ndarray(self):
+        return CType(f"py::array_t<{self.name}>")
+
+
+    def as_map(self):
+        return CType(f"map<string, {self.name}>")
+
+
+    def as_const(self):
+        return CType(f"const {self.name}")
+
+
+    def as_ref(self):
+        return CType(f"{self.name}&")
+
+
+    def _ccode(self, *args, **kwargs):
+        return self.name
+
+
+    def _pythoncode(self, *args, **kwargs):
+        return ""
+
+
+class CTypes:
+    bool = CType("bool")
+    int = CType("int")
+    float32 = CType("float")
+    float64 = CType("double")
+    void = CType("void")
+    complex_ = CType("complex")
+
+
+    @staticmethod
+    def from_expr(expr) -> CType:
+        """ Deduces type from an expression or a ``Symbol``.
+
+        Parameters
+        ==========
+
+        expr : number or SymPy object
+            The type will be deduced from type or properties.
+
+        Examples
+        ========
+
+        >>> from sympy.codegen.ast import Type, integer, complex_
+        >>> Type.from_expr(2) == integer
+        True
+        >>> from sympy import Symbol
+        >>> Type.from_expr(Symbol('z', complex=True)) == complex_
+        True
+        >>> Type.from_expr(sum)  # doctest: +ELLIPSIS
+        Traceback (most recent call last):
+          ...
+        ValueError: Could not deduce type from expr.
+
+        Raises
+        ======
+
+        ValueError when type deduction fails.
+
+        """
+        if expr is None:
+            return CTypes.void
+        if isinstance(expr, Kwargs) or isinstance(expr, Dict):
+            return CTypes.float64.as_map()
+        if isinstance(expr, Matrix):
+            return CTypes.float64.as_vector()
+        if isinstance(expr, (float, Float)):
+            return CTypes.float32
+        if isinstance(expr, (int, Integer)) or getattr(expr, 'is_integer', False):
+            return CTypes.int
+        if getattr(expr, 'is_real', False):
+            return CTypes.float64
+        if isinstance(expr, complex) or getattr(expr, 'is_complex', False):
+            return CTypes.complex_
+        if (isinstance(expr, bool) or getattr(expr, 'is_Relational', False)
+                or expr.assumptions0.get("boolean", False)):
+            return CTypes.bool
+        else:
+            return CTypes.float64
 
 
 class CodegenFunctionCall(FunctionCall, KwargsToken):
@@ -158,6 +283,62 @@ class CodegenFunctionCall(FunctionCall, KwargsToken):
         if (kwargs_str := self._dict_to_kwargs_str(self.function_kwargs)):
             params_str += f"{kwargs_str}"
         return f"{self.name}({params_str})"
+
+
+class CodeGenFunctionPrototype(FunctionPrototype):
+    """ Represents a function prototype
+
+    Allows the user to generate forward declaration in e.g. C/C++.
+
+    Parameters
+    ==========
+
+    return_type : Type
+    name : str
+    parameters: iterable of Variable instances
+    attrs : iterable of Attribute instances
+
+    Examples
+    ========
+
+    >>> from sympy import ccode, symbols
+    >>> from sympy.codegen.ast import real, FunctionPrototype
+    >>> x, y = symbols('x y', real=True)
+    >>> fp = FunctionPrototype(real, 'foo', [x, y])
+    >>> ccode(fp)
+    'double foo(double x, double y)'
+
+    """
+
+    __slots__ = ('return_type', 'name', 'parameters')
+    _fields: tuple[str, ...] = __slots__ + Node._fields
+
+    _construct_return_type = Type
+    _construct_name = String
+
+    @staticmethod
+    def _construct_parameters(args):
+        def _var(arg):
+            if isinstance(arg, Declaration):
+                return arg.variable
+            elif isinstance(arg, Variable):
+                return arg
+            elif isinstance(arg, Kwargs):
+                # for var in arg.kwpairs.values():
+                #     return var
+                # return Variable("a", type=Type("double"))
+                return arg
+            elif isinstance(arg, Dict):
+                return arg
+            else:
+                return Variable.deduced(arg)
+        return Tuple(*map(_var, args))
+
+    @classmethod
+    def from_FunctionDefinition(cls, func_def):
+        if not isinstance(func_def, FunctionDefinition):
+            raise TypeError("func_def is not an instance of FunctionDefinition")
+        return cls(**func_def.kwargs(exclude=('body',)))
 
 
 # class CodegenFunction:

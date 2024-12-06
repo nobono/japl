@@ -1,13 +1,36 @@
+import numpy as np
 from typing import Any, Optional, Callable
 from sympy import ccode, pycode
 from sympy import Function
-from sympy import Float
-from sympy.core.function import FunctionClass, UndefinedFunction
-from sympy import Symbol
-from sympy.core.cache import cacheit
-from japl.BuildTools.CodeGeneratorBase import CodeGeneratorBase
+from sympy import Matrix
+from sympy import Expr
+from sympy.codegen.ast import FunctionDefinition
+from sympy.codegen.ast import CodeBlock
+from sympy.codegen.ast import FunctionPrototype
+from sympy.codegen.ast import Variable
+from sympy.codegen.ast import Type
+from sympy.codegen.ast import Tuple
 from japl.Util.Util import iter_type_check
 from japl.Symbolic.Ast import CodegenFunctionCall
+from japl.Symbolic.Ast import CodeGenFunctionPrototype
+from japl.Symbolic.Ast import CType
+from japl.Symbolic.Ast import CTypes
+from japl.Symbolic.Ast import Kwargs
+
+
+
+class CodeGenUtil:
+
+    CODES = ("py", "c")
+
+    @staticmethod
+    def get_lang_types(code_type: str):
+        if code_type not in CodeGenUtil.CODES:
+            raise Exception(f"codegen for {code_type} not avaialable.")
+        elif code_type == "py":
+            raise Exception("Type does not apply for generating python code.")
+        elif code_type == "c":
+            return CTypes
 
 
 class JaplFunction(Function):
@@ -18,10 +41,14 @@ class JaplFunction(Function):
     __slots__ = ("name",
                  "kwargs",  # function kwargs
                  "fargs",  # function args
-                 "codegen_function_call")
+                 "codegen_function_call",
+                 "codegen_function_def",
+                 "codegen_function_proto")
 
     parent = ""
     codegen_function_call: CodegenFunctionCall
+    codegen_function_def: FunctionDefinition
+    codegen_function_proto: FunctionPrototype
 
     # @classmethod
     # def eval(cls, *args):
@@ -57,8 +84,48 @@ class JaplFunction(Function):
             obj.name = str(cls)  # function name is name of class
         obj.kwargs = found_kwargs
         obj.fargs = found_args
+
+        # codegen objects
         obj.codegen_function_call = CodegenFunctionCall(obj.name, found_args, found_kwargs)
+        # obj.codegen_function_proto = FunctionPrototype(return_type=)
         return obj
+
+
+    def set_body(self, body: CodeBlock|list|tuple):
+        if isinstance(body, CodeBlock):
+            pass
+        elif isinstance(body, tuple) or isinstance(body, list):  # type:ignore
+            pass
+        else:
+            raise Exception(f"could not set function body for {self.name}")
+
+
+    def _get_parameter_variables(self, code_type: str) -> tuple[Variable, ...]:
+        """converts parameter Symbols to Variables"""
+        Types = CodeGenUtil.get_lang_types(code_type)
+        kwarg_params = ()
+        arg_params = ()
+        if self.kwargs:
+            kwarg_type = Types.float64.as_map().as_ref()
+            kwarg_params = (Variable("kwargs", type=kwarg_type),)
+        for param in self.fargs:
+            param_type = Types.from_expr(param).as_ref()
+            param_name = getattr(param, "name", None)
+            if param_name is None:
+                param_name = str(param)
+            arg_params += (Variable(param_name, type=param_type),)
+        return arg_params + kwarg_params
+
+
+    def _build_proto(self, expr, code_type: str):
+        Types = CodeGenUtil.get_lang_types(code_type)
+        return_type = Types.from_expr(expr)
+        # convert parameter Symbols to Variable
+        parameters = self._get_parameter_variables(code_type)
+        proto = CodeGenFunctionPrototype(return_type=return_type,
+                                         name=self.name,
+                                         parameters=parameters)
+        self.codegen_function_proto = proto
 
 
     def __reduce__(self) -> str | tuple[Any, ...]:
@@ -172,7 +239,7 @@ class JaplFunction(Function):
         return
 
     # -----------------------------------------
-    # Func definition codegen
+    # Codegen Methods
     # -----------------------------------------
 
     # def _get_def_parameters(self)
