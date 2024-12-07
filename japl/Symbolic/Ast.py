@@ -8,27 +8,72 @@ from sympy.codegen.ast import String
 from sympy.codegen.ast import Tuple
 from sympy.codegen.ast import Type
 from sympy.codegen.ast import Node
+from sympy.codegen.ast import untyped
 # from sympy.codegen.ast import complex_
-from sympy import ccode
+# from sympy import ccode
 from sympy import pycode
 from sympy import Float, Integer, Matrix
+from sympy import MatrixSymbol
 from sympy.printing.c import C99CodePrinter
+from sympy.printing.c import value_const
 
 
 
-# class CodeGenPrinter(C99CodePrinter):
+class CodeGenPrinter(C99CodePrinter):
 
-#     def _print_FunctionPrototype(self, expr):
-#         pars = ', '.join((self._print(Declaration(arg)) for arg in expr.parameters))
-#         return "%s %s(%s)" % (
-#             tuple((self._print(arg) for arg in (expr.return_type, expr.name))) + (pars,)
-#         )
+    def _print_Constructor(self, expr):
+        params = expr.parameters
+        # handle both Declaration and Variables passed
+        if isinstance(expr.variable, Declaration):
+            var = expr.variable.variable
+        else:
+            var = expr.variable
+
+        if var.type == untyped:
+            raise ValueError("C does not support untyped variables")
+
+        elif isinstance(var, Variable):
+            result = '{t} {s}({c})'.format(
+                # vc='const ' if value_const in var.attrs else '',
+                t=self._print(var.type),
+                s=self._print(var.symbol),
+                c=", ".join([self._print(p) for p in params])
+            )
+        else:
+            raise NotImplementedError("Unknown type of var: %s" % type(var))
+        # if params != None:  # Must be "!= None", cannot be "is not None" # noqa
+        #     result += ' = %s' % self._print(params)
+        return result
 
 
-# def ccode(expr, **kwargs):
-#     printer = CodeGenPrinter()
-#     return printer.doprint(expr, **kwargs)
+def ccode(expr, **kwargs):
+    printer = CodeGenPrinter()
+    return printer.doprint(expr, **kwargs)
 
+
+class Constructor(Token):
+
+    """Token for adding constructor to variable Declaration.
+    Signature `Constructor(Variable, Tuple)`
+
+    Arguments
+    ---------
+        variable:
+            takes a Variable or Declaration
+        parameters:
+            the parameters of the constructor
+    """
+
+    __slots__ = _fields = ("variable", "parameters",)
+    defaults = {"parameters": Tuple()}
+
+    @staticmethod
+    def _construct_variable(params):
+        return params
+
+    @staticmethod
+    def _construct_parameters(params):
+        return params
 
 
 class KwargsToken(Token):
@@ -36,9 +81,15 @@ class KwargsToken(Token):
     """Token but accepts kwargs input"""
 
     def __new__(cls, *args, **kwargs):
-        _pops = ["exclude", "apply"]
-        kwargs_passthrough = {k: v for k, v in kwargs.items() if k in _pops}
-        # kwargs_passthrough["type"] = CTypes.as_map(CTypes.float64)
+        token_pops = ["exclude", "apply"]
+        pops = []
+        kwargs_passthrough = {}
+        for k, v in kwargs.items():
+            if k in token_pops:
+                kwargs[k] = v
+                pops += [k]
+        for k in pops:
+            kwargs.pop(k)
         if kwargs:
             args += (kwargs,)
         obj = super().__new__(cls, *args, **kwargs_passthrough)
@@ -210,6 +261,10 @@ class CTypes:
             return CTypes.void
         if isinstance(expr, Kwargs) or isinstance(expr, Dict):
             return CTypes.float64.as_map()
+        if isinstance(expr, MatrixSymbol):
+            if expr.shape[0] > 1 and expr.shape[1] > 1:  # type:ignore
+                raise Exception("Multidimensional Matrix shapes not yet supported.")
+            return CTypes.float64.as_vector()
         if isinstance(expr, Matrix):
             return CTypes.float64.as_vector()
         if isinstance(expr, (float, Float)):

@@ -1,13 +1,18 @@
 import numpy as np
+import itertools
 from typing import Any, Optional, Callable
-from sympy import ccode, pycode
+from sympy import pycode
+from sympy import MatrixSymbol
 from sympy import Function
 from sympy import Matrix
 from sympy import Expr
 from sympy.codegen.ast import FunctionDefinition
-from sympy.codegen.ast import CodeBlock
 from sympy.codegen.ast import FunctionPrototype
+from sympy.codegen.ast import CodeBlock
+from sympy.codegen.ast import Assignment
 from sympy.codegen.ast import Variable
+from sympy.codegen.ast import Return
+from sympy.codegen.ast import Symbol
 from sympy.codegen.ast import Type
 from sympy.codegen.ast import Tuple
 from japl.Util.Util import iter_type_check
@@ -16,6 +21,8 @@ from japl.Symbolic.Ast import CodeGenFunctionPrototype
 from japl.Symbolic.Ast import CType
 from japl.Symbolic.Ast import CTypes
 from japl.Symbolic.Ast import Kwargs
+from japl.Symbolic.Ast import ccode
+
 
 
 
@@ -41,14 +48,17 @@ class JaplFunction(Function):
     __slots__ = ("name",
                  "kwargs",  # function kwargs
                  "fargs",  # function args
+                 "expr",    # function expression
                  "codegen_function_call",
                  "codegen_function_def",
-                 "codegen_function_proto")
+                 "codegen_function_proto",
+                 "codegen_function_body")
 
     parent = ""
     codegen_function_call: CodegenFunctionCall
     codegen_function_def: FunctionDefinition
     codegen_function_proto: FunctionPrototype
+    codegen_function_body: CodeBlock
 
     # @classmethod
     # def eval(cls, *args):
@@ -87,12 +97,66 @@ class JaplFunction(Function):
 
         # codegen objects
         obj.codegen_function_call = CodegenFunctionCall(obj.name, found_args, found_kwargs)
-        # obj.codegen_function_proto = FunctionPrototype(return_type=)
         return obj
 
 
-    def set_body(self, body: CodeBlock|list|tuple):
+    @staticmethod
+    def _to_codeblock(arg: Expr|Matrix|CodeBlock|list|tuple) -> CodeBlock:
+        """converts Symbolic expressions to codeblock."""
+        std_return_name = "_Ret_arg"
+        code_lines = []
+        if isinstance(arg, MatrixSymbol):
+            arg = arg.as_mutable()
+        if isinstance(arg, Matrix):
+            # for Matrix, declare return var and assign expressions.
+            # code_lines = []
+            ret_symbol = MatrixSymbol(std_return_name, *arg.shape)
+            return_type = CTypes.from_expr(ret_symbol)
+            ret_var = Variable(std_return_name, type=return_type)
+            code_lines += [ret_var.as_Declaration()]
+
+            for idx, subexpr in zip(itertools.product(*[range(dim) for dim in arg.shape]), [*arg]):
+                lhs = ret_symbol[idx]
+                code_lines += [Assignment(lhs, subexpr)]
+
+            # return ret_var
+            code_lines += [Return(ret_var)]
+            return CodeBlock(*code_lines)
+        elif isinstance(arg, Expr):
+            if isinstance(arg, Symbol):
+                var = Variable(arg, type=CTypes.from_expr(arg)).as_Declaration()
+                return CodeBlock(var)
+            else:
+                # code_lines = []
+                ret_var = Variable(std_return_name, type=CTypes.from_expr(arg))
+                code_lines += [ret_var.as_Declaration()]
+                code_lines += [Assignment(ret_var.symbol, arg)]
+                return CodeBlock(*code_lines)
+        # TODO for iter types:
+        # auto-apply return if non exist
+        # auto-apply declarations if non exist
+        elif isinstance(arg, tuple):
+            # return CodeBlock(*arg)
+            for item in arg:
+                code_lines += JaplFunction._to_codeblock(item)
+            return CodeBlock(*code_lines)
+        elif isinstance(arg, list):
+            # return CodeBlock(*arg)
+            for item in arg:
+                code_lines += JaplFunction._to_codeblock(item)
+            return CodeBlock(*code_lines)
+        elif isinstance(arg, CodeBlock):  # type:ignore
+            return arg
+        else:
+            raise Exception("Cannot conver expression to CodeBlock: unhandled case.")
+
+
+    def set_body(self, body: Expr|Matrix|CodeBlock|list|tuple):
         if isinstance(body, CodeBlock):
+            pass
+        elif isinstance(body, Expr):
+            pass
+        elif isinstance(body, Matrix):
             pass
         elif isinstance(body, tuple) or isinstance(body, list):  # type:ignore
             pass
@@ -118,6 +182,7 @@ class JaplFunction(Function):
 
 
     def _build_proto(self, expr, code_type: str):
+        """Builds function prototype"""
         Types = CodeGenUtil.get_lang_types(code_type)
         return_type = Types.from_expr(expr)
         # convert parameter Symbols to Variable
@@ -126,6 +191,14 @@ class JaplFunction(Function):
                                          name=self.name,
                                          parameters=parameters)
         self.codegen_function_proto = proto
+
+
+    def _build_def(self, expr, code_type: str):
+        """Build function definition"""
+        func_proto = self.codegen_function_proto
+        func_def = FunctionDefinition.from_FunctionPrototype(func_proto=func_proto,
+                                                             body=expr)
+        self.codegen_function_def = func_def
 
 
     def __reduce__(self) -> str | tuple[Any, ...]:

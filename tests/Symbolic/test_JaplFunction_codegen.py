@@ -1,15 +1,14 @@
 import unittest
+from textwrap import dedent
 from sympy import symbols
 from sympy import pycode
 # from sympy import ccode
 from sympy import symbols
 from japl.Symbolic.JaplFunction import JaplFunction
-from japl.Symbolic.JaplFunction import CodeGenUtil
-from japl.Symbolic.Ast import CodeGenFunctionPrototype
+from japl.Symbolic.Ast import Constructor
 from japl.Symbolic.Ast import CType, CTypes
 from japl.Symbolic.Ast import Kwargs
 from japl.Symbolic.Ast import Dict
-# from japl.Symbolic.Ast import CodeGenPrinter
 from japl.Symbolic.Ast import ccode
 
 from sympy.codegen.ast import CodeBlock, Assignment, FunctionPrototype, Variable, Type, String, Token
@@ -53,6 +52,14 @@ class TestJaplFunction(unittest.TestCase):
         self.assertEqual(str(ret), "map<string, double>")
         ret = CTypes.from_expr(Dict({'x': 1}))
         self.assertEqual(str(ret), "map<string, double>")
+        """MatrixSymbols"""
+        ret = CTypes.from_expr(MatrixSymbol("A", 3, 1))
+        self.assertEqual(str(ret), "vector<double>")
+        with self.assertRaises(Exception):
+            ret = CTypes.from_expr(MatrixSymbol("A", 3, 2))
+        with self.assertRaises(Exception):
+            ret = CTypes.from_expr(MatrixSymbol("A", 2, 3))
+
 
 
     def test_get_parameter_variables(self):
@@ -83,6 +90,81 @@ class TestJaplFunction(unittest.TestCase):
         f = func(a, b=1)
         f._build_proto(expr=Matrix([c + d]), code_type=code_type)
         self.assertEqual(ccode(f.codegen_function_proto), "vector<double> func(double& a, map<string, double>& kwargs)")
+
+
+    def test_codegen_build_def_case1(self):
+        code_type = 'c'
+        a, b = symbols("a, b")
+        c, d = symbols("c, d")
+        f = func(a, b)
+        f._build_proto(expr=None, code_type=code_type)
+        f._build_def(expr=None, code_type=code_type)
+        truth = """\
+                void func(double& a, double& b){
+
+                }"""
+        self.assertEqual(ccode(f.codegen_function_def), dedent(truth))
+
+
+    def test_to_codeblock(self):
+        a, b, c, d = symbols("a, b, c, d")
+        A = Matrix([a, b, c])
+        ret = JaplFunction._to_codeblock(a)
+        self.assertEqual(ccode(ret), "double a;")
+        ret = JaplFunction._to_codeblock(a + b)
+        truth = """\
+                double _Ret_arg;
+                _Ret_arg = a + b;"""
+        self.assertEqual(ccode(ret), dedent(truth))
+        ret = JaplFunction._to_codeblock(A)
+        truth = """\
+                vector<double> _Ret_arg;
+                _Ret_arg[0] = a;
+                _Ret_arg[1] = b;
+                _Ret_arg[2] = c;
+                return _Ret_arg;"""
+        self.assertEqual(ccode(ret), dedent(truth))
+
+        # A = MatrixSymbol("A", 3, 1)
+        # ret = JaplFunction._to_codeblock(A)
+        # truth = """\
+        #         vector<double> _Ret_arg;
+        #         _Ret_arg[0] = a;
+        #         _Ret_arg[1] = b;
+        #         _Ret_arg[2] = c;
+        #         return _Ret_arg;
+        #         double _Ret_arg;
+        #         _Ret_arg = a + b;"""
+        # print(ccode(ret))
+
+    def test_to_constructor(self):
+        var = Variable("a", type=CTypes.float64).as_Declaration()
+        self.assertEqual(ccode(Constructor(var)), "double a()")
+        var = Variable("a", type=CTypes.float64).as_Declaration()
+        params = (1, 2)
+        self.assertEqual(ccode(Constructor(var, params)), "double a(1, 2)")
+        var = Variable("a", type=CTypes.float64)
+        params = (1, 2)
+        self.assertEqual(ccode(Constructor(var, params)), "double a(1, 2)")
+        var = Variable("a", type=CTypes.float64)
+        params = (Dict(dict({'a': 1, 'b': 2})),)
+        self.assertEqual(ccode(Constructor(var, params)), 'double a({{"a", 1}, {"b", 2}})')
+
+
+    # def test_codegen_build_def_case2(self):
+    #     code_type = 'c'
+    #     a, b = symbols("a, b")
+    #     c, d = symbols("c, d")
+    #     f = func(a, b)
+    #     ret_var = Variable("ret", type=CTypes.float64).as_Declaration()
+    #     f._build_proto(expr=Symbol("ret"), code_type=code_type)
+    #     f._build_def(expr=[ret_var], code_type=code_type)
+    #     # truth = """\
+    #     #         void func(double& a, double& b){
+
+    #     #         }"""
+    #     # self.assertEqual(ccode(f.codegen_function_def), dedent(truth))
+    #     print(ccode(f.codegen_function_def))
 
 
     # -----------------------------------------
