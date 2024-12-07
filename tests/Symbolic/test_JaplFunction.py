@@ -1,6 +1,7 @@
 import unittest
 from sympy import Symbol
 from japl.Symbolic.JaplFunction import JaplFunction
+from japl.Symbolic.Ast import CTypes
 from sympy import pycode
 from sympy import ccode
 from sympy import cse
@@ -22,6 +23,13 @@ class TestJaplFunction(unittest.TestCase):
 
     def setUp(self) -> None:
         pass
+
+
+    def test_type(self):
+        self.assertEqual(func().type, CTypes.float64)
+        class vfunc(JaplFunction):  # noqa
+            type = CTypes.float64.as_vector()
+        self.assertEqual(vfunc().type, CTypes.float64.as_vector())
 
 
     def test_non_kw_case1(self):

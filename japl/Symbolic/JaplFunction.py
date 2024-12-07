@@ -15,6 +15,7 @@ from sympy.codegen.ast import Return
 from sympy.codegen.ast import Symbol
 from sympy.codegen.ast import Type
 from sympy.codegen.ast import Tuple
+from sympy.matrices import MatrixExpr
 from japl.Util.Util import iter_type_check
 from japl.Symbolic.Ast import CodegenFunctionCall
 from japl.Symbolic.Ast import CodeGenFunctionPrototype
@@ -59,6 +60,7 @@ class JaplFunction(Function):
     codegen_function_def: FunctionDefinition
     codegen_function_proto: FunctionPrototype
     codegen_function_body: CodeBlock
+    type = CTypes.float64
 
     # @classmethod
     # def eval(cls, *args):
@@ -94,6 +96,7 @@ class JaplFunction(Function):
             obj.name = str(cls)  # function name is name of class
         obj.kwargs = found_kwargs
         obj.fargs = found_args
+        # obj.type = kwargs.get("type", CTypes.float64)
 
         # codegen objects
         obj.codegen_function_call = CodegenFunctionCall(obj.name, found_args, found_kwargs)
@@ -105,11 +108,10 @@ class JaplFunction(Function):
         """converts Symbolic expressions to codeblock."""
         std_return_name = "_Ret_arg"
         code_lines = []
-        if isinstance(arg, MatrixSymbol):
+        if isinstance(arg, MatrixExpr):  # captures MatrixSymbols / MatrixMul ...etc
             arg = arg.as_mutable()
         if isinstance(arg, Matrix):
             # for Matrix, declare return var and assign expressions.
-            # code_lines = []
             ret_symbol = MatrixSymbol(std_return_name, *arg.shape)
             return_type = CTypes.from_expr(ret_symbol)
             ret_var = Variable(std_return_name, type=return_type)
@@ -127,7 +129,6 @@ class JaplFunction(Function):
                 var = Variable(arg, type=CTypes.from_expr(arg)).as_Declaration()
                 return CodeBlock(var)
             else:
-                # code_lines = []
                 ret_var = Variable(std_return_name, type=CTypes.from_expr(arg))
                 code_lines += [ret_var.as_Declaration()]
                 code_lines += [Assignment(ret_var.symbol, arg)]
@@ -138,17 +139,18 @@ class JaplFunction(Function):
         elif isinstance(arg, tuple):
             # return CodeBlock(*arg)
             for item in arg:
-                code_lines += JaplFunction._to_codeblock(item)
+                code_lines += [JaplFunction._to_codeblock(item)]
             return CodeBlock(*code_lines)
         elif isinstance(arg, list):
             # return CodeBlock(*arg)
             for item in arg:
-                code_lines += JaplFunction._to_codeblock(item)
+                code_lines += [JaplFunction._to_codeblock(item)]
             return CodeBlock(*code_lines)
         elif isinstance(arg, CodeBlock):  # type:ignore
             return arg
         else:
-            raise Exception("Cannot conver expression to CodeBlock: unhandled case.")
+            # raise Exception("Cannot conver expression to CodeBlock: unhandled case.")
+            return arg
 
 
     def set_body(self, body: Expr|Matrix|CodeBlock|list|tuple):

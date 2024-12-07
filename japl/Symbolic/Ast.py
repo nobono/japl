@@ -9,6 +9,7 @@ from sympy.codegen.ast import Tuple
 from sympy.codegen.ast import Type
 from sympy.codegen.ast import Node
 from sympy.codegen.ast import untyped
+from sympy.core.function import Function
 # from sympy.codegen.ast import complex_
 # from sympy import ccode
 from sympy import pycode
@@ -16,7 +17,6 @@ from sympy import Float, Integer, Matrix
 from sympy import MatrixSymbol
 from sympy.printing.c import C99CodePrinter
 from sympy.printing.c import value_const
-
 
 
 class CodeGenPrinter(C99CodePrinter):
@@ -33,11 +33,10 @@ class CodeGenPrinter(C99CodePrinter):
             raise ValueError("C does not support untyped variables")
 
         elif isinstance(var, Variable):
-            result = '{t} {s}({c})'.format(
-                # vc='const ' if value_const in var.attrs else '',
+            result = '{t} {s}({p})'.format(
                 t=self._print(var.type),
                 s=self._print(var.symbol),
-                c=", ".join([self._print(p) for p in params])
+                p=", ".join([self._print(p) for p in params])
             )
         else:
             raise NotImplementedError("Unknown type of var: %s" % type(var))
@@ -259,6 +258,8 @@ class CTypes:
         """
         if expr is None:
             return CTypes.void
+        if isinstance(expr, Function):
+            return expr.type
         if isinstance(expr, Kwargs) or isinstance(expr, Dict):
             return CTypes.float64.as_map()
         if isinstance(expr, MatrixSymbol):

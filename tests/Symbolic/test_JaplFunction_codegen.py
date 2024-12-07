@@ -11,7 +11,15 @@ from japl.Symbolic.Ast import Kwargs
 from japl.Symbolic.Ast import Dict
 from japl.Symbolic.Ast import ccode
 
-from sympy.codegen.ast import CodeBlock, Assignment, FunctionPrototype, Variable, Type, String, Token
+from sympy.codegen.ast import CodeBlock
+from sympy.codegen.ast import Assignment
+from sympy.codegen.ast import FunctionPrototype
+from sympy.codegen.ast import Return
+from sympy.codegen.ast import Variable
+from sympy.codegen.ast import Type
+from sympy.codegen.ast import String
+from sympy.codegen.ast import Token
+from sympy.codegen.ast import Tuple
 from sympy import Matrix, Symbol, MatrixSymbol
 
 
@@ -108,7 +116,6 @@ class TestJaplFunction(unittest.TestCase):
 
     def test_to_codeblock(self):
         a, b, c, d = symbols("a, b, c, d")
-        A = Matrix([a, b, c])
         ret = JaplFunction._to_codeblock(a)
         self.assertEqual(ccode(ret), "double a;")
         ret = JaplFunction._to_codeblock(a + b)
@@ -116,6 +123,11 @@ class TestJaplFunction(unittest.TestCase):
                 double _Ret_arg;
                 _Ret_arg = a + b;"""
         self.assertEqual(ccode(ret), dedent(truth))
+
+
+    def test_to_codeblock_matrix(self):
+        a, b, c, d = symbols("a, b, c, d")
+        A = Matrix([a, b, c])
         ret = JaplFunction._to_codeblock(A)
         truth = """\
                 vector<double> _Ret_arg;
@@ -125,17 +137,36 @@ class TestJaplFunction(unittest.TestCase):
                 return _Ret_arg;"""
         self.assertEqual(ccode(ret), dedent(truth))
 
-        # A = MatrixSymbol("A", 3, 1)
-        # ret = JaplFunction._to_codeblock(A)
-        # truth = """\
-        #         vector<double> _Ret_arg;
-        #         _Ret_arg[0] = a;
-        #         _Ret_arg[1] = b;
-        #         _Ret_arg[2] = c;
-        #         return _Ret_arg;
-        #         double _Ret_arg;
-        #         _Ret_arg = a + b;"""
-        # print(ccode(ret))
+        A = MatrixSymbol("A", 3, 1)
+        ret = JaplFunction._to_codeblock(A * 2)
+        truth = """\
+                vector<double> _Ret_arg;
+                _Ret_arg[0] = 2*A[0];
+                _Ret_arg[1] = 2*A[1];
+                _Ret_arg[2] = 2*A[2];
+                return _Ret_arg;"""
+        self.assertEqual(ccode(ret), dedent(truth))
+
+
+    def test_to_codeblock_iterable(self):
+        a, b, c, d = symbols("a, b, c, d")
+        ret = JaplFunction._to_codeblock([
+            a, b, c, d,
+            Assignment(a, b),
+            Assignment(c, d),
+            Return(a)
+            ])
+        truth = """\
+                double a;
+                double b;
+                double c;
+                double d;
+                a = b;
+                c = d;
+                return a;"""
+        self.assertEqual(ccode(ret), dedent(truth))
+
+
 
     def test_to_constructor(self):
         var = Variable("a", type=CTypes.float64).as_Declaration()
@@ -151,20 +182,20 @@ class TestJaplFunction(unittest.TestCase):
         self.assertEqual(ccode(Constructor(var, params)), 'double a({{"a", 1}, {"b", 2}})')
 
 
-    # def test_codegen_build_def_case2(self):
+    # def test_codegen_build_function(self):
     #     code_type = 'c'
     #     a, b = symbols("a, b")
     #     c, d = symbols("c, d")
     #     f = func(a, b)
     #     ret_var = Variable("ret", type=CTypes.float64).as_Declaration()
-    #     f._build_proto(expr=Symbol("ret"), code_type=code_type)
-    #     f._build_def(expr=[ret_var], code_type=code_type)
-    #     # truth = """\
-    #     #         void func(double& a, double& b){
+        # f._build_proto(expr=Symbol("ret"), code_type=code_type)
+        # f._build_def(expr=[ret_var], code_type=code_type)
+        # # truth = """\
+        # #         void func(double& a, double& b){
 
-    #     #         }"""
-    #     # self.assertEqual(ccode(f.codegen_function_def), dedent(truth))
-    #     print(ccode(f.codegen_function_def))
+        # #         }"""
+        # # self.assertEqual(ccode(f.codegen_function_def), dedent(truth))
+        # print(ccode(f.codegen_function_def))
 
 
     # -----------------------------------------
