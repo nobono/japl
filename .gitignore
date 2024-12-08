@@ -170,3 +170,6 @@ cython_debug/
 *.pickle
 *.mat
 *.japl
+
+# make exception for /docs
+!/docs/assets/*
