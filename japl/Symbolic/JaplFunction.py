@@ -6,6 +6,7 @@ from sympy import MatrixSymbol
 from sympy import Function
 from sympy import Matrix
 from sympy import Expr
+from sympy.codegen.ast import numbered_symbols
 from sympy.codegen.ast import FunctionDefinition
 from sympy.codegen.ast import FunctionPrototype
 from sympy.codegen.ast import CodeBlock
@@ -23,7 +24,6 @@ from japl.Symbolic.Ast import CType
 from japl.Symbolic.Ast import CTypes
 from japl.Symbolic.Ast import Kwargs
 from japl.Symbolic.Ast import ccode
-
 
 
 
@@ -49,7 +49,7 @@ class JaplFunction(Function):
     __slots__ = ("name",
                  "kwargs",  # function kwargs
                  "fargs",  # function args
-                 "expr",    # function expression
+                 # "expr",    # function expression
                  "codegen_function_call",
                  "codegen_function_def",
                  "codegen_function_proto",
@@ -60,7 +60,12 @@ class JaplFunction(Function):
     codegen_function_def: FunctionDefinition
     codegen_function_proto: FunctionPrototype
     codegen_function_body: CodeBlock
+    body = CodeBlock()
+    expr: Expr
     type = CTypes.float64
+
+    std_return_name = "_Ret_arg"
+    std_dummy_name = "_Dummy_var"
 
     # @classmethod
     # def eval(cls, *args):
@@ -96,8 +101,6 @@ class JaplFunction(Function):
             obj.name = str(cls)  # function name is name of class
         obj.kwargs = found_kwargs
         obj.fargs = found_args
-        # obj.type = kwargs.get("type", CTypes.float64)
-
         # codegen objects
         obj.codegen_function_call = CodegenFunctionCall(obj.name, found_args, found_kwargs)
         return obj
@@ -106,7 +109,7 @@ class JaplFunction(Function):
     @staticmethod
     def _to_codeblock(arg: Expr|Matrix|CodeBlock|list|tuple) -> CodeBlock:
         """converts Symbolic expressions to codeblock."""
-        std_return_name = "_Ret_arg"
+        std_return_name = JaplFunction.std_return_name
         code_lines = []
         if isinstance(arg, MatrixExpr):  # captures MatrixSymbols / MatrixMul ...etc
             arg = arg.as_mutable()
@@ -132,6 +135,7 @@ class JaplFunction(Function):
                 ret_var = Variable(std_return_name, type=CTypes.from_expr(arg))
                 code_lines += [ret_var.as_Declaration()]
                 code_lines += [Assignment(ret_var.symbol, arg)]
+                code_lines += [Return(ret_var)]
                 return CodeBlock(*code_lines)
         # TODO for iter types:
         # auto-apply return if non exist
@@ -153,17 +157,13 @@ class JaplFunction(Function):
             return arg
 
 
-    def set_body(self, body: Expr|Matrix|CodeBlock|list|tuple):
+    def set_body(self, body: CodeBlock|Expr):
+        # set body directly if CodeBlock.
+        # otherwise, prime expr for body creation.
         if isinstance(body, CodeBlock):
-            pass
-        elif isinstance(body, Expr):
-            pass
-        elif isinstance(body, Matrix):
-            pass
-        elif isinstance(body, tuple) or isinstance(body, list):  # type:ignore
-            pass
+            self.body = self._to_codeblock(body)
         else:
-            raise Exception(f"could not set function body for {self.name}")
+            self.expr = body
 
 
     def _get_parameter_variables(self, code_type: str) -> tuple[Variable, ...]:
@@ -176,9 +176,14 @@ class JaplFunction(Function):
             kwarg_params = (Variable("kwargs", type=kwarg_type),)
         for param in self.fargs:
             param_type = Types.from_expr(param).as_ref()
-            param_name = getattr(param, "name", None)
-            if param_name is None:
-                param_name = str(param)
+
+            # if param is Literal type, use dummy var
+            if isinstance(param, Symbol):
+                param_name = getattr(param, "name", None)
+                if param_name is None:
+                    param_name = str(param)
+            else:
+                param_name = next(numbered_symbols(prefix=JaplFunction.std_dummy_name))
             arg_params += (Variable(param_name, type=param_type),)
         return arg_params + kwarg_params
 
@@ -198,9 +203,26 @@ class JaplFunction(Function):
     def _build_def(self, expr, code_type: str):
         """Build function definition"""
         func_proto = self.codegen_function_proto
+        codeblock = self._to_codeblock(expr)
         func_def = FunctionDefinition.from_FunctionPrototype(func_proto=func_proto,
-                                                             body=expr)
+                                                             body=codeblock)
         self.codegen_function_def = func_def
+
+
+    def get_proto(self):
+        return self.codegen_function_proto
+
+
+    def get_def(self):
+        return self.codegen_function_def
+
+
+    def _build_function(self, code_type: str):
+        if self.expr == Expr():
+            raise Exception(f"unable to build function {self.name}."
+                            "expr attribute not defined.")
+        self._build_proto(expr=self.expr, code_type=code_type)
+        self._build_def(expr=self.expr, code_type=code_type)
 
 
     def __reduce__(self) -> str | tuple[Any, ...]:

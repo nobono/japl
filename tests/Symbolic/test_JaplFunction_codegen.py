@@ -100,6 +100,14 @@ class TestJaplFunction(unittest.TestCase):
         self.assertEqual(ccode(f.codegen_function_proto), "vector<double> func(double& a, map<string, double>& kwargs)")
 
 
+    def test_codegen_build_proto_dummy_params(self):
+        code_type = 'c'
+        a, b = symbols("a, b")
+        f = func(1, a, 2.0)
+        f._build_proto(expr=None, code_type=code_type)
+        self.assertEqual(ccode(f.get_proto()), "void func(int& _Dummy_var0, double& a, double& _Dummy_var0)")
+
+
     def test_codegen_build_def_case1(self):
         code_type = 'c'
         a, b = symbols("a, b")
@@ -121,7 +129,8 @@ class TestJaplFunction(unittest.TestCase):
         ret = JaplFunction._to_codeblock(a + b)
         truth = """\
                 double _Ret_arg;
-                _Ret_arg = a + b;"""
+                _Ret_arg = a + b;
+                return _Ret_arg;"""
         self.assertEqual(ccode(ret), dedent(truth))
 
 
@@ -182,12 +191,22 @@ class TestJaplFunction(unittest.TestCase):
         self.assertEqual(ccode(Constructor(var, params)), 'double a({{"a", 1}, {"b", 2}})')
 
 
+    # def test_(self):
+    #     a, b = symbols("a, b")
+    #     class fun(JaplFunction):  # type:ignore
+    #         expr = a + b
+    #     f = fun(1, 2)
+    #     self.assertEqual(f.expr, a + b)
+    #     f._build_function(code_type='c')
+    #     print(ccode(f.get_proto()))
+
+
     # def test_codegen_build_function(self):
     #     code_type = 'c'
     #     a, b = symbols("a, b")
     #     c, d = symbols("c, d")
     #     f = func(a, b)
-    #     ret_var = Variable("ret", type=CTypes.float64).as_Declaration()
+        # ret_var = Variable("ret", type=CTypes.float64).as_Declaration()
         # f._build_proto(expr=Symbol("ret"), code_type=code_type)
         # f._build_def(expr=[ret_var], code_type=code_type)
         # # truth = """\

@@ -269,7 +269,7 @@ class CTypes:
         if isinstance(expr, Matrix):
             return CTypes.float64.as_vector()
         if isinstance(expr, (float, Float)):
-            return CTypes.float32
+            return CTypes.float64
         if isinstance(expr, (int, Integer)) or getattr(expr, 'is_integer', False):
             return CTypes.int
         if getattr(expr, 'is_real', False):
