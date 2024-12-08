@@ -4,6 +4,7 @@ nav:
   - Home: index.md
   - About: about.md
   - Getting Started: installation.md
+  - CodeGeneration: code_generation.md
 
 theme:
   name: material
@@ -27,6 +28,17 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
 
+plugins:
+  - search
+  - mkdocstrings:
+      enabled: !ENV [ENABLE_MKDOCSTRINGS, true]
+      # custom_templates: templates
+      default_handler: python
+      handlers:
+        python:
+          options:
+            show_source: false
+
 markdown_extensions:
   # aligning images
   - attr_list
@@ -40,12 +52,12 @@ markdown_extensions:
   - pymdownx.snippets
   - pymdownx.superfences
 
-  # # mermaid flowcharts
-  # - pymdownx.superfences:
-  #     custom_fences:
-  #       - name: mermaid
-  #         class: mermaid
-  #         format: !!python/name:pymdownx.superfences.fence_code_format
+  # mermaid flowcharts
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
 
   # allow Latex
   - pymdownx.arithmatex:
