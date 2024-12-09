@@ -1,7 +1,7 @@
 from japl import Atmosphere
 # from sympy import Function
 from sympy import Symbol
-from japl.Symbolic.JaplFunction import JaplFunction
+from japl.CodeGen.JaplFunction import JaplFunction
 
 
 

@@ -1,15 +1,15 @@
 import unittest
 from sympy import symbols
-from sympy import pycode
-from sympy import ccode
-from sympy import symbols
+# from sympy import ccode
+from japl.CodeGen.Util import ccode
+from japl.CodeGen.Util import pycode
 from sympy.codegen.ast import String
-from japl.Symbolic.Ast import Tuple
-from japl.Symbolic.Ast import Kwargs
-from japl.Symbolic.Ast import Dict
-from japl.Symbolic.Ast import CType
-from japl.Symbolic.Ast import CTypes
-from japl.Symbolic.Ast import CodegenFunctionCall
+from japl.CodeGen.Ast import Tuple
+from japl.CodeGen.Ast import Kwargs
+from japl.CodeGen.Ast import Dict
+from japl.CodeGen.Ast import CType
+from japl.CodeGen.Ast import CTypes
+from japl.CodeGen.Ast import CodegenFunctionCall
 from sympy.codegen.ast import Variable
 
 

@@ -1,7 +1,7 @@
 import unittest
 from sympy import Symbol
-from japl.Symbolic.JaplFunction import JaplFunction
-from japl.Symbolic.Ast import CTypes
+from japl.CodeGen.JaplFunction import JaplFunction
+from japl.CodeGen.Ast import CTypes
 from sympy import pycode
 from sympy import ccode
 from sympy import cse

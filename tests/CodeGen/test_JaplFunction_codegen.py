@@ -4,12 +4,12 @@ from sympy import symbols
 from sympy import pycode
 # from sympy import ccode
 from sympy import symbols
-from japl.Symbolic.JaplFunction import JaplFunction
-from japl.Symbolic.Ast import Constructor
-from japl.Symbolic.Ast import CType, CTypes
-from japl.Symbolic.Ast import Kwargs
-from japl.Symbolic.Ast import Dict
-from japl.Symbolic.Ast import ccode
+from japl.CodeGen.JaplFunction import JaplFunction
+from japl.CodeGen.Ast import Constructor
+from japl.CodeGen.Ast import CType, CTypes
+from japl.CodeGen.Ast import Kwargs
+from japl.CodeGen.Ast import Dict
+from japl.CodeGen.Util import ccode
 
 from sympy.codegen.ast import CodeBlock
 from sympy.codegen.ast import Assignment

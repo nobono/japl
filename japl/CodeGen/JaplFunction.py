@@ -1,7 +1,6 @@
 import numpy as np
 import itertools
 from typing import Any, Optional, Callable
-from sympy import pycode
 from sympy import MatrixSymbol
 from sympy import Function
 from sympy import Matrix
@@ -18,27 +17,26 @@ from sympy.codegen.ast import Type
 from sympy.codegen.ast import Tuple
 from sympy.matrices import MatrixExpr
 from japl.Util.Util import iter_type_check
-from japl.Symbolic.Ast import CodegenFunctionCall
-from japl.Symbolic.Ast import CodeGenFunctionPrototype
-from japl.Symbolic.Ast import CType
-from japl.Symbolic.Ast import CTypes
-from japl.Symbolic.Ast import Kwargs
-from japl.Symbolic.Ast import ccode
+from japl.CodeGen.Ast import CodegenFunctionCall
+from japl.CodeGen.Ast import CodeGenFunctionPrototype
+from japl.CodeGen.Ast import CType
+from japl.CodeGen.Ast import CTypes
+from japl.CodeGen.Ast import Kwargs
+from japl.CodeGen.Util import ccode
+from japl.CodeGen.Util import pycode
 
 
 
-class CodeGenUtil:
+__CODES__ = ("py", "c")
 
-    CODES = ("py", "c")
 
-    @staticmethod
-    def get_lang_types(code_type: str):
-        if code_type not in CodeGenUtil.CODES:
-            raise Exception(f"codegen for {code_type} not avaialable.")
-        elif code_type == "py":
-            raise Exception("Type does not apply for generating python code.")
-        elif code_type == "c":
-            return CTypes
+def get_lang_types(code_type: str):
+    if code_type not in __CODES__:
+        raise Exception(f"codegen for {code_type} not avaialable.")
+    elif code_type == "py":
+        raise Exception("Type does not apply for generating python code.")
+    elif code_type == "c":
+        return CTypes
 
 
 class JaplFunction(Function):
@@ -168,7 +166,7 @@ class JaplFunction(Function):
 
     def _get_parameter_variables(self, code_type: str) -> tuple[Variable, ...]:
         """converts parameter Symbols to Variables"""
-        Types = CodeGenUtil.get_lang_types(code_type)
+        Types = get_lang_types(code_type)
         kwarg_params = ()
         arg_params = ()
         if self.kwargs:
@@ -190,7 +188,7 @@ class JaplFunction(Function):
 
     def _build_proto(self, expr, code_type: str):
         """Builds function prototype"""
-        Types = CodeGenUtil.get_lang_types(code_type)
+        Types = get_lang_types(code_type)
         return_type = Types.from_expr(expr)
         # convert parameter Symbols to Variable
         parameters = self._get_parameter_variables(code_type)
@@ -223,6 +221,12 @@ class JaplFunction(Function):
                             "expr attribute not defined.")
         self._build_proto(expr=self.expr, code_type=code_type)
         self._build_def(expr=self.expr, code_type=code_type)
+
+
+    def _build(self, code_type: str):
+        """method called by CodeGen.Builder used to build
+        this AST object."""
+        self._build_function(code_type=code_type)
 
 
     def __reduce__(self) -> str | tuple[Any, ...]:

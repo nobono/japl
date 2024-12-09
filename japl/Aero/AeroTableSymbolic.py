@@ -3,7 +3,7 @@ from typing import Optional
 from sympy import Symbol
 from japl import AeroTable
 from japl.Util.Matlab import MatFile
-from japl.Symbolic.JaplFunction import JaplFunction
+from japl.CodeGen.JaplFunction import JaplFunction
 
 
 
