@@ -1,29 +1,25 @@
----
-Builder Pattern
----
+CodeGenerator module is implemented as a Builder software pattern
 
 ```mermaid
 classDiagram
-    note "From Duck till Zebra"
-    Animal <|-- Duck
-    note for Duck "can fly\ncan swim\ncan dive\ncan help in debugging"
-    Animal <|-- Fish
-    Animal <|-- Zebra
-    Animal : +int age
-    Animal : +String gender
-    Animal: +isMammal()
-    Animal: +mate()
-    class Duck{
-        +String beakColor
-        +swim()
-        +quack()
+    CodeGenerator --> JaplFunction
+    JaplFunction --> Call
+    JaplFunction --> Proto
+    JaplFunction --> Def
+    Builder --> FileBuilder
+    class CodeGenerator {
+        + code_type
+        + build_ext_module()
+        + build_file()
     }
-    class Fish{
-        -int sizeInFeet
-        -canEat()
+    class Builder {
+        + data dict[filename, ast_node]
+        + add_item()
+        + do_build()
     }
-    class Zebra{
-        +bool is_wild
-        +run()
+    class FileBuilder {
+        + data dict[filename, ast_node]
+        + add_item()
+        + do_build()
     }
 ```
