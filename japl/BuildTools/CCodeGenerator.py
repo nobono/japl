@@ -571,7 +571,7 @@ class CCodeGenerator(CodeGeneratorBase):
 
 
     def _write_function_call_wrapper(self, func_name: str, description: str) -> Writes:
-        class_def, func_name = self._parse_class_func(func_name)
+        class_def, func_name = CCodeGenerator._parse_class_func(func_name)
         # lambda wrapper to convert return of vector<> to py::array_t<>
         _std_params_str = ", ".join([f"{typ} {var}" for typ, var in zip(self.std_args_types, self.std_args)])
         _std_params_names_str = ", ".join([i for i in self.std_args])

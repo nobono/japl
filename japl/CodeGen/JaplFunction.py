@@ -1,4 +1,3 @@
-import numpy as np
 import itertools
 from typing import Any, Optional, Callable
 from sympy import MatrixSymbol

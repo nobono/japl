@@ -2,19 +2,19 @@ from io import TextIOWrapper
 import os
 import shutil
 from typing import Any, Optional
-from sympy.codegen.ast import FunctionCall
-from sympy.codegen.ast import FunctionPrototype
-from sympy.codegen.ast import FunctionDefinition
-from sympy.codegen.ast import Token
-from sympy.codegen.ast import String
-from sympy.codegen.ast import Tuple
-from sympy.codegen.ast import Type
-from sympy.codegen.ast import Node
+# from sympy.codegen.ast import FunctionCall
+# from sympy.codegen.ast import FunctionPrototype
+# from sympy.codegen.ast import FunctionDefinition
+# from sympy.codegen.ast import Token
+# from sympy.codegen.ast import String
+# from sympy.codegen.ast import Tuple
+# from sympy.codegen.ast import Type
+# from sympy.codegen.ast import Node
 from sympy.codegen.ast import Basic
-from sympy.core.function import Function
-from sympy import Float, Integer, Matrix
-from sympy import MatrixSymbol
-from sympy.printing.c import value_const
+# from sympy.core.function import Function
+# from sympy import Float, Integer, Matrix
+# from sympy import MatrixSymbol
+# from sympy.printing.c import value_const
 from japl.CodeGen.JaplFunction import JaplFunction
 from japl.CodeGen.Util import ccode
 from pathlib import Path
@@ -53,10 +53,10 @@ class Builder:
 class FileBuilder(Builder):
 
 
-    def __init__(self, name: str, *args, **kwargs) -> None:
+    def __init__(self, filename: str, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.check_filename(name)
-        self.name = str(name)
+        self.check_filename(filename)
+        self.name = str(filename)
 
 
     @staticmethod
