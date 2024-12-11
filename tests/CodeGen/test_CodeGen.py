@@ -28,7 +28,7 @@ class TestTemplate(unittest.TestCase):
             expr = a + b
         f = func(a, b)
         builder = FileBuilder("test.cpp")
-        builder.add_item(f.name, f)
+        builder.add_function(f)
         builder.build(code_type)
 
         file = StringIO()
@@ -36,7 +36,6 @@ class TestTemplate(unittest.TestCase):
 
         file.seek(0)
         code_str = file.read()
-        print(code_str)
         file.close()
 
 
@@ -47,7 +46,7 @@ class TestTemplate(unittest.TestCase):
         f = func(a, b)
 
         builder = CFileBuilder("test.cpp")
-        builder.add_item(f.name, f)
+        builder.add_function(f)
         file = StringIO()
         CodeGenerator.build_file(builder, file=file)
 

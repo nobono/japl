@@ -1,7 +1,7 @@
 from io import TextIOWrapper
 import os
 import shutil
-from typing import Any, Optional
+from typing import Any, Optional, Union
 # from sympy.codegen.ast import FunctionCall
 # from sympy.codegen.ast import FunctionPrototype
 # from sympy.codegen.ast import FunctionDefinition
@@ -17,32 +17,51 @@ from sympy.codegen.ast import Basic
 # from sympy.printing.c import value_const
 from japl.CodeGen.JaplFunction import JaplFunction
 from japl.CodeGen.Util import ccode
+from japl.CodeGen.Util import copy_dir
 from pathlib import Path
+from textwrap import dedent
+
+Writes = list[str]
+AstNode = Union[str, list, tuple, Basic, "Builder"]
 
 
 
 class Builder:
 
     name: str
-    data: dict = {}
+    data: dict
     code_type: str
-    writes: list = []
+    writes: list
 
     def __init__(self, *args, **kwargs) -> None:
-        pass
+        if (code_type := kwargs.get("code_type", None)) is not None:
+            self.code_type = code_type
+        self.data = {}
+        self.writes = []
 
 
-    def add_item(self, name: str, ast_nodes: list|tuple|Basic):
-        if not hasattr(ast_nodes, "__len__"):
-            ast_nodes = [ast_nodes]
-        self.name = name
-        self.data[name] = ast_nodes
+    def append(self, ast_nodes: AstNode):
+        # resursively append items to self.data
+        if isinstance(ast_nodes, list) or isinstance(ast_nodes, tuple):
+            for node in ast_nodes:
+                self.append(node)
+        else:
+            # get node name or iterate
+            if hasattr(ast_nodes, "name"):
+                name = getattr(ast_nodes, "name")
+            else:
+                name = str(len(self.data))
+            self.data[name] = ast_nodes
 
 
-    def build(self, code_type: str):
+    def build(self, code_type: str) -> Writes:
         for name, ast_nodes in self.data.items():
             for node in ast_nodes:
-                self.writes += [node._build(code_type=code_type)]
+                if isinstance(node, str):
+                    self.writes += [node]
+                else:
+                    self.writes += [node._build(code_type=code_type)]
+        return self.writes
 
 
     def dumps(self, file):
@@ -52,11 +71,29 @@ class Builder:
 
 class FileBuilder(Builder):
 
+    header: Writes
 
-    def __init__(self, filename: str, *args, **kwargs) -> None:
+    def __init__(self, filename: str, contents: AstNode, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.check_filename(filename)
+        self.deduce_code_type(filename)
         self.name = str(filename)
+        if not hasattr(self, "header"):
+            self.header = []
+        self.append(contents)
+
+
+    def deduce_code_type(self, filename: str):
+        self.check_filename(filename)
+        ext = filename.split('.')[1]
+        type_map = {"cpp": "c",
+                    "hpp": "c",
+                    "c": "c",
+                    "h": "c",
+                    "py": "py",
+                    }
+        if ext not in type_map:
+            raise Exception(f"file extension {ext} not supported.")
+        self.code_type = type_map[ext]
 
 
     @staticmethod
@@ -65,42 +102,340 @@ class FileBuilder(Builder):
             raise Exception("filename misssing extension.")
 
 
-    def add_item(self, name: str, ast_nodes: list|tuple|Basic):
-        super().add_item(name, ast_nodes)
-
-
-    def build(self, code_type: str):
-        for name, ast_nodes in self.data.items():
-            for node in ast_nodes:
-                if isinstance(node, JaplFunction):
-                    node._build(code_type=code_type)
-                    self.writes += [str(ccode(node.get_def()))]
-                else:
-                    raise Exception("unhandled case.")
+    def build(self, code_type: str) -> Writes:
+        for name, ast_node in self.data.items():
+            if isinstance(ast_node, str):
+                self.writes += [ast_node]
+            elif isinstance(ast_node, JaplFunction):
+                ast_node._build(code_type=code_type)
+                self.writes += [""]
+                self.writes += [str(ccode(ast_node.get_def()))]
+                self.writes += ["\n\n"]
+            else:
+                raise Exception(f"unhandled case for type {ast_node.__class__}.")
+        return self.writes
 
 
     def dumps(self, file):
+        for line in self.header:
+            file.write(line + "\n")
+        for line in self.writes:
+            file.write(line + "\n")
+        for line in self.footer_writes():
+            file.write(line + "\n")
+
+
+    # def add_function(self, function: JaplFunction):
+    #     self.append(function)
+
+
+    def footer_writes(self) -> Writes:
+        """override this method to write to end of file"""
+        return []
+
+
+class CFileBuilder(FileBuilder):
+    header: Writes = ["#include <iostream>",
+                      "#include <model.hpp>",
+                      "#include <vector>",
+                      "#include <pybind11/pybind11.h>",
+                      "#include <pybind11/numpy.h>",
+                      "#include <pybind11/stl.h>  // Enables automatic conversion",
+                      "",
+                      "namespace py = pybind11;",
+                      "using std::vector;",
+                      "",
+                      ""]
+    code_type = "c"
+    class_name = "Model"
+    class_properties = ["aerotable", "atmosphere"]
+
+
+    def build(self, code_type: str) -> Writes:
+        """CFileBuilder appends pybind11 code to the footer of
+        each source file."""
+        super().build(code_type)
+        if not hasattr(self, "class_properties"):
+            self.class_properties = []
+        self.writes += self.get_pybind_writes(module_name=self.name,
+                                              class_name=self.class_name,
+                                              class_properties=self.class_properties)
+        return self.writes
+
+
+    def get_pybind_writes(self, module_name: str, class_name: str, class_properties: list[str]) -> Writes:
+        writes = []
+        writes += self.get_pybind_binding_writes(module_name=module_name,
+                                                 class_name=class_name)
+        for ast_node in self.data.values():
+            if isinstance(ast_node, JaplFunction):
+                writes += self.get_pybind_method_call_wrapper(func_name=ast_node.name,
+                                                              class_name=class_name,
+                                                              description=ast_node.description)
+        writes += self.get_pybind_sets_gets(class_name=class_name,
+                                            class_properties=class_properties)
+        writes += ["\t;", "}"]
+        return writes
+
+
+    @staticmethod
+    def get_pybind_binding_writes(module_name: str, class_name: str) -> Writes:
+        writes = []
+        class_bind_str = f"\tpybind11::class_<{class_name}>(m, \"{class_name}\")\n"
+        class_constructor_str = "\t\t.def(pybind11::init<>())\n"
+        writes = ["", ""]
+        writes += [f"PYBIND11_MODULE({module_name}, m) " + "{\n"]  # }
+        writes += [class_bind_str]
+        writes += [class_constructor_str]
+        return writes
+
+
+    @staticmethod
+    def get_pybind_method_call_wrapper(func_name: str, class_name: str, description: str) -> Writes:
+        class_def, func_name = ModuleBuilder.parse_class_func(func_name)
+        # lambda wrapper to convert return of vector<> to py::array_t<>
+        _std_params_str = ", ".join([f"{typ} {var}" for typ, var in zip(ModuleBuilder.std_args_types,
+                                                                        ModuleBuilder.std_args)])
+        _std_params_names_str = ", ".join([i for i in ModuleBuilder.std_args])
+        method_bind_str = (f"\t\t.def(\"{func_name}\",\n"
+                           f"\t\t\t[]({class_name}& self, {_std_params_str}) -> py::array_t<double> "
+                           "{\n"
+                           f"\t\t\t\tvector<double> ret = self.{func_name}({_std_params_names_str});\n"
+                           "\t\t\t\tpy::array_t<double> np_ret(ret.size());\n"
+                           "\t\t\t\tstd::copy(ret.begin(), ret.end(), np_ret.mutable_data());\n"
+                           "\t\t\t\treturn np_ret;\n"
+                           "\t\t\t}"
+                           f", \"{description}\")")
+        return [method_bind_str]
+
+
+    @staticmethod
+    def get_pybind_sets_gets(class_name: str, class_properties: list) -> Writes:
+        # write setters / getters for class properties
+        ret = []
+        for property in class_properties:
+            gets_sets = (f"\t\t.def_property(\"{property}\",\n"
+                         f"\t\t\t[](const {class_name}& self) -> const decltype({class_name}::{property})& "
+                         "{"
+                         f"return self.{property}" + ";},\n"
+                         f"\t\t\t[]({class_name}& self, const decltype({class_name}::{property})& value) "
+                         "{" + f"self.{property}" + " = value;})")
+            ret += [gets_sets]
+        return ret
+
+
+class ModuleBuilder(Builder):
+
+    data: dict[str, FileBuilder]
+    header: Writes = []
+    std_args = ("t", "_X_arg", "_U_arg", "_S_arg", "dt")
+    std_args_types = ("double&",
+                      "vector<double>&",
+                      "vector<double>&",
+                      "vector<double>&",
+                      "double&")
+    JAPL_EXT_MODULE_INIT_HEADER__ = "# __JAPL_EXTENSION_MODULE__\n"
+    CXX_STD = 17
+
+    def __init__(self, name: str, contents: FileBuilder|list|tuple, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.name = str(name)
+        self.append(contents)
+
+
+    @staticmethod
+    def check_filename(filename: str):
+        if '.' not in filename:
+            raise Exception("filename misssing extension.")
+
+
+    def build(self, code_type: str):
+        # function definitions
+        for name, file_node in self.data.items():
+            # for node in ast_nodes:
+            #     if isinstance(node, str):
+            #         self.writes += [node]
+            #     elif isinstance(node, JaplFunction):
+            #         node._build(code_type=code_type)
+            #         self.writes += [str(ccode(node.get_def()))]
+            #     else:
+            #         raise Exception("unhandled case.")
+            self.writes += file_node.build(code_type)
+        return self.writes
+
+
+    def dumps(self, file):
+        for line in self.header:
+            file.write(line + "\n")
         for line in self.writes:
             file.write(line + "\n")
 
 
-class CFileBuilder(FileBuilder):
-    code_type = "c"
+    # def add_file(self, file: FileBuilder):
+    #     self.append(file)
+
+
+    @staticmethod
+    def create_module_directory(name: str, path: str) -> Path:
+        # create extension module directory
+        module_dir_path = Path(path, name)
+        if os.path.exists(module_dir_path):
+            input_str = f"{module_dir_path} already exists. Overwrite? (y/n):"
+            if input(input_str).strip().lower() == "y":
+                shutil.rmtree(module_dir_path)
+            else:
+                print("exiting.")
+                quit()
+        os.mkdir(module_dir_path)
+        return module_dir_path
+
+
+    def create_init_file_builder(self):
+        # create __init__.py file
+        module_name = self.name
+        contents = ([self.JAPL_EXT_MODULE_INIT_HEADER__,
+                     "import linterp",
+                     "import datatable",
+                     "import aerotable",
+                     "import atmosphere",
+                     f"from {module_name}.{module_name} import *\n"])
+        init_builder = FileBuilder("__init__.py", contents=contents)
+        return init_builder
+
+
+    @staticmethod
+    def parse_class_func(func_name: str) -> tuple[str, str]:
+        # handle func_name references class method "Class::method"
+        class_ref = ""
+        if "::" in func_name:
+            _func_str_split = func_name.split("::")
+            class_ref = "".join(_func_str_split[0])
+            func_name = "".join(_func_str_split[1:])
+        return class_ref, func_name
+
+
+    @staticmethod
+    def create_build_file_builder(module_name: str, module_dir_path: str|Path, source_file: str):
+        file_name = source_file.split('.')[0]
+
+        build_str = ("""\
+        import os
+        import sys
+        import glob
+        import shutil
+        from setuptools import setup
+        from setuptools.command.build_ext import build_ext
+        from setuptools import Command
+        from pybind11.setup_helpers import Pybind11Extension
+        from japl.global_opts import get_root_dir
+
+
+
+        dir = os.path.dirname(__file__)
+
+        # Default build ops
+        if len(sys.argv) == 1:
+            sys.argv.append("build_ext")
+            sys.argv.append("--build-lib")
+            sys.argv.append(dir)
+
+
+        class CleanCommand(Command):
+            \"\"\"Custom clean command to tidy up the project root.\"\"\"
+            user_options = []
+
+            def initialize_options(self):
+                pass
+
+            def finalize_options(self):
+                pass
+
+            def run(self):
+                shutil.rmtree('./build', ignore_errors=True)
+                shutil.rmtree('./dist', ignore_errors=True)
+                root_path = os.path.dirname(__file__)
+                file_patterns = ["*.so", "*.dll"]
+                for pattern in file_patterns:
+                    for file in glob.iglob(os.path.join(root_path, "**", pattern), recursive=True):
+                        print("removing:", file)
+                        os.remove(file)
+
+
+        """f"""
+        sources = [os.path.join(dir, "{source_file}")]
+
+        # Define extension module
+        ext_module = Pybind11Extension(name="{module_name}",
+                                       sources=sources,
+                                       extra_compile_args=[],
+                                       extra_link_args=["{module_dir_path}/libs/src/linterp/linterp.o",
+                                                        "{module_dir_path}/libs/src/datatable.o",
+                                                        "{module_dir_path}/libs/src/atmosphere_alts.o",
+                                                        "{module_dir_path}/libs/src/atmosphere_density.o",
+                                                        "{module_dir_path}/libs/src/atmosphere_grav_accel.o",
+                                                        "{module_dir_path}/libs/src/atmosphere_pressure.o",
+                                                        "{module_dir_path}/libs/src/atmosphere_temperature.o",
+                                                        "{module_dir_path}/libs/src/atmosphere_speed_of_sound.o",
+                                                        "{module_dir_path}/libs/src/atmosphere.o",
+                                                        "{module_dir_path}/libs/src/aerotable.o",
+                                                        "{module_dir_path}/libs/src/model.o"],
+                                       include_dirs=[os.path.join(get_root_dir(), "include")],
+                                       cxx_std={ModuleBuilder.CXX_STD})
+        """"""
+
+        cmdclass = {'build_ext': build_ext,
+                    'clean': CleanCommand}
+
+        """f"""
+        # Build the extension
+        setup(
+            name="{file_name}",
+            ext_modules=[ext_module],
+            cmdclass=cmdclass,
+            # script_args=["build_ext", "--build-lib", dir]
+        )
+        """)
+
+        # build_file_name = "build.py"
+        # build_file_path = os.path.join(path, build_file_name)
+        # with open(build_file_path, "a+") as f:
+        #     f.write(dedent(build_str))
+        build_builder = FileBuilder("build.py", build_str)
+        return build_builder
+
+        # attempt to build
+        # print(f"EXECUTING: python {build_file_path}")
+        # os.system(f"python {build_file_path}")
 
 
 class CodeGenerator:
 
 
     @staticmethod
-    def build_ext_module(code_type: str):
+    def build_c_module(builder: ModuleBuilder):
+        writes = builder.build("c")
+        # print(writes)
+        print("".join(writes))
+        # name = builder.name
+        # filename = name + ".cpp"
+        # # class_properties = builder.class_properties
+        # class_properties = ["aerotable", "atmosphere"]
+        # module_dir_path = builder.create_module_directory(name=name, path="./")
+        # init_file_builder = builder.create_init_file_builder()
+        # build_file_builder = builder.create_build_file_builder(module_name=name,
+        #                                                        module_dir_path=module_dir_path,
+        #                                                        source_file=filename)
+        # CodeGenerator.build_file(init_file_builder)
+        # CodeGenerator.build_file(build_file_builder)
+        # pybind_writes = builder.get_pybind_writes(module_name=name,
+        #                                           class_properties=class_properties)
+        # builder.append(pybind_writes)
         pass
 
 
     @staticmethod
     def build_file(builder: FileBuilder, file: Optional[Any] = None):
-        if not hasattr(builder, "code_type"):
-            raise Exception("Builder class has no defined output language "
-                            f"ensure attribute \"code_type\" is defined.")
+        CodeGenerator.check_for_code_type(builder)
         code_type = builder.code_type
         builder.build(code_type)
         if file:
@@ -118,10 +453,15 @@ class CodeGenerator:
         if os.path.exists(file_path) and os.path.isfile(file_path):
             input_str = f"{file_path} already exists. Overwrite? (y/n):"
             if input(input_str).strip().lower() == "y":
-                shutil.rmtree(file_path)
-                return open(file_path, "a+")
+                os.remove(file_path)
             else:
                 print("exiting.")
                 quit()
-        else:
-            raise Exception(f"path {file_path} does not exist.")
+        return open(file_path, "a+")
+
+
+    @staticmethod
+    def check_for_code_type(builder: Builder) -> None:
+        if not hasattr(builder, "code_type"):
+            raise Exception("Builder class has no defined output language "
+                            "ensure attribute \"code_type\" is defined.")

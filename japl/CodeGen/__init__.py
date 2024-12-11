@@ -3,7 +3,9 @@ from .Util import ccode
 from .Printer import CCodeGenPrinter
 from .JaplFunction import JaplFunction
 from .CodeGen import CodeGenerator
+from .CodeGen import FileBuilder
 from .CodeGen import CFileBuilder
+from .CodeGen import ModuleBuilder
 
 # Ensure submodules can still be imported directly
 from . import Util
