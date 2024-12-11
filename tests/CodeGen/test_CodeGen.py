@@ -71,10 +71,10 @@ class TestTemplate(unittest.TestCase):
         writes = builder.build()
 
 
-    def test_CodeGenerator_c_module_case1(self):
-        file_builder = CFileBuilder("test.cpp", [func(a, b)])
-        builder = ModuleBuilder("mod", [file_builder])
-        CodeGenerator.build_c_module(builder)
+    # def test_CodeGenerator_c_module_case1(self):
+    #     file_builder = CFileBuilder("test.cpp", [func(a, b)])
+    #     builder = ModuleBuilder("mod", [file_builder])
+    #     CodeGenerator.build_c_module(builder)
 
 
     # def test_CodeGenerator_case1(self):

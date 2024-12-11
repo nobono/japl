@@ -439,7 +439,6 @@ class CodeGenerator:
         filename = name + ".cpp"
         # builder.class_properties = ["aerotable", "atmosphere"]
         module_dir_path = builder.create_module_directory(name=name, path="./")
-        # module_dir_path = "./"
         init_file_builder = builder.create_init_file_builder()
         build_file_builder = builder.create_build_file_builder(module_name=name,
                                                                module_dir_path=module_dir_path,
