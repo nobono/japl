@@ -1,24 +1,14 @@
 from io import TextIOWrapper
 import os
 import shutil
+import subprocess
 from typing import Callable
 from typing import Any, Optional, Union
-# from sympy.codegen.ast import FunctionCall
-# from sympy.codegen.ast import FunctionPrototype
-# from sympy.codegen.ast import FunctionDefinition
-# from sympy.codegen.ast import Token
-# from sympy.codegen.ast import String
-# from sympy.codegen.ast import Tuple
-# from sympy.codegen.ast import Type
-# from sympy.codegen.ast import Node
 from sympy.codegen.ast import Basic
-# from sympy.core.function import Function
-# from sympy import Float, Integer, Matrix
-# from sympy import MatrixSymbol
-# from sympy.printing.c import value_const
 from japl.CodeGen.JaplFunction import JaplFunction
 from japl.CodeGen.Util import ccode
 from japl.CodeGen.Util import copy_dir
+from japl.global_opts import get_root_dir
 from pathlib import Path
 
 Writes = list[str]
@@ -80,9 +70,15 @@ class Builder:
         return self.writes
 
 
-    def dumps(self, file):
+    def dumps(self, file: Optional[Any] = None, path: Path|str = "./",
+              filename: str = ""):
         """Optional method to write build strings to file."""
-        pass
+        if file is None:
+            _path = Path(path, filename) if filename else Path(path, self.name)
+            file = open(Path(_path), "a+")
+        for line in self.writes:
+            file.write(line + "\n")
+        file.close()
 
 
 class FileBuilder(Builder):
@@ -130,9 +126,14 @@ class FileBuilder(Builder):
         return self.get_header_writes() + self.writes + self.get_footer_writes()
 
 
-    def dumps(self, file):
-        for line in self.writes:
-            file.write(line + "\n")
+    # def dumps(self, file: Optional[Any] = None, path: Path|str = "./",
+    #           filename: str = ""):
+    #     if file is None:
+    #         _path = Path(path, filename) if filename else path
+    #         file = open(Path(_path, self.name), "a+")
+    #     for line in self.writes:
+    #         file.write(line + "\n")
+    #     file.close()
 
 
     def get_header_writes(self) -> Writes:
@@ -158,10 +159,10 @@ class CFileBuilder(FileBuilder):
     # def build(self, code_type: str) -> Writes:
     #     """CFileBuilder appends pybind11 code to the footer of
     #     each source file."""
-    #     super().build(code_type)
-    #     self.writes += self.get_pybind_writes(module_name=self.name,
-    #                                           class_name=self.class_name,
-    #                                           class_properties=self.class_properties)
+    #     # super().build(code_type)
+    #     # self.writes += self.get_pybind_writes(module_name=self.name,
+    #     #                                       class_name=self.class_name,
+    #     #                                       class_properties=self.class_properties)
     #     return self.writes
 
 
@@ -183,7 +184,11 @@ class CFileBuilder(FileBuilder):
 
     def get_footer_writes(self) -> Writes:
         """override this method to write to end of file"""
-        return self.get_pybind_writes(module_name=self.name,
+        if '.' in self.name:
+            module_name = self.name.split('.')[0]
+        else:
+            module_name = self.name
+        return self.get_pybind_writes(module_name=module_name,
                                       class_name=self.class_name,
                                       class_properties=self.class_properties)
 
@@ -206,10 +211,10 @@ class CFileBuilder(FileBuilder):
     @staticmethod
     def get_pybind_binding_writes(module_name: str, class_name: str) -> Writes:
         writes = []
-        class_bind_str = f"\tpybind11::class_<{class_name}>(m, \"{class_name}\")\n"
-        class_constructor_str = "\t\t.def(pybind11::init<>())\n"
+        class_bind_str = f"\tpybind11::class_<{class_name}>(m, \"{class_name}\")"
+        class_constructor_str = "\t\t.def(pybind11::init<>())"
         writes = ["", ""]
-        writes += [f"PYBIND11_MODULE({module_name}, m) " + "{\n"]  # }
+        writes += [f"PYBIND11_MODULE({module_name}, m) " + "{"]  # }
         writes += [class_bind_str]
         writes += [class_constructor_str]
         return writes
@@ -261,6 +266,8 @@ class ModuleBuilder(Builder):
     JAPL_EXT_MODULE_INIT_HEADER__ = "# __JAPL_EXTENSION_MODULE__\n"
     CXX_STD = 17
 
+    class_properties = ["aerotable", "atmosphere"]
+
     def __init__(self, name: str, contents: FileBuilder|list|tuple = [], *args, **kwargs) -> None:
         super().__init__(name, contents, *args, **kwargs)
 
@@ -273,6 +280,8 @@ class ModuleBuilder(Builder):
 
     def build(self, *args, **kwargs) -> Writes:
         for name, file_node in self.data.items():
+            # add class_properties to source FileBuilders here
+            setattr(file_node, "class_properties", self.class_properties)  # NOTE: make this better
             # get code_type for FileBulder
             self.writes += file_node.build()
         return self.writes
@@ -423,24 +432,37 @@ class CodeGenerator:
 
     @staticmethod
     def build_c_module(builder: ModuleBuilder):
-        writes = builder.build("c")
+        # writes = builder.build("c")
         # print(writes)
-        print("".join(writes))
+        # print("".join(writes))
         name = builder.name
         filename = name + ".cpp"
-        # class_properties = builder.class_properties
-        # class_properties = ["aerotable", "atmosphere"]
+        # builder.class_properties = ["aerotable", "atmosphere"]
         module_dir_path = builder.create_module_directory(name=name, path="./")
+        # module_dir_path = "./"
         init_file_builder = builder.create_init_file_builder()
         build_file_builder = builder.create_build_file_builder(module_name=name,
                                                                module_dir_path=module_dir_path,
                                                                source_file=filename)
-        # CodeGenerator.build_file(init_file_builder)
-        # CodeGenerator.build_file(build_file_builder)
-        # pybind_writes = builder.get_pybind_writes(module_name=name,
-        #                                           class_properties=class_properties)
-        # builder.append(pybind_writes)
-        pass
+        source_writes = builder.build()  # source files data within ModuleBuilder
+        init_writes = init_file_builder.build()
+        build_writes = build_file_builder.build()
+        builder.dumps(path=module_dir_path, filename=filename)
+        init_file_builder.dumps(path=module_dir_path)
+        build_file_builder.dumps(path=module_dir_path)
+
+        # copy over japl libs
+        try:
+            os.mkdir(Path(module_dir_path, "libs"))
+        except Exception as e:
+            print("Error moving libs to model dir", e)
+        copy_dir(Path(get_root_dir(), "libs"), Path(module_dir_path, "libs"))
+
+        # # try to build
+        # try:
+        #     subprocess.run(["python", Path(module_dir_path, "build.py")])
+        # except Exception as e:
+        #     print("Error building model", e)
 
 
     @staticmethod
@@ -449,12 +471,10 @@ class CodeGenerator:
         code_type = builder.code_type
         builder.build(code_type)
         if file:
-            builder.dumps(file)
-            file.close()
+            builder.dumps(file=file)
         else:
             file = CodeGenerator.create_file(name=builder.name, path="./")
-            builder.dumps(file)
-            file.close()
+            builder.dumps(file=file)
 
 
     @staticmethod
