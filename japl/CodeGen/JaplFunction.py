@@ -4,7 +4,7 @@ from sympy import MatrixSymbol
 from sympy import Function
 from sympy import Matrix
 from sympy import Expr
-from sympy.codegen.ast import numbered_symbols
+# from sympy.codegen.ast import numbered_symbols
 from sympy.codegen.ast import FunctionDefinition
 from sympy.codegen.ast import FunctionPrototype
 from sympy.codegen.ast import CodeBlock
@@ -21,8 +21,12 @@ from japl.CodeGen.Ast import CodeGenFunctionPrototype
 from japl.CodeGen.Ast import CType
 from japl.CodeGen.Ast import CTypes
 from japl.CodeGen.Ast import Kwargs
-from japl.CodeGen.Util import ccode
-from japl.CodeGen.Util import pycode
+from japl.CodeGen import ccode
+from japl.CodeGen import pycode
+from japl.CodeGen.Util import get_dummy_symbol
+from japl.CodeGen.Util import reset_dummy_symbol_gen
+from japl.CodeGen.Globals import _STD_DUMMY_NAME
+from japl.CodeGen.Globals import _STD_RETURN_NAME
 
 
 
@@ -63,8 +67,8 @@ class JaplFunction(Function):
     expr: Expr|Matrix
     type = CTypes.float64
 
-    std_return_name = "_Ret_arg"
-    std_dummy_name = "_Dummy_var"
+    std_return_name = _STD_RETURN_NAME
+    std_dummy_name = _STD_DUMMY_NAME
 
     # @classmethod
     # def eval(cls, *args):
@@ -182,8 +186,9 @@ class JaplFunction(Function):
                 if param_name is None:
                     param_name = str(param)
             else:
-                param_name = next(numbered_symbols(prefix=JaplFunction.std_dummy_name))
+                param_name = get_dummy_symbol()
             arg_params += (Variable(param_name, type=param_type),)
+        reset_dummy_symbol_gen()
         return arg_params + kwarg_params
 
 

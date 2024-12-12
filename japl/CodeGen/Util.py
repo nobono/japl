@@ -1,18 +1,30 @@
 import os
 import shutil
-from japl.CodeGen.Printer import CCodeGenPrinter
-from japl.CodeGen.Printer import PyCodeGenPrinter
+from sympy.codegen.ast import numbered_symbols
+from japl.CodeGen.Globals import _STD_DUMMY_NAME
 
 
 
-def ccode(expr, **kwargs):
-    printer = CCodeGenPrinter()
-    return printer.doprint(expr, **kwargs)
+__numbered_dummy_symbol_gen = numbered_symbols(prefix=_STD_DUMMY_NAME)
 
 
-def pycode(expr, **kwargs):
-    printer = PyCodeGenPrinter()
-    return printer.doprint(expr, **kwargs)
+def get_dummy_symbol():
+    return next(__numbered_dummy_symbol_gen)
+
+
+def reset_dummy_symbol_gen():
+    global __numbered_dummy_symbol_gen
+    __numbered_dummy_symbol_gen = numbered_symbols(prefix=_STD_DUMMY_NAME)
+
+
+# def ccode(expr, **kwargs):
+#     printer = CCodeGenPrinter()
+#     return printer.doprint(expr, **kwargs)
+
+
+# def pycode(expr, **kwargs):
+#     printer = PyCodeGenPrinter()
+#     return printer.doprint(expr, **kwargs)
 
 
 def copy_dir(source_dir, target_dir) -> None:

@@ -9,7 +9,7 @@ from japl.CodeGen.Ast import Constructor
 from japl.CodeGen.Ast import CType, CTypes
 from japl.CodeGen.Ast import Kwargs
 from japl.CodeGen.Ast import Dict
-from japl.CodeGen.Util import ccode
+from japl.CodeGen import ccode
 
 from sympy.codegen.ast import CodeBlock
 from sympy.codegen.ast import Assignment
@@ -100,12 +100,25 @@ class TestJaplFunction(unittest.TestCase):
         self.assertEqual(ccode(f.codegen_function_proto), "vector<double> func(double& a, map<string, double>& kwargs)")
 
 
+    # def test_codegen_build_proto_case2(self):
+    #     code_type = 'c'
+    #     a, b = symbols("a, b")
+    #     c, d = symbols("c, d")
+    #     A = Matrix([c, d])
+    #     f = func(A)
+    #     f._build_proto(expr=None, code_type=code_type)
+    #     # print(A.__class__)
+    #     print(ccode(f))
+    #     # print(ccode(f.codegen_function_proto))
+    #     pass
+
+
     def test_codegen_build_proto_dummy_params(self):
         code_type = 'c'
         a, b = symbols("a, b")
         f = func(1, a, 2.0)
         f._build_proto(expr=None, code_type=code_type)
-        self.assertEqual(ccode(f.get_proto()), "void func(int& _Dummy_var0, double& a, double& _Dummy_var0)")
+        self.assertEqual(ccode(f.get_proto()), "void func(int& _Dummy_var0, double& a, double& _Dummy_var1)")
 
 
     def test_codegen_build_def_case1(self):

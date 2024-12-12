@@ -1,6 +1,6 @@
 # Import specific objects from submodules
-from .Util import ccode
-from .Util import pycode
+from .Printer import ccode
+from .Printer import pycode
 from .Printer import CCodeGenPrinter
 from .JaplFunction import JaplFunction
 from .CodeGen import CodeGenerator

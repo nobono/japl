@@ -1,9 +1,12 @@
+from sympy import Matrix
+from sympy.matrices import ImmutableDenseMatrix, MutableDenseMatrix
 from sympy.printing.c import C99CodePrinter
 from sympy.printing.pycode import PythonCodePrinter
 from sympy.codegen.ast import Declaration
 from sympy.codegen.ast import Variable
 from sympy.codegen.ast import untyped
 from japl.CodeGen.Ast import CTypes
+from japl.CodeGen.Util import get_dummy_symbol
 
 
 
@@ -11,7 +14,17 @@ class CCodeGenPrinter(C99CodePrinter):
 
     def _print_CodeGenFunctionCall(self, expr):
         params_str = ""
-        params_str = ", ".join([self._print(i) for i in expr.function_args])
+        # params_str = ", ".join([self._print(i, name="thing") for i in expr.function_args])
+        params_list = []
+        for arg in expr.function_args:
+            if (isinstance(arg, Matrix)
+                    or isinstance(arg, MutableDenseMatrix)
+                    or isinstance(arg, ImmutableDenseMatrix)):
+                params_list += [self._print(arg, name=get_dummy_symbol())]
+            else:
+                params_list += [self._print(arg)]
+        params_str = ", ".join(params_list)
+
         if len(expr.function_args) and len(expr.function_kwargs):
             params_str += ", "
         kwargs_list = []
@@ -44,11 +57,11 @@ class CCodeGenPrinter(C99CodePrinter):
         return result
 
 
-    def _print_ImmutableDenseMatrix(self, expr):
-        # return "{}[{}]".format(self.parenthesize(expr.parent, PRECEDENCE["Atom"],
-        #     strict=True), expr.j + expr.i*expr.parent.shape[1])
-        print("HRE")
-        pass
+    def _print_ImmutableDenseMatrix(self, expr, name: str = ""):
+        # NOTE: name keyword arg must be passed. This is typically
+        # passed from the CodeGen Printer method "_print()".
+        matrix_type = self._print(CTypes.from_expr(expr).as_vector().as_ref())
+        return f"{matrix_type} {name}"
 
 
     def _print_Kwargs(self, expr):
@@ -90,3 +103,15 @@ class PyCodeGenPrinter(PythonCodePrinter):
         kwargs_str = kwargs_str.strip(", ")
         kwargs_str = "{" + kwargs_str + "}"
         return kwargs_str
+
+
+def ccode(expr, **kwargs):
+    printer = CCodeGenPrinter()
+    return printer.doprint(expr, **kwargs)
+
+
+def pycode(expr, **kwargs):
+    printer = PyCodeGenPrinter()
+    return printer.doprint(expr, **kwargs)
+
+

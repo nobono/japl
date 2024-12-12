@@ -1,6 +1,6 @@
 import unittest
 from sympy import symbols
-from japl.CodeGen.Util import ccode
+from japl.CodeGen import ccode
 from japl.CodeGen.CodeGen import Builder
 from japl.CodeGen.CodeGen import FileBuilder
 from japl.CodeGen.CodeGen import CFileBuilder

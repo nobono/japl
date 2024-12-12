@@ -1,8 +1,8 @@
 import unittest
 from sympy import symbols
 # from sympy import ccode
-from japl.CodeGen.Util import ccode
-from japl.CodeGen.Util import pycode
+from japl.CodeGen import ccode
+from japl.CodeGen import pycode
 from sympy.codegen.ast import String
 from japl.CodeGen.Ast import Tuple
 from japl.CodeGen.Ast import Kwargs

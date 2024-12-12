@@ -8,7 +8,7 @@ from typing import Any, Optional, Union
 from sympy.codegen.ast import Basic
 from sympy.codegen.ast import Variable
 from japl.CodeGen.JaplFunction import JaplFunction
-from japl.CodeGen.Util import ccode
+from japl.CodeGen.Printer import ccode
 from japl.CodeGen.Util import copy_dir
 from japl.CodeGen.Ast import CType
 from japl.CodeGen.Ast import CTypes
