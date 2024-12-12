@@ -2,12 +2,16 @@ from io import TextIOWrapper
 import os
 import shutil
 import subprocess
+from textwrap import dedent
 from typing import Callable
 from typing import Any, Optional, Union
 from sympy.codegen.ast import Basic
+from sympy.codegen.ast import Variable
 from japl.CodeGen.JaplFunction import JaplFunction
 from japl.CodeGen.Util import ccode
 from japl.CodeGen.Util import copy_dir
+from japl.CodeGen.Ast import CType
+from japl.CodeGen.Ast import CTypes
 from japl.global_opts import get_root_dir
 from pathlib import Path
 
@@ -120,20 +124,9 @@ class FileBuilder(Builder):
                 ast_node._build(code_type=code_type)
                 self.writes += [""]
                 self.writes += [str(ccode(ast_node.get_def()))]
-                self.writes += ["\n\n"]
             else:
                 raise Exception(f"unhandled case for type {ast_node.__class__}.")
         return self.get_header_writes() + self.writes + self.get_footer_writes()
-
-
-    # def dumps(self, file: Optional[Any] = None, path: Path|str = "./",
-    #           filename: str = ""):
-    #     if file is None:
-    #         _path = Path(path, filename) if filename else path
-    #         file = open(Path(_path, self.name), "a+")
-    #     for line in self.writes:
-    #         file.write(line + "\n")
-    #     file.close()
 
 
     def get_header_writes(self) -> Writes:
@@ -146,6 +139,144 @@ class FileBuilder(Builder):
         return []
 
 
+class Pybind:
+
+    def __init__(self, module_name: str) -> None:
+        self.module_name = module_name
+        self.class_data: dict[str, list[JaplFunction]] = {}
+        self.function_data: dict[str, list[JaplFunction]] = {}
+
+
+    def append_method(self, method: JaplFunction):
+        if method.class_name in self.class_data:
+            self.class_data[method.class_name] += [method]
+        else:
+            self.class_data[method.class_name] = [method]
+
+
+    def append_function(self, function: JaplFunction):
+        if function.name in self.function_data:
+            raise Exception(f"function {function.name} is already defined.")
+        self.function_data[function.name] = [function]
+
+
+    def build(self) -> Writes:
+        pybind_writes = Pybind.get_pybind_binding_writes(module_name=self.module_name)
+        class_writes = []
+        for class_name, methods in self.class_data.items():
+            if class_name == "Model":  # NOTE: do this better
+                class_properties = ["aerotable", "atmosphere"]
+            else:
+                class_properties = []
+
+            method_writes = []
+            for method in methods:
+                param_vars = method.get_proto().parameters
+                if class_name == "Model":  # NOTE: do this better
+                    param_vars = ModuleBuilder.std_args
+                method_writes += Pybind.get_pybind_method_call_wrapper(func_name=method.name,
+                                                                       parameters=param_vars,
+                                                                       class_name=method.class_name,
+                                                                       description=method.description)
+            if len(method_writes):
+                class_writes += Pybind.get_pybind_class_init_writes(class_name)
+                class_writes += method_writes
+
+            class_writes += Pybind.get_pybind_property_sets_gets(class_name=class_name,
+                                                                 class_properties=class_properties)
+            class_writes += ["\t;"]
+
+        function_writes = []
+        for func_name, functions in self.function_data.items():
+            class_properties = []
+            for function in functions:
+                param_vars = function.get_proto().parameters
+                return_type = CTypes.from_expr(function.expr)
+                function_writes += Pybind.get_pybind_function_call_wrapper(func_name=function.name,
+                                                                           return_type=return_type,
+                                                                           parameters=param_vars,
+                                                                           description=function.description)
+
+        writes = pybind_writes + class_writes + function_writes
+        writes += ["}"]
+        return writes
+
+
+    @staticmethod
+    def get_pybind_binding_writes(module_name: str) -> Writes:
+        writes = []
+        writes = ["", ""]
+        writes += [f"PYBIND11_MODULE({module_name}, m) " + "{"]  # }
+        return writes
+
+
+    @staticmethod
+    def get_pybind_class_init_writes(class_name: str) -> Writes:
+        writes = []
+        class_bind_str = f"\tpybind11::class_<{class_name}>(m, \"{class_name}\")"
+        class_constructor_str = "\t\t.def(pybind11::init<>())"
+        writes += [class_bind_str]
+        writes += [class_constructor_str]
+        return writes
+
+
+    @staticmethod
+    def get_pybind_method_call_wrapper(func_name: str, parameters: tuple, class_name: str, description: str) -> Writes:
+        class_def, func_name = ModuleBuilder.parse_class_func(func_name)
+        # lambda wrapper to convert return of vector<> to py::array_t<>
+        # _std_params_str = ", ".join([f"{typ} {var}" for typ, var in zip(ModuleBuilder.std_args_types,
+        #                                                                 ModuleBuilder.std_args)])
+        # _std_params_names_str = ", ".join([i for i in ModuleBuilder.std_args])
+        params_signature = ", ".join([f"{ccode(var.type)} {ccode(var)}" for var in parameters])
+        params_names = ", ".join([str(ccode(var)) for var in parameters])
+        method_bind_str = (f"\t\t.def(\"{func_name}\",\n"
+                           f"\t\t\t[]({class_name}& self, {params_signature}) -> py::array_t<double> "
+                           "{\n"
+                           f"\t\t\t\tvector<double> ret = self.{func_name}({params_names});\n"
+                           "\t\t\t\tpy::array_t<double> np_ret(ret.size());\n"
+                           "\t\t\t\tstd::copy(ret.begin(), ret.end(), np_ret.mutable_data());\n"
+                           "\t\t\t\treturn np_ret;\n"
+                           "\t\t\t}"
+                           f", \"{description}\")")
+        return [method_bind_str]
+
+
+    @staticmethod
+    def get_pybind_function_call_wrapper(func_name: str, return_type: CType,
+                                         parameters: tuple, description: str) -> Writes:
+        # lambda wrapper to convert return of vector<> to py::array_t<>
+        if return_type.is_array:
+            params_signature = ", ".join([f"{ccode(var.type)} {ccode(var)}" for var in parameters])
+            params_names = ", ".join([str(ccode(var)) for var in parameters])
+            method_bind_str = (f"\t\tm.def(\"{func_name}\",\n"
+                               f"\t\t\t[]({params_signature}) -> py::array_t<double> "
+                               "{\n"
+                               f"\t\t\t\tvector<double> ret = {func_name}({params_names});\n"
+                               "\t\t\t\tpy::array_t<double> np_ret(ret.size());\n"
+                               "\t\t\t\tstd::copy(ret.begin(), ret.end(), np_ret.mutable_data());\n"
+                               "\t\t\t\treturn np_ret;\n"
+                               "\t\t\t}"
+                               f", \"{description}\")")
+        else:
+            method_bind_str = f"\tm.def(\"{func_name}\", &{func_name}, \"{description}\");"
+        return [method_bind_str]
+
+
+    @staticmethod
+    def get_pybind_property_sets_gets(class_name: str, class_properties: list) -> Writes:
+        # write setters / getters for class properties
+        ret = []
+        for property in class_properties:
+            gets_sets = (f"\t\t.def_property(\"{property}\",\n"
+                         f"\t\t\t[](const {class_name}& self) -> const decltype({class_name}::{property})& "
+                         "{"
+                         f"return self.{property}" + ";},\n"
+                         f"\t\t\t[]({class_name}& self, const decltype({class_name}::{property})& value) "
+                         "{" + f"self.{property}" + " = value;})")
+            ret += [gets_sets]
+        return ret
+
+
 class CFileBuilder(FileBuilder):
 
     __slots__ = FileBuilder.__slots__ + ("class_name", "class_properties")
@@ -154,16 +285,6 @@ class CFileBuilder(FileBuilder):
 
     class_name: str
     class_properties: list[str]
-
-
-    # def build(self, code_type: str) -> Writes:
-    #     """CFileBuilder appends pybind11 code to the footer of
-    #     each source file."""
-    #     # super().build(code_type)
-    #     # self.writes += self.get_pybind_writes(module_name=self.name,
-    #     #                                       class_name=self.class_name,
-    #     #                                       class_properties=self.class_properties)
-    #     return self.writes
 
 
     def get_header_writes(self) -> Writes:
@@ -194,75 +315,25 @@ class CFileBuilder(FileBuilder):
 
 
     def get_pybind_writes(self, module_name: str, class_name: str, class_properties: list[str]) -> Writes:
-        writes = []
-        writes += self.get_pybind_binding_writes(module_name=module_name,
-                                                 class_name=class_name)
+        pybind = Pybind(module_name)
         for ast_node in self.data.values():
             if isinstance(ast_node, JaplFunction):
-                writes += self.get_pybind_method_call_wrapper(func_name=ast_node.name,
-                                                              class_name=class_name,
-                                                              description=ast_node.description)
-        writes += self.get_pybind_sets_gets(class_name=class_name,
-                                            class_properties=class_properties)
-        writes += ["\t;", "}"]
+                if ast_node.class_name:
+                    pybind.append_method(ast_node)
+                else:
+                    pybind.append_function(ast_node)
+        writes = pybind.build()
         return writes
-
-
-    @staticmethod
-    def get_pybind_binding_writes(module_name: str, class_name: str) -> Writes:
-        writes = []
-        class_bind_str = f"\tpybind11::class_<{class_name}>(m, \"{class_name}\")"
-        class_constructor_str = "\t\t.def(pybind11::init<>())"
-        writes = ["", ""]
-        writes += [f"PYBIND11_MODULE({module_name}, m) " + "{"]  # }
-        writes += [class_bind_str]
-        writes += [class_constructor_str]
-        return writes
-
-
-    @staticmethod
-    def get_pybind_method_call_wrapper(func_name: str, class_name: str, description: str) -> Writes:
-        class_def, func_name = ModuleBuilder.parse_class_func(func_name)
-        # lambda wrapper to convert return of vector<> to py::array_t<>
-        _std_params_str = ", ".join([f"{typ} {var}" for typ, var in zip(ModuleBuilder.std_args_types,
-                                                                        ModuleBuilder.std_args)])
-        _std_params_names_str = ", ".join([i for i in ModuleBuilder.std_args])
-        method_bind_str = (f"\t\t.def(\"{func_name}\",\n"
-                           f"\t\t\t[]({class_name}& self, {_std_params_str}) -> py::array_t<double> "
-                           "{\n"
-                           f"\t\t\t\tvector<double> ret = self.{func_name}({_std_params_names_str});\n"
-                           "\t\t\t\tpy::array_t<double> np_ret(ret.size());\n"
-                           "\t\t\t\tstd::copy(ret.begin(), ret.end(), np_ret.mutable_data());\n"
-                           "\t\t\t\treturn np_ret;\n"
-                           "\t\t\t}"
-                           f", \"{description}\")")
-        return [method_bind_str]
-
-
-    @staticmethod
-    def get_pybind_sets_gets(class_name: str, class_properties: list) -> Writes:
-        # write setters / getters for class properties
-        ret = []
-        for property in class_properties:
-            gets_sets = (f"\t\t.def_property(\"{property}\",\n"
-                         f"\t\t\t[](const {class_name}& self) -> const decltype({class_name}::{property})& "
-                         "{"
-                         f"return self.{property}" + ";},\n"
-                         f"\t\t\t[]({class_name}& self, const decltype({class_name}::{property})& value) "
-                         "{" + f"self.{property}" + " = value;})")
-            ret += [gets_sets]
-        return ret
 
 
 class ModuleBuilder(Builder):
 
     data: dict[str, FileBuilder]
-    std_args = ("t", "_X_arg", "_U_arg", "_S_arg", "dt")
-    std_args_types = ("double&",
-                      "vector<double>&",
-                      "vector<double>&",
-                      "vector<double>&",
-                      "double&")
+    std_args = (Variable("t", type=CType("double").as_ref()),
+                Variable("_X_arg", type=CType("double").as_vector().as_ref()),
+                Variable("_U_arg", type=CType("double").as_vector().as_ref()),
+                Variable("_S_arg", type=CType("double").as_vector().as_ref()),
+                Variable("dt", type=CType("double").as_ref()))
     JAPL_EXT_MODULE_INIT_HEADER__ = "# __JAPL_EXTENSION_MODULE__\n"
     CXX_STD = 17
 
@@ -285,13 +356,6 @@ class ModuleBuilder(Builder):
             # get code_type for FileBulder
             self.writes += file_node.build()
         return self.writes
-
-
-    # def dumps(self, file):
-    #     for line in self.get_header_writes():
-    #         file.write(line + "\n")
-    #     for line in self.writes:
-    #         file.write(line + "\n")
 
 
     @staticmethod
@@ -415,16 +479,8 @@ class ModuleBuilder(Builder):
         )
         """)
 
-        # build_file_name = "build.py"
-        # build_file_path = os.path.join(path, build_file_name)
-        # with open(build_file_path, "a+") as f:
-        #     f.write(dedent(build_str))
-        build_builder = FileBuilder("build.py", build_str)
+        build_builder = FileBuilder("build.py", dedent(build_str))
         return build_builder
-
-        # attempt to build
-        # print(f"EXECUTING: python {build_file_path}")
-        # os.system(f"python {build_file_path}")
 
 
 class CodeGenerator:
@@ -432,36 +488,37 @@ class CodeGenerator:
 
     @staticmethod
     def build_c_module(builder: ModuleBuilder):
-        # writes = builder.build("c")
-        # print(writes)
-        # print("".join(writes))
         name = builder.name
         filename = name + ".cpp"
-        # builder.class_properties = ["aerotable", "atmosphere"]
         module_dir_path = builder.create_module_directory(name=name, path="./")
         init_file_builder = builder.create_init_file_builder()
         build_file_builder = builder.create_build_file_builder(module_name=name,
                                                                module_dir_path=module_dir_path,
                                                                source_file=filename)
-        source_writes = builder.build()  # source files data within ModuleBuilder
-        init_writes = init_file_builder.build()
-        build_writes = build_file_builder.build()
+        builder.build()  # source files data within ModuleBuilder
+        init_file_builder.build()
+        build_file_builder.build()
         builder.dumps(path=module_dir_path, filename=filename)
         init_file_builder.dumps(path=module_dir_path)
         build_file_builder.dumps(path=module_dir_path)
 
         # copy over japl libs
-        try:
-            os.mkdir(Path(module_dir_path, "libs"))
-        except Exception as e:
-            print("Error moving libs to model dir", e)
-        copy_dir(Path(get_root_dir(), "libs"), Path(module_dir_path, "libs"))
+        CodeGenerator.copy_japl_libs_to(module_dir_path)
 
         # # try to build
         # try:
         #     subprocess.run(["python", Path(module_dir_path, "build.py")])
         # except Exception as e:
         #     print("Error building model", e)
+
+
+    @staticmethod
+    def copy_japl_libs_to(path: Path|str):
+        try:
+            os.mkdir(Path(path, "libs"))
+        except Exception as e:
+            print("Error moving libs to model dir", e)
+        copy_dir(Path(get_root_dir(), "libs"), Path(path, "libs"))
 
 
     @staticmethod

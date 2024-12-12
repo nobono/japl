@@ -152,20 +152,25 @@ class CType(Type):
     - ...etc
     """
 
-    __slots__ = _fields = ("name",)
-    defaults = {"name": "CType"}
+    __slots__ = _fields = ("name", "is_array")
+    defaults = {"name": "CType", "is_array": False}
 
     @staticmethod
     def _construct_name(name):
         return name
 
 
+    @staticmethod
+    def _construct_is_array(val):
+        return val
+
+
     def as_vector(self):
-        return CType(f"vector<{self.name}>")
+        return CType(f"vector<{self.name}>", is_array=True)
 
 
     def as_ndarray(self):
-        return CType(f"py::array_t<{self.name}>")
+        return CType(f"py::array_t<{self.name}>", is_array=True)
 
 
     def as_map(self):
