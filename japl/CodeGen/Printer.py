@@ -9,7 +9,7 @@ from japl.CodeGen.Ast import CTypes
 
 class CCodeGenPrinter(C99CodePrinter):
 
-    def _print_CodegenFunctionCall(self, expr):
+    def _print_CodeGenFunctionCall(self, expr):
         params_str = ""
         params_str = ", ".join([self._print(i) for i in expr.function_args])
         if len(expr.function_args) and len(expr.function_kwargs):
@@ -69,7 +69,7 @@ class CCodeGenPrinter(C99CodePrinter):
 
 class PyCodeGenPrinter(PythonCodePrinter):
 
-    def _print_CodegenFunctionCall(self, expr):
+    def _print_CodeGenFunctionCall(self, expr):
         params_str = ""
         params_str = ", ".join([self._print(i) for i in expr.function_args])
         if len(expr.function_args) and len(expr.function_kwargs):

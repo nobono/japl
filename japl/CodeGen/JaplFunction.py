@@ -16,7 +16,7 @@ from sympy.codegen.ast import Type
 from sympy.codegen.ast import Tuple
 from sympy.matrices import MatrixExpr
 from japl.Util.Util import iter_type_check
-from japl.CodeGen.Ast import CodegenFunctionCall
+from japl.CodeGen.Ast import CodeGenFunctionCall
 from japl.CodeGen.Ast import CodeGenFunctionPrototype
 from japl.CodeGen.Ast import CType
 from japl.CodeGen.Ast import CTypes
@@ -55,7 +55,7 @@ class JaplFunction(Function):
     parent = ""
     class_name = ""
     description = ""
-    codegen_function_call: CodegenFunctionCall
+    codegen_function_call: CodeGenFunctionCall
     codegen_function_def: FunctionDefinition
     codegen_function_proto: FunctionPrototype
     codegen_function_body: CodeBlock
@@ -101,7 +101,7 @@ class JaplFunction(Function):
         obj.kwargs = found_kwargs
         obj.fargs = found_args
         # codegen objects
-        obj.codegen_function_call = CodegenFunctionCall(obj.name, found_args, found_kwargs)
+        obj.codegen_function_call = CodeGenFunctionCall(obj.name, found_args, found_kwargs)
         return obj
 
 

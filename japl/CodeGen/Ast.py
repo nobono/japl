@@ -226,7 +226,7 @@ class CTypes:
             return CTypes.float64
 
 
-class CodegenFunctionCall(FunctionCall, KwargsToken):
+class CodeGenFunctionCall(FunctionCall, KwargsToken):
     """ Represents a call to a function in the code.
 
     Parameters

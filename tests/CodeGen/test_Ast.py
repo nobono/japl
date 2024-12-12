@@ -9,7 +9,7 @@ from japl.CodeGen.Ast import Kwargs
 from japl.CodeGen.Ast import Dict
 from japl.CodeGen.Ast import CType
 from japl.CodeGen.Ast import CTypes
-from japl.CodeGen.Ast import CodegenFunctionCall
+from japl.CodeGen.Ast import CodeGenFunctionCall
 from sympy.codegen.ast import Variable
 
 
@@ -50,7 +50,7 @@ class TestAst(unittest.TestCase):
 
 
     def test_call_case_1(self):
-        f = CodegenFunctionCall("func", (1, 2), x=1, y=2)
+        f = CodeGenFunctionCall("func", (1, 2), x=1, y=2)
         self.assertEqual(f.name, String("func"))
         self.assertEqual(f.function_args, Tuple(1, 2))
         self.assertEqual(f.function_kwargs, Kwargs(x=1, y=2))
@@ -59,7 +59,7 @@ class TestAst(unittest.TestCase):
         self.assertEqual(pycode(f.function_kwargs), 'x=1, y=2')
         self.assertEqual(pycode(f), 'func(1, 2, x=1, y=2)')
 
-        f = CodegenFunctionCall("func", (1, 2), dict(x=1, y=2))
+        f = CodeGenFunctionCall("func", (1, 2), dict(x=1, y=2))
         self.assertEqual(f.name, String("func"))
         self.assertEqual(f.function_args, Tuple(1, 2))
         self.assertEqual(f.function_kwargs, Kwargs(x=1, y=2))
