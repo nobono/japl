@@ -2,8 +2,8 @@ import unittest
 from sympy import Symbol
 from japl.CodeGen.JaplFunction import JaplFunction
 from japl.CodeGen.Ast import CTypes
-from sympy import pycode
-from sympy import ccode
+from japl.CodeGen.Util import ccode
+from japl.CodeGen.Util import pycode
 from sympy import cse
 import dill as pickle
 import io
