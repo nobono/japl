@@ -60,7 +60,7 @@ class JaplFunction(Function):
     codegen_function_proto: FunctionPrototype
     codegen_function_body: CodeBlock
     body = CodeBlock()
-    expr: Expr
+    expr: Expr|Matrix
     type = CTypes.float64
 
     std_return_name = "_Ret_arg"
