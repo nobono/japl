@@ -8,16 +8,9 @@ from sympy.codegen.ast import String
 from sympy.codegen.ast import Tuple
 from sympy.codegen.ast import Type
 from sympy.codegen.ast import Node
-from sympy.codegen.ast import untyped
 from sympy.core.function import Function
-# from sympy.codegen.ast import complex_
-# from sympy import ccode
-from sympy import pycode
 from sympy import Float, Integer, Matrix
 from sympy import MatrixSymbol
-from sympy.printing.c import C99CodePrinter
-from sympy.printing.c import value_const
-from japl.CodeGen.Util import ccode
 
 
 
@@ -89,19 +82,6 @@ class Dict(Type):
     def keys(self):
         return (key for key in self.kwpairs.keys())
 
-    def _ccode(self, *args, **kwargs):
-        kwargs_str = ", ".join(["{" + f"\"{key}\", " + ccode(val) + "}"
-                                for key, val in self.kwpairs.items()])
-        kwargs_str = kwargs_str.strip(", ")
-        kwargs_str = "{" + kwargs_str + "}"
-        return kwargs_str
-
-    def _pythoncode(self, *args, **kwargs):
-        kwargs_str = ", ".join([f"{key}: {pycode(val)}" for key, val in self.kwpairs.items()])
-        kwargs_str = kwargs_str.strip(", ")
-        kwargs_str = "{" + kwargs_str + "}"
-        return kwargs_str
-
 
 class Kwargs(KwargsToken):
     __slots__ = _fields = ("kwpairs", "type")
@@ -129,19 +109,6 @@ class Kwargs(KwargsToken):
 
     def keys(self):
         return (key for key in self.kwpairs.keys())
-
-    def _ccode(self, *args, **kwargs):
-        kwargs_str = ", ".join(["{" + f"\"{key}\", " + ccode(val) + "}"
-                                for key, val in self.kwpairs.items()])
-        kwargs_str = kwargs_str.strip(", ")
-        kwargs_str = "{" + kwargs_str + "}"
-        return kwargs_str
-
-    def _pythoncode(self, *args, **kwargs):
-        kwargs_str = ", ".join([f"{key}={pycode(val)}" for key, val in self.kwpairs.items()])
-        kwargs_str = kwargs_str.strip(", ")
-        # kwargs_str = "{" + kwargs_str + "}"
-        return kwargs_str
 
 
 class CType(Type):
@@ -292,29 +259,6 @@ class CodegenFunctionCall(FunctionCall, KwargsToken):
         for key, val in dkwargs.items():
             kwargs_list += [f"{key}={val}"]
         return ", ".join(kwargs_list)
-
-
-    def _ccode(self, *args, **kwargs):
-        params_str = ""
-        params_str = ", ".join([ccode(i) for i in self.function_args])
-        if len(self.function_args) and len(self.function_kwargs):
-            params_str += ", "
-        kwargs_list = []
-        for key, val in self.function_kwargs.items():
-            kwargs_list += ["{" + f"\"{key}\", {val}" + "}"]
-        if kwargs_list:
-            params_str += "{" + ", ".join(kwargs_list) + "}"
-        return f"{self.name}({params_str})"
-
-
-    def _pythoncode(self, *args, **kwargs):
-        params_str = ""
-        params_str = ", ".join([pycode(i) for i in self.function_args])
-        if len(self.function_args) and len(self.function_kwargs):
-            params_str += ", "
-        if (kwargs_str := self._dict_to_kwargs_str(self.function_kwargs)):
-            params_str += f"{kwargs_str}"
-        return f"{self.name}({params_str})"
 
 
 class CodeGenFunctionPrototype(FunctionPrototype):

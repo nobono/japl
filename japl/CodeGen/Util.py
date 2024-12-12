@@ -1,12 +1,17 @@
 import os
 import shutil
 from japl.CodeGen.Printer import CCodeGenPrinter
-from sympy import pycode
+from japl.CodeGen.Printer import PyCodeGenPrinter
 
 
 
 def ccode(expr, **kwargs):
     printer = CCodeGenPrinter()
+    return printer.doprint(expr, **kwargs)
+
+
+def pycode(expr, **kwargs):
+    printer = PyCodeGenPrinter()
     return printer.doprint(expr, **kwargs)
 
 
