@@ -5,6 +5,7 @@ from sympy import symbols
 from japl.CodeGen.JaplFunction import JaplFunction
 from japl.CodeGen.Ast import Constructor
 from japl.CodeGen.Ast import CType, CTypes
+from japl.CodeGen.Ast import PyType, PyTypes
 from japl.CodeGen.Ast import Kwargs
 from japl.CodeGen.Ast import Dict
 from japl.CodeGen import ccode
@@ -69,6 +70,7 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
 
 
     def test_codegen_call_case1(self):
+        a = symbols('a')
         f = func(a=1)
         self.assertEqual(f.name, "func")
         self.assertEqual(ccode(f), "func({{\"a\", 1}})")
@@ -108,12 +110,17 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
     def test_get_parameter_variables(self):
         code_type = 'c'
         a, b = symbols("a, b")
-        f = func(a, b=1)
+        f = func(a, b=1, c=2)
         ret = f._get_parameter_variables(code_type=code_type)
-        self.assertEqual(ccode(ret[0]), 'a')
-        self.assertEqual(ccode(ret[1]), '_Dummy_var0')
-        self.assertEqual(pycode(ret[0]), 'a')
-        self.assertEqual(pycode(ret[1]), '_Dummy_var0')
+        self.assertEqual(ret[0].symbol.name, 'a')
+        self.assertEqual(ret[1].symbol.name, '_Dummy_var0')
+        self.assertEqual(ret[0].type, CTypes.float64.as_ref())
+        self.assertEqual(ret[1].type, CTypes.float64.as_map().as_ref())
+        code_type = 'py'
+        ret = f._get_parameter_variables(code_type=code_type)
+        self.assertEqual(ret[1].symbol.name, '_Dummy_var0')
+        self.assertEqual(ret[0].type, PyTypes.float64.as_ref())
+        self.assertEqual(ret[1].type, PyTypes.float64.as_map().as_ref())
 
 
     def test_codegen_build_proto_ccode(self):
