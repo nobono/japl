@@ -54,9 +54,7 @@ def convert_symbols_to_variables(params, code_type: str, dummy_symbol_gen: Gener
         Types = get_lang_types(code_type)
         param_type = Types.from_expr(param).as_ref()
 
-        if (isinstance(param, int)
-                or isinstance(param, float)
-                or isinstance(param, Number)):
+        if isinstance(param, (Number, int, float)):
             param_name = str(param)
         elif isinstance(param, Symbol):
             param_name = getattr(param, "name", None)
