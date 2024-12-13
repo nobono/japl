@@ -56,10 +56,11 @@ class CCodeGenPrinter(C99CodePrinter):
 
 
     def _print_FunctionPrototype(self, expr):
-        pars = ', '.join((self._print(Declaration(arg)) for arg in expr.parameters))
-        return "%s %s(%s)" % (
-            tuple((self._print(arg) for arg in (expr.return_type, expr.name))) + (pars,)
-        )
+        # pars = ', '.join((self._print(Declaration(arg)) for arg in expr.parameters))
+        # return "%s %s(%s)" % (
+        #     tuple((self._print(arg) for arg in (expr.return_type, expr.name))) + (pars,)
+        # )
+        return super()._print_FunctionPrototype(expr)
 
 
     def _print_FunctionDefinition(self, expr):
@@ -150,19 +151,49 @@ class PyCodeGenPrinter(PythonCodePrinter):
         return self._print_CodeGenFunctionCall(expr.codegen_function_call)
 
 
-    def _print_CodeGenFunctionCall(self, expr):
-        dummy_symbol_gen = numbered_symbols(prefix=_STD_DUMMY_NAME)
-        parameters = convert_symbols_to_variables(expr.function_args,
-                                                  code_type=self.code_type,
-                                                  dummy_symbol_gen=dummy_symbol_gen)
+    def _print_FunctionPrototype(self, expr):
+        # NOTE: python has no prototypes
+        return ""
+
+
+    def _print_FunctionDefinition(self, fd):
+        # get parameters and convert to printable types
+        # dummy_symbol_gen = numbered_symbols(prefix=_STD_DUMMY_NAME)
+        # parameters = convert_symbols_to_variables(fd.function_args,
+        #                                           code_type=self.code_type,
+        #                                           dummy_symbol_gen=dummy_symbol_gen)
+        parameters = fd.parameters
+
+        # convert param types to string
         if not hasattr(parameters, "__len__"):
             parameters = [parameters]
         params_str = ", ".join([self._print(i.symbol) for i in parameters])  # type:ignore
 
+        # append function kwargs
+        # if len(fd.function_args) and len(fd.function_kwargs):
+        #     params_str += ", "
+        # params_str += fd._dict_to_kwargs_str(fd.function_kwargs)
+
+        return "def %s(%s)" % (fd.name, params_str)
+
+
+    def _print_CodeGenFunctionCall(self, expr):
+        # get parameters and convert to printable types
+        dummy_symbol_gen = numbered_symbols(prefix=_STD_DUMMY_NAME)
+        parameters = convert_symbols_to_variables(expr.function_args,
+                                                  code_type=self.code_type,
+                                                  dummy_symbol_gen=dummy_symbol_gen)
+        # convert param types to string
+        if not hasattr(parameters, "__len__"):
+            parameters = [parameters]
+        params_str = ", ".join([self._print(i.symbol) for i in parameters])  # type:ignore
+
+        # append function kwargs
         if len(expr.function_args) and len(expr.function_kwargs):
             params_str += ", "
         params_str += expr._dict_to_kwargs_str(expr.function_kwargs)
-        return f"{expr.name}({params_str})"
+
+        return "%s(%s)" % (expr.name, params_str)
 
 
     def _print_Kwargs(self, expr):
