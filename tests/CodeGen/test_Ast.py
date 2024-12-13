@@ -1,5 +1,7 @@
 import unittest
 from sympy import symbols
+from sympy import Matrix
+from sympy import MatrixSymbol
 # from sympy import ccode
 from japl.CodeGen import ccode
 from japl.CodeGen import pycode
@@ -47,10 +49,23 @@ class TestAst(unittest.TestCase):
         d = Kwargs(x=1, y=2)
         self.assertEqual(ccode(d), '{{"x", 1}, {"y", 2}}')
         self.assertEqual(pycode(d), 'x=1, y=2')
+        a = symbols("a")
+        A = Matrix([1, 2, a])
+        d = Kwargs(x=A)
+        self.assertEqual(ccode(d), '{{"x", _Dummy_var0}}')
 
 
     def test_call_case_1(self):
         f = CodeGenFunctionCall("func", (1, 2), x=1, y=2)
+        self.assertEqual(f.name, String("func"))
+        self.assertEqual(f.function_args, Tuple(1, 2))
+        self.assertEqual(f.function_kwargs, Kwargs(x=1, y=2))
+        self.assertEqual(ccode(f.function_kwargs), '{{"x", 1}, {"y", 2}}')
+        self.assertEqual(ccode(f), 'func(1, 2, {{"x", 1}, {"y", 2}})')
+        self.assertEqual(pycode(f.function_kwargs), 'x=1, y=2')
+        self.assertEqual(pycode(f), 'func(1, 2, x=1, y=2)')
+
+        f = CodeGenFunctionCall("func", 1, 2, x=1, y=2)
         self.assertEqual(f.name, String("func"))
         self.assertEqual(f.function_args, Tuple(1, 2))
         self.assertEqual(f.function_kwargs, Kwargs(x=1, y=2))

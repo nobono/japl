@@ -4,7 +4,7 @@ from sympy import MatrixSymbol
 from sympy import Function
 from sympy import Matrix
 from sympy import Expr
-# from sympy.codegen.ast import numbered_symbols
+from sympy.codegen.ast import numbered_symbols
 from sympy.codegen.ast import FunctionDefinition
 from sympy.codegen.ast import FunctionPrototype
 from sympy.codegen.ast import CodeBlock
@@ -20,26 +20,13 @@ from japl.CodeGen.Ast import CodeGenFunctionCall
 from japl.CodeGen.Ast import CodeGenFunctionPrototype
 from japl.CodeGen.Ast import CType
 from japl.CodeGen.Ast import CTypes
+from japl.CodeGen.Ast import PyTypes
 from japl.CodeGen.Ast import Kwargs
-from japl.CodeGen import ccode
-from japl.CodeGen import pycode
-from japl.CodeGen.Util import get_dummy_symbol
-from japl.CodeGen.Util import reset_dummy_symbol_gen
 from japl.CodeGen.Globals import _STD_DUMMY_NAME
 from japl.CodeGen.Globals import _STD_RETURN_NAME
+from japl.CodeGen.Ast import get_lang_types
+from japl.CodeGen.Ast import convert_symbols_to_variables
 
-
-
-__CODES__ = ("py", "c")
-
-
-def get_lang_types(code_type: str):
-    if code_type not in __CODES__:
-        raise Exception(f"codegen for {code_type} not avaialable.")
-    elif code_type == "py":
-        raise Exception("Type does not apply for generating python code.")
-    elif code_type == "c":
-        return CTypes
 
 
 class JaplFunction(Function):
@@ -102,9 +89,10 @@ class JaplFunction(Function):
             obj.name = f"{obj.parent}.{str(cls)}"  # for "class.method" naming
         else:
             obj.name = str(cls)  # function name is name of class
+
+        # printable members
         obj.kwargs = found_kwargs
         obj.fargs = found_args
-        # codegen objects
         obj.codegen_function_call = CodeGenFunctionCall(obj.name, found_args, found_kwargs)
         return obj
 
@@ -171,12 +159,16 @@ class JaplFunction(Function):
 
     def _get_parameter_variables(self, code_type: str) -> tuple[Variable, ...]:
         """converts parameter Symbols to Variables"""
-        Types = get_lang_types(code_type)
+        # prepare dummy symbols generator for symbolic types which contain no name
+        # (i.e. certain Matrix types)
+        dummy_symbol_gen = numbered_symbols(prefix=self.std_dummy_name)
+        Types = get_lang_types(code_type)  # get the appropriate Types class
+        # iterate through function args and kwargs, converting symbols to variable types
         kwarg_params = ()
         arg_params = ()
         if self.kwargs:
             kwarg_type = Types.float64.as_map().as_ref()
-            kwarg_params = (Variable("kwargs", type=kwarg_type),)
+            kwarg_params = (Variable("kwargs", type=kwarg_type),)  # TODO only a ccode thing
         for param in self.fargs:
             param_type = Types.from_expr(param).as_ref()
 
@@ -185,10 +177,11 @@ class JaplFunction(Function):
                 param_name = getattr(param, "name", None)
                 if param_name is None:
                     param_name = str(param)
+            elif isinstance(param, MatrixSymbol):
+                param_name = param.name
             else:
-                param_name = get_dummy_symbol()
+                param_name = next(dummy_symbol_gen)
             arg_params += (Variable(param_name, type=param_type),)
-        reset_dummy_symbol_gen()
         return arg_params + kwarg_params
 
 
@@ -265,18 +258,6 @@ class JaplFunction(Function):
         self.parent = parent
         self.name = f"{parent}.{self.name}"
         self.codegen_function_call.name = self.name
-
-
-    def _pythoncode(self, *args, **kwargs):
-        """string representation of object when using sympy.pycode()
-        for python code generation"""
-        return pycode(self.codegen_function_call)
-
-
-    def _ccode(self, *args, **kwargs):
-        """string representation of object when using sympy.ccode()
-        for c-code generate"""
-        return ccode(self.codegen_function_call)
 
 
     def _sympystr(self, printer):
@@ -356,9 +337,3 @@ class JaplFunction(Function):
 
     def _eval_derivative(self, sym):
         return
-
-    # -----------------------------------------
-    # Codegen Methods
-    # -----------------------------------------
-
-    # def _get_def_parameters(self)

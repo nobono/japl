@@ -1,3 +1,4 @@
+from sympy.codegen.ast import numbered_symbols
 from sympy.codegen.ast import FunctionCall
 from sympy.codegen.ast import FunctionPrototype
 from sympy.codegen.ast import FunctionDefinition
@@ -9,9 +10,62 @@ from sympy.codegen.ast import Tuple
 from sympy.codegen.ast import Type
 from sympy.codegen.ast import Node
 from sympy.core.function import Function
+from sympy.core.numbers import Number
 from sympy import Float, Integer, Matrix
+from sympy import Symbol
 from sympy import MatrixSymbol
+from japl.CodeGen.Globals import _STD_DUMMY_NAME
 
+
+
+__CODES__ = ("py", "c")
+
+
+def get_lang_types(code_type: str):
+    if code_type not in __CODES__:
+        raise Exception(f"codegen for {code_type} not avaialable.")
+    elif code_type == "py":
+        # raise Exception("Type does not apply for generating python code.")
+        return PyTypes
+    elif code_type == "c":
+        return CTypes
+
+
+def convert_symbols_to_variables(params, code_str: str) -> Variable|tuple:
+    """This handles conversions between Symbolic types (Symbol, Matrix, ...etc)
+    and converts them to Variable types necessary for code generation.
+    Variable types contain name and type information."""
+    ret = ()
+    is_iterable_of_args = (isinstance(params, Tuple)
+                           or isinstance(params, list)
+                           or isinstance(params, tuple))
+    if not is_iterable_of_args:
+        params = [params]
+
+    dummy_symbol_gen = numbered_symbols(prefix=_STD_DUMMY_NAME)
+    for param in params:
+        Types = get_lang_types(code_str)
+        param_type = Types.from_expr(param).as_ref()
+
+        if (isinstance(param, int)
+                or isinstance(param, float)
+                or isinstance(param, Number)):
+            param_name = str(param)
+        elif isinstance(param, Symbol):
+            param_name = getattr(param, "name", None)
+            if param_name is None:
+                param_name = str(param)
+        elif isinstance(param, MatrixSymbol):
+            param_name = param.name
+        else:
+            param_name = next(dummy_symbol_gen)
+        ret += (Variable(param_name, type=param_type),)
+
+    # return shape same as input
+    if len(ret) == 1:
+        return ret[0]
+    else:
+        return ret
 
 
 class Constructor(Token):
@@ -41,7 +95,8 @@ class Constructor(Token):
 
 class KwargsToken(Token):
 
-    """Token but accepts kwargs input"""
+    """Token but accepts kwargs input.
+    inputs are symbolic but are converted to Variable types."""
 
     def __new__(cls, *args, **kwargs):
         token_pops = ["exclude", "apply"]
@@ -55,7 +110,19 @@ class KwargsToken(Token):
             kwargs.pop(k)
         if kwargs:
             args += (kwargs,)
-        obj = super().__new__(cls, *args, **kwargs_passthrough)
+        # group args not passed as tuple
+        # this assumed first arg is name and everything
+        # between name and kwargs is args tuple.
+        # NOTE: ensure args is passed as tuple of:
+        #   (name, (*args), kwargs[dict])
+        if len(args) >= 3:
+            if isinstance(args[1], tuple):
+                _args = args
+            else:
+                _args = (args[0], tuple(args[1:-1]), args[-1])
+        else:
+            _args = args
+        obj = super().__new__(cls, *_args, **kwargs_passthrough)
         return obj
 
 
@@ -111,6 +178,55 @@ class Kwargs(KwargsToken):
         return (key for key in self.kwpairs.keys())
 
 
+class PyType(Type):
+
+    """Token class but has modifier methods
+    - as_vector
+    - as_ndarray
+    - ...etc
+    """
+
+    __slots__ = _fields = ("name", "is_array")
+    defaults = {"name": "PyType", "is_array": False}
+
+    @staticmethod
+    def _construct_name(name):
+        return name
+
+
+    @staticmethod
+    def _construct_is_array(val):
+        return val
+
+
+    def as_vector(self):
+        return PyType("", is_array=True)
+
+
+    def as_ndarray(self):
+        return PyType("", is_array=True)
+
+
+    def as_map(self):
+        return PyType("")
+
+
+    def as_const(self):
+        return PyType("")
+
+
+    def as_ref(self):
+        return PyType("")
+
+
+    def _ccode(self, *args, **kwargs):
+        return self.name
+
+
+    def _pythoncode(self, *args, **kwargs):
+        return ""
+
+
 class CType(Type):
 
     """Token class but has modifier methods
@@ -158,6 +274,46 @@ class CType(Type):
 
     def _pythoncode(self, *args, **kwargs):
         return ""
+
+
+class PyTypes:
+    bool = PyType("")
+    int = PyType("")
+    float32 = PyType("")
+    float64 = PyType("")
+    void = PyType("")
+    complex_ = PyType("")
+
+
+    @staticmethod
+    def from_expr(expr) -> PyType:
+        """ Deduces type from an expression or a ``Symbol``.
+        """
+        if expr is None:
+            return PyTypes.void
+        if isinstance(expr, Function):
+            return expr.type
+        if isinstance(expr, Kwargs) or isinstance(expr, Dict):
+            return PyTypes.float64.as_map()
+        if isinstance(expr, MatrixSymbol):
+            if expr.shape[0] > 1 and expr.shape[1] > 1:  # type:ignore
+                raise Exception("Multidimensional Matrix shapes not yet supported.")
+            return PyTypes.float64.as_vector()
+        if isinstance(expr, Matrix):
+            return PyTypes.float64.as_vector()
+        if isinstance(expr, (float, Float)):
+            return PyTypes.float64
+        if isinstance(expr, (int, Integer)) or getattr(expr, 'is_integer', False):
+            return PyTypes.int
+        if getattr(expr, 'is_real', False):
+            return PyTypes.float64
+        if isinstance(expr, complex) or getattr(expr, 'is_complex', False):
+            return PyTypes.complex_
+        if (isinstance(expr, bool) or getattr(expr, 'is_Relational', False)
+                or expr.assumptions0.get("boolean", False)):
+            return PyTypes.bool
+        else:
+            return PyTypes.float64
 
 
 class CTypes:
@@ -255,6 +411,12 @@ class CodeGenFunctionCall(FunctionCall, KwargsToken):
 
     @staticmethod
     def _dict_to_kwargs_str(dkwargs: dict):
+        """
+        returns string format of a dictionary as keyword args.
+
+        for example:
+            the dict: {'a': 1, 'b': 2} returns \"a=1, b=2\"
+        """
         kwargs_list = []
         for key, val in dkwargs.items():
             kwargs_list += [f"{key}={val}"]
@@ -315,49 +477,3 @@ class CodeGenFunctionPrototype(FunctionPrototype):
         if not isinstance(func_def, FunctionDefinition):
             raise TypeError("func_def is not an instance of FunctionDefinition")
         return cls(**func_def.kwargs(exclude=('body',)))
-
-
-# class CodegenFunction:
-
-#     def __init__(self, japl_function) -> None:
-#         self.japl_function = japl_function
-#         self.return_type = self.deduce_return_type()
-#     #     f = CodegenFunctionProto(return_type=CTypes.double,
-#     #                              name="func",
-#     #                              parameters=[a, b])
-
-#     @staticmethod
-#     def deduce_return_type(expr) -> str:
-#         # determine return shape
-#         return_shape = Matrix([expr]).shape
-
-#         if np.prod(return_shape) == 1:
-#             primitive_type = CCodeGenerator._get_primitive_type(expr)  # type:ignore
-#             type_str = primitive_type
-#         else:
-#             primitive_type = "double"
-#             type_str = f"vector<{primitive_type}>"
-#         return type_str
-
-
-# # TESTS
-# class func(JaplFunction):
-#     pass
-
-# avar = Variable(a, type=double)
-# bvar = Variable(b, type=double)
-# cvar = Variable(c, type=double)
-
-# # Kwargs
-# assert ccode(Kwargs()) == "{}"
-# assert ccode(Kwargs({})) == "{}"
-# assert ccode(Kwargs({"x": 1, 'y': 2.0})) == "{{\"x\", 1}, {\"y\", 2.0}}"
-# assert ccode(Kwargs({"x": a, 'y': bvar})) == "{{\"x\", a}, {\"y\", b}}"
-
-# # Function
-# assert ccode(Func("func")) == "func()"
-# assert ccode(Func("func", ())) == "func()"
-# assert ccode(Func("func", (avar,))) == "func(a)"
-# assert ccode(Func("func", (avar, bvar))) == "func(a, b)"
-# assert ccode(Func("func", (), {"x": 1, "y": 2})) == "func(x=1, y=2)"
-# assert ccode(Func("func", (avar, bvar), {"x": 1, "y": 2})) == "func(a, b, x=1, y=2)"

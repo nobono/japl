@@ -181,28 +181,6 @@ class TestJaplFunction(unittest.TestCase):
         self.assertEqual(func(a=1, b=1).diff(), 0)
 
 
-    def test_name_case1(self):
-        class method(JaplFunction):
-            pass
-        f = method(a=1)
-        f.set_parent("obj")
-        self.assertEqual(f.name, "obj.method")
-        # self.assertEqual(str(f), "obj.method(a=1)")
-        self.assertEqual(pycode(f), "obj.method(a=1)")
-        self.assertEqual(ccode(f), "obj.method({{\"a\", 1}})")
-
-
-    def test_name_case2(self):
-        class method(JaplFunction):
-            parent = "obj"
-            pass
-        f = method(a=1)
-        self.assertEqual(f.name, "obj.method")
-        # self.assertEqual(str(f), "obj.method(a=1)")
-        self.assertEqual(pycode(f), "obj.method(a=1)")
-        self.assertEqual(ccode(f), "obj.method({{\"a\", 1}})")
-
-
     # def test_compares_case1(self):
     #     from sympy import Piecewise
     #     from sympy import Function

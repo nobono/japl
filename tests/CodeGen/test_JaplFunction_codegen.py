@@ -1,8 +1,6 @@
 import unittest
 from textwrap import dedent
 from sympy import symbols
-from sympy import pycode
-# from sympy import ccode
 from sympy import symbols
 from japl.CodeGen.JaplFunction import JaplFunction
 from japl.CodeGen.Ast import Constructor
@@ -10,6 +8,7 @@ from japl.CodeGen.Ast import CType, CTypes
 from japl.CodeGen.Ast import Kwargs
 from japl.CodeGen.Ast import Dict
 from japl.CodeGen import ccode
+from japl.CodeGen import pycode
 
 from sympy.codegen.ast import CodeBlock
 from sympy.codegen.ast import Assignment
@@ -33,7 +32,7 @@ class func2(JaplFunction):
     pass
 
 
-class TestJaplFunction(unittest.TestCase):
+class TestJaplFunction_CodeGen(unittest.TestCase):
 
 
     def setUp(self) -> None:
@@ -69,6 +68,45 @@ class TestJaplFunction(unittest.TestCase):
             ret = CTypes.from_expr(MatrixSymbol("A", 2, 3))
 
 
+    def test_codegen_call_case1(self):
+        f = func(a=1)
+        self.assertEqual(f.name, "func")
+        # self.assertEqual(pycode(f), "func(a=1)")
+        self.assertEqual(ccode(f), "func({{\"a\", 1}})")
+
+
+    def test_codegen_call_case2(self):
+        class method(JaplFunction):
+            pass
+        f = method(a=1)
+        f.set_parent("obj")
+        self.assertEqual(f.name, "obj.method")
+        # self.assertEqual(str(f), "obj.method(a=1)")
+        self.assertEqual(pycode(f), "obj.method(a=1)")
+        self.assertEqual(ccode(f), "obj.method({{\"a\", 1}})")
+
+
+    def test_codegen_call_case3(self):
+        class method(JaplFunction):
+            parent = "obj"
+            pass
+        f = method(a=1)
+        self.assertEqual(f.name, "obj.method")
+        # self.assertEqual(str(f), "obj.method(a=1)")
+        self.assertEqual(pycode(f), "obj.method(a=1)")
+    #     self.assertEqual(ccode(f), "obj.method({{\"a\", 1}})")
+
+
+    def test_codegen_call_case4(self):
+        """dealing with Matrices as parameters"""
+        a, b = symbols("a, b")
+        c, d = symbols("c, d")
+        A = Matrix([b])
+        B = Matrix([c, d])
+        f = func(a, A, B)
+        self.assertEqual(ccode(f), "func(a, _Dummy_var0, _Dummy_var1)")
+        self.assertEqual(pycode(f), "func(a, _Dummy_var0, _Dummy_var1)")
+
 
     def test_get_parameter_variables(self):
         code_type = 'c'
@@ -98,19 +136,6 @@ class TestJaplFunction(unittest.TestCase):
         f = func(a, b=1)
         f._build_proto(expr=Matrix([c + d]), code_type=code_type)
         self.assertEqual(ccode(f.codegen_function_proto), "vector<double> func(double& a, map<string, double>& kwargs)")
-
-
-    # def test_codegen_build_proto_case2(self):
-    #     code_type = 'c'
-    #     a, b = symbols("a, b")
-    #     c, d = symbols("c, d")
-    #     A = Matrix([c, d])
-    #     f = func(A)
-    #     f._build_proto(expr=None, code_type=code_type)
-    #     # print(A.__class__)
-    #     print(ccode(f))
-    #     # print(ccode(f.codegen_function_proto))
-    #     pass
 
 
     def test_codegen_build_proto_dummy_params(self):
