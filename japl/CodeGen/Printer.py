@@ -1,17 +1,19 @@
 from sympy.printing.c import C99CodePrinter
 from sympy.printing.pycode import PythonCodePrinter
 from sympy.codegen.ast import Declaration
+from sympy.codegen.ast import numbered_symbols
 from sympy.codegen.ast import Variable
 from sympy.codegen.ast import untyped
 from japl.CodeGen.Ast import CTypes
 from japl.CodeGen.Ast import convert_symbols_to_variables
 from japl.CodeGen.JaplFunction import JaplFunction
+from japl.CodeGen.Globals import _STD_DUMMY_NAME
 
 
 
 class CCodeGenPrinter(C99CodePrinter):
 
-    code_str: str = 'c'
+    code_type: str = 'c'
 
     def _print_Function(self, expr):
         # ---------------------------------------------------------------
@@ -35,7 +37,10 @@ class CCodeGenPrinter(C99CodePrinter):
 
 
     def _print_CodeGenFunctionCall(self, expr):
-        parameters = convert_symbols_to_variables(expr.function_args, self.code_str)
+        dummy_symbol_gen = numbered_symbols(prefix=_STD_DUMMY_NAME)
+        parameters = convert_symbols_to_variables(expr.function_args,
+                                                  code_type=self.code_type,
+                                                  dummy_symbol_gen=dummy_symbol_gen)
         if not hasattr(parameters, "__len__"):
             parameters = [parameters]
         params_str = ", ".join([self._print(i.symbol) for i in parameters])  # type:ignore
@@ -48,6 +53,18 @@ class CCodeGenPrinter(C99CodePrinter):
         if kwargs_list:
             params_str += "{" + ", ".join(kwargs_list) + "}"
         return f"{expr.name}({params_str})"
+
+
+    def _print_FunctionPrototype(self, expr):
+        pars = ', '.join((self._print(Declaration(arg)) for arg in expr.parameters))
+        return "%s %s(%s)" % (
+            tuple((self._print(arg) for arg in (expr.return_type, expr.name))) + (pars,)
+        )
+
+
+    def _print_FunctionDefinition(self, expr):
+        return "%s%s" % (self._print_FunctionPrototype(expr),
+                         self._print_Scope(expr))
 
 
     def _print_Constructor(self, expr):
@@ -87,9 +104,12 @@ class CCodeGenPrinter(C99CodePrinter):
 
 
     def _print_Kwargs(self, expr):
+        dummy_symbol_gen = numbered_symbols(prefix=_STD_DUMMY_NAME)
         kwargs_str = ""
         for key, val in expr.kwpairs.items():
-            val_variable = convert_symbols_to_variables(val, self.code_str)
+            val_variable = convert_symbols_to_variables(val,
+                                                        code_type=self.code_type,
+                                                        dummy_symbol_gen=dummy_symbol_gen)
             kwargs_str += "{" + f"\"{key}\", " + self._print(val_variable) + "}, "
         kwargs_str = kwargs_str.strip(", ")
         kwargs_str = "{" + kwargs_str + "}"
@@ -106,7 +126,7 @@ class CCodeGenPrinter(C99CodePrinter):
 
 class PyCodeGenPrinter(PythonCodePrinter):
 
-    code_str: str = "py"
+    code_type: str = "py"
 
     def _print_Function(self, expr):
         # ---------------------------------------------------------------
@@ -131,7 +151,10 @@ class PyCodeGenPrinter(PythonCodePrinter):
 
 
     def _print_CodeGenFunctionCall(self, expr):
-        parameters = convert_symbols_to_variables(expr.function_args, self.code_str)
+        dummy_symbol_gen = numbered_symbols(prefix=_STD_DUMMY_NAME)
+        parameters = convert_symbols_to_variables(expr.function_args,
+                                                  code_type=self.code_type,
+                                                  dummy_symbol_gen=dummy_symbol_gen)
         if not hasattr(parameters, "__len__"):
             parameters = [parameters]
         params_str = ", ".join([self._print(i.symbol) for i in parameters])  # type:ignore

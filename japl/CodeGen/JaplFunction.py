@@ -4,6 +4,7 @@ from sympy import MatrixSymbol
 from sympy import Function
 from sympy import Matrix
 from sympy import Expr
+from sympy import Number
 from sympy.codegen.ast import numbered_symbols
 from sympy.codegen.ast import FunctionDefinition
 from sympy.codegen.ast import FunctionPrototype
@@ -12,6 +13,7 @@ from sympy.codegen.ast import Assignment
 from sympy.codegen.ast import Variable
 from sympy.codegen.ast import Return
 from sympy.codegen.ast import Symbol
+from sympy.codegen.ast import Dummy
 from sympy.codegen.ast import Type
 from sympy.codegen.ast import Tuple
 from sympy.matrices import MatrixExpr
@@ -26,6 +28,7 @@ from japl.CodeGen.Globals import _STD_DUMMY_NAME
 from japl.CodeGen.Globals import _STD_RETURN_NAME
 from japl.CodeGen.Ast import get_lang_types
 from japl.CodeGen.Ast import convert_symbols_to_variables
+from japl.CodeGen.Util import is_empty_expr
 
 
 
@@ -94,12 +97,14 @@ class JaplFunction(Function):
         obj.kwargs = found_kwargs
         obj.fargs = found_args
         obj.codegen_function_call = CodeGenFunctionCall(obj.name, found_args, found_kwargs)
+        obj.expr = Expr()
         return obj
 
 
     @staticmethod
     def _to_codeblock(arg: Expr|Matrix|CodeBlock|list|tuple) -> CodeBlock:
-        """converts Symbolic expressions to codeblock."""
+        """converts Symbolic expressions to codeblock. If an iterable of
+        expressions are provided CodeBlock will be build recursively."""
         std_return_name = JaplFunction.std_return_name
         code_lines = []
         if isinstance(arg, MatrixExpr):  # captures MatrixSymbols / MatrixMul ...etc
@@ -119,7 +124,9 @@ class JaplFunction(Function):
             code_lines += [Return(ret_var)]
             return CodeBlock(*code_lines)
         elif isinstance(arg, Expr):
-            if isinstance(arg, Symbol):
+            if is_empty_expr(arg):  # case arg is empty expression (i.e. None, Expr())
+                return CodeBlock()
+            elif isinstance(arg, Symbol):
                 var = Variable(arg, type=CTypes.from_expr(arg)).as_Declaration()
                 return CodeBlock(var)
             else:
@@ -157,32 +164,35 @@ class JaplFunction(Function):
             self.expr = body
 
 
-    def _get_parameter_variables(self, code_type: str) -> tuple[Variable, ...]:
-        """converts parameter Symbols to Variables"""
-        # prepare dummy symbols generator for symbolic types which contain no name
-        # (i.e. certain Matrix types)
-        dummy_symbol_gen = numbered_symbols(prefix=self.std_dummy_name)
+    def _get_parameter_variables(self, code_type: str) -> list:
         Types = get_lang_types(code_type)  # get the appropriate Types class
-        # iterate through function args and kwargs, converting symbols to variable types
-        kwarg_params = ()
-        arg_params = ()
-        if self.kwargs:
-            kwarg_type = Types.float64.as_map().as_ref()
-            kwarg_params = (Variable("kwargs", type=kwarg_type),)  # TODO only a ccode thing
-        for param in self.fargs:
-            param_type = Types.from_expr(param).as_ref()
 
-            # if param is Literal type, use dummy var
-            if isinstance(param, Symbol):
-                param_name = getattr(param, "name", None)
-                if param_name is None:
-                    param_name = str(param)
-            elif isinstance(param, MatrixSymbol):
-                param_name = param.name
-            else:
-                param_name = next(dummy_symbol_gen)
-            arg_params += (Variable(param_name, type=param_type),)
-        return arg_params + kwarg_params
+        # convert function args
+        dummy_symbol_gen = numbered_symbols(prefix=self.std_dummy_name)
+        parameters = []
+        arg_parameters = convert_symbols_to_variables(self.fargs,
+                                                      code_type=code_type,
+                                                      dummy_symbol_gen=dummy_symbol_gen)
+        if hasattr(arg_parameters, "__len__"):
+            parameters += list(arg_parameters)  # convert to list
+        else:
+            parameters += [arg_parameters]
+
+        # convert_symbols_to_variables passes through Literal types,
+        # but for function prototype we want to use a dummy variable.
+        # replace Literal types with Dummy variables.
+        for i, param in enumerate(parameters):
+            if isinstance(param.symbol, (Number, int, float)):
+                dummy_symbol = next(dummy_symbol_gen)
+                dummy_type = Types.from_expr(dummy_symbol).as_ref()
+                parameters[i] = Variable(dummy_symbol, type=dummy_type)
+
+        # convert function kwargs
+        if self.kwargs:
+            dummy_name = next(dummy_symbol_gen)
+            kwarg_type = Types.float64.as_map().as_ref()
+            parameters += [Variable(dummy_name, type=kwarg_type)]
+        return parameters
 
 
     def _build_proto(self, expr, code_type: str):
@@ -227,9 +237,10 @@ class JaplFunction(Function):
 
 
     def _build_function(self, code_type: str):
-        if self.expr == Expr():
-            raise Exception(f"unable to build function {self.name}."
-                            "expr attribute not defined.")
+        """dynamically builds JaplFunction prototype & definition
+        using self.expr.
+
+        This method calls _build_proto() and _build_def()."""
         self._build_proto(expr=self.expr, code_type=code_type)
         self._build_def(expr=self.expr, code_type=code_type)
 

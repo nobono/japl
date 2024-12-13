@@ -1,3 +1,5 @@
+from typing import Optional
+from typing import Generator
 from sympy.codegen.ast import numbered_symbols
 from sympy.codegen.ast import FunctionCall
 from sympy.codegen.ast import FunctionPrototype
@@ -9,12 +11,14 @@ from sympy.codegen.ast import String
 from sympy.codegen.ast import Tuple
 from sympy.codegen.ast import Type
 from sympy.codegen.ast import Node
+from sympy.codegen.ast import Expr
 from sympy.core.function import Function
 from sympy.core.numbers import Number
 from sympy import Float, Integer, Matrix
 from sympy import Symbol
 from sympy import MatrixSymbol
 from japl.CodeGen.Globals import _STD_DUMMY_NAME
+from japl.CodeGen.Util import is_empty_expr
 
 
 
@@ -31,20 +35,23 @@ def get_lang_types(code_type: str):
         return CTypes
 
 
-def convert_symbols_to_variables(params, code_str: str) -> Variable|tuple:
+def convert_symbols_to_variables(params, code_type: str, dummy_symbol_gen: Generator) -> Variable|tuple:
     """This handles conversions between Symbolic types (Symbol, Matrix, ...etc)
     and converts them to Variable types necessary for code generation.
     Variable types contain name and type information."""
     ret = ()
-    is_iterable_of_args = (isinstance(params, Tuple)
-                           or isinstance(params, list)
-                           or isinstance(params, tuple))
+    is_iterable_of_args = isinstance(params, (Tuple, list, tuple))
     if not is_iterable_of_args:
         params = [params]
 
-    dummy_symbol_gen = numbered_symbols(prefix=_STD_DUMMY_NAME)
+    # create dummy symbols generator if none provided
+    # this is so dummy variables can be generated within or
+    # outside of another code-generating scope.
+    # if dummy_symbol_gen is None:
+    #     dummy_symbol_gen = numbered_symbols(prefix=_STD_DUMMY_NAME)
+
     for param in params:
-        Types = get_lang_types(code_str)
+        Types = get_lang_types(code_type)
         param_type = Types.from_expr(param).as_ref()
 
         if (isinstance(param, int)
@@ -355,7 +362,7 @@ class CTypes:
         ValueError when type deduction fails.
 
         """
-        if expr is None:
+        if is_empty_expr(expr):
             return CTypes.void
         if isinstance(expr, Function):
             return expr.type

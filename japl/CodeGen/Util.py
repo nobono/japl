@@ -1,5 +1,6 @@
 import os
 import shutil
+from sympy.codegen.ast import Expr
 
 
 
@@ -32,3 +33,7 @@ def copy_dir(source_dir, target_dir) -> None:
         else:
             # Copy files
             shutil.copy2(source_item, target_item)
+
+
+def is_empty_expr(expr):
+    return (expr is None) or (expr == Expr())

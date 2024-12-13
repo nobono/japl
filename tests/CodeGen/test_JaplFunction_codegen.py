@@ -71,7 +71,6 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
     def test_codegen_call_case1(self):
         f = func(a=1)
         self.assertEqual(f.name, "func")
-        # self.assertEqual(pycode(f), "func(a=1)")
         self.assertEqual(ccode(f), "func({{\"a\", 1}})")
 
 
@@ -81,7 +80,6 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
         f = method(a=1)
         f.set_parent("obj")
         self.assertEqual(f.name, "obj.method")
-        # self.assertEqual(str(f), "obj.method(a=1)")
         self.assertEqual(pycode(f), "obj.method(a=1)")
         self.assertEqual(ccode(f), "obj.method({{\"a\", 1}})")
 
@@ -92,9 +90,8 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
             pass
         f = method(a=1)
         self.assertEqual(f.name, "obj.method")
-        # self.assertEqual(str(f), "obj.method(a=1)")
         self.assertEqual(pycode(f), "obj.method(a=1)")
-    #     self.assertEqual(ccode(f), "obj.method({{\"a\", 1}})")
+        self.assertEqual(ccode(f), "obj.method({{\"a\", 1}})")
 
 
     def test_codegen_call_case4(self):
@@ -114,10 +111,12 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
         f = func(a, b=1)
         ret = f._get_parameter_variables(code_type=code_type)
         self.assertEqual(ccode(ret[0]), 'a')
-        self.assertEqual(ccode(ret[1]), 'kwargs')
+        self.assertEqual(ccode(ret[1]), '_Dummy_var0')
+        self.assertEqual(pycode(ret[0]), 'a')
+        self.assertEqual(pycode(ret[1]), '_Dummy_var0')
 
 
-    def test_codegen_build_proto(self):
+    def test_codegen_build_proto_ccode(self):
         code_type = 'c'
         a, b = symbols("a, b")
         c, d = symbols("c, d")
@@ -132,10 +131,11 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
         self.assertEqual(ccode(f.codegen_function_proto), "vector<double> func(double& a, double& b)")
         f = func(b=1)
         f._build_proto(expr=Matrix([c + d]), code_type=code_type)
-        self.assertEqual(ccode(f.codegen_function_proto), "vector<double> func(map<string, double>& kwargs)")
+        self.assertEqual(ccode(f.codegen_function_proto), "vector<double> func(map<string, double>& _Dummy_var0)")
         f = func(a, b=1)
         f._build_proto(expr=Matrix([c + d]), code_type=code_type)
-        self.assertEqual(ccode(f.codegen_function_proto), "vector<double> func(double& a, map<string, double>& kwargs)")
+        self.assertEqual(ccode(f.codegen_function_proto),
+                         "vector<double> func(double& a, map<string, double>& _Dummy_var0)")
 
 
     def test_codegen_build_proto_dummy_params(self):
@@ -143,7 +143,8 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
         a, b = symbols("a, b")
         f = func(1, a, 2.0)
         f._build_proto(expr=None, code_type=code_type)
-        self.assertEqual(ccode(f.get_proto()), "void func(int& _Dummy_var0, double& a, double& _Dummy_var1)")
+        proto = f.get_proto()
+        self.assertEqual(ccode(proto), "void func(double& _Dummy_var0, double& a, double& _Dummy_var1)")
 
 
     def test_codegen_build_def_case1(self):
