@@ -8,6 +8,7 @@ from sympy import Number
 from sympy.codegen.ast import numbered_symbols
 from sympy.codegen.ast import FunctionDefinition
 from sympy.codegen.ast import FunctionPrototype
+from sympy.codegen.ast import Declaration
 from sympy.codegen.ast import CodeBlock
 from sympy.codegen.ast import Assignment
 from sympy.codegen.ast import Variable
@@ -20,6 +21,7 @@ from sympy.matrices import MatrixExpr
 from japl.Util.Util import iter_type_check
 from japl.CodeGen.Ast import CodeGenFunctionCall
 from japl.CodeGen.Ast import CodeGenFunctionPrototype
+from japl.CodeGen.Ast import CodeGenFunctionDefinition
 from japl.CodeGen.Ast import CType
 from japl.CodeGen.Ast import CTypes
 from japl.CodeGen.Ast import PyTypes
@@ -50,7 +52,7 @@ class JaplFunction(Function):
     class_name = ""
     description = ""
     codegen_function_call: CodeGenFunctionCall
-    codegen_function_def: FunctionDefinition
+    codegen_function_def: CodeGenFunctionDefinition
     codegen_function_proto: FunctionPrototype
     codegen_function_body: CodeBlock
     body = CodeBlock()
@@ -189,9 +191,10 @@ class JaplFunction(Function):
 
         # convert function kwargs
         if self.kwargs:
-            dummy_name = next(dummy_symbol_gen)
+            kwarg_name = next(dummy_symbol_gen).name
             kwarg_type = Types.float64.as_map().as_ref()
-            parameters += [Variable(dummy_name, type=kwarg_type)]
+            kwarg_dummy_var = Kwargs(**self.kwargs).to_variable(kwarg_name, type=kwarg_type)
+            parameters += [kwarg_dummy_var]
         return parameters
 
 
@@ -217,10 +220,10 @@ class JaplFunction(Function):
         codeblock = self._to_codeblock(expr)
         func_name = self.get_def_name()
         parameters = self._get_parameter_variables(code_type)
-        func_def = FunctionDefinition(return_type=return_type,
-                                      name=func_name,
-                                      parameters=parameters,
-                                      body=codeblock)
+        func_def = CodeGenFunctionDefinition(return_type=return_type,
+                                             name=func_name,
+                                             parameters=parameters,
+                                             body=codeblock)
         self.codegen_function_def = func_def
 
 

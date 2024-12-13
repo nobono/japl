@@ -5,6 +5,8 @@ from sympy.codegen.ast import numbered_symbols
 from sympy.codegen.ast import Variable
 from sympy.codegen.ast import untyped
 from japl.CodeGen.Ast import CTypes
+from japl.CodeGen.Ast import PyTypes
+from japl.CodeGen.Ast import Kwargs
 from japl.CodeGen.Ast import convert_symbols_to_variables
 from japl.CodeGen.JaplFunction import JaplFunction
 from japl.CodeGen.Globals import _STD_DUMMY_NAME
@@ -56,11 +58,10 @@ class CCodeGenPrinter(C99CodePrinter):
 
 
     def _print_FunctionPrototype(self, expr):
-        # pars = ', '.join((self._print(Declaration(arg)) for arg in expr.parameters))
-        # return "%s %s(%s)" % (
-        #     tuple((self._print(arg) for arg in (expr.return_type, expr.name))) + (pars,)
-        # )
-        return super()._print_FunctionPrototype(expr)
+        parameters = expr.parameters
+        params_str = ", ".join([self._print(Declaration(i)) for i in parameters])  # type:ignore
+        return_type_str = self._print(expr.return_type)
+        return "%s %s(%s)" % (return_type_str, expr.name, params_str)
 
 
     def _print_FunctionDefinition(self, expr):
@@ -157,23 +158,11 @@ class PyCodeGenPrinter(PythonCodePrinter):
 
 
     def _print_FunctionDefinition(self, fd):
-        # get parameters and convert to printable types
-        # dummy_symbol_gen = numbered_symbols(prefix=_STD_DUMMY_NAME)
-        # parameters = convert_symbols_to_variables(fd.function_args,
-        #                                           code_type=self.code_type,
-        #                                           dummy_symbol_gen=dummy_symbol_gen)
         parameters = fd.parameters
-
         # convert param types to string
         if not hasattr(parameters, "__len__"):
             parameters = [parameters]
         params_str = ", ".join([self._print(i.symbol) for i in parameters])  # type:ignore
-
-        # append function kwargs
-        # if len(fd.function_args) and len(fd.function_kwargs):
-        #     params_str += ", "
-        # params_str += fd._dict_to_kwargs_str(fd.function_kwargs)
-
         return "def %s(%s)" % (fd.name, params_str)
 
 

@@ -5,9 +5,10 @@ from sympy.codegen.ast import FunctionCall
 from sympy.codegen.ast import FunctionPrototype
 from sympy.codegen.ast import FunctionDefinition
 from sympy.codegen.ast import Declaration
+from sympy.codegen.ast import CodeBlock
 from sympy.codegen.ast import Variable
-from sympy.codegen.ast import Token
 from sympy.codegen.ast import String
+from sympy.codegen.ast import Token
 from sympy.codegen.ast import Tuple
 from sympy.codegen.ast import Type
 from sympy.codegen.ast import Node
@@ -71,6 +72,64 @@ def convert_symbols_to_variables(params, code_type: str, dummy_symbol_gen: Gener
         return ret[0]
     else:
         return ret
+
+
+class JaplType(Type):
+    __slots__ = _fields = ("name", "is_array")
+    defaults = {"name": "CType", "is_array": False}
+
+    @staticmethod
+    def _construct_name(name):
+        return name
+
+
+    @staticmethod
+    def _construct_is_array(val):
+        return val
+
+
+    def as_vector(self):
+        return JaplType("")
+
+
+    def as_ndarray(self):
+        return JaplType("")
+
+
+    def as_map(self):
+        return JaplType("")
+
+
+    def as_const(self):
+        return JaplType("")
+
+
+    def as_ref(self):
+        return JaplType("")
+
+
+    def _ccode(self, *args, **kwargs):
+        return self.name
+
+
+    def _pythoncode(self, *args, **kwargs):
+        return ""
+
+
+class JaplTypes:
+
+    """This is a Types base class."""
+
+    bool: JaplType
+    int: JaplType
+    float32: JaplType
+    float64: JaplType
+    void: JaplType
+    complex_: JaplType
+
+    @staticmethod
+    def from_expr(expr):
+        return JaplType()
 
 
 class Constructor(Token):
@@ -156,16 +215,12 @@ class Dict(Type):
 
 
 class Kwargs(KwargsToken):
-    __slots__ = _fields = ("kwpairs", "type")
-    defaults = {"kwpairs": {}, "type": Type("MAP<string, double>")}
+    __slots__ = _fields = ("kwpairs",)
+    defaults = {"kwpairs": {}}
 
     @staticmethod
     def _construct_kwpairs(pairs):
         return dict(pairs)
-
-    @staticmethod
-    def _construct_type(type_):
-        return type_
 
     def __str__(self):
         return str(self.kwpairs)
@@ -182,27 +237,19 @@ class Kwargs(KwargsToken):
     def keys(self):
         return (key for key in self.kwpairs.keys())
 
+    def to_variable(self, name: str, type: JaplType) -> Variable:
+        """since Kwargs is not a Type we need a
+        way to convert Kwargs to printable type (Variable)."""
+        return Variable(name, type=type)
 
-class PyType(Type):
+
+class PyType(JaplType):
 
     """Token class but has modifier methods
     - as_vector
     - as_ndarray
     - ...etc
     """
-
-    __slots__ = _fields = ("name", "is_array")
-    defaults = {"name": "PyType", "is_array": False}
-
-    @staticmethod
-    def _construct_name(name):
-        return name
-
-
-    @staticmethod
-    def _construct_is_array(val):
-        return val
-
 
     def as_vector(self):
         return PyType("", is_array=True)
@@ -224,34 +271,13 @@ class PyType(Type):
         return PyType("")
 
 
-    def _ccode(self, *args, **kwargs):
-        return self.name
-
-
-    def _pythoncode(self, *args, **kwargs):
-        return ""
-
-
-class CType(Type):
+class CType(JaplType):
 
     """Token class but has modifier methods
     - as_vector
     - as_ndarray
     - ...etc
     """
-
-    __slots__ = _fields = ("name", "is_array")
-    defaults = {"name": "CType", "is_array": False}
-
-    @staticmethod
-    def _construct_name(name):
-        return name
-
-
-    @staticmethod
-    def _construct_is_array(val):
-        return val
-
 
     def as_vector(self):
         return CType(f"vector<{self.name}>", is_array=True)
@@ -273,15 +299,7 @@ class CType(Type):
         return CType(f"{self.name}&")
 
 
-    def _ccode(self, *args, **kwargs):
-        return self.name
-
-
-    def _pythoncode(self, *args, **kwargs):
-        return ""
-
-
-class PyTypes:
+class PyTypes(JaplTypes):
     bool = PyType("")
     int = PyType("")
     float32 = PyType("")
@@ -291,7 +309,7 @@ class PyTypes:
 
 
     @staticmethod
-    def from_expr(expr) -> PyType:
+    def from_expr(expr):
         """ Deduces type from an expression or a ``Symbol``.
         """
         if expr is None:
@@ -321,7 +339,7 @@ class PyTypes:
             return PyTypes.float64
 
 
-class CTypes:
+class CTypes(JaplTypes):
     bool = CType("bool")
     int = CType("int")
     float32 = CType("float")
@@ -331,7 +349,7 @@ class CTypes:
 
 
     @staticmethod
-    def from_expr(expr) -> CType:
+    def from_expr(expr):
         """ Deduces type from an expression or a ``Symbol``.
 
         Parameters
@@ -467,9 +485,6 @@ class CodeGenFunctionPrototype(FunctionPrototype):
             elif isinstance(arg, Variable):
                 return arg
             elif isinstance(arg, Kwargs):
-                # for var in arg.kwpairs.values():
-                #     return var
-                # return Variable("a", type=Type("double"))
                 return arg
             elif isinstance(arg, Dict):
                 return arg
@@ -482,3 +497,53 @@ class CodeGenFunctionPrototype(FunctionPrototype):
         if not isinstance(func_def, FunctionDefinition):
             raise TypeError("func_def is not an instance of FunctionDefinition")
         return cls(**func_def.kwargs(exclude=('body',)))
+
+
+
+class CodeGenFunctionDefinition(FunctionDefinition):
+    """ Represents a function definition in the code.
+
+    Parameters
+    ==========
+
+    return_type : Type
+    name : str
+    parameters: iterable of Variable instances
+    body : CodeBlock or iterable
+    attrs : iterable of Attribute instances
+
+    Examples
+    ========
+
+    >>> from sympy import ccode, symbols
+    >>> from sympy.codegen.ast import real, FunctionPrototype
+    >>> x, y = symbols('x y', real=True)
+    >>> fp = FunctionPrototype(real, 'foo', [x, y])
+    >>> ccode(fp)
+    'double foo(double x, double y)'
+    >>> from sympy.codegen.ast import FunctionDefinition, Return
+    >>> body = [Return(x*y)]
+    >>> fd = FunctionDefinition.from_FunctionPrototype(fp, body)
+    >>> print(ccode(fd))
+    double foo(double x, double y){
+        return x*y;
+    }
+    """
+    @staticmethod
+    def _construct_return_type(arg):
+        return arg
+
+    @staticmethod
+    def _construct_parameters(args):
+        def _var(arg):
+            if isinstance(arg, Declaration):
+                return arg.variable
+            elif isinstance(arg, Variable):
+                return arg
+            elif isinstance(arg, Kwargs):
+                return arg
+            elif isinstance(arg, Dict):
+                return arg
+            else:
+                return Variable.deduced(arg)
+        return Tuple(*map(_var, args))

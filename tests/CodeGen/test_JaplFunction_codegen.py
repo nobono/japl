@@ -70,7 +70,6 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
 
 
     def test_codegen_call_case1(self):
-        a = symbols('a')
         f = func(a=1)
         self.assertEqual(f.name, "func")
         self.assertEqual(ccode(f), "func({{\"a\", 1}})")
