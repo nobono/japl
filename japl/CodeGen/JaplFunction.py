@@ -158,8 +158,9 @@ class JaplFunction(Function):
 
 
     def set_body(self, body: CodeBlock|Expr):
-        # set body directly if CodeBlock.
-        # otherwise, prime expr for body creation.
+        """sets function body. If expression provided,
+        function body will be built when _build_function is called.
+        Otherwise, function body is set directly."""
         if isinstance(body, CodeBlock):
             self.body = self._to_codeblock(body)
         else:
