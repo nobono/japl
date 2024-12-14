@@ -163,6 +163,11 @@ class KwargsToken(Token):
     inputs are symbolic but are converted to Variable types."""
 
     def __new__(cls, *args, **kwargs):
+        # -----------------------------------------------------
+        # NOTE: this overload allows passing of python kwargs
+        #   "func(1, 2, a=a, b=b)"
+        # that is also compatible with sympy Token
+        # -----------------------------------------------------
         token_pops = ["exclude", "apply"]
         pops = []
         kwargs_passthrough = {}
@@ -177,8 +182,10 @@ class KwargsToken(Token):
         # group args not passed as tuple
         # this assumed first arg is name and everything
         # between name and kwargs is args tuple.
+        # -----------------------------------------------------
         # NOTE: ensure args is passed as tuple of:
         #   (name, (*args), kwargs[dict])
+        # -----------------------------------------------------
         if len(args) >= 3:
             if isinstance(args[1], tuple):
                 _args = args
