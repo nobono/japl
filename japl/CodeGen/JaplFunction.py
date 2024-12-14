@@ -22,9 +22,7 @@ from japl.Util.Util import iter_type_check
 from japl.CodeGen.Ast import CodeGenFunctionCall
 from japl.CodeGen.Ast import CodeGenFunctionPrototype
 from japl.CodeGen.Ast import CodeGenFunctionDefinition
-from japl.CodeGen.Ast import CType
-from japl.CodeGen.Ast import CTypes
-from japl.CodeGen.Ast import PyTypes
+from japl.CodeGen.Ast import JaplType
 from japl.CodeGen.Ast import Kwargs
 from japl.CodeGen.Globals import _STD_DUMMY_NAME
 from japl.CodeGen.Globals import _STD_RETURN_NAME
@@ -57,7 +55,7 @@ class JaplFunction(Function):
     function_body: CodeBlock
     body = CodeBlock()
     expr: Expr|Matrix
-    type = CTypes.float64
+    return_type = JaplType()
 
     std_return_name = _STD_RETURN_NAME
     std_dummy_name = _STD_DUMMY_NAME
@@ -104,9 +102,10 @@ class JaplFunction(Function):
 
 
     @staticmethod
-    def _to_codeblock(arg: Expr|Matrix|CodeBlock|list|tuple) -> CodeBlock:
+    def _to_codeblock(arg: Expr|Matrix|CodeBlock|list|tuple, code_type: str) -> CodeBlock:
         """converts Symbolic expressions to codeblock. If an iterable of
         expressions are provided CodeBlock will be build recursively."""
+        Types = get_lang_types(code_type=code_type)
         std_return_name = JaplFunction.std_return_name
         code_lines = []
         if isinstance(arg, MatrixExpr):  # captures MatrixSymbols / MatrixMul ...etc
@@ -114,7 +113,7 @@ class JaplFunction(Function):
         if isinstance(arg, Matrix):
             # for Matrix, declare return var and assign expressions.
             ret_symbol = MatrixSymbol(std_return_name, *arg.shape)
-            return_type = CTypes.from_expr(ret_symbol)
+            return_type = Types.from_expr(ret_symbol)
             ret_var = Variable(std_return_name, type=return_type)
             code_lines += [ret_var.as_Declaration()]
 
@@ -129,11 +128,12 @@ class JaplFunction(Function):
             if is_empty_expr(arg):  # case arg is empty expression (i.e. None, Expr())
                 return CodeBlock()
             elif isinstance(arg, Symbol):
-                var = Variable(arg, type=CTypes.from_expr(arg)).as_Declaration()
+                var = Variable(arg, type=Types.from_expr(arg)).as_Declaration()
                 return CodeBlock(var)
             else:
-                ret_var = Variable(std_return_name, type=CTypes.from_expr(arg))
-                code_lines += [ret_var.as_Declaration()]
+                ret_var = Variable(std_return_name, type=Types.from_expr(arg))
+                if code_type != "py":  # python does not declare variables
+                    code_lines += [Declaration(ret_var)]
                 code_lines += [Assignment(ret_var.symbol, arg)]
                 code_lines += [Return(ret_var)]
                 return CodeBlock(*code_lines)
@@ -143,12 +143,12 @@ class JaplFunction(Function):
         elif isinstance(arg, tuple):
             # return CodeBlock(*arg)
             for item in arg:
-                code_lines += [JaplFunction._to_codeblock(item)]
+                code_lines += [JaplFunction._to_codeblock(item, code_type=code_type)]
             return CodeBlock(*code_lines)
         elif isinstance(arg, list):
             # return CodeBlock(*arg)
             for item in arg:
-                code_lines += [JaplFunction._to_codeblock(item)]
+                code_lines += [JaplFunction._to_codeblock(item, code_type=code_type)]
             return CodeBlock(*code_lines)
         elif isinstance(arg, CodeBlock):  # type:ignore
             return arg
@@ -157,12 +157,12 @@ class JaplFunction(Function):
             return arg
 
 
-    def set_body(self, body: CodeBlock|Expr):
+    def set_body(self, body: CodeBlock|Expr, code_type: str):
         """sets function body. If expression provided,
         function body will be built when _build_function is called.
         Otherwise, function body is set directly."""
         if isinstance(body, CodeBlock):
-            self.body = self._to_codeblock(body)
+            self.body = self._to_codeblock(body, code_type=code_type)
         else:
             self.expr = body
 
@@ -202,10 +202,10 @@ class JaplFunction(Function):
     def _build_proto(self, expr, code_type: str):
         """Builds function prototype"""
         Types = get_lang_types(code_type)
-        return_type = Types.from_expr(expr)
+        self.return_type = Types.from_expr(expr)
         # convert parameter Symbols to Variable
         parameters = self._get_parameter_variables(code_type)
-        proto = CodeGenFunctionPrototype(return_type=return_type,
+        proto = CodeGenFunctionPrototype(return_type=self.return_type,
                                          name=self.name,
                                          parameters=parameters)
         self.function_proto = proto
@@ -217,11 +217,11 @@ class JaplFunction(Function):
         # func_def = FunctionDefinition.from_FunctionPrototype(func_proto=func_proto,
         #                                                      body=codeblock)
         Types = get_lang_types(code_type)
-        return_type = Types.from_expr(expr)
-        codeblock = self._to_codeblock(expr)
+        self.return_type = Types.from_expr(expr)
+        codeblock = self._to_codeblock(expr, code_type=code_type)
         func_name = self.get_def_name()
         parameters = self._get_parameter_variables(code_type)
-        func_def = CodeGenFunctionDefinition(return_type=return_type,
+        func_def = CodeGenFunctionDefinition(return_type=self.return_type,
                                              name=func_name,
                                              parameters=parameters,
                                              body=codeblock)

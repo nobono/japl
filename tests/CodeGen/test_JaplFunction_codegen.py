@@ -168,10 +168,11 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
 
 
     def test_to_codeblock(self):
+        code_type = "c"
         a, b, c, d = symbols("a, b, c, d")
-        ret = JaplFunction._to_codeblock(a)
+        ret = JaplFunction._to_codeblock(a, code_type=code_type)
         self.assertEqual(ccode(ret), "double a;")
-        ret = JaplFunction._to_codeblock(a + b)
+        ret = JaplFunction._to_codeblock(a + b, code_type=code_type)
         truth = """\
                 double _Ret_arg;
                 _Ret_arg = a + b;
@@ -180,9 +181,10 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
 
 
     def test_to_codeblock_matrix(self):
+        code_type = 'c'
         a, b, c, d = symbols("a, b, c, d")
         A = Matrix([a, b, c])
-        ret = JaplFunction._to_codeblock(A)
+        ret = JaplFunction._to_codeblock(A, code_type=code_type)
         truth = """\
                 vector<double> _Ret_arg;
                 _Ret_arg[0] = a;
@@ -192,7 +194,7 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
         self.assertEqual(ccode(ret), dedent(truth))
 
         A = MatrixSymbol("A", 3, 1)
-        ret = JaplFunction._to_codeblock(A * 2)
+        ret = JaplFunction._to_codeblock(A * 2, code_type=code_type)
         truth = """\
                 vector<double> _Ret_arg;
                 _Ret_arg[0] = 2*A[0];
@@ -203,13 +205,14 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
 
 
     def test_to_codeblock_iterable(self):
+        code_type = 'c'
         a, b, c, d = symbols("a, b, c, d")
         ret = JaplFunction._to_codeblock([
             a, b, c, d,
             Assignment(a, b),
             Assignment(c, d),
             Return(a)
-            ])
+            ], code_type=code_type)
         truth = """\
                 double a;
                 double b;

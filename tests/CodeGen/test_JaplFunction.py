@@ -2,6 +2,7 @@ import unittest
 from sympy import Symbol
 from japl.CodeGen.JaplFunction import JaplFunction
 from japl.CodeGen.Ast import CTypes
+from japl.CodeGen.Ast import JaplType
 from japl.CodeGen import ccode
 from japl.CodeGen import pycode
 from sympy import cse
@@ -26,7 +27,7 @@ class TestJaplFunction(unittest.TestCase):
 
 
     def test_type(self):
-        self.assertEqual(func().type, CTypes.float64)
+        self.assertEqual(func().return_type, JaplType())
         class vfunc(JaplFunction):  # noqa
             type = CTypes.float64.as_vector()
         self.assertEqual(vfunc().type, CTypes.float64.as_vector())
