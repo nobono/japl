@@ -43,18 +43,18 @@ class JaplFunction(Function):
                  "kwargs",  # function kwargs
                  "fargs",  # function args
                  # "expr",    # function expression
-                 "codegen_function_call",
-                 "codegen_function_def",
-                 "codegen_function_proto",
-                 "codegen_function_body")
+                 "function_call",
+                 "function_def",
+                 "function_proto",
+                 "function_body")
 
     parent = ""
     class_name = ""
     description = ""
-    codegen_function_call: CodeGenFunctionCall
-    codegen_function_def: CodeGenFunctionDefinition
-    codegen_function_proto: FunctionPrototype
-    codegen_function_body: CodeBlock
+    function_call: CodeGenFunctionCall
+    function_def: CodeGenFunctionDefinition
+    function_proto: FunctionPrototype
+    function_body: CodeBlock
     body = CodeBlock()
     expr: Expr|Matrix
     type = CTypes.float64
@@ -98,7 +98,7 @@ class JaplFunction(Function):
         # printable members
         obj.kwargs = found_kwargs
         obj.fargs = found_args
-        obj.codegen_function_call = CodeGenFunctionCall(obj.name, found_args, found_kwargs)
+        obj.function_call = CodeGenFunctionCall(obj.name, found_args, found_kwargs)
         obj.expr = Expr()
         return obj
 
@@ -207,12 +207,12 @@ class JaplFunction(Function):
         proto = CodeGenFunctionPrototype(return_type=return_type,
                                          name=self.name,
                                          parameters=parameters)
-        self.codegen_function_proto = proto
+        self.function_proto = proto
 
 
     def _build_def(self, expr, code_type: str):
         """Build function definition"""
-        # func_proto = self.codegen_function_proto
+        # func_proto = self.function_proto
         # func_def = FunctionDefinition.from_FunctionPrototype(func_proto=func_proto,
         #                                                      body=codeblock)
         Types = get_lang_types(code_type)
@@ -224,7 +224,7 @@ class JaplFunction(Function):
                                              name=func_name,
                                              parameters=parameters,
                                              body=codeblock)
-        self.codegen_function_def = func_def
+        self.function_def = func_def
 
 
     def get_def_name(self) -> str:
@@ -232,11 +232,11 @@ class JaplFunction(Function):
 
 
     def get_proto(self):
-        return self.codegen_function_proto
+        return self.function_proto
 
 
     def get_def(self):
-        return self.codegen_function_def
+        return self.function_def
 
 
     def _build_function(self, code_type: str):
@@ -265,13 +265,13 @@ class JaplFunction(Function):
 
 
     def __str__(self) -> str:
-        return str(self.codegen_function_call)  # type:ignore
+        return str(self.function_call)  # type:ignore
 
 
     def set_parent(self, parent: str):
         self.parent = parent
         self.name = f"{parent}.{self.name}"
-        self.codegen_function_call.name = self.name
+        self.function_call.name = self.name
 
 
     def _sympystr(self, printer):

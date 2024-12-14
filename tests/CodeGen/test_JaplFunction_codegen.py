@@ -128,19 +128,19 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
         c, d = symbols("c, d")
         f = func(a, b)
         f._build_proto(expr=None, code_type=code_type)
-        self.assertEqual(ccode(f.codegen_function_proto), "void func(double& a, double& b)")
+        self.assertEqual(ccode(f.function_proto), "void func(double& a, double& b)")
         f = func(symbols("a, b", integer=True))
         f._build_proto(expr=c + d, code_type=code_type)
-        self.assertEqual(ccode(f.codegen_function_proto), "double func(int& a, int& b)")
+        self.assertEqual(ccode(f.function_proto), "double func(int& a, int& b)")
         f = func(a, b)
         f._build_proto(expr=Matrix([c + d]), code_type=code_type)
-        self.assertEqual(ccode(f.codegen_function_proto), "vector<double> func(double& a, double& b)")
+        self.assertEqual(ccode(f.function_proto), "vector<double> func(double& a, double& b)")
         f = func(b=1)
         f._build_proto(expr=Matrix([c + d]), code_type=code_type)
-        self.assertEqual(ccode(f.codegen_function_proto), "vector<double> func(map<string, double>& _Dummy_var0)")
+        self.assertEqual(ccode(f.function_proto), "vector<double> func(map<string, double>& _Dummy_var0)")
         f = func(a, b=1)
         f._build_proto(expr=Matrix([c + d]), code_type=code_type)
-        self.assertEqual(ccode(f.codegen_function_proto),
+        self.assertEqual(ccode(f.function_proto),
                          "vector<double> func(double& a, map<string, double>& _Dummy_var0)")
 
 
@@ -164,7 +164,7 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
                 void func(double& a, double& b){
 
                 }"""
-        self.assertEqual(ccode(f.codegen_function_def), dedent(truth))
+        self.assertEqual(ccode(f.function_def), dedent(truth))
 
 
     def test_to_codeblock(self):
@@ -258,8 +258,8 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
         # #         void func(double& a, double& b){
 
         # #         }"""
-        # # self.assertEqual(ccode(f.codegen_function_def), dedent(truth))
-        # print(ccode(f.codegen_function_def))
+        # # self.assertEqual(ccode(f.function_def), dedent(truth))
+        # print(ccode(f.function_def))
 
 
     # -----------------------------------------

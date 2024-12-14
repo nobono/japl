@@ -35,7 +35,7 @@ class CCodeGenPrinter(C99CodePrinter):
         # know the codegen language type and thus parameters cannot be
         # defined in JaplFuction or CodeGenFunctionCall constructors.
         # ---------------------------------------------------------------
-        return self._print_CodeGenFunctionCall(expr.codegen_function_call)
+        return self._print_CodeGenFunctionCall(expr.function_call)
 
 
     def _print_CodeGenFunctionCall(self, expr):
@@ -149,7 +149,7 @@ class PyCodeGenPrinter(PythonCodePrinter):
         # defined in JaplFuction or CodeGenFunctionCall constructors.
         # ---------------------------------------------------------------
         # parameters = expr._get_parameter_variables("py")  # first get params
-        return self._print_CodeGenFunctionCall(expr.codegen_function_call)
+        return self._print_CodeGenFunctionCall(expr.function_call)
 
 
     def _print_FunctionPrototype(self, expr):
