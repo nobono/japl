@@ -163,7 +163,13 @@ class PyCodeGenPrinter(PythonCodePrinter):
         if not hasattr(parameters, "__len__"):
             parameters = [parameters]
         params_str = ", ".join([self._print(i.symbol) for i in parameters])  # type:ignore
-        return "def %s(%s)" % (fd.name, params_str)
+
+        body = '\n'.join((self._print(arg) for arg in fd.body))
+        return "def {name}({parameters}):\n{body}".format(
+            name=self._print(fd.name),
+            parameters=params_str,
+            body=self._indent_codestring(body)
+        )
 
 
     def _print_CodeGenFunctionCall(self, expr):
