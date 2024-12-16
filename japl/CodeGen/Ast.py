@@ -13,6 +13,7 @@ from sympy.codegen.ast import Tuple
 from sympy.codegen.ast import Type
 from sympy.codegen.ast import Node
 from sympy.codegen.ast import Expr
+from sympy import true, false
 from sympy.core.function import Function
 from sympy.core.numbers import Number
 from sympy import Float, Integer, Matrix
@@ -76,12 +77,9 @@ def convert_symbols_to_variables(params, code_type: str, dummy_symbol_gen: Gener
 
 class JaplType(Type):
     __slots__ = _fields = ("name", "is_array")
-    defaults = {"name": "CType", "is_array": False}
+    defaults = {"name": "JaplType", "is_array": false}
 
-    @staticmethod
-    def _construct_name(name):
-        return name
-
+    _construct_name = String
 
     @staticmethod
     def _construct_is_array(val):
@@ -259,11 +257,11 @@ class PyType(JaplType):
     """
 
     def as_vector(self):
-        return PyType("", is_array=True)
+        return PyType("", is_array=true)  # type:ignore
 
 
     def as_ndarray(self):
-        return PyType("", is_array=True)
+        return PyType("", is_array=true)  # type:ignore
 
 
     def as_map(self):
@@ -287,11 +285,11 @@ class CType(JaplType):
     """
 
     def as_vector(self):
-        return CType(f"vector<{self.name}>", is_array=True)
+        return CType(f"vector<{self.name}>", is_array=true)  # type:ignore
 
 
     def as_ndarray(self):
-        return CType(f"py::array_t<{self.name}>", is_array=True)
+        return CType(f"py::array_t<{self.name}>", is_array=true)  # type:ignore
 
 
     def as_map(self):
