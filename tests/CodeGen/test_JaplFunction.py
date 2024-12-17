@@ -37,8 +37,8 @@ class TestJaplFunction(unittest.TestCase):
         """no keywords"""
         f = func(1, 2)
         self.assertEqual(f.args, (1, 2))
-        self.assertEqual(f.fargs, (1, 2))
-        self.assertEqual(f.kwargs, {})
+        self.assertEqual(f.function_args, (1, 2))
+        self.assertEqual(f.function_kwargs, {})
         self.assertEqual(f.name, "func")
 
 
@@ -48,8 +48,8 @@ class TestJaplFunction(unittest.TestCase):
         b = Symbol('b')
         f = func(1, 2, a=a, b=b)
         self.assertEqual(f.args, (1, 2, a, b))
-        self.assertEqual(f.fargs, (1, 2))
-        self.assertEqual(f.kwargs, {"a": a, "b": b})
+        self.assertEqual(f.function_args, (1, 2))
+        self.assertEqual(f.function_kwargs, {"a": a, "b": b})
         self.assertEqual(f.name, "func")
 
 
@@ -58,7 +58,7 @@ class TestJaplFunction(unittest.TestCase):
         f = func()
         # self.assertEqual(str(f), "func()")
         self.assertEqual(f.args, ())
-        self.assertEqual(f.kwargs, {})
+        self.assertEqual(f.function_kwargs, {})
         self.assertEqual(f.name, "func")
 
 
@@ -67,7 +67,7 @@ class TestJaplFunction(unittest.TestCase):
         f = func(a=1, b=2)
         # self.assertEqual(str(f), "func(a=1, b=2)")
         self.assertEqual(f.args, (1, 2))
-        self.assertEqual(f.kwargs, {'a': 1, 'b': 2})
+        self.assertEqual(f.function_kwargs, {'a': 1, 'b': 2})
         self.assertEqual(f.name, "func")
 
 
@@ -77,7 +77,7 @@ class TestJaplFunction(unittest.TestCase):
         f = func(a=1, b=b)
         # self.assertEqual(str(f), "func(a=1, b=b)")
         self.assertEqual(f.args, (1, b))
-        self.assertEqual(f.kwargs, {'a': 1, 'b': b})
+        self.assertEqual(f.function_kwargs, {'a': 1, 'b': b})
         self.assertEqual(f.name, "func")
 
 
@@ -87,7 +87,7 @@ class TestJaplFunction(unittest.TestCase):
         f = func(a=1, b=b)
         self.assertEqual(pycode(f), "func(a=1, b=b)")
         self.assertEqual(f.args, (1, b))
-        self.assertEqual(f.kwargs, {'a': 1, 'b': b})
+        self.assertEqual(f.function_kwargs, {'a': 1, 'b': b})
         self.assertEqual(f.name, "func")
 
 
@@ -97,7 +97,7 @@ class TestJaplFunction(unittest.TestCase):
         f = func(a=1, b=b)
         self.assertEqual(ccode(f), "func({{\"a\", 1}, {\"b\", b}})")
         self.assertEqual(f.args, (1, b))
-        self.assertEqual(f.kwargs, {'a': 1, 'b': b})
+        self.assertEqual(f.function_kwargs, {'a': 1, 'b': b})
         self.assertEqual(f.name, "func")
 
 
@@ -109,7 +109,7 @@ class TestJaplFunction(unittest.TestCase):
         # self.assertEqual(str(expr), "func(a=1, b=b) + 1")
         self.assertEqual(expr.args, (1, f))
         self.assertEqual(expr.args[1].args, (1, b))
-        self.assertEqual(expr.args[1].kwargs, {'a': 1, 'b': b})
+        self.assertEqual(expr.args[1].function_kwargs, {'a': 1, 'b': b})
 
 
     def test_pickle_case1(self):
@@ -121,7 +121,7 @@ class TestJaplFunction(unittest.TestCase):
         loaded_data = pickle.load(file)
         self.assertEqual(loaded_data.name, "func")
         self.assertEqual(loaded_data.args, (1, b))
-        self.assertEqual(loaded_data.kwargs, {'a': 1, 'b': b})
+        self.assertEqual(loaded_data.function_kwargs, {'a': 1, 'b': b})
 
 
     def test_pickle_case2(self):
@@ -134,7 +134,7 @@ class TestJaplFunction(unittest.TestCase):
         loaded_data = pickle.load(file)
         self.assertEqual(loaded_data.name, "func")
         self.assertEqual(loaded_data.args, (1, a, 1, b))
-        self.assertEqual(loaded_data.kwargs, {'a': 1, 'b': b})
+        self.assertEqual(loaded_data.function_kwargs, {'a': 1, 'b': b})
 
 
     def test_subs_case1(self):

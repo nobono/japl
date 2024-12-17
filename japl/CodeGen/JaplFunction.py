@@ -42,8 +42,8 @@ class JaplFunction(Function):
     keyword arguments."""
 
     __slots__ = ("name",
-                 "kwargs",  # function kwargs
-                 "fargs",  # function args
+                 "function_kwargs",  # function kwargs
+                 "function_args",  # function args
                  "function_call",
                  "function_def",
                  "function_proto",
@@ -97,8 +97,8 @@ class JaplFunction(Function):
             obj.name = str(cls)  # function name is name of class
 
         # printable members
-        obj.kwargs = found_kwargs
-        obj.fargs = found_args
+        obj.function_kwargs = found_kwargs
+        obj.function_args = found_args
         obj.function_call = CodeGenFunctionCall(obj.name, found_args, found_kwargs)
 
         # allow expr to be defined in class definition
@@ -212,7 +212,7 @@ class JaplFunction(Function):
         # convert function args
         dummy_symbol_gen = numbered_symbols(prefix=self.std_dummy_name)
         parameters = []
-        arg_parameters = convert_symbols_to_variables(self.fargs,
+        arg_parameters = convert_symbols_to_variables(self.function_args,
                                                       code_type=code_type,
                                                       dummy_symbol_gen=dummy_symbol_gen)
         if hasattr(arg_parameters, "__len__"):
@@ -230,10 +230,10 @@ class JaplFunction(Function):
                 parameters[i] = Variable(dummy_symbol, type=dummy_type)
 
         # convert function kwargs
-        if self.kwargs:
+        if self.function_kwargs:
             kwarg_name = next(dummy_symbol_gen).name
             kwarg_type = Types.float64.as_map().as_ref()
-            kwarg_dummy_var = Kwargs(**self.kwargs).to_variable(kwarg_name, type=kwarg_type)
+            kwarg_dummy_var = Kwargs(**self.function_kwargs).to_variable(kwarg_name, type=kwarg_type)
             parameters += [kwarg_dummy_var]
         return parameters
 
@@ -302,7 +302,7 @@ class JaplFunction(Function):
         # ---------------------------------------------------------
 
         if use_std_args:
-            parameters = self.get_std_args(self.fargs, code_type)
+            parameters = self.get_std_args(self.function_args, code_type)
         else:
             parameters = self._get_parameter_variables(code_type)
 
@@ -326,8 +326,8 @@ class JaplFunction(Function):
         if do_param_unpack:
             expr, arg_unpacks = self._sub_array_of_expressions(target_expr=expr,
                                                                source_expr=parameters,
-                                                               function_args=self.fargs,
-                                                               function_kwargs=self.kwargs,
+                                                               function_args=self.function_args,
+                                                               function_kwargs=self.function_kwargs,
                                                                code_type=code_type)
         # --------------------------------------------------------------------
 
@@ -450,8 +450,8 @@ class JaplFunction(Function):
 
     def __reduce__(self) -> str | tuple[Any, ...]:
         """defines serialization of class object"""
-        state = {"kwargs": self.kwargs}
-        return (self.__class__, (self.fargs, tuple(self.kwargs.items()),), state)
+        state = {"kwargs": self.function_kwargs}
+        return (self.__class__, (self.function_args, tuple(self.function_kwargs.items()),), state)
 
 
     def __repr__(self) -> str:
@@ -476,7 +476,7 @@ class JaplFunction(Function):
     def func(self, *args):  # type:ignore
         """This overrides @property func. which is used to rebuild
         the object. This is used in sympy cse."""
-        new_kwargs = {key: val for key, val in zip(self.kwargs.keys(), args)}
+        new_kwargs = {key: val for key, val in zip(self.function_kwargs.keys(), args)}
         return self.__class__(**new_kwargs)
 
 
@@ -490,11 +490,11 @@ class JaplFunction(Function):
         # substitute function args
         new_kwargs = {
                 key: val._subs(old, new) if hasattr(val, '_subs') else val
-                for key, val in self.kwargs.items()
+                for key, val in self.function_kwargs.items()
                 }
         # if subs changes the args, return new instance to apply
         # changes
-        if new_kwargs != self.kwargs:
+        if new_kwargs != self.function_kwargs:
             return self.__class__(**new_kwargs)
 
         # no subs applied
@@ -518,7 +518,7 @@ class JaplFunction(Function):
                     args.append(a)
             args = tuple(args)
             if changed:
-                new_kwargs = {key: val for key, val in zip(self.kwargs.keys(), args)}
+                new_kwargs = {key: val for key, val in zip(self.function_kwargs.keys(), args)}
                 return self.__class__(**new_kwargs), True
         return self, False
 
@@ -533,7 +533,7 @@ class JaplFunction(Function):
 
         Defining more than _hashable_content is necessary if __eq__ has
         been defined by a class. See note about this in Basic.__eq__."""
-        return (self._args, self.name, tuple(self.kwargs))
+        return (self._args, self.name, tuple(self.function_kwargs))
 
 
     def __contains__(self, item):
