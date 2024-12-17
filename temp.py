@@ -77,14 +77,6 @@ class func(JaplFunction):
     expr = b * A * (a + 2)
 
 
-code_type = 'py'
-autocode = ccode if code_type == 'c' else pycode
-# f = func(a, b=b, c=c)
-# f = func(a, A)
-# f._build_function(code_type, use_parallel=False, use_std_args=True)
-# print(autocode(f.get_def()))
-
-
 X = Matrix([a + 1, b + 3, c])
 U = Matrix([c])
 S = Matrix([d])
@@ -95,6 +87,8 @@ class dynamics(JaplFunction):
 
 
 f = dynamics(t, X, U, S, dt)
+code_type = 'py'
+autocode = ccode if code_type == 'c' else pycode
 f._build_function(code_type, use_parallel=False, use_std_args=True)
 print(autocode(f.function_def))
 
