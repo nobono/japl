@@ -10,15 +10,16 @@ from sympy import cse
 from sympy.codegen.ast import numbered_symbols
 from sympy.codegen.ast import FunctionPrototype
 from sympy.codegen.ast import Declaration
-from sympy.codegen.ast import CodeBlock
 from sympy.codegen.ast import Assignment
+from sympy.codegen.ast import CodeBlock
+from sympy.codegen.ast import NoneToken
 from sympy.codegen.ast import Variable
 from sympy.codegen.ast import Return
 from sympy.codegen.ast import Symbol
 from sympy.codegen.ast import Dummy
 from sympy.codegen.ast import Type
 from sympy.codegen.ast import Tuple
-from sympy.codegen.ast import NoneToken
+from sympy.codegen.ast import Comment
 from sympy.matrices import MatrixExpr
 from japl.Util.Util import iter_type_check
 from japl.CodeGen.Ast import CodeGenFunctionCall
@@ -243,7 +244,11 @@ class JaplFunction(Function):
         Types = get_lang_types(code_type)
         self.return_type = Types.from_expr(expr)
         # convert parameter Symbols to Variable
-        parameters = self._get_parameter_variables(code_type)
+        if use_std_args:
+            parameters = self.get_std_args(self.function_args, code_type)
+        else:
+            parameters = self._get_parameter_variables(code_type)
+
         proto = CodeGenFunctionPrototype(return_type=self.return_type,
                                          name=self.name,
                                          parameters=parameters)
@@ -299,6 +304,8 @@ class JaplFunction(Function):
             Types = get_lang_types(code_type)
             lhs_var = Variable(lhs, type=Types.from_expr(lhs).as_const(), value=rhs)
             repl_assignments += [Declaration(lhs_var)]
+        if len(repl_assignments):  # add linebreak if there is code to write
+            repl_assignments += [Comment("")]
         # ---------------------------------------------------------
 
         if use_std_args:
@@ -329,6 +336,8 @@ class JaplFunction(Function):
                                                                function_args=self.function_args,
                                                                function_kwargs=self.function_kwargs,
                                                                code_type=code_type)
+            if len(arg_unpacks):
+                arg_unpacks += [Comment("")]
         # --------------------------------------------------------------------
 
         self.return_type = Types.from_expr(expr)

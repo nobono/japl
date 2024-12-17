@@ -238,6 +238,7 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
                 vector<double> func(double& a, map<string, double>& _Dummy_var0){
                    const double x0 = a + b;
                    const double x1 = c + d;
+                   /*  */;
                    vector<double> _Ret_arg = vector<double>(3);
                    _Ret_arg[0] = x0;
                    _Ret_arg[1] = x1;
@@ -252,6 +253,7 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
                 def func(a, _Dummy_var0):
                     x0 = a + b
                     x1 = c + d
+                      # 
                     _Ret_arg = np.empty((3, 1))
                     _Ret_arg[0, 0] = x0
                     _Ret_arg[1, 0] = x1
@@ -269,6 +271,7 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
         truth = """\
                 vector<double> func2(vector<double>& _Dummy_var0, vector<double>& _Dummy_var1){
                    const double x0 = 1.0/a;
+                   /*  */;
                    vector<double> _Ret_arg = vector<double>(2);
                    _Ret_arg[0] = x0*_Dummy_var1[0] + _Dummy_var0[0];
                    _Ret_arg[1] = x0*_Dummy_var1[1] + _Dummy_var0[1];
@@ -281,6 +284,7 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
         truth = """\
                 def func2(_Dummy_var0, _Dummy_var1):
                     x0 = 1/a
+                      # 
                     _Ret_arg = np.empty((2, 1))
                     _Ret_arg[0, 0] = x0*_Dummy_var1[0, 0] + _Dummy_var0[0, 0]
                     _Ret_arg[1, 0] = x0*_Dummy_var1[1, 0] + _Dummy_var0[1, 0]
@@ -294,6 +298,7 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
         truth = """\
                 vector<double> func2(vector<double>& _Dummy_var0, map<string, double>& _Dummy_var1){
                    const double x0 = 1.0/a;
+                   /*  */;
                    vector<double> _Ret_arg = vector<double>(2);
                    _Ret_arg[0] = _Dummy_var1["B"]*x0 + _Dummy_var0[0];
                    _Ret_arg[1] = _Dummy_var1["B"]*x0 + _Dummy_var0[1];
@@ -317,7 +322,9 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
                    const double c = _X_arg[2];
                    const double e = _U_arg[0];
                    const double f = _S_arg[0];
+                   /*  */;
                    const double x0 = 1.0/a;
+                   /*  */;
                    vector<double> _Ret_arg = vector<double>(2);
                    _Ret_arg[0] = a + x0*(c + 2) + 1;
                    _Ret_arg[1] = b + x0*(d + 2) + 1;
