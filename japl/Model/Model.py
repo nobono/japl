@@ -17,6 +17,11 @@ from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
 from japl.BuildTools.CCodeGenerator import CCodeGenerator
 from japl.BuildTools import BuildTools
 
+from japl.CodeGen import CFileBuilder
+from japl.CodeGen import ModuleBuilder
+from japl.CodeGen import CodeGenerator
+from japl.CodeGen import JaplFunction
+
 # ---------------------------------------------------
 
 
@@ -706,21 +711,40 @@ class Model:
 
 
     def create_c_module(self, name: str, path: str = "./"):
-        gen = CCodeGenerator(use_std_args=True)
+        filename = f"{name}.cpp"
         t = Symbol("t", real=True)
         dt = Symbol("dt", real=True)
         params = [t, self.state_vars, self.input_vars, self.static_vars, dt]
-        gen.add_function(expr=self.dynamics_expr,
-                         params=params,
-                         function_name="Model::dynamics",
-                         return_name="Xdot")
-        gen.add_function(expr=self.state_direct_updates,
-                         params=params,
-                         function_name="Model::state_updates",
-                         return_name="Xnew")
-        gen.add_function(expr=self.input_direct_updates,
-                         params=params,
-                         function_name="Model::input_updates",
-                         return_name="Unew")
-        gen.create_module(module_name=name, path=path,
-                          class_properties=["aerotable", "atmosphere"])
+        # ---------------------------------------------------------------
+        # old codegen
+        # ---------------------------------------------------------------
+        # gen = CCodeGenerator(use_std_args=True)
+        # gen.add_function(expr=self.dynamics_expr,
+        #                  params=params,
+        #                  function_name="Model::dynamics",
+        #                  return_name="Xdot")
+        # gen.add_function(expr=self.state_direct_updates,
+        #                  params=params,
+        #                  function_name="Model::state_updates",
+        #                  return_name="Xnew")
+        # gen.add_function(expr=self.input_direct_updates,
+        #                  params=params,
+        #                  function_name="Model::input_updates",
+        #                  return_name="Unew")
+        # gen.create_module(module_name=name, path=path,
+        #                   class_properties=["aerotable", "atmosphere"])
+        # ---------------------------------------------------------------
+        class dynamics(JaplFunction):  # noqa
+            class_name = "Model"
+            expr = self.dynamics_expr
+        class state_updates(JaplFunction):  # noqa
+            class_name = "Model"
+            expr = self.state_direct_updates
+        class input_updates(JaplFunction):  # noqa
+            class_name = "Model"
+            expr = self.input_direct_updates
+        file_builder = CFileBuilder(filename, [dynamics(*params),
+                                               state_updates(*params),
+                                               input_updates(*params)])
+        builder = ModuleBuilder(name, [file_builder])
+        CodeGenerator.build_c_module(builder)
