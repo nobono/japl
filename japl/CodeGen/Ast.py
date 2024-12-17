@@ -1,11 +1,10 @@
+import numpy as np
 from typing import Optional
 from typing import Generator
-from sympy.codegen.ast import numbered_symbols
 from sympy.codegen.ast import FunctionCall
 from sympy.codegen.ast import FunctionPrototype
 from sympy.codegen.ast import FunctionDefinition
 from sympy.codegen.ast import Declaration
-from sympy.codegen.ast import CodeBlock
 from sympy.codegen.ast import Variable
 from sympy.codegen.ast import String
 from sympy.codegen.ast import Token
@@ -19,6 +18,7 @@ from sympy.core.numbers import Number
 from sympy import Float, Integer, Matrix
 from sympy import Symbol
 from sympy import MatrixSymbol
+from sympy.matrices import MutableDenseMatrix
 from japl.CodeGen.Globals import _STD_DUMMY_NAME
 from japl.CodeGen.Util import is_empty_expr
 
@@ -58,15 +58,22 @@ def convert_symbols_to_variables(params, code_type: str, dummy_symbol_gen: Gener
 
         if isinstance(param, (Number, int, float)):
             param_name = str(param)
+            param_var = Variable(param_name, type=param_type)
         elif isinstance(param, Symbol):
             param_name = getattr(param, "name", None)
             if param_name is None:
                 param_name = str(param)
+            param_var = Variable(param_name, type=param_type)
         elif isinstance(param, MatrixSymbol):
-            param_name = param.name
+            # param_name = param.name
+            param_var = Variable(param, type=param_type)
+        elif isinstance(param, MutableDenseMatrix):
+            param_name = next(dummy_symbol_gen)
+            param_var = Variable(MatrixSymbol(param_name, *param.shape), type=param_type)
         else:
             param_name = next(dummy_symbol_gen)
-        ret += (Variable(param_name, type=param_type),)
+            param_var = Variable(param_name, type=param_type)
+        ret += (param_var,)
 
     # return shape same as input
     if len(ret) == 1:
@@ -76,8 +83,12 @@ def convert_symbols_to_variables(params, code_type: str, dummy_symbol_gen: Gener
 
 
 class JaplType(Type):
-    __slots__ = _fields = ("name", "is_array")
-    defaults = {"name": "JaplType", "is_array": false}
+    __slots__ = _fields = ("name", "is_array", "is_map", "is_ref", "is_const")
+    defaults = {"name": "JaplType",
+                "is_array": false,
+                "is_map": false,
+                "is_ref": false,
+                "is_const": false}
 
     _construct_name = String
 
@@ -86,32 +97,42 @@ class JaplType(Type):
         return val
 
 
-    def as_vector(self):
-        return JaplType("")
+    @staticmethod
+    def _construct_is_map(val):
+        return val
 
 
-    def as_ndarray(self):
-        return JaplType("")
+    @staticmethod
+    def _construct_is_ref(val):
+        return val
+
+
+    def as_vector(self, *args, **kwargs):
+        return JaplType("", is_array=true)
+
+
+    def as_ndarray(self, *args, **kwargs):
+        return JaplType("", is_array=true)
 
 
     def as_map(self):
-        return JaplType("")
+        return JaplType("", is_map=true)
 
 
     def as_const(self):
-        return JaplType("")
+        return JaplType("", is_const=true)
 
 
     def as_ref(self):
-        return JaplType("")
+        return JaplType("", is_ref=true)
 
 
     def _ccode(self, *args, **kwargs):
-        return self.name
+        return str(self.name)
 
 
     def _pythoncode(self, *args, **kwargs):
-        return ""
+        return str(self.name)
 
 
 class JaplTypes:
@@ -256,24 +277,52 @@ class PyType(JaplType):
     - ...etc
     """
 
-    def as_vector(self):
-        return PyType("", is_array=true)  # type:ignore
+    def as_vector(self, params: list|tuple = [], shape: list|tuple = []):
+        if params:
+            _params = ", ".join([str(i) for i in params])
+            return PyType(f"np.empty({_params})", is_array=true)  # type:ignore
+        elif shape:
+            _params = ", ".join([str(i) for i in shape])
+            _params = f"({_params})"
+            return PyType(f"np.empty({_params})", is_array=true)  # type:ignore
+        else:
+            return PyType("np.empty()", is_array=true)  # type:ignore
 
 
-    def as_ndarray(self):
-        return PyType("", is_array=true)  # type:ignore
+    def as_ndarray(self, params: list|tuple = [], shape: list|tuple = []):
+        if params:
+            _params = ", ".join([str(i) for i in params])
+            return PyType(f"np.empty({_params})", is_array=true)  # type:ignore
+        elif shape:
+            _params = ", ".join([str(i) for i in shape])
+            _params = f"({_params})"
+            return PyType(f"np.empty({_params})", is_array=true)  # type:ignore
+        else:
+            return PyType("np.empty()", is_array=true)  # type:ignore
 
 
     def as_map(self):
-        return PyType("")
+        return PyType("",
+                      is_array=self.is_array,
+                      is_map=true,
+                      is_ref=self.is_ref,
+                      is_const=self.is_const)
 
 
     def as_const(self):
-        return PyType("")
+        return PyType("",
+                      is_array=self.is_array,
+                      is_map=self.is_map,
+                      is_ref=self.is_ref,
+                      is_const=true)
 
 
     def as_ref(self):
-        return PyType("")
+        return PyType("",
+                      is_array=self.is_array,
+                      is_map=self.is_map,
+                      is_ref=true,
+                      is_const=self.is_const)
 
 
 class CType(JaplType):
@@ -284,24 +333,52 @@ class CType(JaplType):
     - ...etc
     """
 
-    def as_vector(self):
-        return CType(f"vector<{self.name}>", is_array=true)  # type:ignore
+    def as_vector(self, params: list|tuple = [], shape: list|tuple = []):
+        # return CType(f"vector<{self.name}>", is_array=true)  # type:ignore
+        if params:
+            _params = ", ".join([str(i) for i in params])
+            return CType(f"vector<{self.name}>({_params})", is_array=true)  # type:ignore
+        elif shape:
+            size = np.prod(shape)
+            return CType(f"vector<{self.name}>({size})", is_array=true)  # type:ignore
+        else:
+            return CType(f"vector<{self.name}>", is_array=true)  # type:ignore
 
 
-    def as_ndarray(self):
-        return CType(f"py::array_t<{self.name}>", is_array=true)  # type:ignore
+    def as_ndarray(self, params: list|tuple = [], shape: list|tuple = []):
+        # return CType(f"py::array_t<{self.name}>", is_array=true)  # type:ignore
+        if params:
+            _params = ", ".join([str(i) for i in params])
+            return CType(f"py::array_t<{self.name}>({_params})", is_array=true)  # type:ignore
+        elif shape:
+            size = np.prod(shape)
+            return CType(f"py::array_t<{self.name}>({size})", is_array=true)  # type:ignore
+        else:
+            return CType(f"py::array_t<{self.name}>", is_array=true)  # type:ignore
 
 
     def as_map(self):
-        return CType(f"map<string, {self.name}>")
+        return CType(f"map<string, {self.name}>",
+                     is_array=self.is_array,
+                     is_map=true,
+                     is_ref=self.is_ref,
+                     is_const=self.is_const)
 
 
     def as_const(self):
-        return CType(f"const {self.name}")
+        return CType(f"const {self.name}",
+                     is_array=self.is_array,
+                     is_map=self.is_map,
+                     is_ref=self.is_ref,
+                     is_const=true)
 
 
     def as_ref(self):
-        return CType(f"{self.name}&")
+        return CType(f"{self.name}&",
+                     is_array=self.is_array,
+                     is_map=self.is_map,
+                     is_ref=true,
+                     is_const=self.is_const)
 
 
 class PyTypes(JaplTypes):
@@ -317,7 +394,7 @@ class PyTypes(JaplTypes):
     def from_expr(expr):
         """ Deduces type from an expression or a ``Symbol``.
         """
-        if expr is None:
+        if is_empty_expr(expr):
             return PyTypes.void
         if isinstance(expr, Function):
             return expr.type
@@ -342,6 +419,13 @@ class PyTypes(JaplTypes):
             return PyTypes.bool
         else:
             return PyTypes.float64
+
+
+    @staticmethod
+    def map_get(name: str, val):
+        """helper / convenience method for accessing \"map\" types
+        for different languages."""
+        return f"{(name)}[\"{val}\"]"
 
 
 class CTypes(JaplTypes):
@@ -408,6 +492,13 @@ class CTypes(JaplTypes):
             return CTypes.bool
         else:
             return CTypes.float64
+
+
+    @staticmethod
+    def map_get(name: str, val):
+        """helper / convenience method for accessing \"map\" types
+        for different languages."""
+        return f"{(name)}[\"{val}\"]"
 
 
 class CodeGenFunctionCall(FunctionCall, KwargsToken):

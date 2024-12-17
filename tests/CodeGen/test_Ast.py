@@ -9,10 +9,12 @@ from sympy.codegen.ast import String
 from japl.CodeGen.Ast import Tuple
 from japl.CodeGen.Ast import Kwargs
 from japl.CodeGen.Ast import Dict
+from japl.CodeGen.Ast import PyType
 from japl.CodeGen.Ast import CType
 from japl.CodeGen.Ast import CTypes
 from japl.CodeGen.Ast import CodeGenFunctionCall
 from sympy.codegen.ast import Variable
+from sympy.codegen.ast import String
 
 
 
@@ -25,7 +27,7 @@ class TestAst(unittest.TestCase):
 
     def test_CType_case1(self):
         double = CType("double")
-        self.assertEqual(double.name, "double")
+        self.assertEqual(double.name, String("double"))
         self.assertEqual(ccode(double.as_vector()), "vector<double>")
         self.assertEqual(ccode(double.as_ndarray()), "py::array_t<double>")
         self.assertEqual(ccode(double.as_map()), "map<string, double>")

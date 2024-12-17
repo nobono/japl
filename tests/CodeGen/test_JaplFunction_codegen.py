@@ -29,10 +29,6 @@ class func(JaplFunction):
     pass
 
 
-class func2(JaplFunction):
-    pass
-
-
 class TestJaplFunction_CodeGen(unittest.TestCase):
 
 
@@ -159,7 +155,7 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
         c, d = symbols("c, d")
         f = func(a, b)
         f._build_proto(expr=None, code_type=code_type)
-        f._build_def(expr=None, code_type=code_type)
+        f._build_def(expr=None, code_type=code_type, use_parallel=False)
         truth = """\
                 void func(double& a, double& b){
 
@@ -186,7 +182,7 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
         A = Matrix([a, b, c])
         ret = JaplFunction._to_codeblock(A, code_type=code_type)
         truth = """\
-                vector<double> _Ret_arg;
+                vector<double> _Ret_arg = vector<double>(3);
                 _Ret_arg[0] = a;
                 _Ret_arg[1] = b;
                 _Ret_arg[2] = c;
@@ -196,7 +192,7 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
         A = MatrixSymbol("A", 3, 1)
         ret = JaplFunction._to_codeblock(A * 2, code_type=code_type)
         truth = """\
-                vector<double> _Ret_arg;
+                vector<double> _Ret_arg = vector<double>(3);
                 _Ret_arg[0] = 2*A[0];
                 _Ret_arg[1] = 2*A[1];
                 _Ret_arg[2] = 2*A[2];
@@ -223,6 +219,87 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
                 return a;"""
         self.assertEqual(ccode(ret), dedent(truth))
 
+
+    def test_to_codegen_optmizize_replacements(self):
+        a, b = symbols("a, b")
+        c, d = symbols("c, d")
+        A = Matrix([c, d])
+        B = Matrix([c, d])
+        expr = Matrix([
+            a + b,
+            c + d,
+            a + b + c + d,
+            ])
+        code_type = 'c'
+        f = func(a, b=b)
+        f.set_body(expr, code_type)
+        f._build_function(code_type, use_parallel=False)
+        truth = """\
+                vector<double> func(double& a, map<string, double>& _Dummy_var0){
+                   double x0 = a + b;
+                   double x1 = c + d;
+                   vector<double> _Ret_arg = vector<double>(3);
+                   _Ret_arg[0] = x0;
+                   _Ret_arg[1] = x1;
+                   _Ret_arg[2] = x0 + x1;
+                   return _Ret_arg;
+                }"""
+        self.assertEqual(ccode(f.function_def), dedent(truth))
+
+        code_type = "py"
+        f._build_function(code_type, use_parallel=False)
+        truth = """\
+                def func(a, _Dummy_var0):
+                    x0 = a + b
+                    x1 = c + d
+                    _Ret_arg = np.empty((3, 1))
+                    _Ret_arg[0, 0] = x0
+                    _Ret_arg[1, 0] = x1
+                    _Ret_arg[2, 0] = x0 + x1
+                    return _Ret_arg"""
+        self.assertEqual(pycode(f.function_def), dedent(truth))
+
+        code_type = "c"
+        A = Matrix([a + 1, b + 1])
+        B = Matrix([c + 2, d + 2])
+        class func2(JaplFunction):  # type:ignore # noqa
+            expr = A + B / a
+        f = func2(A, B)
+        f._build_function(code_type, use_parallel=False)
+        truth = """\
+                vector<double> func2(vector<double>& _Dummy_var0, vector<double>& _Dummy_var1){
+                   double x0 = 1.0/a;
+                   vector<double> _Ret_arg = vector<double>(2);
+                   _Ret_arg[0] = x0*_Dummy_var1[0] + _Dummy_var0[0];
+                   _Ret_arg[1] = x0*_Dummy_var1[1] + _Dummy_var0[1];
+                   return _Ret_arg;
+                }"""
+        self.assertEqual(ccode(f.function_def), dedent(truth))
+
+        code_type = "py"
+        f._build_function(code_type, use_parallel=False)
+        truth = """\
+                def func2(_Dummy_var0, _Dummy_var1):
+                    x0 = 1/a
+                    _Ret_arg = np.empty((2, 1))
+                    _Ret_arg[0, 0] = x0*_Dummy_var1[0, 0] + _Dummy_var0[0, 0]
+                    _Ret_arg[1, 0] = x0*_Dummy_var1[1, 0] + _Dummy_var0[1, 0]
+                    return _Ret_arg"""
+        self.assertEqual(pycode(f.function_def), dedent(truth))
+
+        # unpacking kwargs
+        code_type = 'c'
+        f = func2(A, B=B)
+        f._build_function(code_type, use_parallel=False)
+        truth = """\
+                vector<double> func2(vector<double>& _Dummy_var0, map<string, double>& _Dummy_var1){
+                   double x0 = 1.0/a;
+                   vector<double> _Ret_arg = vector<double>(2);
+                   _Ret_arg[0] = _Dummy_var1["B"]*x0 + _Dummy_var0[0];
+                   _Ret_arg[1] = _Dummy_var1["B"]*x0 + _Dummy_var0[1];
+                   return _Ret_arg;
+                }"""
+        self.assertEqual(ccode(f.get_def()), dedent(truth))
 
 
     def test_to_constructor(self):

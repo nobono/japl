@@ -1,10 +1,12 @@
 import itertools
-from typing import Any, Optional, Callable
+import numpy as np
+from typing import Any, Optional, Callable, Union
 from sympy import MatrixSymbol
 from sympy import Function
 from sympy import Matrix
 from sympy import Expr
 from sympy import Number
+from sympy import cse
 from sympy.codegen.ast import numbered_symbols
 from sympy.codegen.ast import FunctionDefinition
 from sympy.codegen.ast import FunctionPrototype
@@ -17,7 +19,9 @@ from sympy.codegen.ast import Symbol
 from sympy.codegen.ast import Dummy
 from sympy.codegen.ast import Type
 from sympy.codegen.ast import Tuple
+from sympy.codegen.ast import NoneToken
 from sympy.matrices import MatrixExpr
+from sympy.matrices.expressions.matexpr import MatrixElement
 from japl.Util.Util import iter_type_check
 from japl.CodeGen.Ast import CodeGenFunctionCall
 from japl.CodeGen.Ast import CodeGenFunctionPrototype
@@ -29,6 +33,8 @@ from japl.CodeGen.Globals import _STD_RETURN_NAME
 from japl.CodeGen.Ast import get_lang_types
 from japl.CodeGen.Ast import convert_symbols_to_variables
 from japl.CodeGen.Util import is_empty_expr
+from japl.CodeGen.Util import optimize_expression
+from japl.BuildTools.BuildTools import parallel_subs
 
 
 
@@ -97,12 +103,17 @@ class JaplFunction(Function):
         obj.kwargs = found_kwargs
         obj.fargs = found_args
         obj.function_call = CodeGenFunctionCall(obj.name, found_args, found_kwargs)
-        obj.expr = Expr()
+
+        # allow expr to be defined in class definition
+        if hasattr(cls, "expr"):
+            obj.expr = cls.expr
+        else:
+            obj.expr = Expr()
         return obj
 
 
     @staticmethod
-    def _to_codeblock(arg: Expr|Matrix|CodeBlock|list|tuple, code_type: str) -> CodeBlock:
+    def _to_codeblock(arg: Any, code_type: str) -> CodeBlock:
         """converts Symbolic expressions to codeblock. If an iterable of
         expressions are provided CodeBlock will be build recursively."""
         Types = get_lang_types(code_type=code_type)
@@ -114,10 +125,13 @@ class JaplFunction(Function):
             # for Matrix, declare return var and assign expressions.
             ret_symbol = MatrixSymbol(std_return_name, *arg.shape)
             return_type = Types.from_expr(ret_symbol)
-            ret_var = Variable(std_return_name, type=return_type)
+            constructor = Types.float64.as_vector(shape=ret_symbol.shape)
+            ret_var = Variable(std_return_name,
+                               type=return_type,
+                               value=constructor)
             code_lines += [ret_var.as_Declaration()]
 
-            for idx, subexpr in zip(itertools.product(*[range(dim) for dim in arg.shape]), [*arg]):
+            for idx, subexpr in zip(itertools.product(*[range(dim) for dim in arg.shape]), [*arg]):  # type:ignore # noqa
                 lhs = ret_symbol[idx]
                 code_lines += [Assignment(lhs, subexpr)]
 
@@ -140,15 +154,11 @@ class JaplFunction(Function):
         # TODO for iter types:
         # auto-apply return if non exist
         # auto-apply declarations if non exist
-        elif isinstance(arg, tuple):
+        elif isinstance(arg, (tuple, list)):
             # return CodeBlock(*arg)
             for item in arg:
-                code_lines += [JaplFunction._to_codeblock(item, code_type=code_type)]
-            return CodeBlock(*code_lines)
-        elif isinstance(arg, list):
-            # return CodeBlock(*arg)
-            for item in arg:
-                code_lines += [JaplFunction._to_codeblock(item, code_type=code_type)]
+                code_block = JaplFunction._to_codeblock(item, code_type=code_type)
+                code_lines += [code_block]
             return CodeBlock(*code_lines)
         elif isinstance(arg, CodeBlock):  # type:ignore
             return arg
@@ -157,14 +167,15 @@ class JaplFunction(Function):
             return arg
 
 
-    def set_body(self, body: CodeBlock|Expr, code_type: str):
+    def set_body(self, body: CodeBlock|Expr|Matrix, code_type: str):
         """sets function body. If expression provided,
         function body will be built when _build_function is called.
         Otherwise, function body is set directly."""
-        if isinstance(body, CodeBlock):
-            self.body = self._to_codeblock(body, code_type=code_type)
-        else:
+        if not isinstance(body, CodeBlock):
             self.expr = body
+            self.body = self._to_codeblock(self.expr, code_type=code_type)
+        else:
+            self.body = body
 
 
     def _get_parameter_variables(self, code_type: str) -> list:
@@ -211,21 +222,126 @@ class JaplFunction(Function):
         self.function_proto = proto
 
 
-    def _build_def(self, expr, code_type: str):
+    def _build_def(self, expr, code_type: str,
+                   use_std_args: bool = False,
+                   use_parallel: bool = True):
         """Build function definition"""
         # func_proto = self.function_proto
         # func_def = FunctionDefinition.from_FunctionPrototype(func_proto=func_proto,
         #                                                      body=codeblock)
         Types = get_lang_types(code_type)
+
+        # ---------------------------------------------------------
+        # optimize the expression
+        # ---------------------------------------------------------
+        if expr is None:
+            expr = NoneToken()
+
+        repl_assignments = []
+
+        if use_parallel:
+            replacements, expr = optimize_expression(expr)
+        else:
+            replacements, expr_simple = cse(expr)
+            expr = expr_simple[0]  # type:ignore
+
+            # create assignments from replacements tuple
+            for lhs, rhs in replacements:
+                Types = get_lang_types(code_type)
+                lhs_var = Variable(lhs, type=Types.from_expr(lhs), value=rhs)
+                repl_assignments += [Declaration(lhs_var)]
+        # ---------------------------------------------------------
+
         self.return_type = Types.from_expr(expr)
-        codeblock = self._to_codeblock(expr, code_type=code_type)
         func_name = self.get_def_name()
         parameters = self._get_parameter_variables(code_type)
+
+        # --------------------------------------------------------------------
+        # get unpacks
+        # pass iterable of symbols
+        # pass iterable of expressions or MatrixSymbol
+        #
+        # NOTE: two scenarios of unpacking.
+        # given an iterable of symbols, the array can be unpacked
+        # and assigned to said symbols:
+        #       given, Matrix([a, b])
+        #       unpack:
+        #           double a = _Dummy_arg[0]
+        #           double b = _Dummy_arg[1]
+        #
+        # but given an iterable of expressions, direct instantiations
+        # cannot be made.
+        # --------------------------------------------------------------------
+        arg_unpacks = []
+        if use_std_args:
+            std_args = (Variable("t", type=Types.float64.as_ref()),
+                        Variable("_X_arg", type=Types.float64.as_vector().as_ref()),
+                        Variable("_U_arg", type=Types.float64.as_vector().as_ref()),
+                        Variable("_S_arg", type=Types.float64.as_vector().as_ref()),
+                        Variable("dt", type=Types.float64.as_ref()))
+            # ensure same number of params
+            if len(self.fargs) != len(std_args):
+                raise Exception("exactly 3 function arguments must be specified"
+                                "in order to use standard Model args in CodeGeneration."
+                                "[state, input, static].")
+        else:
+            expr = self._sub_array_of_expressions(target_expr=expr,
+                                                  source_expr=parameters,
+                                                  function_args=self.fargs,
+                                                  function_kwargs=self.kwargs,
+                                                  code_type=code_type)
+        # --------------------------------------------------------------------
+
+        expr_codeblock = self._to_codeblock(expr, code_type=code_type)
+        codeblock = CodeBlock(*arg_unpacks, *repl_assignments, *expr_codeblock.args)
         func_def = CodeGenFunctionDefinition(return_type=self.return_type,
                                              name=func_name,
                                              parameters=parameters,
                                              body=codeblock)
         self.function_def = func_def
+
+
+    @staticmethod
+    def _sub_array_of_expressions(target_expr,
+                                  source_expr,
+                                  function_args,
+                                  function_kwargs,
+                                  code_type: str):
+        Types = get_lang_types(code_type)
+        # --------------------------------------------------------------------
+        # NOTE: experimental: special type accessor logic
+        # For automatically accessing structures passed as function parameter.
+        # and applying to the expression.
+        #
+        # this portion attempts to replace the expr with sub_expr of function parameters
+        # that are matrix types.
+        # --------------------------------------------------------------------
+        # first process positional args
+        arg_parameters = [i for i in source_expr if not i.type.is_map]
+        kwarg_parameters = [i for i in source_expr if i.type.is_map]
+
+        for (param, arg_symbol) in zip(arg_parameters, function_args):
+            if param.type.is_array:
+                subs_dict = {}
+                arg_shape = [range(dim) for dim in arg_symbol.shape]
+                for idx, sub_expr in zip(itertools.product(*arg_shape), arg_symbol):
+                    subs_dict.update({sub_expr: param.symbol[idx]})
+                target_expr = target_expr.subs(subs_dict)
+
+        for i, arg_symbol in enumerate(function_kwargs.items()):
+            i = min(i, len(kwarg_parameters) - 1)
+            param = kwarg_parameters[i]
+            if param.type.is_map:
+                subs_dict = {}
+                arg_name, arg_val = arg_symbol
+                if not hasattr(arg_val, "__len__"):
+                    arg_val = [arg_val]
+                for sub_expr in arg_val:
+                    map_symbol = Symbol(Types.map_get(param.symbol, arg_name))
+                    subs_dict.update({sub_expr: map_symbol})
+                target_expr = target_expr.subs(subs_dict)
+
+        return target_expr
 
 
     def get_def_name(self) -> str:
@@ -240,13 +356,15 @@ class JaplFunction(Function):
         return self.function_def
 
 
-    def _build_function(self, code_type: str):
+    def _build_function(self, code_type: str, use_parallel: bool = True,
+                        use_std_args: bool = False):
         """dynamically builds JaplFunction prototype & definition
         using self.expr.
 
         This method calls _build_proto() and _build_def()."""
         self._build_proto(expr=self.expr, code_type=code_type)
-        self._build_def(expr=self.expr, code_type=code_type)
+        self._build_def(expr=self.expr, code_type=code_type, use_parallel=use_parallel,
+                        use_std_args=use_std_args)
 
 
     def _build(self, code_type: str):
