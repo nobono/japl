@@ -376,7 +376,7 @@ class JaplFunction(Function):
                     # array-like arg:
                     #       "double x = _X_arg[0]"
                     if isinstance(sub_expr, Symbol) and do_unpack_symbols:
-                        sub_expr_type = Types.from_expr(sub_expr)
+                        sub_expr_type = Types.from_expr(sub_expr).as_const()
                         arg_unpacks += [Declaration(Variable(sub_expr,
                                                              type=sub_expr_type,
                                                              value=param.symbol[idx]))]
@@ -401,7 +401,7 @@ class JaplFunction(Function):
                     # array-like arg:
                     #       "double x = _X_arg[0]"
                     if isinstance(sub_expr, Symbol) and do_unpack_symbols:
-                        sub_expr_type = Types.from_expr(sub_expr)
+                        sub_expr_type = Types.from_expr(sub_expr).as_const()
                         arg_unpacks += [Declaration(Variable(sub_expr,
                                                              type=sub_expr_type,
                                                              value=map_symbol))]
