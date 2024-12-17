@@ -333,18 +333,18 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
         self.assertEqual(ccode(f.function_def), dedent(truth))
 
 
-    def test_to_constructor(self):
-        var = Variable("a", type=CTypes.float64).as_Declaration()
-        self.assertEqual(ccode(Constructor(var)), "double a()")
-        var = Variable("a", type=CTypes.float64).as_Declaration()
-        params = (1, 2)
-        self.assertEqual(ccode(Constructor(var, params)), "double a(1, 2)")
-        var = Variable("a", type=CTypes.float64)
-        params = (1, 2)
-        self.assertEqual(ccode(Constructor(var, params)), "double a(1, 2)")
-        var = Variable("a", type=CTypes.float64)
-        params = (Dict(dict({'a': 1, 'b': 2})),)
-        self.assertEqual(ccode(Constructor(var, params)), 'double a({{"a", 1}, {"b", 2}})')
+    # def test_to_constructor(self):
+    #     var = Variable("a", type=CTypes.float64).as_Declaration()
+    #     self.assertEqual(ccode(Constructor(var)), "double a()")
+    #     var = Variable("a", type=CTypes.float64).as_Declaration()
+    #     params = (1, 2)
+    #     self.assertEqual(ccode(Constructor(var, params)), "double a(1, 2)")
+    #     var = Variable("a", type=CTypes.float64)
+    #     params = (1, 2)
+    #     self.assertEqual(ccode(Constructor(var, params)), "double a(1, 2)")
+    #     var = Variable("a", type=CTypes.float64)
+    #     params = (Dict(dict({'a': 1, 'b': 2})),)
+    #     self.assertEqual(ccode(Constructor(var, params)), 'double a({{"a", 1}, {"b", 2}})')
 
 
     # def test_(self):

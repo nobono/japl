@@ -151,6 +151,7 @@ class JaplTypes:
         return JaplType()
 
 
+@DeprecationWarning
 class Constructor(Token):
 
     """Token for adding constructor to variable Declaration.
