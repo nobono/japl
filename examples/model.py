@@ -3,7 +3,7 @@ from sympy import Function
 from sympy import Matrix
 from sympy import Symbol
 from japl.CodeGen import JaplFunction
-from japl.CodeGen import ccode
+from japl.CodeGen import ccode, pycode
 
 
 
