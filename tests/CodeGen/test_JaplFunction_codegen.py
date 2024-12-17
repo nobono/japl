@@ -236,8 +236,8 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
         f._build_function(code_type, use_parallel=False, do_param_unpack=False)
         truth = """\
                 vector<double> func(double& a, map<string, double>& _Dummy_var0){
-                   double x0 = a + b;
-                   double x1 = c + d;
+                   const double x0 = a + b;
+                   const double x1 = c + d;
                    vector<double> _Ret_arg = vector<double>(3);
                    _Ret_arg[0] = x0;
                    _Ret_arg[1] = x1;
@@ -268,7 +268,7 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
         f._build_function(code_type, use_parallel=False)
         truth = """\
                 vector<double> func2(vector<double>& _Dummy_var0, vector<double>& _Dummy_var1){
-                   double x0 = 1.0/a;
+                   const double x0 = 1.0/a;
                    vector<double> _Ret_arg = vector<double>(2);
                    _Ret_arg[0] = x0*_Dummy_var1[0] + _Dummy_var0[0];
                    _Ret_arg[1] = x0*_Dummy_var1[1] + _Dummy_var0[1];
@@ -293,7 +293,7 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
         f._build_function(code_type, use_parallel=False)
         truth = """\
                 vector<double> func2(vector<double>& _Dummy_var0, map<string, double>& _Dummy_var1){
-                   double x0 = 1.0/a;
+                   const double x0 = 1.0/a;
                    vector<double> _Ret_arg = vector<double>(2);
                    _Ret_arg[0] = _Dummy_var1["B"]*x0 + _Dummy_var0[0];
                    _Ret_arg[1] = _Dummy_var1["B"]*x0 + _Dummy_var0[1];
@@ -312,12 +312,12 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
         f._build_function(code_type, use_parallel=False, use_std_args=True)
         truth = """\
                 vector<double> func2(double& t, vector<double>& _X_arg, vector<double>& _U_arg, vector<double>& _S_arg, double& dt){
-                   double a = _X_arg[0];
-                   double b = _X_arg[1];
-                   double c = _X_arg[2];
-                   double e = _U_arg[0];
-                   double f = _S_arg[0];
-                   double x0 = 1.0/a;
+                   const double a = _X_arg[0];
+                   const double b = _X_arg[1];
+                   const double c = _X_arg[2];
+                   const double e = _U_arg[0];
+                   const double f = _S_arg[0];
+                   const double x0 = 1.0/a;
                    vector<double> _Ret_arg = vector<double>(2);
                    _Ret_arg[0] = a + x0*(c + 2) + 1;
                    _Ret_arg[1] = b + x0*(d + 2) + 1;
