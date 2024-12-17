@@ -204,11 +204,11 @@ class PyCodeGenPrinter(PythonCodePrinter):
         return kwargs_str
 
 
-def ccode(expr, **kwargs):
-    printer = CCodeGenPrinter()
-    return printer.doprint(expr, **kwargs)
+def ccode(expr, **settings):
+    printer = CCodeGenPrinter(settings)
+    return printer.doprint(expr)
 
 
-def pycode(expr, **kwargs):
-    printer = PyCodeGenPrinter()
-    return printer.doprint(expr, **kwargs)
+def pycode(expr, **settings):
+    printer = PyCodeGenPrinter(settings)
+    return printer.doprint(expr)
