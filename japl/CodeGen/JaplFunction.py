@@ -294,11 +294,11 @@ class JaplFunction(Function):
             replacements, expr_simple = cse(expr)
             expr = expr_simple[0]  # type:ignore
 
-            # create assignments from replacements tuple
-            for lhs, rhs in replacements:
-                Types = get_lang_types(code_type)
-                lhs_var = Variable(lhs, type=Types.from_expr(lhs), value=rhs)
-                repl_assignments += [Declaration(lhs_var)]
+        # create assignments from replacements tuple
+        for lhs, rhs in replacements:
+            Types = get_lang_types(code_type)
+            lhs_var = Variable(lhs, type=Types.from_expr(lhs), value=rhs)
+            repl_assignments += [Declaration(lhs_var)]
         # ---------------------------------------------------------
 
         if use_std_args:
