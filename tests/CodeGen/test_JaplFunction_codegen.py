@@ -233,7 +233,7 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
         code_type = 'c'
         f = func(a, b=b)
         f.set_body(expr, code_type)
-        f._build_function(code_type, use_parallel=False)
+        f._build_function(code_type, use_parallel=False, do_param_unpack=False)
         truth = """\
                 vector<double> func(double& a, map<string, double>& _Dummy_var0){
                    double x0 = a + b;
@@ -247,7 +247,7 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
         self.assertEqual(ccode(f.function_def), dedent(truth))
 
         code_type = "py"
-        f._build_function(code_type, use_parallel=False)
+        f._build_function(code_type, use_parallel=False, do_param_unpack=False)
         truth = """\
                 def func(a, _Dummy_var0):
                     x0 = a + b
@@ -300,6 +300,30 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
                    return _Ret_arg;
                 }"""
         self.assertEqual(ccode(f.get_def()), dedent(truth))
+
+        # using standardized Model args
+        code_type = 'c'
+        t, dt = symbols("t, dt")
+        e, f = symbols("e, f")
+        X = Matrix([a, b, c])
+        U = Matrix([e])
+        S = Matrix([f])
+        f = func2(t, X, U, S, dt)
+        f._build_function(code_type, use_parallel=False, use_std_args=True)
+        truth = """\
+                vector<double> func2(double& t, vector<double>& _X_arg, vector<double>& _U_arg, vector<double>& _S_arg, double& dt){
+                   double a = _X_arg[0];
+                   double b = _X_arg[1];
+                   double c = _X_arg[2];
+                   double e = _U_arg[0];
+                   double f = _S_arg[0];
+                   double x0 = 1.0/a;
+                   vector<double> _Ret_arg = vector<double>(2);
+                   _Ret_arg[0] = a + x0*(c + 2) + 1;
+                   _Ret_arg[1] = b + x0*(d + 2) + 1;
+                   return _Ret_arg;
+                }"""
+        self.assertEqual(ccode(f.function_def), dedent(truth))
 
 
     def test_to_constructor(self):
