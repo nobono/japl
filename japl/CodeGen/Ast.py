@@ -151,6 +151,24 @@ class JaplTypes:
         return JaplType()
 
 
+class JaplClass(Token):
+
+    """Ast Token for generating classes."""
+
+    __slots__ = _fields = ("name", "parent", "members")
+    defaults = {"name": String("JaplClass"),
+                "parent": String(""), "members": {}}
+
+    _construct_name = String
+    _construct_parent = String
+    _construct_member = dict
+
+    # @staticmethod
+    # def _construct_members(val):
+    #     return tuple([*val])
+
+
+
 @DeprecationWarning
 class Constructor(Token):
 
@@ -278,6 +296,14 @@ class PyType(JaplType):
     - ...etc
     """
 
+    # __slots__ = _fields = JaplType.__slots__ + ("type_hint",)
+    # defaults = {**JaplType.defaults, "type_hint": JaplType("")}
+
+    # @staticmethod
+    # def _construct_type_hint(val):
+    #     return val
+
+
     def as_vector(self, params: list|tuple = [], shape: list|tuple = []):
         if params:
             _params = ", ".join([str(i) for i in params])
@@ -383,11 +409,11 @@ class CType(JaplType):
 
 
 class PyTypes(JaplTypes):
-    bool = PyType("")
-    int = PyType("")
+    bool = PyType("bool")
+    int = PyType("int")
     float32 = PyType("")
-    float64 = PyType("")
-    void = PyType("")
+    float64 = PyType("float")
+    void = PyType("None")
     complex_ = PyType("")
 
 

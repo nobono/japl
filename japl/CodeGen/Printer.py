@@ -3,8 +3,10 @@ from sympy.printing.pycode import PythonCodePrinter
 from sympy.codegen.ast import Declaration
 from sympy.codegen.ast import numbered_symbols
 from sympy.codegen.ast import Variable
+from sympy.codegen.ast import Comment
 from sympy.codegen.ast import untyped
 from japl.CodeGen.Ast import CTypes
+from japl.CodeGen.Ast import get_lang_types
 from japl.CodeGen.Ast import PyTypes
 from japl.CodeGen.Ast import Kwargs
 from japl.CodeGen.Ast import convert_symbols_to_variables
@@ -129,6 +131,23 @@ class CCodeGenPrinter(C99CodePrinter):
 class PyCodeGenPrinter(PythonCodePrinter):
 
     code_type: str = "py"
+
+    def _print_JaplClass(self, expr):
+        Types = get_lang_types(self.code_type)
+        name = expr.name
+        parent = f"({expr.parent.text})" if expr.parent.text else ""
+        writes = ["class %s%s:\n" % (name, parent)]
+        for section_key, iter in expr.members.items():
+            if not len(iter):
+                continue
+            section_comment = self._print(Comment(section_key + "\n"))
+            writes += [section_comment]
+            for member in iter:
+                type_hint = Types.from_expr(member)
+                writes += [f"\t{member.name}: {type_hint}\n"]
+            writes += ["\n"]
+        return "".join(writes)
+
 
     def _print_Function(self, expr):
         # ---------------------------------------------------------------
