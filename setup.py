@@ -7,12 +7,18 @@ from setuptools import find_packages
 from setuptools import Command
 from setuptools.command.build_ext import build_ext
 from setuptools.command.build import build
+from setuptools.command.install import install
 from pathlib import Path
+import sysconfig
 import platform
 
 
 
 ROOT_DIR = Path(os.path.dirname(__file__))
+
+
+def get_install_path():
+    return sysconfig.get_path("purelib")
 
 
 def copy_dir(source_dir, target_dir) -> None:
@@ -46,6 +52,26 @@ def copy_dir(source_dir, target_dir) -> None:
             shutil.copy2(source_item, target_item)
 
 
+class PostInstallCommand(install):
+    def run(self):
+        super().run()
+
+        # Define source and destination directories
+        libs_source_dir = Path(self.build_lib, "libs")
+        libs_target_dir = Path(get_install_path(), "japl", "libs")
+
+        includes_source_dir = Path(self.build_lib, "include")
+        includes_target_dir = Path(get_install_path(), "japl", "include")
+
+        # Create the destination directory if it doesn't exist
+        os.makedirs(libs_target_dir, exist_ok=True)
+        os.makedirs(includes_target_dir, exist_ok=True)
+
+        # Copy all .o files to the destination directory
+        copy_dir(libs_source_dir, libs_target_dir)
+        copy_dir(includes_source_dir, includes_target_dir)
+
+
 class BuildCommand(build):
     # user_options = build_ext.user_options + [
     #         ("build-temp=", None, "Specify a directory fro temporary build files.")
@@ -64,6 +90,7 @@ class BuildCommand(build):
 
 
     def run(self) -> None:
+        self.parallel = 5
         return super().run()
 
 
@@ -133,6 +160,11 @@ class CleanCommand(Command):
             for file in glob.iglob(os.path.join(root_path, "**", pattern), recursive=True):
                 print("removing:", file)
                 os.remove(file)
+
+        # if package installed cleanup moved dirs "libs" & "include"
+        japl_install_dir = Path(sysconfig.get_path("purelib"), "japl")
+        if os.path.exists(japl_install_dir):
+            shutil.rmtree(japl_install_dir)
 
 
 if platform.system().lower() == "windows":
@@ -224,6 +256,7 @@ setup(
             "clean": CleanCommand,
             "build_ext": BuildExtCommand,
             "build": BuildCommand,
+            "install": PostInstallCommand,
             },
         package_data={"japl": ["libs/*.o", "include/*"]},
         entry_points={
