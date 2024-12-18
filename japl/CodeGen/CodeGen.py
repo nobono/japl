@@ -531,11 +531,11 @@ class CodeGenerator:
         # NOTE: may not need to do this anymore
         # CodeGenerator.copy_japl_libs_to(module_dir_path)
 
-        # # try to build
-        # try:
-        #     subprocess.run(["python", Path(module_dir_path, "build.py")])
-        # except Exception as e:
-        #     print("Error building model", e)
+        # try to build
+        try:
+            subprocess.run(["python", Path(module_dir_path, "build.py")])
+        except Exception as e:
+            print("Error building model", e)
 
 
     @staticmethod
