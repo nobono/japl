@@ -253,7 +253,7 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
                 def func(a, _Dummy_var0):
                     x0 = a + b
                     x1 = c + d
-                      # 
+                    # 
                     _Ret_arg = np.empty((3, 1))
                     _Ret_arg[0, 0] = x0
                     _Ret_arg[1, 0] = x1
@@ -284,12 +284,13 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
         truth = """\
                 def func2(_Dummy_var0, _Dummy_var1):
                     x0 = 1/a
-                      # 
+                    # 
                     _Ret_arg = np.empty((2, 1))
                     _Ret_arg[0, 0] = x0*_Dummy_var1[0, 0] + _Dummy_var0[0, 0]
                     _Ret_arg[1, 0] = x0*_Dummy_var1[1, 0] + _Dummy_var0[1, 0]
                     return _Ret_arg"""
         self.assertEqual(pycode(f.function_def), dedent(truth))
+        # print(pycode(f.function_def))
 
         # unpacking kwargs
         code_type = 'c'

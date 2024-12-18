@@ -132,6 +132,9 @@ class PyCodeGenPrinter(PythonCodePrinter):
 
     code_type: str = "py"
 
+    def _print_Comment(self, expr):
+        return f"# {str(expr)}"
+
     def _print_JaplClass(self, expr):
         Types = get_lang_types(self.code_type)
         name = expr.name
