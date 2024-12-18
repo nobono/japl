@@ -103,6 +103,7 @@ class FileBuilder(Builder):
                     "c": "c",
                     "h": "c",
                     "py": "py",
+                    "pyi": "py",
                     }
         if ext not in type_map:
             raise Exception(f"file extension {ext} not supported.")
@@ -487,7 +488,7 @@ class CodeGenerator:
 
 
     @staticmethod
-    def build_c_module(builder: ModuleBuilder):
+    def build_c_module(builder: ModuleBuilder, stub_builder: Optional[FileBuilder] = None):
         name = builder.name
         filename = name + ".cpp"
         module_dir_path = builder.create_module_directory(name=name, path="./")
@@ -501,6 +502,10 @@ class CodeGenerator:
         builder.dumps(path=module_dir_path, filename=filename)
         init_file_builder.dumps(path=module_dir_path)
         build_file_builder.dumps(path=module_dir_path)
+
+        if stub_builder is not None:
+            stub_builder.build()
+            stub_builder.dumps(path=module_dir_path)
 
         # copy over japl libs
         CodeGenerator.copy_japl_libs_to(module_dir_path)

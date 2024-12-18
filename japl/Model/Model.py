@@ -17,10 +17,13 @@ from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
 from japl.BuildTools.CCodeGenerator import CCodeGenerator
 from japl.BuildTools import BuildTools
 
+from japl.CodeGen import FileBuilder
 from japl.CodeGen import CFileBuilder
 from japl.CodeGen import ModuleBuilder
 from japl.CodeGen import CodeGenerator
 from japl.CodeGen import JaplFunction
+from japl.CodeGen.Ast import JaplClass
+from japl.CodeGen import pycode
 
 # ---------------------------------------------------
 
@@ -746,5 +749,13 @@ class Model:
         file_builder = CFileBuilder(filename, [dynamics(*params),
                                                state_updates(*params),
                                                input_updates(*params)])
+        # Model class stubs
+        stub_class = JaplClass(name,
+                               parent="Model",
+                               members={"state vars": self.state_vars,
+                                        "input vars": self.input_vars,
+                                        "static vars": self.static_vars})
+        stub_file_builder = FileBuilder(f"{name}.pyi", contents=[pycode(stub_class)])
+
         builder = ModuleBuilder(name, [file_builder])
-        CodeGenerator.build_c_module(builder)
+        CodeGenerator.build_c_module(builder, stub_builder=stub_file_builder)
