@@ -458,7 +458,7 @@ class ModuleBuilder(Builder):
                 root_path = os.path.dirname(__file__)
                 file_patterns = ["*.so", "*.dll"]
                 for pattern in file_patterns:
-                    for file in glob.iglob(Path(root_path, "**", pattern), recursive=True):
+                    for file in glob.iglob(str(Path(root_path, "**", pattern)), recursive=True):
                         print("removing:", file)
                         os.remove(file)
 
