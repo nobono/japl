@@ -88,15 +88,15 @@ public:
         return *this;
     }
 
-    double get_Sref(const map<string, double>& kwargs) {
+    double get_Sref() {
         return this->Sref;
     }
 
-    double get_Lref(const map<string, double>& kwargs) {
+    double get_Lref() {
         return this->Lref;
     }
 
-    double get_MRC(const map<string, double>& kwargs) {
+    double get_MRC() {
         return this->MRC;
     }
 

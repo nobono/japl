@@ -55,7 +55,7 @@ double AeroTable::inv_aerodynamics(const map<string, double>& kwargs) {
     double alpha_tol = 0.01;
     dVec increment_alpha = this->increments["alpha"];
     double alpha_max = *std::max_element(increment_alpha.begin(), increment_alpha.end());
-    Sref = this->get_Sref({});
+    Sref = this->get_Sref();
 
     double alpha_last = -1000.0;
     int count = 0;
@@ -125,6 +125,19 @@ PYBIND11_MODULE(aerotable, m) {
         // .def_readonly("CA_Boost_alpha", &AeroTable::CA_Boost_alpha)
         // .def_readonly("CA_Coast_alpha", &AeroTable::CA_Coast_alpha)
         // .def_readonly("CNB_alpha", &AeroTable::CNB_alpha)
+
+        .def("get_Sref", &AeroTable::get_Sref)
+        .def("get_Lref", &AeroTable::get_Lref)
+        .def("get_MRC", &AeroTable::get_MRC)
+        .def("get_CA", &AeroTable::get_CA  )
+        .def("get_CA_Boost", &AeroTable::get_CA_Boost)
+        .def("get_CA_Coast", &AeroTable::get_CA_Coast)
+        .def("get_CNB", &AeroTable::get_CNB)
+        .def("get_CYB", &AeroTable::get_CYB)
+        .def("get_CA_Boost_alpha", &AeroTable::get_CA_Boost_alpha)
+        .def("get_CA_Coast_alpha", &AeroTable::get_CA_Coast_alpha)
+        .def("get_CNB_alpha", &AeroTable::get_CNB_alpha)
+        .def("inv_aerodynamics", &AeroTable::inv_aerodynamics)
 
         .def_readonly("table_info", &AeroTable::table_info, "tables and their axes dimensions")
 
