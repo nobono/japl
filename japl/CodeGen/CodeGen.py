@@ -411,11 +411,27 @@ class ModuleBuilder(Builder):
         from setuptools.command.build_ext import build_ext
         from setuptools import Command
         from pybind11.setup_helpers import Pybind11Extension
-        from japl.global_opts import get_root_dir
+        from pathlib import Path
+        import importlib.util
+        import sysconfig
 
+
+
+        def get_root_dir():
+            # Find the module spec for the japl package
+            spec = importlib.util.find_spec("japl")
+            if spec is None or spec.origin is None:
+                raise RuntimeError("japl package is not installed or cannot be found.")
+            # Get the root directory of the japl package
+            root_dir = os.path.dirname(spec.origin)
+            return os.path.dirname(root_dir)
 
 
         dir = os.path.dirname(__file__)
+        install_dir = get_root_dir()
+
+        if not os.path.isdir(install_dir):
+            raise Exception("cannot build. required package, japl, is not installed.")
 
         # Default build ops
         if len(sys.argv) == 1:
@@ -440,30 +456,32 @@ class ModuleBuilder(Builder):
                 root_path = os.path.dirname(__file__)
                 file_patterns = ["*.so", "*.dll"]
                 for pattern in file_patterns:
-                    for file in glob.iglob(os.path.join(root_path, "**", pattern), recursive=True):
+                    for file in glob.iglob(Path(root_path, "**", pattern), recursive=True):
                         print("removing:", file)
                         os.remove(file)
 
 
         """f"""
-        sources = [os.path.join(dir, "{source_file}")]
+        sources = [str(Path(dir, "{source_file}"))]
 
         # Define extension module
         ext_module = Pybind11Extension(name="{module_name}",
+        """"""
                                        sources=sources,
                                        extra_compile_args=[],
-                                       extra_link_args=["{module_dir_path}/libs/src/linterp/linterp.o",
-                                                        "{module_dir_path}/libs/src/datatable.o",
-                                                        "{module_dir_path}/libs/src/atmosphere_alts.o",
-                                                        "{module_dir_path}/libs/src/atmosphere_density.o",
-                                                        "{module_dir_path}/libs/src/atmosphere_grav_accel.o",
-                                                        "{module_dir_path}/libs/src/atmosphere_pressure.o",
-                                                        "{module_dir_path}/libs/src/atmosphere_temperature.o",
-                                                        "{module_dir_path}/libs/src/atmosphere_speed_of_sound.o",
-                                                        "{module_dir_path}/libs/src/atmosphere.o",
-                                                        "{module_dir_path}/libs/src/aerotable.o",
-                                                        "{module_dir_path}/libs/src/model.o"],
-                                       include_dirs=[os.path.join(get_root_dir(), "include")],
+                                       extra_link_args=[f"{install_dir}/libs/src/linterp/linterp.o",
+                                                        f"{install_dir}/libs/src/datatable.o",
+                                                        f"{install_dir}/libs/src/atmosphere_alts.o",
+                                                        f"{install_dir}/libs/src/atmosphere_density.o",
+                                                        f"{install_dir}/libs/src/atmosphere_grav_accel.o",
+                                                        f"{install_dir}/libs/src/atmosphere_pressure.o",
+                                                        f"{install_dir}/libs/src/atmosphere_temperature.o",
+                                                        f"{install_dir}/libs/src/atmosphere_speed_of_sound.o",
+                                                        f"{install_dir}/libs/src/atmosphere.o",
+                                                        f"{install_dir}/libs/src/aerotable.o",
+                                                        f"{install_dir}/libs/src/model.o"],
+                                       include_dirs=[Path(install_dir, "include")],
+        """f"""
                                        cxx_std={ModuleBuilder.CXX_STD})
         """"""
 
@@ -508,7 +526,8 @@ class CodeGenerator:
             stub_builder.dumps(path=module_dir_path)
 
         # copy over japl libs
-        CodeGenerator.copy_japl_libs_to(module_dir_path)
+        # NOTE: may not need to do this anymore
+        # CodeGenerator.copy_japl_libs_to(module_dir_path)
 
         # # try to build
         # try:
