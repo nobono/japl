@@ -4,6 +4,10 @@ from sympy import Matrix
 from sympy import Symbol
 from japl.CodeGen import JaplFunction
 from japl.CodeGen import ccode, pycode
+from japl import Model
+from japl import SimObject
+from japl.CodeGen.Ast import JaplClass
+from japl.CodeGen import FileBuilder
 
 
 
@@ -29,6 +33,10 @@ acc = Matrix([acc_x, acc_y, acc_z])
 pos_new = pos + vel * dt
 vel_new = vel + acc * dt
 
+state = Matrix([pos, vel])
+input = Matrix([acc])
+static = Matrix([])
+
 X = Matrix([pos_new, vel_new])
 X_dot = X.diff(dt)
 
@@ -39,6 +47,19 @@ class dynamics(JaplFunction):
 
 f = dynamics(X)
 f._build_function("c")
-print()
-print(ccode(f.function_def))
-# print(X_dot)
+# print(pycode(f.function_def))
+
+model = Model.from_expression(dt, state, input, X_dot)
+# simobj = SimObject(model)
+# simobj.init_state([0] * len(state))
+
+model.create_c_module("mtest")
+
+# cl = JaplClass("myClass", parent="Model", members={"state vars": state,
+#                                                    "input vars": input,
+#                                                    "static vars": static})
+# print(pycode(cl))
+
+# fb = FileBuilder("stubs.pyi", contents=pycode(cl))
+# fb.build()
+# fb.dumps(path="./")
