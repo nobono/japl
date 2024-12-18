@@ -53,7 +53,7 @@ class CCodeGenPrinter(C99CodePrinter):
             params_str += ", "
         kwargs_list = []
         for key, val in expr.function_kwargs.items():
-            kwargs_list += ["{" + f"\"{key}\", {val}" + "}"]
+            kwargs_list += ["{" + f"\"{key}\", {self._print(val)}" + "}"]
         if kwargs_list:
             params_str += "{" + ", ".join(kwargs_list) + "}"
         return f"{expr.name}({params_str})"
