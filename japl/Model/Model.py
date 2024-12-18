@@ -758,4 +758,4 @@ class Model:
         stub_file_builder = FileBuilder(f"{name}.pyi", contents=[pycode(stub_class)])
 
         builder = ModuleBuilder(name, [file_builder])
-        CodeGenerator.build_c_module(builder, stub_builder=stub_file_builder)
+        CodeGenerator.build_c_module(builder, other_builders=[stub_file_builder])

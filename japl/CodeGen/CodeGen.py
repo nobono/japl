@@ -2,18 +2,20 @@ from io import TextIOWrapper
 import os
 import shutil
 import subprocess
+from pathlib import Path
 from textwrap import dedent
 from typing import Callable
 from typing import Any, Optional, Union
 from sympy.codegen.ast import Basic
 from sympy.codegen.ast import Variable
+from japl.global_opts import get_root_dir
 from japl.CodeGen.JaplFunction import JaplFunction
-from japl.CodeGen.Printer import ccode
-from japl.CodeGen.Util import copy_dir
+from japl.CodeGen.Ast import JaplClass
 from japl.CodeGen.Ast import CType
 from japl.CodeGen.Ast import CTypes
-from japl.global_opts import get_root_dir
-from pathlib import Path
+from japl.CodeGen.Printer import ccode
+from japl.CodeGen.Printer import pycode
+from japl.CodeGen.Util import copy_dir
 
 Writes = list[str]
 AstNode = Union[str, list, tuple, Basic, "Builder"]
@@ -506,7 +508,7 @@ class CodeGenerator:
 
 
     @staticmethod
-    def build_c_module(builder: ModuleBuilder, stub_builder: Optional[FileBuilder] = None):
+    def build_c_module(builder: ModuleBuilder, other_builders: list[FileBuilder] = []):
         name = builder.name
         filename = name + ".cpp"
         module_dir_path = builder.create_module_directory(name=name, path="./")
@@ -521,9 +523,9 @@ class CodeGenerator:
         init_file_builder.dumps(path=module_dir_path)
         build_file_builder.dumps(path=module_dir_path)
 
-        if stub_builder is not None:
-            stub_builder.build()
-            stub_builder.dumps(path=module_dir_path)
+        for blder in other_builders:
+            blder.build()
+            blder.dumps(path=module_dir_path)
 
         # copy over japl libs
         # NOTE: may not need to do this anymore
