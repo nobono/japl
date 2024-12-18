@@ -13,6 +13,17 @@ Follow the steps below to set up and install the `japl` project from the reposit
 
 ---
 
+## Set Up a Conda Environment
+Create and activate a new Conda environment:
+
+```bash
+conda create -n [ENV_NAME] python=3.11 -y
+conda activate [ENV_NAME]
+```
+>where `ENV_NAME` is whatever conda environment name you choose
+
+---
+
 ## Step 1: Clone the Repository
 
 First, clone the project repository from GitHub:
@@ -24,36 +35,22 @@ cd japl
 
 ---
 
-## Step 2: Set Up a Conda Environment
-Create and activate a new Conda environment:
-
+## Step 2: Install the Package
+#### Using pip: [recommended]
 ```bash
-conda create -n [ENV_NAME] python=3.11 -y
-conda activate [ENV_NAME]
-```
->where `ENV_NAME` is whatever conda environment name you choose
-
----
-
-## Step 3: Install Dependencies
-Install the required Python packages listed in `required.txt`:
-
-```bash
-pip install -r requirements.txt
+pip install .
 ```
 
----
-
-## Step 4: Install the Package
-Install the project using `setup.py`:
-
+#### Using setup.py
+>Install the required Python packages dependencies via `requirements.txt`:
 ```bash
+pip install -r requirements.txt;
 python setup.py install
 ```
 
 ---
 
-## Step 5: Verify Installation
+## Step 3: Verify Installation
 To confirm the installation was successful, run:
 
 ```bash
@@ -66,4 +63,14 @@ where you should see the output:
                     JAPL
         Just Another Prototyping Layer
 =============================================
+
+usage: japl [-h] {list,build} ...
+
+positional arguments:
+  {list,build}  Available Commands
+    list        List of available models
+    build       Build an available model
+
+options:
+  -h, --help    show this help message and exit
 ```
