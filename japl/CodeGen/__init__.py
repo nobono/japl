@@ -1,6 +1,7 @@
 # Import specific objects from submodules
 from .Printer import ccode
 from .Printer import pycode
+from .Printer import octave_code
 from .Printer import CCodeGenPrinter
 from .JaplFunction import JaplFunction
 from .CodeGen import CodeGenerator

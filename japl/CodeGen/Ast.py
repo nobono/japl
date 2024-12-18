@@ -24,17 +24,15 @@ from japl.CodeGen.Util import is_empty_expr
 
 
 
-__CODES__ = ("py", "c")
-
-
 def get_lang_types(code_type: str):
-    if code_type not in __CODES__:
-        raise Exception(f"codegen for {code_type} not avaialable.")
-    elif code_type == "py":
-        # raise Exception("Type does not apply for generating python code.")
+    if code_type.lower() in ["py", "python"]:
         return PyTypes
-    elif code_type == "c":
+    elif code_type.lower() in ["c", "cpp", "c++"]:
         return CTypes
+    elif code_type.lower() in ["octave", "oct", "matlab", "m"]:
+        return OctTypes
+    else:
+        raise Exception(f"codegen for {code_type} not avaialable.")
 
 
 def convert_symbols_to_variables(params, code_type: str, dummy_symbol_gen: Generator) -> Variable|tuple:
@@ -132,6 +130,10 @@ class JaplType(Type):
 
 
     def _pythoncode(self, *args, **kwargs):
+        return str(self.name)
+
+
+    def _octave(self, *args, **kwargs):
         return str(self.name)
 
 
@@ -288,6 +290,48 @@ class Kwargs(KwargsToken):
         return Variable(name, type=type)
 
 
+class OctType(JaplType):
+
+    """Token class but has modifier methods
+    - as_vector
+    - ...etc
+    """
+
+    def as_vector(self, params: list|tuple = [], shape: list|tuple = []):
+        if params:
+            _params = ", ".join([str(i) for i in params])
+            return OctType(f"zeros({_params})", is_array=true)  # type:ignore
+        elif shape:
+            _params = ", ".join([str(i) for i in shape])
+            return OctType(f"zeros({_params})", is_array=true)  # type:ignore
+        else:
+            return OctType("()", is_array=true)  # type:ignore
+
+
+    def as_map(self):
+        return OctType("",
+                      is_array=self.is_array,
+                      is_map=true,
+                      is_ref=self.is_ref,
+                      is_const=self.is_const)
+
+
+    def as_const(self):
+        return OctType("",
+                      is_array=self.is_array,
+                      is_map=self.is_map,
+                      is_ref=self.is_ref,
+                      is_const=true)
+
+
+    def as_ref(self):
+        return OctType("",
+                      is_array=self.is_array,
+                      is_map=self.is_map,
+                      is_ref=true,
+                      is_const=self.is_const)
+
+
 class PyType(JaplType):
 
     """Token class but has modifier methods
@@ -406,6 +450,53 @@ class CType(JaplType):
                      is_map=self.is_map,
                      is_ref=true,
                      is_const=self.is_const)
+
+
+class OctTypes(JaplTypes):
+    bool = OctType("")
+    int = OctType("")
+    float32 = OctType("")
+    float64 = OctType("")
+    void = OctType("")
+    complex_ = OctType("")
+
+
+    @staticmethod
+    def from_expr(expr):
+        """ Deduces type from an expression or a ``Symbol``.
+        """
+        if is_empty_expr(expr):
+            return OctTypes.void
+        if isinstance(expr, Function):
+            return expr.type
+        if isinstance(expr, Kwargs) or isinstance(expr, Dict):
+            return OctTypes.float64.as_map()
+        if isinstance(expr, MatrixSymbol):
+            if expr.shape[0] > 1 and expr.shape[1] > 1:  # type:ignore
+                raise Exception("Multidimensional Matrix shapes not yet supported.")
+            return OctTypes.float64.as_vector()
+        if isinstance(expr, Matrix):
+            return OctTypes.float64.as_vector()
+        if isinstance(expr, (float, Float)):
+            return OctTypes.float64
+        if isinstance(expr, (int, Integer)) or getattr(expr, 'is_integer', False):
+            return OctTypes.int
+        if getattr(expr, 'is_real', False):
+            return OctTypes.float64
+        if isinstance(expr, complex) or getattr(expr, 'is_complex', False):
+            return OctTypes.complex_
+        if (isinstance(expr, bool) or getattr(expr, 'is_Relational', False)
+                or expr.assumptions0.get("boolean", False)):
+            return OctTypes.bool
+        else:
+            return OctTypes.float64
+
+
+    @staticmethod
+    def map_get(name: str, val):
+        """helper / convenience method for accessing \"map\" types
+        for different languages."""
+        return f"{name}.{val}"
 
 
 class PyTypes(JaplTypes):
