@@ -6,8 +6,6 @@ from japl.CodeGen import JaplFunction
 from japl.CodeGen import ccode, pycode
 from japl import Model
 from japl import SimObject
-from japl.CodeGen.Ast import JaplClass
-from japl.CodeGen import FileBuilder
 
 
 
@@ -45,8 +43,8 @@ class dynamics(JaplFunction):
     expr = X_dot
 
 
-f = dynamics(X)
-f._build_function("c")
+# f = dynamics(X)
+# f._build_function("c")
 # print(pycode(f.function_def))
 
 model = Model.from_expression(dt, state, input, X_dot)
@@ -54,12 +52,3 @@ model = Model.from_expression(dt, state, input, X_dot)
 # simobj.init_state([0] * len(state))
 
 model.create_c_module("mtest")
-
-# cl = JaplClass("myClass", parent="Model", members={"state vars": state,
-#                                                    "input vars": input,
-#                                                    "static vars": static})
-# print(pycode(cl))
-
-# fb = FileBuilder("stubs.pyi", contents=pycode(cl))
-# fb.build()
-# fb.dumps(path="./")
