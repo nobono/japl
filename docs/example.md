@@ -41,7 +41,7 @@ class linear_motion(JaplFunction):
     expr = state_new
 
 # instantiate the function to establish function parameters
-func = linear_motion(acc)
+func = linear_motion(pos, vel, acc, dt)
 ```
 
 ---
@@ -67,7 +67,7 @@ print(code_str)
 
 > output:
 ```c
-vector<double> linear_motion(double& acc){
+vector<double> linear_motion(double& pos, double& vel, double& acc, double& dt){
    vector<double> _Ret_arg = vector<double>(2);
    _Ret_arg[0] = dt*vel + pos;
    _Ret_arg[1] = acc*dt + vel;
