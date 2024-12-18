@@ -21,7 +21,7 @@ from pyqtgraph.Qt.QtWidgets import QInputDialog
 from pyqtgraph.Qt import QtCore
 from pyqtgraph.exporters import ImageExporter
 from functools import partial
-from japl import JAPL_HOME_DIR
+from japl.global_opts import JAPL_HOME_DIR
 from PIL import Image
 # from japl.Math.Rotation import quat_to_tait_bryan
 # from pyqtgraph.Qt.QtWidgets import QGridLayout, QWidget, QWidgetItem
