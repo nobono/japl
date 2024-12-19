@@ -1,17 +1,17 @@
 site_name: JAPL
 
 nav:
-  - Home: index.md
-  - About:
-    - about.md
-    - License: LICENSE.md
+  - About: about.md
   - Getting Started: installation.md
-  - The Gist:
+  - Introduction:
     - JaplFunction: japlfunction.md
   - Examples:
-    - Creating a Function: example.md
+    - Creating a Function: example_create_function.md
+  - API Reference:
+    - Model: api/model.md
   - Developers:
     - CodeGeneration: code_generation.md
+  - License: LICENSE.md
 
 theme:
   name: material
