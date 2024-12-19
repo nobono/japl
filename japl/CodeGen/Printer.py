@@ -151,6 +151,8 @@ class PyCodeGenPrinter(PythonCodePrinter):
                 for member in item:
                     if isinstance(member, JaplFunction):
                         member._build(code_type=self.code_type)
+                        # NOTE: this is for python stubs but is not sufficient
+                        # for generating python methods.
                         function_proto_str = "def {name}{parameters}: ...".format(
                                 name=self._print(member.name),
                                 parameters=self._print(member.function_proto.parameters),
