@@ -2,20 +2,9 @@
 
 ---
 
-Create a Symbolic Function (`JaplFunction`)
----
+## Create a Symbolic Function ([JaplFunction](japlfunction.md))
 
-Symbolic Functions allow one to define a function by specifying:
-
-- function name
-- function signature
-- function body
-
-Once instantiated, a Symbolic Function can be expressed in a variety of other target languages (c++, matlab, python... etc).
-
----
-
-Using sympy, let's create a Symbolic Function for discrete linear motion:
+The goal is to create a Symbolic Function for discrete linear motion:
 
 $$
 X =

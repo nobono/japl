@@ -17,7 +17,7 @@ Follow the steps below to set up and install the `japl` project from the reposit
 Create and activate a new Conda environment:
 
 ```bash
-conda create -n [ENV_NAME] python=3.11 -y
+conda create -n [ENV_NAME] python=3.11 -y;
 conda activate [ENV_NAME]
 ```
 >where `ENV_NAME` is whatever conda environment name you choose
@@ -29,24 +29,25 @@ conda activate [ENV_NAME]
 First, clone the project repository from GitHub:
 
 ```bash
-git clone https://github.com/nobono/japl.git
+git clone https://github.com/nobono/japl.git;
 cd japl
 ```
 
 ---
 
 ## Step 2: Install the Package
-#### Using pip: [recommended]
+- #### Using pip: [recommended]
 ```bash
 pip install .
 ```
 
-#### Using setup.py
->Install the required Python packages dependencies via `requirements.txt`:
+- #### Manual install with setup.py
 ```bash
 pip install -r requirements.txt;
 python setup.py install
 ```
+> Install the required Python packages dependencies via `requirements.txt`<br>
+> then run setup.py installation
 
 ---
 
