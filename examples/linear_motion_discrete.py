@@ -4,7 +4,6 @@ from japl import JaplFunction
 from japl.CodeGen import ccode, octave_code
 
 
-
 # define variables
 t = Symbol("t")
 dt = Symbol("dt")
