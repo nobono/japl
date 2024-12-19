@@ -6,6 +6,8 @@ nav:
     - about.md
     - License: LICENSE.md
   - Getting Started: installation.md
+  - The Gist:
+    - JaplFunction: japlfunction.md
   - Examples:
     - Creating a Function: example.md
   - Developers:
@@ -55,6 +57,7 @@ markdown_extensions:
       pygments_lang_class: true
   - pymdownx.inlinehilite
   - pymdownx.snippets
+  - pymdownx.blocks.html
   - pymdownx.superfences:
       # mermaid flowcharts
       custom_fences:
