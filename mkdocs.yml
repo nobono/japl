@@ -44,11 +44,17 @@ plugins:
       handlers:
         python:
           options:
+            docstring_style: google
+            show_root_heading: true
             show_source: false
+            separate_signature: true
+            heading_level: 1
 
 markdown_extensions:
   # aligning images
   - attr_list
+
+  - def_list
 
   # mkdocs-material syntax highlighting
   - pymdownx.highlight:
