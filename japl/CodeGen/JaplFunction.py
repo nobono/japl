@@ -341,7 +341,7 @@ class JaplFunction(Function):
         # --------------------------------------------------------------------
 
         self.return_type = Types.from_expr(expr)
-        func_name = self.get_def_name()
+        func_name = self.get_full_name()
         expr_codeblock = self._to_codeblock(expr, code_type=code_type)
         codeblock = CodeBlock(*arg_unpacks, *repl_assignments, *expr_codeblock.args)
         func_def = CodeGenFunctionDefinition(return_type=self.return_type,
@@ -421,7 +421,7 @@ class JaplFunction(Function):
         return target_expr, arg_unpacks
 
 
-    def get_def_name(self) -> str:
+    def get_full_name(self) -> str:
         return f"{self.class_name}::{self.name}" if self.class_name else self.name
 
 
