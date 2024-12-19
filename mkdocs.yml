@@ -2,11 +2,14 @@ site_name: JAPL
 
 nav:
   - Home: index.md
-  - About: about.md
+  - About:
+    - about.md
+    - License: LICENSE.md
   - Getting Started: installation.md
   - Examples:
     - Creating a Function: example.md
-  - CodeGeneration: code_generation.md
+  - Developers:
+    - CodeGeneration: code_generation.md
 
 theme:
   name: material
