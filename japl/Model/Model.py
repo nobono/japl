@@ -746,15 +746,18 @@ class Model:
         class input_updates(JaplFunction):  # noqa
             class_name = "Model"
             expr = self.input_direct_updates
-        file_builder = CFileBuilder(filename, [dynamics(*params),
-                                               state_updates(*params),
-                                               input_updates(*params)])
+
+        sim_methods = [dynamics(*params),
+                       state_updates(*params),
+                       input_updates(*params)]
+
+        file_builder = CFileBuilder(filename, sim_methods)
         # Model class stubs
-        stub_class = JaplClass(name,
-                               parent="Model",
+        stub_class = JaplClass("Model",
                                members={"state vars": self.state_vars,
                                         "input vars": self.input_vars,
-                                        "static vars": self.static_vars})
+                                        "static vars": self.static_vars,
+                                        "sim methods": sim_methods})
         stub_file_builder = FileBuilder(f"{name}.pyi", contents=[pycode(stub_class)])
 
         builder = ModuleBuilder(name, [file_builder])
