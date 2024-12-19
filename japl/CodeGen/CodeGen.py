@@ -387,7 +387,8 @@ class ModuleBuilder(Builder):
                      "import datatable",
                      "import aerotable",
                      "import atmosphere",
-                     f"from {module_name}.{module_name} import *\n"])
+                     f"from {module_name}.{module_name} import Model as model",
+                     "model = model()"])
         init_builder = FileBuilder("__init__.py", contents=contents)
         return init_builder
 
