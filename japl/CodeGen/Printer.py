@@ -138,20 +138,29 @@ class PyCodeGenPrinter(PythonCodePrinter):
     def _print_Comment(self, expr):
         return f"# {str(expr)}"
 
+
     def _print_JaplClass(self, expr):
         Types = get_lang_types(self.code_type)
         name = expr.name
         parent = f"({expr.parent.text})" if expr.parent.text else ""
         writes = ["class %s%s:\n" % (name, parent)]
-        for section_key, iter in expr.members.items():
-            if not len(iter):
-                continue
-            section_comment = self._print(Comment(section_key + "\n"))
-            writes += [section_comment]
-            for member in iter:
-                type_hint = Types.from_expr(member)
-                writes += [f"\t{member.name}: {type_hint}\n"]
-            writes += ["\n"]
+        for section_key, item in expr.members.items():
+            if len(item):
+                section_comment = self._print(Comment(section_key + "\n"))
+                writes += [section_comment]
+                for member in item:
+                    if isinstance(member, JaplFunction):
+                        member._build(code_type=self.code_type)
+                        function_proto_str = "def {name}{parameters}: ...".format(
+                                name=self._print(member.name),
+                                parameters=self._print(member.function_proto.parameters),
+                                )
+
+                        writes += [self._indent_codestring(function_proto_str) + "\n"]
+                    else:
+                        type_hint = Types.from_expr(member)
+                        writes += [f"\t{member.name}: {type_hint}\n"]
+                writes += ["\n"]
         return "".join(writes)
 
 
