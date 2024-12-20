@@ -98,6 +98,11 @@ class Model:
         self.set_input(self.input_vars)  # NOTE: will convert any Function to Symbol
         self.set_static(self.static_vars)
 
+        # data array dims
+        self.state_dim = len(self.state_vars)
+        self.input_dim = len(self.input_vars)
+        self.static_dim = len(self.static_vars)
+
         self.A = np.array([])
         self.B = np.array([])
         self.C = np.array([])
