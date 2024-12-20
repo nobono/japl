@@ -368,6 +368,7 @@ class Model:
             return np.empty([])
 
 
+    @DeprecationWarning
     def dump_code(self):
         """This method will provide the code strings for dynamics,
         direct-state-update and direct-input-update expressions.
@@ -658,6 +659,20 @@ class Model:
             self.user_insert_functions += funcs
         else:
             self.user_insert_functions += [funcs]
+
+
+    def _get_independent_symbols(self) -> list[Symbol]:
+        """Returns the independent symbols of the model.
+        (the symbols which must be initialized)"""
+        # -----------------------------------------
+        # NOTE: Experiemental:
+        # try to identify independent symbols in expr
+        # for model initialization.
+        # -----------------------------------------
+        free_symbols = self.state_direct_updates.free_symbols
+        independent_symbols = [i for i in self.state_vars if i in free_symbols]  # sort by state position
+        independent_symbols += self.static_vars
+        return independent_symbols
 
 
     def save(self, path: str, name: str):
