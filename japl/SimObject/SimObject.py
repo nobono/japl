@@ -12,6 +12,7 @@ from matplotlib import colors as mplcolors
 from pandas import DataFrame
 from pandas import MultiIndex
 from japl.Util.Pubsub import Publisher
+from japl.Util.Pubsub import Subscriber
 # from sympy import Symbol
 # from pyqtgraph import GraphicsView, PlotCurveItem,
 # from pyqtgraph import CircleROI
@@ -123,7 +124,7 @@ class SimObject:
     __slots__ = ("_dtype", "name", "color", "size", "model",
                  "state_dim", "input_dim", "static_dim",
                  "X0", "U0", "S0", "Y", "U", "plot",
-                 "_T", "_istep", "publisher")
+                 "_T", "_istep", "publisher", "subscriber")
 
     model: Model
 
@@ -153,6 +154,7 @@ class SimObject:
         self._T = np.array([])
         self._istep: int = 1  # sim step counter set by Sim class
         self.publisher = Publisher()
+        self.subscriber = Subscriber(str(id(self)))
 
         # interface for visualization
         self.plot = _PlotInterface(
