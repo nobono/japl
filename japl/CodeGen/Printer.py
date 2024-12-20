@@ -146,6 +146,7 @@ class CCodeGenPrinter(C99CodePrinter):
 class PyCodeGenPrinter(PythonCodePrinter):
 
     code_type: str = "py"
+    tab = "    "
 
     def _print_Comment(self, expr):
         return f"# {str(expr)}"
@@ -158,10 +159,10 @@ class PyCodeGenPrinter(PythonCodePrinter):
         writes = ["class %s%s:\n" % (name, parent)]
         for section_key, item in expr.members.items():
             if isinstance(item, Symbol):
-                writes += [f"\t{section_key} = {item.name}\n"]
+                writes += [f"{self.tab}{section_key} = {item.name}\n"]
                 writes += ["\n"]
             elif hasattr(item, "__len__"):
-                section_comment = self._print(Comment(section_key + "\n"))
+                section_comment = self.tab + self._print(Comment(section_key + "\n"))
                 writes += [section_comment]
                 for member in item:
                     if isinstance(member, JaplFunction):
@@ -178,7 +179,7 @@ class PyCodeGenPrinter(PythonCodePrinter):
                         # --------------------------------------------------------
                     else:
                         type_hint = Types.from_expr(member)
-                        writes += [f"\t{member.name}: {type_hint}\n"]
+                        writes += [f"{self.tab}{member.name}: {type_hint}\n"]
                         # raise Exception("unhandled case.")
                 writes += ["\n"]
         return "".join(writes)

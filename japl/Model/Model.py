@@ -891,9 +891,13 @@ class Model:
             static_vars_member = Symbol("Matrix([])")
         else:
             static_vars_member = Symbol(f"Matrix(symbols(\"{static_var_names}\"))")
+
+        tab = "    "
         stub_class = JaplClass(name,
                                parent="JaplModel",
-                               members={"state vars": self.state_vars,
+                               members={"aerotable": Symbol("cpp_model.aerotable"),
+                                        "atmosphere": Symbol("cpp_model.atmosphere"),
+                                        "state vars": self.state_vars,
                                         "input vars": self.input_vars,
                                         "static vars": self.static_vars,
                                         "state_vars": state_vars_member,
@@ -902,9 +906,9 @@ class Model:
                                         # "dynamics func": ("dynamics", ""),
                                         # "sim methods": sim_methods})
                                         })
-        footer = ["\tdynamics = cpp_model.dynamics",
-                  "\tstate_updates = cpp_model.state_updates",
-                  "\tinput_updates = cpp_model.input_updates"]
+        footer = [f"{tab}dynamics = cpp_model.dynamics",
+                  f"{tab}state_updates = cpp_model.state_updates",
+                  f"{tab}input_updates = cpp_model.input_updates"]
         stub_file_builder = FileBuilder("model.py", contents=["\n".join(header),
                                                               pycode(stub_class),
                                                               "\n".join(footer)])
