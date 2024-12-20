@@ -580,13 +580,15 @@ class Model:
         with the provided name.
 
         -------------------------------------------------------------------
-        -- Arguments
-        -------------------------------------------------------------------
-        -- name - (str) name of the symbolic state variable
-        -------------------------------------------------------------------
-        -- Returns
-        -------------------------------------------------------------------
-        -- (Symbol) - the symbolic object of the state variable
+        **Arguments**
+
+        ``name`` : str
+        :   name of the symbolic state variable
+
+        **Returns**
+
+        Symbol
+        :   the symbolic object of the state variable
         -------------------------------------------------------------------
         """
         return self.state_register.get_sym(name)
@@ -599,13 +601,15 @@ class Model:
         elements result in NaN.
 
         -------------------------------------------------------------------
-        -- Arguments
-        -------------------------------------------------------------------
-        -- direct_updates - [Matrix|list]
-        -------------------------------------------------------------------
-        -- Returns
-        -------------------------------------------------------------------
-        -- (Callable) - lambdified sympy expression
+        **Arguments**
+
+        ``direct_updates`` : [Matrix | list]
+        :   expression for direct state updates
+
+        **Returns**
+
+        ``Callable``
+        :   lambdified sympy expression
         -------------------------------------------------------------------
         """
         update_func = Desym(self.vars, Matrix(direct_updates), modules=self.modules)
@@ -621,14 +625,16 @@ class Model:
         over-written.
 
         -------------------------------------------------------------------
-        Arguments:
-            - func: Callable function with the signature:
-                        func(t, X, U, S, dt, ...) -> U
-                    where X is the state array, U is the input array,
-                    S is the static variable array.
+        **Arguments**
 
-                    this function must return the input array U
-                    to have any affect on the model.
+        ``func``
+        :   Callable function with the signature:
+                func(t, X, U, S, dt, ...) -> U
+            where X is the state array, U is the input array,
+            S is the static variable array.
+
+            this function must return the input array U
+            to have any affect on the model.
         -------------------------------------------------------------------
         """
         self.user_input_function = func
@@ -639,11 +645,13 @@ class Model:
         Model's update step.
 
         -------------------------------------------------------------------
-        Arguments:
-            - funcs: list of Callable functions with the signature:
-                        func(t, X, U, S, dt, ...)
-                    where X is the state array, U is the input array,
-                    S is the static variable array.
+        **Arguments**
+
+        funcs
+        :   list of Callable functions with the signature:
+                func(t, X, U, S, dt, ...)
+            where X is the state array, U is the input array,
+            S is the static variable array.
         -------------------------------------------------------------------
         """
         if isinstance(funcs, list):
@@ -820,6 +828,7 @@ class Model:
                        input_updates(*params)]
 
         file_builder = CFileBuilder(filename, sim_methods)
+
         # Model class stubs
         stub_class = JaplClass("Model",
                                members={"state vars": self.state_vars,
