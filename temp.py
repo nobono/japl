@@ -35,19 +35,12 @@ from japl.CodeGen.Ast import CodeGenFunctionCall
 from japl.CodeGen.Ast import Kwargs
 from japl.CodeGen.JaplFunction import JaplFunction
 from japl.Util.Util import iter_type_check
-
 from pprint import pprint
+
+
+
 import mmd
 m = mmd.Model()
-print(m.state_dim)
 s = mmd.SimObject()
-print(s.r_i_x)
-# print(mmd.simobj().model.dynamics)
-
-# pprint(m.input_vars)
-# so = SimObject(m)
-# so.init_state([0.] * so.state_dim)
-# T = np.zeros((10,))
-# so._init_data_array(T)
-# so._pre_sim_checks()
-# print(mmd.simobj().model.dynamics(0., [2.] * 80, [0.] * 80, [0.] * 80, 0.1))
+print(m.state_dim)
+print(s.state_dim)
