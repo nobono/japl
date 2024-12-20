@@ -1,6 +1,7 @@
 from sympy.printing.c import C99CodePrinter
 from sympy.printing.pycode import PythonCodePrinter
 from sympy.printing.octave import OctaveCodePrinter
+from sympy.codegen.ast import FunctionDefinition
 from sympy.codegen.ast import Assignment
 from sympy.codegen.ast import Declaration
 from sympy.codegen.ast import numbered_symbols
@@ -66,7 +67,17 @@ class CCodeGenPrinter(C99CodePrinter):
         parameters = expr.parameters
         params_str = ", ".join([self._print(Declaration(i)) for i in parameters])  # type:ignore
         return_type_str = self._print(expr.return_type)
-        return "%s %s(%s)" % (return_type_str, expr.name, params_str)
+
+        # ----------------------------------------------------------------
+        # NOTE: _print_FunctionDefinition uses this method to print itself
+        # but "static" can only be in the function declaration
+        # ----------------------------------------------------------------
+        if not expr.is_static or isinstance(expr, FunctionDefinition):
+            static_kw = ""
+        else:
+            static_kw = "static "
+
+        return "%s%s %s(%s)" % (static_kw, return_type_str, expr.name, params_str)
 
 
     def _print_FunctionDefinition(self, expr):
@@ -151,14 +162,16 @@ class PyCodeGenPrinter(PythonCodePrinter):
                 for member in item:
                     if isinstance(member, JaplFunction):
                         member._build(code_type=self.code_type)
+                        # --------------------------------------------------------
                         # NOTE: this is for python stubs but is not sufficient
                         # for generating python methods.
-                        function_proto_str = "def {name}{parameters}: ...".format(
-                                name=self._print(member.name),
-                                parameters=self._print(member.function_proto.parameters),
-                                )
-
-                        writes += [self._indent_codestring(function_proto_str) + "\n"]
+                        # --------------------------------------------------------
+                        # function_proto_str = "def {name}{parameters}: ...".format(
+                        #         name=self._print(member.name),
+                        #         parameters=self._print(member.function_proto.parameters),
+                        #         )
+                        # writes += [self._indent_codestring(function_proto_str) + "\n"]
+                        # --------------------------------------------------------
                     else:
                         type_hint = Types.from_expr(member)
                         writes += [f"\t{member.name}: {type_hint}\n"]

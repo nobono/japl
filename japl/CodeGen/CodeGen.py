@@ -170,7 +170,7 @@ class Pybind:
         pybind_writes = Pybind.get_pybind_binding_writes(module_name=self.module_name)
         class_writes = []
         for class_name, methods in self.class_data.items():
-            if class_name == "Model":  # NOTE: do this better
+            if class_name == "Model":  # TODO: do this better
                 class_properties = ["aerotable", "atmosphere"]
             else:
                 class_properties = []
@@ -178,12 +178,13 @@ class Pybind:
             method_writes = []
             for method in methods:
                 param_vars = method.get_proto().parameters
-                if class_name == "Model":  # NOTE: do this better
+                if class_name == "Model":  # TODO: do this better
                     param_vars = ModuleBuilder.std_args
                 method_writes += Pybind.get_pybind_method_call_wrapper(func_name=method.name,
                                                                        parameters=param_vars,
                                                                        class_name=method.class_name,
-                                                                       description=method.description)
+                                                                       description=method.description,
+                                                                       is_static=method.is_static)
             if len(method_writes):
                 class_writes += Pybind.get_pybind_class_init_writes(class_name)
                 class_writes += method_writes
@@ -227,7 +228,8 @@ class Pybind:
 
 
     @staticmethod
-    def get_pybind_method_call_wrapper(func_name: str, parameters: tuple, class_name: str, description: str) -> Writes:
+    def get_pybind_method_call_wrapper(func_name: str, parameters: tuple, class_name: str, description: str,
+                                       is_static: bool = False) -> Writes:
         class_def, func_name = ModuleBuilder.parse_class_func(func_name)
         # lambda wrapper to convert return of vector<> to py::array_t<>
         # _std_params_str = ", ".join([f"{typ} {var}" for typ, var in zip(ModuleBuilder.std_args_types,
@@ -235,10 +237,19 @@ class Pybind:
         # _std_params_names_str = ", ".join([i for i in ModuleBuilder.std_args])
         params_signature = ", ".join([f"{ccode(var.type)} {ccode(var)}" for var in parameters])
         params_names = ", ".join([str(ccode(var)) for var in parameters])
+
+        # if static method, do not include "self" parameter
+        if is_static:
+            class_self_param = ""
+            class_obj_accessor = f"{class_name}::"
+        else:
+            class_self_param = f"{class_name}& self, "
+            class_obj_accessor = "self."
+
         method_bind_str = (f"\t\t.def(\"{func_name}\",\n"
-                           f"\t\t\t[]({class_name}& self, {params_signature}) -> py::array_t<double> "
+                           f"\t\t\t[]({class_self_param}{params_signature}) -> py::array_t<double> "
                            "{\n"
-                           f"\t\t\t\tvector<double> ret = self.{func_name}({params_names});\n"
+                           f"\t\t\t\tvector<double> ret = {class_obj_accessor}{func_name}({params_names});\n"
                            "\t\t\t\tpy::array_t<double> np_ret(ret.size());\n"
                            "\t\t\t\tstd::copy(ret.begin(), ret.end(), np_ret.mutable_data());\n"
                            "\t\t\t\treturn np_ret;\n"

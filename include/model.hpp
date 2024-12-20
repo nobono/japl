@@ -38,19 +38,19 @@ public:
         return *this;
     }
 
-    vector<double> dynamics(double& t,
+    static vector<double> dynamics(double& t,
                             std::vector<double>& _X_arg,
                             std::vector<double>& _U_arg,
                             std::vector<double>& _S_arg,
                             double& dt);
 
-    vector<double> state_updates(double& t,
+    static vector<double> state_updates(double& t,
                                  std::vector<double>& _X_arg,
                                  std::vector<double>& _U_arg,
                                  std::vector<double>& _S_arg,
                                  double& dt);
 
-    vector<double> input_updates(double& t,
+    static vector<double> input_updates(double& t,
                                  std::vector<double>& _X_arg,
                                  std::vector<double>& _U_arg,
                                  std::vector<double>& _S_arg,

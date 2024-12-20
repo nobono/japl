@@ -685,8 +685,9 @@ class CodeGenFunctionPrototype(FunctionPrototype):
 
     """
 
-    __slots__ = ('return_type', 'name', 'parameters')
+    __slots__ = ('return_type', 'name', 'parameters', 'is_static')
     _fields: tuple[str, ...] = __slots__ + Node._fields
+    defaults = {**FunctionPrototype.defaults, "is_static": false}
 
     _construct_return_type = Type
     _construct_name = String
@@ -743,6 +744,11 @@ class CodeGenFunctionDefinition(FunctionDefinition):
         return x*y;
     }
     """
+
+    __slots__ = (*FunctionDefinition.__slots__, 'is_static')
+    _fields: tuple[str, ...] = FunctionDefinition._fields + ('is_static',)
+    defaults = {**FunctionDefinition.defaults, 'is_static': false}
+
     @staticmethod
     def _construct_return_type(arg):
         return arg

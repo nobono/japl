@@ -60,6 +60,7 @@ class JaplFunction(Function):
     body = CodeBlock()
     expr: Expr|Matrix
     return_type = JaplType()
+    is_static: bool
 
     std_return_name = _STD_RETURN_NAME
     std_dummy_name = _STD_DUMMY_NAME
@@ -107,6 +108,12 @@ class JaplFunction(Function):
             obj.expr = cls.expr
         else:
             obj.expr = Expr()
+
+        # allow is_static to be defined
+        if hasattr(cls, "is_static"):
+            obj.is_static = True
+        else:
+            obj.is_static = False
         return obj
 
 
@@ -251,7 +258,8 @@ class JaplFunction(Function):
 
         proto = CodeGenFunctionPrototype(return_type=self.return_type,
                                          name=self.name,
-                                         parameters=parameters)
+                                         parameters=parameters,
+                                         is_static=self.is_static)
         self.function_proto = proto
 
 
@@ -347,7 +355,8 @@ class JaplFunction(Function):
         func_def = CodeGenFunctionDefinition(return_type=self.return_type,
                                              name=func_name,
                                              parameters=parameters,
-                                             body=codeblock)
+                                             body=codeblock,
+                                             is_static=self.is_static)
         self.function_def = func_def
 
 
