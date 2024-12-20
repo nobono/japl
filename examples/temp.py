@@ -9,6 +9,7 @@ from japl.CodeGen import CFileBuilder
 from japl.CodeGen import ModuleBuilder
 from japl.CodeGen import CodeGenerator
 from japl.CodeGen import JaplFunction
+from japl import Model
 
 
 # a, b, c = symbols("a, b, c")
@@ -62,5 +63,3 @@ from japl.CodeGen import JaplFunction
 #     f.write("import aerotable\n")
 #     f.write("import atmosphere\n")
 #     f.write(f"from {module_name}.{module_name} import *\n")
-
-import mtest
