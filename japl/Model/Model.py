@@ -35,6 +35,8 @@ from japl.CodeGen import pycode
 #   - dont need to hold expressions just the functions from buildtools?
 #   - self._type?
 #   - self.modules? (only used for Desym)
+#   - self._iX_reference? (unused i think)
+#   - self._sym_references? (only only for StateSpace)
 
 
 class ModelType(Enum):
@@ -90,6 +92,11 @@ class Model:
             self.state_updates: Optional[Callable] = None
         if not hasattr(self, "input_updates"):
             self.input_updates: Optional[Callable] = None
+
+        # init registers
+        self.set_state(self.state_vars)  # NOTE: will convert any Function to Symbol
+        self.set_input(self.input_vars)  # NOTE: will convert any Function to Symbol
+        self.set_static(self.static_vars)
 
         self.A = np.array([])
         self.B = np.array([])

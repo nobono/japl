@@ -167,14 +167,16 @@ class SimObject:
         self.color = color
 
 
-    # @DeprecationWarning
-    # def _setup_model(self, **kwargs) -> None:
-    #     # mass properties
-    #     self.mass: float = kwargs.get("mass", 1)
-    #     self.Ixx: float = kwargs.get("Ixx", 1)
-    #     self.Iyy: float = kwargs.get("Iyy", 1)
-    #     self.Izz: float = kwargs.get("Izz", 1)
-    #     self.cg: float = kwargs.get("cg", 0)
+    def _init_data_array(self, T: np.ndarray):
+        """Initialzes the data array for SimObject. SimObject
+        pre-allocates data array for Sim once number of sim time steps
+        is specified in Sim initialization."""
+        # pre-allocate output arrays
+        self.Y = np.zeros((len(T), len(self.X0)))
+        self.U = np.zeros((len(T), len(self.U0)))
+        self.Y[0] = self.X0
+        self.U[0] = self.U0
+        self._set_T_array_ref(T)  # simobj.T reference to sim.T
 
 
     def __getattr__(self, name) -> np.ndarray|float:

@@ -32,7 +32,7 @@ class Sim:
         self.istep = 0
         self.Nt = int(self.t_span[1] / self.dt)
         self.t_array = np.linspace(self.t_span[0], self.t_span[1], self.Nt + 1)
-        self.T = np.array([])
+        self.T = np.zeros((self.Nt + 1,))
 
         # ODE solver params
         self.rtol: float = kwargs.get("rtol", 1e-6)
@@ -49,19 +49,9 @@ class Sim:
 
         # init simobj data arrays
         for simobj in self.simobjs:
-            self.__init_simobj(simobj)
+            simobj._init_data_array(self.T)
 
         self.profiler = Profiler()
-
-
-    def __init_simobj(self, simobj: SimObject):
-        # pre-allocate output arrays
-        self.T = np.zeros((self.Nt + 1, ))
-        simobj.Y = np.zeros((self.Nt + 1, len(simobj.X0)))
-        simobj.U = np.zeros((self.Nt + 1, len(simobj.U0)))
-        simobj.Y[0] = simobj.X0
-        simobj.U[0] = simobj.U0
-        simobj._set_T_array_ref(self.T)  # simobj.T reference to sim.T
 
 
     def add_event(self, func: Callable, action: str) -> None:
