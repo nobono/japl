@@ -138,12 +138,10 @@ class SimObject:
 
     def __init__(self, *args, **kwargs) -> None:
 
-        # assert isinstance(model, Model)
         self._dtype = kwargs.get("dtype", float)
         self.name = kwargs.get("name", "SimObject")
         self.color = kwargs.get("color")
         self.size = kwargs.get("size", 1)
-        # self.model = model
         self.state_dim = self.model.state_dim
         self.input_dim = self.model.input_dim
         self.static_dim = self.model.static_dim
@@ -155,8 +153,6 @@ class SimObject:
         self._T = np.array([])
         self._istep: int = 1  # sim step counter set by Sim class
         self.publisher = Publisher()
-
-        # self._setup_model(**kwargs)
 
         # interface for visualization
         self.plot = _PlotInterface(
@@ -551,7 +547,6 @@ class SimObject:
         """Creates DataFrame for each data array (state, input, static) on completion
         of a simulation run."""
         # define the multi-level column structure
-        column_structure = []
         data = {}
         for name in self.model.state_register.keys():
             struct_tuple = ("state", name)
