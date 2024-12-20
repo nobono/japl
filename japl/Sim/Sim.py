@@ -176,8 +176,8 @@ class Sim:
         X_state_update[:] = np.nan
 
         # apply any user-defined input functions
-        if simobj.model.user_input_function:
-            U = simobj.model.user_input_function(tstep, X_prev, U.copy(), S, dt, simobj)
+        if simobj.model.pre_update_function:
+            U = simobj.model.pre_update_function(tstep, X_prev, U.copy(), S, dt, simobj)
 
         # apply direct updates to input
         if simobj.model.input_updates:
@@ -254,7 +254,7 @@ class Sim:
 
             # run user-defined functions here, after parent SimObject's
             # model update step.
-            for func in simobj.model.user_insert_functions:
+            for func in simobj.model.post_update_functions:
                 func(tstep, X_new.copy(), U.copy(), S, dt, simobj)
 
             # store results

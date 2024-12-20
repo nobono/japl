@@ -70,8 +70,8 @@ class Model:
         self.static_dim = 0
         self.state_updates_expr: Matrix
         self.input_updates_expr: Matrix
-        self.user_input_function: Optional[Callable] = None
-        self.user_insert_functions: list[Callable] = []
+        self.pre_update_function: Optional[Callable] = None
+        self.post_update_functions: list[Callable] = []
 
         if not hasattr(self, "state_vars"):
             self.state_vars = Matrix([])
@@ -530,7 +530,7 @@ class Model:
     #     return update_func
 
 
-    def set_input_function(self, func: Callable) -> None:
+    def set_pre_update_function(self, func: Callable) -> None:
         """This method takes a function and inserts it before the
         Model's direct input updates.
 
@@ -551,10 +551,10 @@ class Model:
             to have any affect on the model.
         -------------------------------------------------------------------
         """
-        self.user_input_function = func
+        self.pre_update_function = func
 
 
-    def set_insert_functions(self, funcs: list[Callable]|Callable) -> None:
+    def set_post_update_functions(self, funcs: list[Callable]|Callable) -> None:
         """This method takes a function and inserts it after the
         Model's update step.
 
@@ -569,9 +569,9 @@ class Model:
         -------------------------------------------------------------------
         """
         if isinstance(funcs, list):
-            self.user_insert_functions += funcs
+            self.post_update_functions += funcs
         else:
-            self.user_insert_functions += [funcs]
+            self.post_update_functions += [funcs]
 
 
     def _get_independent_symbols(self) -> list[Symbol]:

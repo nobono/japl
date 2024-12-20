@@ -19,8 +19,8 @@ public:
     Atmosphere atmosphere = Atmosphere();
     AeroTable aerotable = AeroTable();
 
-    function<void(double)> user_input_function;
-    vector<function<void(double)>> user_insert_functions;
+    function<void(double)> pre_update_function;
+    vector<function<void(double)>> post_update_functions;
 
     Model() = default;
     ~Model() = default;
@@ -64,12 +64,12 @@ public:
         this->atmosphere = atmosphere;
     }
 
-    void set_input_function(function<void(double)> func) {
-        this->user_input_function = std::move(func);
+    void set_pre_update_function(function<void(double)> func) {
+        this->pre_update_function = std::move(func);
     }
 
-    void set_insert_functions(function<void(double)> func) {
-        this->user_insert_functions.emplace_back(std::move(func));
+    void set_post_update_functions(function<void(double)> func) {
+        this->post_update_functions.emplace_back(std::move(func));
     }
 };
 
