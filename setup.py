@@ -90,7 +90,7 @@ class BuildCommand(build):
 
 
     def run(self) -> None:
-        self.parallel = 5
+        self.parallel = os.cpu_count()
         return super().run()
 
 
@@ -120,7 +120,7 @@ class BuildExtCommand(build_ext):
 
 
     def build_extensions(self) -> None:
-        self.parallel = 5
+        self.parallel = os.cpu_count()
         super().build_extensions()
 
         # Define source and destination directories
