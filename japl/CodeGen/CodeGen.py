@@ -425,12 +425,14 @@ class ModuleBuilder(Builder):
         import shutil
         from setuptools import setup
         from setuptools.command.build_ext import build_ext
+        from setuptools.command.build import build
         from setuptools import Command
         from pybind11.setup_helpers import Pybind11Extension
         from pathlib import Path
         import importlib.util
         import sysconfig
 
+        MODULE_DIR = os.path.dirname(__file__)
 
 
         def get_root_dir():
@@ -456,6 +458,17 @@ class ModuleBuilder(Builder):
             sys.argv.append(dir)
 
 
+        class BuildCommand(build):
+
+            def initialize_options(self) -> None:
+                super().initialize_options()
+                self.build_temp = os.path.join(MODULE_DIR, "build")
+
+            def run(self) -> None:
+                self.parallel = os.cpu_count()
+                return super().run()
+
+
         class CleanCommand(Command):
             \"\"\"Custom clean command to tidy up the project root.\"\"\"
             user_options = []
@@ -467,8 +480,8 @@ class ModuleBuilder(Builder):
                 pass
 
             def run(self):
-                shutil.rmtree('./build', ignore_errors=True)
-                shutil.rmtree('./dist', ignore_errors=True)
+                shutil.rmtree(Path(MODULE_DIR, './build'), ignore_errors=True)
+                shutil.rmtree(Path(MODULE_DIR, './dist'), ignore_errors=True)
                 root_path = os.path.dirname(__file__)
                 file_patterns = ["*.so", "*.dll"]
                 for pattern in file_patterns:
@@ -501,7 +514,8 @@ class ModuleBuilder(Builder):
                                        cxx_std={ModuleBuilder.CXX_STD})
         """"""
 
-        cmdclass = {'build_ext': build_ext,
+        cmdclass = {'build': BuildCommand,
+                    'build_ext': build_ext,
                     'clean': CleanCommand}
 
         """f"""
