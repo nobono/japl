@@ -762,28 +762,28 @@ class Model:
 
         # settings symbolic arrays
         # ---------------------------------------------------------------------------
-        state_var_names = ", ".join([i.name for i in self.state_vars])  # type:ignore
-        input_var_names = ", ".join([i.name for i in self.input_vars])  # type:ignore
-        static_var_names = ", ".join([i.name for i in self.static_vars])  # type:ignore
+        state_var_names = [getattr(i, "name") for i in self.state_vars]
+        input_var_names = [getattr(i, "name") for i in self.input_vars]  # type:ignore
+        static_var_names = [getattr(i, "name") for i in self.static_vars]  # type:ignore
         if not state_var_names:
             state_vars_member = Symbol("Matrix([])")
         else:
-            state_vars_member = Symbol(f"Matrix(symbols(\"{state_var_names}\"))")
+            state_vars_member = Symbol(f"Matrix({state_var_names})")
         if not input_var_names:
             input_vars_member = Symbol("Matrix([])")
         else:
-            input_vars_member = Symbol(f"Matrix(symbols(\"{input_var_names}\"))")
+            input_vars_member = Symbol(f"Matrix({input_var_names})")
         if not static_var_names:
             static_vars_member = Symbol("Matrix([])")
         else:
-            static_vars_member = Symbol(f"Matrix(symbols(\"{static_var_names}\"))")
+            static_vars_member = Symbol(f"Matrix({static_var_names})")
 
         # Model class file
         # TODO JaplClass is sloppy
         # ---------------------------------------------------------------------------
         header = "\n".join(["from japl import Model as JaplModel",
                             f"from {name}.{name} import Model as CppModel",
-                            "from sympy import symbols, Matrix",
+                            "from sympy import Matrix",
                             "cpp_model = CppModel()",
                             "", "", ""])
         model_class = JaplClass(name, parent="JaplModel", members={"aerotable": Symbol("cpp_model.aerotable"),
