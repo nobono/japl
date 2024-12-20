@@ -175,9 +175,17 @@ class Sim:
         X_state_update = np.empty_like(X)
         X_state_update[:] = np.nan
 
+        # -----------------------------------------------------------
+        # run user-defined functions here, before parent SimObject's
+        # model update step.
+        # TODO THIS IS NOT TESTED
+        # for func in simobj.model.pre_update_functions:
+        #     func(tstep, X_prev.copy(), U.copy(), S, dt, simobj)
+        # -----------------------------------------------------------
+
         # apply any user-defined input functions
-        if simobj.model.pre_update_function:
-            U = simobj.model.pre_update_function(tstep, X_prev, U.copy(), S, dt, simobj)
+        if simobj.model.input_function:
+            U = simobj.model.input_function(tstep, X_prev, U.copy(), S, dt, simobj)
 
         # apply direct updates to input
         if simobj.model.input_updates:

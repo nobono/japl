@@ -12,7 +12,8 @@ PYBIND11_MODULE(model, m) {
         .def_property("aerotable",
                       [](const Model& self) -> const AeroTable& {return self.aerotable;},  // getter
                       [](Model& self, const decltype(Model::aerotable)& value) {self.aerotable = value;})  // setter
-        .def("set_pre_update_function", &Model::set_pre_update_function)
+        .def("set_input_function", &Model::set_input_function)
+        .def("set_pre_update_functions", &Model::set_pre_update_functions)
         .def("set_post_update_functions", &Model::set_post_update_functions)
     ;
 }

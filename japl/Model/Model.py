@@ -70,7 +70,8 @@ class Model:
         self.static_dim = 0
         self.state_updates_expr: Matrix
         self.input_updates_expr: Matrix
-        self.pre_update_function: Optional[Callable] = None
+        self.input_function: Optional[Callable] = None
+        self.pre_update_functions: list[Callable] = []
         self.post_update_functions: list[Callable] = []
 
         if not hasattr(self, "state_vars"):
@@ -530,9 +531,10 @@ class Model:
     #     return update_func
 
 
-    def set_pre_update_function(self, func: Callable) -> None:
+    def set_input_function(self, func: Callable) -> None:
         """This method takes a function and inserts it before the
-        Model's direct input updates.
+        Model's direct input updates. The outputs of this function
+        feed directly into the models inputs.
 
         NOTE that if the Model has any defined direct input updates,
         the user's changes to the input array may be modified or
@@ -551,7 +553,27 @@ class Model:
             to have any affect on the model.
         -------------------------------------------------------------------
         """
-        self.pre_update_function = func
+        self.input_function = func
+
+
+    def set_pre_update_functions(self, funcs: list[Callable]|Callable) -> None:
+        """This method takes a function and inserts it before the
+        Model's update step.
+
+        -------------------------------------------------------------------
+        **Arguments**
+
+        funcs
+        :   list of Callable functions with the signature:
+                func(t, X, U, S, dt, ...)
+            where X is the state array, U is the input array,
+            S is the static variable array.
+        -------------------------------------------------------------------
+        """
+        if isinstance(funcs, list):
+            self.pre_update_functions += funcs
+        else:
+            self.pre_update_functions += [funcs]
 
 
     def set_post_update_functions(self, funcs: list[Callable]|Callable) -> None:
