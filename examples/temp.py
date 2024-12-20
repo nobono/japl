@@ -1,5 +1,6 @@
 from sympy import symbols
 from sympy import Matrix
+from sympy import Symbol
 from japl.CodeGen import pycode
 from japl.CodeGen import ccode
 from japl.CodeGen import Builder
@@ -10,29 +11,37 @@ from japl.CodeGen import CodeGenerator
 from japl.CodeGen import JaplFunction
 
 
-a, b, c = symbols("a, b, c")
+# a, b, c = symbols("a, b, c")
 
 
-class func(JaplFunction):
-    class_name = "Model"
-    expr = a + b
+# class foo(JaplFunction):
+#     parent = "my_object"
+#     class_name = "MyClass"
+#     expr = a + b
 
 
-class func2(JaplFunction):
-    class_name = "Model"
-    expr = 2 * a + (b / 4.) + c
+# class func2(JaplFunction):
+#     class_name = "Model"
+#     expr = 2 * a + (b / 4.) + c
 
 
-f = func(a, b)
-f2 = func2(a, b, c)
+# a = Symbol("a")
+# b = Symbol("b")
+# f = foo(a, b)
+# # f2 = func2(a, b, c)
 
-# cd = ast.Assignment(c, func(a, b))
-# print(pycode(cd))
-# print(ccode(cd))
+# # cd = ast.Assignment(c, func(a, b))
+# # print(pycode(cd))
+# f._build("c")
+# print(ccode(f))
+# print()
+# print(ccode(f.function_proto))
+# print()
+# print(ccode(f.function_def))
 
-file_builder = CFileBuilder("mod.cpp", [f, f2])
-builder = ModuleBuilder("mod", [file_builder])
-CodeGenerator.build_c_module(builder)
+# file_builder = CFileBuilder("mod.cpp", [f, f2])
+# builder = ModuleBuilder("mod", [file_builder])
+# CodeGenerator.build_c_module(builder)
 
 # print(b.__slots__)
 # print(a.__slots__)
@@ -53,3 +62,5 @@ CodeGenerator.build_c_module(builder)
 #     f.write("import aerotable\n")
 #     f.write("import atmosphere\n")
 #     f.write(f"from {module_name}.{module_name} import *\n")
+
+import mtest
