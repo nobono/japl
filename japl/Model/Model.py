@@ -27,6 +27,13 @@ from japl.CodeGen import pycode
 
 # ---------------------------------------------------
 
+# TODO in this file:
+# deprecate the following:
+#   - Desym
+#   - self.vars (used only to configure Desym)
+#   - __process_direct_state_updates()
+#   - dont need to hold expressions just the functions from buildtools?
+
 
 
 class ModelType(Enum):
