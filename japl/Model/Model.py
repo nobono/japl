@@ -177,6 +177,7 @@ class Model:
         return model
 
 
+    @DeprecationWarning
     @classmethod
     def from_statespace(cls,
                         dt_var: Symbol,
