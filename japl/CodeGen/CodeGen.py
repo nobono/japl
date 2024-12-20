@@ -10,7 +10,6 @@ from sympy.codegen.ast import Basic
 from sympy.codegen.ast import Variable
 from japl.global_opts import get_root_dir
 from japl.CodeGen.JaplFunction import JaplFunction
-from japl.CodeGen.Ast import JaplClass
 from japl.CodeGen.Ast import CType
 from japl.CodeGen.Ast import CTypes
 from japl.CodeGen.Printer import ccode

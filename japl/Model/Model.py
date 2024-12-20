@@ -22,7 +22,7 @@ from japl.CodeGen import CFileBuilder
 from japl.CodeGen import ModuleBuilder
 from japl.CodeGen import CodeGenerator
 from japl.CodeGen import JaplFunction
-from japl.CodeGen.Ast import JaplClass
+from japl.CodeGen import JaplClass
 from japl.CodeGen import pycode
 
 # ---------------------------------------------------

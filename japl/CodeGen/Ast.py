@@ -153,24 +153,6 @@ class JaplTypes:
         return JaplType()
 
 
-class JaplClass(Token):
-
-    """Ast Token for generating classes."""
-
-    __slots__ = _fields = ("name", "parent", "members")
-    defaults = {"name": String("JaplClass"),
-                "parent": String(""), "members": {}}
-
-    _construct_name = String
-    _construct_parent = String
-    _construct_member = dict
-
-    # @staticmethod
-    # def _construct_members(val):
-    #     return tuple([*val])
-
-
-
 @DeprecationWarning
 class Constructor(Token):
 
