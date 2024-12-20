@@ -45,18 +45,21 @@ class Model:
 
     """
 
+    dynamics: Optional[Callable]
+    state_vars: Matrix
+    input_vars: Matrix
+    static_vars: Matrix
+    state_updates: Optional[Callable]
+    input_updates: Optional[Callable]
+
     def __init__(self, **kwargs) -> None:
         self._type = ModelType.NotSet
         self._dtype = np.float64
         self.state_register = StateRegister()
         self.input_register = StateRegister()
         self.static_register = StateRegister()
-        self.dynamics: Optional[Callable] = None
         self.dynamics_expr = Expr(None)
         self.modules: dict = {}
-        self.state_vars = Matrix([])
-        self.input_vars = Matrix([])
-        self.static_vars = Matrix([])
         self.dt_var = Symbol("")
         self.vars: tuple = ()
         self.state_dim = 0
@@ -64,10 +67,21 @@ class Model:
         self.static_dim = 0
         self.state_updates_expr: Matrix
         self.input_updates_expr: Matrix
-        self.state_updates: Optional[Callable] = None
-        self.input_updates: Optional[Callable] = None
         self.user_input_function: Optional[Callable] = None
         self.user_insert_functions: list[Callable] = []
+
+        if not hasattr(self, "state_vars"):
+            self.state_vars = Matrix([])
+        if not hasattr(self, "input_vars"):
+            self.input_vars = Matrix([])
+        if not hasattr(self, "static_vars"):
+            self.static_vars = Matrix([])
+        if not hasattr(self, "dynamics"):
+            self.dynamics: Optional[Callable] = None
+        if not hasattr(self, "state_updates"):
+            self.state_updates: Optional[Callable] = None
+        if not hasattr(self, "input_updates"):
+            self.input_updates: Optional[Callable] = None
 
         self.A = np.array([])
         self.B = np.array([])
@@ -248,6 +262,7 @@ class Model:
         a Sympy expression can be passed which then is lambdified
         (see Sympy.lambdify) with computational optimization (see Sympy.cse).
 
+        -------------------------------------------------------------------
         **Arguments**
 
         ``dt_var`` : Symbol
@@ -268,6 +283,7 @@ class Model:
         ``modules`` : Optional
         :   pass custom library to Desym (see sympy.lambdify)
 
+        -------------------------------------------------------------------
         **Returns**
 
         ``cls`` : Model
@@ -276,6 +292,7 @@ class Model:
         > NOTE: static variables are symbolic variables which are initialized
         but not stored as part of the state or input arrays.
 
+        -------------------------------------------------------------------
         **Examples**
 
         ```python
@@ -285,6 +302,7 @@ class Model:
         >>> input = Matrix([d, e])
         >>> model = Model.from_expression(dt, state, input)
         ```
+        -------------------------------------------------------------------
         """
         # first build model using provided definitions
         (state_vars,
@@ -830,12 +848,15 @@ class Model:
         # ---------------------------------------------------------------
         class dynamics(JaplFunction):  # noqa
             class_name = "Model"
+            # is_static = True
             expr = self.dynamics_expr
         class state_updates(JaplFunction):  # noqa
             class_name = "Model"
+            # is_static = True
             expr = self.state_updates_expr
         class input_updates(JaplFunction):  # noqa
             class_name = "Model"
+            # is_static = True
             expr = self.input_updates_expr
 
         sim_methods = [dynamics(*params),
@@ -844,13 +865,48 @@ class Model:
 
         file_builder = CFileBuilder(filename, sim_methods)
 
-        # Model class stubs
-        stub_class = JaplClass("Model",
+        tab = "    "
+
+        # Model class file
+        # TODO JaplClass is sloppy
+        header = ["from japl import Model as JaplModel",
+                  f"from {name}.{name} import Model as CppModel",
+                  "from sympy import symbols, Matrix",
+                  "cpp_model = CppModel()",
+                  "",
+                  ""]
+        state_var_names = ", ".join([i.name for i in self.state_vars])  # type:ignore
+        input_var_names = ", ".join([i.name for i in self.input_vars])  # type:ignore
+        static_var_names = ", ".join([i.name for i in self.static_vars])  # type:ignore
+        if not state_var_names:
+            state_vars_member = Symbol("Matrix([])")
+        else:
+            state_vars_member = Symbol(f"Matrix(symbols(\"{state_var_names}\"))")
+        if not input_var_names:
+            input_vars_member = Symbol("Matrix([])")
+        else:
+            input_vars_member = Symbol(f"Matrix(symbols(\"{input_var_names}\"))")
+        if not static_var_names:
+            static_vars_member = Symbol("Matrix([])")
+        else:
+            static_vars_member = Symbol(f"Matrix(symbols(\"{static_var_names}\"))")
+        stub_class = JaplClass(name,
+                               parent="JaplModel",
                                members={"state vars": self.state_vars,
                                         "input vars": self.input_vars,
                                         "static vars": self.static_vars,
-                                        "sim methods": sim_methods})
-        stub_file_builder = FileBuilder(f"{name}.pyi", contents=[pycode(stub_class)])
+                                        "state_vars": state_vars_member,
+                                        "input_vars": input_vars_member,
+                                        "static_vars": static_vars_member,
+                                        # "dynamics func": ("dynamics", ""),
+                                        # "sim methods": sim_methods})
+                                        })
+        footer = ["\tdynamics = cpp_model.dynamics",
+                  "\tstate_updates = cpp_model.state_updates",
+                  "\tinput_updates = cpp_model.input_updates"]
+        stub_file_builder = FileBuilder("model.py", contents=["\n".join(header),
+                                                              pycode(stub_class),
+                                                              "\n".join(footer)])
 
         builder = ModuleBuilder(name, [file_builder])
         CodeGenerator.build_c_module(builder, other_builders=[stub_file_builder])

@@ -1,3 +1,4 @@
+from sympy import Symbol
 from sympy.printing.c import C99CodePrinter
 from sympy.printing.pycode import PythonCodePrinter
 from sympy.printing.octave import OctaveCodePrinter
@@ -156,7 +157,10 @@ class PyCodeGenPrinter(PythonCodePrinter):
         parent = f"({expr.parent.text})" if expr.parent.text else ""
         writes = ["class %s%s:\n" % (name, parent)]
         for section_key, item in expr.members.items():
-            if len(item):
+            if isinstance(item, Symbol):
+                writes += [f"\t{section_key} = {item.name}\n"]
+                writes += ["\n"]
+            elif hasattr(item, "__len__"):
                 section_comment = self._print(Comment(section_key + "\n"))
                 writes += [section_comment]
                 for member in item:
@@ -175,6 +179,7 @@ class PyCodeGenPrinter(PythonCodePrinter):
                     else:
                         type_hint = Types.from_expr(member)
                         writes += [f"\t{member.name}: {type_hint}\n"]
+                        # raise Exception("unhandled case.")
                 writes += ["\n"]
         return "".join(writes)
 
