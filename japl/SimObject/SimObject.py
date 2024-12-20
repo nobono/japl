@@ -170,7 +170,16 @@ class SimObject:
     def _init_data_array(self, T: np.ndarray):
         """Initialzes the data array for SimObject. SimObject
         pre-allocates data array for Sim once number of sim time steps
-        is specified in Sim initialization."""
+        is specified in Sim initialization.
+
+        -------------------------------------------------------------------
+        **Arguments**
+
+        ``T`` : np.ndarray
+        :   simulation Time array. A reference of this array is stored
+            in SimObject to avoid redundancy.
+        -------------------------------------------------------------------
+        """
         # pre-allocate output arrays
         self.Y = np.zeros((len(T), len(self.X0)))
         self.U = np.zeros((len(T), len(self.U0)))
@@ -180,6 +189,8 @@ class SimObject:
 
 
     def __getattr__(self, name) -> np.ndarray|float:
+        if not len(self.Y):
+            raise Exception(f"cannot get \"{name}\". output array Y not initialized.")
         return self.get_current(name)
 
 
