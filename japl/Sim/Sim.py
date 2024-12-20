@@ -190,22 +190,22 @@ class Sim:
             U = simobj.model.user_input_function(tstep, X_prev, U.copy(), S, dt, simobj)
 
         # apply direct updates to input
-        if simobj.model.direct_input_update_func:
+        if simobj.model.input_updates:
             # TODO: (working) expanding for matrix
             # for info in state_mat_reshape_info:
             #     id, size, shape = info
-            U_temp = simobj.model.direct_input_update_func(tstep, X.copy(), U, S, dt).flatten()
+            U_temp = simobj.model.input_updates(tstep, X.copy(), U, S, dt).flatten()
             input_update_mask = ~np.isnan(U_temp)
             U[input_update_mask] = U_temp[input_update_mask]  # ignore nan values
 
         # apply direct updates to state
-        if simobj.model.direct_state_update_func:
-            X_state_update = simobj.model.direct_state_update_func(tstep, X_prev, U, S, dt).flatten()
+        if simobj.model.state_updates:
+            X_state_update = simobj.model.state_updates(tstep, X_prev, U, S, dt).flatten()
             if X_state_update is None:
                 raise Exception("Model direct_state_update_func returns None."
                                 f"(in SimObject \"{simobj.name})\"")
 
-        if not simobj.model.dynamics_func:
+        if not simobj.model.dynamics:
             self.T[istep] = tstep + dt
             simobj.Y[istep] = X
             simobj.U[istep] = U

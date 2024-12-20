@@ -51,7 +51,7 @@ class Model:
         self.state_register = StateRegister()
         self.input_register = StateRegister()
         self.static_register = StateRegister()
-        self.dynamics_func: Optional[Callable] = None
+        self.dynamics: Optional[Callable] = None
         self.dynamics_expr = Expr(None)
         self.modules: dict = {}
         self.state_vars = Matrix([])
@@ -62,10 +62,10 @@ class Model:
         self.state_dim = 0
         self.input_dim = 0
         self.static_dim = 0
-        self.state_direct_updates: Matrix
-        self.input_direct_updates: Matrix
-        self.direct_state_update_func: Optional[Callable] = None
-        self.direct_input_update_func: Optional[Callable] = None
+        self.state_updates_expr: Matrix
+        self.input_updates_expr: Matrix
+        self.state_updates: Optional[Callable] = None
+        self.input_updates: Optional[Callable] = None
         self.user_input_function: Optional[Callable] = None
         self.user_insert_functions: list[Callable] = []
 
@@ -153,11 +153,11 @@ class Model:
         model.input_dim = len(model.input_vars)
         model.static_dim = len(model.static_vars)
         if dynamics_func:
-            model.dynamics_func = dynamics_func
+            model.dynamics = dynamics_func
         if state_update_func:
-            model.direct_state_update_func = state_update_func
+            model.state_updates = state_update_func
         if input_update_func:
-            model.direct_input_update_func = input_update_func
+            model.input_updates = input_update_func
         if (not dynamics_func) and (not state_update_func):
             raise Exception("Both dynamics_func and state_update_func cannot be undefined.")
         return model
@@ -206,7 +206,7 @@ class Model:
         model.dynamics_expr = A * model.state_vars + B * model.input_vars
         if isinstance(model.dynamics_expr, Expr) or isinstance(model.dynamics_expr, Matrix):
             model.dynamics_expr = simplify(model.dynamics_expr)
-        model.dynamics_func = Desym(model.vars, model.dynamics_expr)  # type:ignore
+        model.dynamics = Desym(model.vars, model.dynamics_expr)  # type:ignore
         model.state_dim = A.shape[0]
         model.input_dim = B.shape[1]
         model.A = np.array(A)
@@ -291,13 +291,13 @@ class Model:
          input_vars,
          dynamics_expr,
          static_vars,
-         state_direct_updates,
-         input_direct_updates) = BuildTools.build_model(Matrix(state_vars),
-                                                        Matrix(input_vars),
-                                                        Matrix(dynamics_expr),
-                                                        definitions,
-                                                        static=Matrix(static_vars),
-                                                        use_multiprocess_build=use_multiprocess_build)
+         state_updates_expr,
+         input_updates_expr) = BuildTools.build_model(Matrix(state_vars),
+                                                      Matrix(input_vars),
+                                                      Matrix(dynamics_expr),
+                                                      definitions,
+                                                      static=Matrix(static_vars),
+                                                      use_multiprocess_build=use_multiprocess_build)
         model = cls()
         model._type = ModelType.Symbolic
         model.modules = model.__set_modules(modules)
@@ -310,8 +310,8 @@ class Model:
         model.dt_var = dt_var
         model.vars = (Symbol("t"), model.state_vars, model.input_vars, model.static_vars, dt_var)
         model.dynamics_expr = dynamics_expr
-        model.state_direct_updates = state_direct_updates
-        model.input_direct_updates = input_direct_updates
+        model.state_updates_expr = state_updates_expr
+        model.input_updates_expr = input_updates_expr
         # model.direct_state_update_func = model.__process_direct_state_updates(state_direct_updates)
         # model.direct_input_update_func = model.__process_direct_state_updates(input_direct_updates)
         model.state_dim = len(model.state_vars)
@@ -362,8 +362,8 @@ class Model:
         # namely, when Model is built from_function() and dynamics_func
         # is left unspecified. Typically this results from a Model being
         # updated exclusively by direct / external updates.
-        if self.dynamics_func:
-            return self.dynamics_func(*args).flatten()
+        if self.dynamics:
+            return self.dynamics(*args).flatten()
         else:
             return np.empty([])
 
@@ -377,12 +377,12 @@ class Model:
         state_update_code = None
         input_update_code = None
         if (self._type == ModelType.Symbolic):
-            if isinstance(self.dynamics_func, Desym):
-                dynamics_code = self.dynamics_func.code
-            if isinstance(self.direct_state_update_func, Desym):
-                state_update_code = self.direct_state_update_func.code
-            if isinstance(self.direct_input_update_func, Desym):
-                input_update_code = self.direct_input_update_func.code
+            if isinstance(self.dynamics, Desym):
+                dynamics_code = self.dynamics.code
+            if isinstance(self.state_updates, Desym):
+                state_update_code = self.state_updates.code
+            if isinstance(self.input_updates, Desym):
+                input_update_code = self.input_updates.code
             return (dynamics_code, state_update_code, input_update_code)
         else:
             raise Exception("Desym.dump_code() only available for"
@@ -669,7 +669,7 @@ class Model:
         # try to identify independent symbols in expr
         # for model initialization.
         # -----------------------------------------
-        free_symbols = self.state_direct_updates.free_symbols
+        free_symbols = self.state_updates_expr.free_symbols
         independent_symbols = [i for i in self.state_vars if i in free_symbols]  # sort by state position
         independent_symbols += self.static_vars
         return independent_symbols
@@ -694,12 +694,12 @@ class Model:
                     self.state_dim,
                     self.input_dim,
                     self.static_dim,
-                    self.dynamics_func,
+                    self.dynamics,
                     self.dynamics_expr,
-                    self.state_direct_updates,
-                    self.input_direct_updates,
-                    self.direct_state_update_func,
-                    self.direct_input_update_func,
+                    self.state_updates_expr,
+                    self.input_updates_expr,
+                    self.state_updates,
+                    self.input_updates,
                     self.user_input_function)
             dill.dump(data, file)
 
@@ -730,12 +730,12 @@ class Model:
          obj.state_dim,
          obj.input_dim,
          obj.static_dim,
-         obj.dynamics_func,
+         obj.dynamics,
          obj.dynamics_expr,
-         obj.state_direct_updates,
-         obj.input_direct_updates,
-         obj.direct_state_update_func,
-         obj.direct_input_update_func,
+         obj.state_updates_expr,
+         obj.input_updates_expr,
+         obj.state_updates,
+         obj.input_updates,
          obj.user_input_function) = data
         if obj._type == ModelType.Symbolic:
             # the init from .from_expression()
@@ -752,17 +752,17 @@ class Model:
             model.dt_var = obj.dt_var
             model.vars = (Symbol("t"), model.state_vars, model.input_vars, model.static_vars, obj.dt_var)
             model.dynamics_expr = obj.dynamics_expr
-            model.state_direct_updates = obj.state_direct_updates
-            model.input_direct_updates = obj.input_direct_updates
+            model.state_updates_expr = obj.state_updates_expr
+            model.input_updates_expr = obj.input_updates_expr
 
             # if modules are being reloaded / updates, re-build the lambdify'd
             # functions
             if modules:
-                model.direct_state_update_func = model.__process_direct_state_updates(obj.state_direct_updates)
-                model.direct_input_update_func = model.__process_direct_state_updates(obj.input_direct_updates)
+                model.state_updates = model.__process_direct_state_updates(obj.state_updates_expr)
+                model.input_updates = model.__process_direct_state_updates(obj.input_updates_expr)
             else:
-                model.direct_state_update_func = obj.direct_state_update_func
-                model.direct_input_update_func = obj.direct_input_update_func
+                model.state_updates = obj.state_updates
+                model.input_updates = obj.input_updates
             model.state_dim = len(model.state_vars)
             model.input_dim = len(model.input_vars)
             model.static_dim = len(model.static_vars)
@@ -772,15 +772,15 @@ class Model:
             if modules:
                 match obj.dynamics_expr.__class__():  # type:ignore
                     case Expr():
-                        model.dynamics_func = model.__process_direct_state_updates(obj.dynamics_expr)
+                        model.dynamics = model.__process_direct_state_updates(obj.dynamics_expr)
                     case Matrix():
-                        model.dynamics_func = model.__process_direct_state_updates(obj.dynamics_expr)
+                        model.dynamics = model.__process_direct_state_updates(obj.dynamics_expr)
                     case MatrixSymbol():
-                        model.dynamics_func = model.__process_direct_state_updates(obj.dynamics_expr)
+                        model.dynamics = model.__process_direct_state_updates(obj.dynamics_expr)
                     case _:
                         raise Exception("function provided is not Callable.")
             else:
-                model.dynamics_func = obj.dynamics_func
+                model.dynamics = obj.dynamics
 
             return model
         else:
@@ -833,10 +833,10 @@ class Model:
             expr = self.dynamics_expr
         class state_updates(JaplFunction):  # noqa
             class_name = "Model"
-            expr = self.state_direct_updates
+            expr = self.state_updates_expr
         class input_updates(JaplFunction):  # noqa
             class_name = "Model"
-            expr = self.input_direct_updates
+            expr = self.input_updates_expr
 
         sim_methods = [dynamics(*params),
                        state_updates(*params),
