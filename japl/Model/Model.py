@@ -762,12 +762,11 @@ class Model:
 
         # Model class file
         # TODO JaplClass is sloppy
-        header = ["from japl import Model as JaplModel",
-                  f"from {name}.{name} import Model as CppModel",
-                  "from sympy import symbols, Matrix",
-                  "cpp_model = CppModel()",
-                  "",
-                  ""]
+        header = "\n".join(["from japl import Model as JaplModel",
+                            f"from {name}.{name} import Model as CppModel",
+                            "from sympy import symbols, Matrix",
+                            "cpp_model = CppModel()",
+                            "", "", ""])
         state_var_names = ", ".join([i.name for i in self.state_vars])  # type:ignore
         input_var_names = ", ".join([i.name for i in self.input_vars])  # type:ignore
         static_var_names = ", ".join([i.name for i in self.static_vars])  # type:ignore
@@ -785,25 +784,24 @@ class Model:
             static_vars_member = Symbol(f"Matrix(symbols(\"{static_var_names}\"))")
 
         tab = "    "
-        stub_class = JaplClass(name,
-                               parent="JaplModel",
-                               members={"aerotable": Symbol("cpp_model.aerotable"),
-                                        "atmosphere": Symbol("cpp_model.atmosphere"),
-                                        "state vars": self.state_vars,
-                                        "input vars": self.input_vars,
-                                        "static vars": self.static_vars,
-                                        "state_vars": state_vars_member,
-                                        "input_vars": input_vars_member,
-                                        "static_vars": static_vars_member,
-                                        # "dynamics func": ("dynamics", ""),
-                                        # "sim methods": sim_methods})
-                                        })
-        footer = [f"{tab}dynamics = cpp_model.dynamics",
-                  f"{tab}state_updates = cpp_model.state_updates",
-                  f"{tab}input_updates = cpp_model.input_updates"]
-        stub_file_builder = FileBuilder("model.py", contents=["\n".join(header),
-                                                              pycode(stub_class),
-                                                              "\n".join(footer)])
+        model_class = JaplClass(name, parent="JaplModel", members={"aerotable": Symbol("cpp_model.aerotable"),
+                                                                   "atmosphere": Symbol("cpp_model.atmosphere"),
+                                                                   "state_vars": state_vars_member,
+                                                                   "input_vars": input_vars_member,
+                                                                   "static_vars": static_vars_member})
+        footer = "\n".join([f"{tab}dynamics = cpp_model.dynamics",
+                            f"{tab}state_updates = cpp_model.state_updates",
+                            f"{tab}input_updates = cpp_model.input_updates"])
+        model_file_builder = FileBuilder("model.py", contents=[header, pycode(model_class), footer])
+
+        header = "\n".join(["from japl import SimObject",
+                            f"from {name}.model import {name} as _model",
+                            "", "", ""])
+        simobj_class = JaplClass(name, parent="SimObject", members={"state vars": self.state_vars,
+                                                                    "input vars": self.input_vars,
+                                                                    "static vars": self.static_vars,
+                                                                    "model": Symbol("_model()")})
+        simobj_file_builder = FileBuilder("simobj.py", contents=[header, pycode(simobj_class)])
 
         builder = ModuleBuilder(name, [file_builder])
-        CodeGenerator.build_c_module(builder, other_builders=[stub_file_builder])
+        CodeGenerator.build_c_module(builder, other_builders=[model_file_builder, simobj_file_builder])

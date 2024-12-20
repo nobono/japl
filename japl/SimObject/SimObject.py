@@ -117,23 +117,33 @@ class _PlotInterface:
 
 
 class SimObject:
+
+    """This is a base class for simulation objects"""
+
     __slots__ = ("_dtype", "name", "color", "size", "model",
                  "state_dim", "input_dim", "static_dim",
                  "X0", "U0", "S0", "Y", "U", "plot",
                  "_T", "_istep", "publisher")
 
-    """This is a base class for simulation objects"""
+    model: Model
+
+    def __new__(cls, model: Model = Model(), **kwargs):
+        obj = super().__new__(cls)
+        if isinstance(cls.model, Model):  # type:ignore
+            obj.model = cls.model
+        else:
+            obj.model = model
+        return obj
 
 
+    def __init__(self, *args, **kwargs) -> None:
 
-    def __init__(self, model: Model = Model(), **kwargs) -> None:
-
-        assert isinstance(model, Model)
+        # assert isinstance(model, Model)
         self._dtype = kwargs.get("dtype", float)
         self.name = kwargs.get("name", "SimObject")
         self.color = kwargs.get("color")
         self.size = kwargs.get("size", 1)
-        self.model = model
+        # self.model = model
         self.state_dim = self.model.state_dim
         self.input_dim = self.model.input_dim
         self.static_dim = self.model.static_dim
