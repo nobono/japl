@@ -12,6 +12,7 @@ from matplotlib import colors as mplcolors
 from pandas import DataFrame
 from pandas import MultiIndex
 from japl.Util.Pubsub import Publisher
+from japl.Util.Pubsub import Subscriber
 # from sympy import Symbol
 # from pyqtgraph import GraphicsView, PlotCurveItem,
 # from pyqtgraph import CircleROI
@@ -117,23 +118,31 @@ class _PlotInterface:
 
 
 class SimObject:
-    __slots__ = ("_dtype", "name", "color", "size", "model",
-                 "state_dim", "input_dim", "static_dim",
-                 "X0", "U0", "S0", "Y", "U", "plot",
-                 "_T", "_istep", "publisher")
 
     """This is a base class for simulation objects"""
 
+    __slots__ = ("_dtype", "name", "color", "size", "model",
+                 "state_dim", "input_dim", "static_dim",
+                 "X0", "U0", "S0", "Y", "U", "plot",
+                 "_T", "_istep", "publisher", "subscriber")
+
+    model: Model
+
+    def __new__(cls, model: Model = Model(), **kwargs):
+        obj = super().__new__(cls)
+        if isinstance(cls.model, Model):  # type:ignore
+            obj.model = cls.model
+        else:
+            obj.model = model
+        return obj
 
 
-    def __init__(self, model: Model = Model(), **kwargs) -> None:
+    def __init__(self, *args, **kwargs) -> None:
 
-        assert isinstance(model, Model)
         self._dtype = kwargs.get("dtype", float)
         self.name = kwargs.get("name", "SimObject")
         self.color = kwargs.get("color")
         self.size = kwargs.get("size", 1)
-        self.model = model
         self.state_dim = self.model.state_dim
         self.input_dim = self.model.input_dim
         self.static_dim = self.model.static_dim
@@ -145,8 +154,7 @@ class SimObject:
         self._T = np.array([])
         self._istep: int = 1  # sim step counter set by Sim class
         self.publisher = Publisher()
-
-        # self._setup_model(**kwargs)
+        self.subscriber = Subscriber(str(id(self)))
 
         # interface for visualization
         self.plot = _PlotInterface(
@@ -167,17 +175,30 @@ class SimObject:
         self.color = color
 
 
-    # @DeprecationWarning
-    # def _setup_model(self, **kwargs) -> None:
-    #     # mass properties
-    #     self.mass: float = kwargs.get("mass", 1)
-    #     self.Ixx: float = kwargs.get("Ixx", 1)
-    #     self.Iyy: float = kwargs.get("Iyy", 1)
-    #     self.Izz: float = kwargs.get("Izz", 1)
-    #     self.cg: float = kwargs.get("cg", 0)
+    def _init_data_array(self, T: np.ndarray):
+        """Initialzes the data array for SimObject. SimObject
+        pre-allocates data array for Sim once number of sim time steps
+        is specified in Sim initialization.
+
+        -------------------------------------------------------------------
+        **Arguments**
+
+        ``T`` : np.ndarray
+        :   simulation Time array. A reference of this array is stored
+            in SimObject to avoid redundancy.
+        -------------------------------------------------------------------
+        """
+        # pre-allocate output arrays
+        self.Y = np.zeros((len(T), len(self.X0)))
+        self.U = np.zeros((len(T), len(self.U0)))
+        self.Y[0] = self.X0
+        self.U[0] = self.U0
+        self._set_T_array_ref(T)  # simobj.T reference to sim.T
 
 
     def __getattr__(self, name) -> np.ndarray|float:
+        if not len(self.Y):
+            raise Exception(f"cannot get \"{name}\". output array Y not initialized.")
         return self.get_current(name)
 
 
@@ -528,7 +549,6 @@ class SimObject:
         """Creates DataFrame for each data array (state, input, static) on completion
         of a simulation run."""
         # define the multi-level column structure
-        column_structure = []
         data = {}
         for name in self.model.state_register.keys():
             struct_tuple = ("state", name)

@@ -1,0 +1,92 @@
+site_name: JAPL
+
+nav:
+  - About: about.md
+  - Getting Started: installation.md
+  - Introduction:
+    - JaplFunction: japlfunction.md
+  - Examples:
+    - Creating a Function: example_create_function.md
+  - API Reference:
+    - Model: api/model.md
+  - Developers:
+    - CodeGeneration: code_generation.md
+  - License: LICENSE.md
+
+theme:
+  name: material
+  logo: assets/japl_logo.png
+  features:
+    - content.code.copy
+  palette:
+    # Palette toggle for light mode
+    - scheme: default
+      primary: teal
+      accent: blue
+      toggle:
+        icon: material/brightness-7 
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - scheme: slate
+      primary: teal
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+  - mkdocstrings:
+      enabled: !ENV [ENABLE_MKDOCSTRINGS, true]
+      # custom_templates: templates
+      default_handler: python
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_root_heading: true
+            show_source: false
+            separate_signature: true
+            heading_level: 1
+
+markdown_extensions:
+  # aligning images
+  - attr_list
+
+  - def_list
+
+  # mkdocs-material syntax highlighting
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.blocks.html
+  - pymdownx.superfences:
+      # mermaid flowcharts
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+  # allow Latex
+  - pymdownx.arithmatex:
+      generic: true
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+
+extra:
+  consent:
+    title: Cookie consent
+    description: >- 
+      We use cookies to recognize your repeated visits and preferences, as well
+      as to measure the effectiveness of our documentation and whether users
+      find what they're searching for. With your consent, you're helping us to
+      make our documentation better.
+
+extra_css:
+  - stylesheets/extra.css

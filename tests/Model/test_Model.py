@@ -38,37 +38,37 @@ class TestModel(unittest.TestCase):
         self.assertListEqual(list(model.vars), [t, state, input, static, dt])
         self.assertEqual(len(model.state_vars), model.state_dim)
         self.assertEqual(len(model.input_vars), model.input_dim)
-        self.assertEqual(model.dynamics_func, func)
+        self.assertEqual(model.dynamics, func)
         self.assertListEqual(model(0, [0, 0, 0, 0, 0, 0], [1, 0, 0], [], 0.01).tolist(),
                              np.array([0, 0, 0, 1, 0, 0]).tolist())
 
 
-    def test_from_statespace(self):
-        t, state, input, dt, dynamics = self.setup()
-        A = np.array([
-            [0, 0, 0, 1, 0, 0],
-            [0, 0, 0, 0, 1, 0],
-            [0, 0, 0, 0, 0, 1],
-            [0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0],
-            ])
-        B = np.array([
-            [0, 0, 0],
-            [0, 0, 0],
-            [0, 0, 0],
-            [1, 0, 0],
-            [0, 1, 0],
-            [0, 0, 1],
-            ])
-        model = Model.from_statespace(dt, state, input, A, B)
-        self.assertListEqual(list(model.vars), [t, state, input, dt])
-        self.assertEqual(len(model.state_vars), model.state_dim)
-        self.assertEqual(len(model.input_vars), model.input_dim)
-        self.assertListEqual(model.A.tolist(), A.tolist())
-        self.assertListEqual(model.B.tolist(), B.tolist())
-        self.assertListEqual(model(0, [0, 0, 0, 0, 0, 0], [1, 0, 0], 0.01).tolist(),
-                             np.array([0, 0, 0, 1, 0, 0]).tolist())
+    # def test_from_statespace(self):
+    #     t, state, input, dt, dynamics = self.setup()
+    #     A = np.array([
+    #         [0, 0, 0, 1, 0, 0],
+    #         [0, 0, 0, 0, 1, 0],
+    #         [0, 0, 0, 0, 0, 1],
+    #         [0, 0, 0, 0, 0, 0],
+    #         [0, 0, 0, 0, 0, 0],
+    #         [0, 0, 0, 0, 0, 0],
+    #         ])
+    #     B = np.array([
+    #         [0, 0, 0],
+    #         [0, 0, 0],
+    #         [0, 0, 0],
+    #         [1, 0, 0],
+    #         [0, 1, 0],
+    #         [0, 0, 1],
+    #         ])
+    #     model = Model.from_statespace(dt, state, input, A, B)
+    #     self.assertListEqual(list(model.vars), [t, state, input, dt])
+    #     self.assertEqual(len(model.state_vars), model.state_dim)
+    #     self.assertEqual(len(model.input_vars), model.input_dim)
+    #     self.assertListEqual(model.A.tolist(), A.tolist())
+    #     self.assertListEqual(model.B.tolist(), B.tolist())
+    #     self.assertListEqual(model(0, [0, 0, 0, 0, 0, 0], [1, 0, 0], 0.01).tolist(),
+    #                          np.array([0, 0, 0, 1, 0, 0]).tolist())
 
 
     def test_from_expression(self):

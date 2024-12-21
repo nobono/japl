@@ -5,8 +5,139 @@ import glob
 from setuptools import setup
 from setuptools import find_packages
 from setuptools import Command
+from setuptools.command.build_ext import build_ext
+from setuptools.command.build import build
+from setuptools.command.install import install
+from pathlib import Path
+import sysconfig
 import platform
 
+
+
+ROOT_DIR = Path(os.path.dirname(__file__))
+
+
+def get_install_path():
+    return sysconfig.get_path("purelib")
+
+
+def copy_dir(source_dir, target_dir) -> None:
+    """
+    Recursively copies all directories and files from source_dir to target_dir.
+
+    Parameters:
+    -----------
+        source_dir (str): The source directory to copy from.
+        target_dir (str): The target directory to copy to.
+
+    Raises:
+    -------
+        ValueError: If source_dir does not exist or is not a directory.
+    """
+    if not os.path.isdir(source_dir):
+        raise ValueError(f"Source directory '{source_dir}' does not exist or is not a directory.")
+
+    # Ensure the target directory exists
+    os.makedirs(target_dir, exist_ok=True)
+
+    for item in os.listdir(source_dir):
+        source_item = os.path.join(source_dir, item)
+        target_item = os.path.join(target_dir, item)
+
+        if os.path.isdir(source_item):
+            # Recursively copy directories
+            copy_dir(source_item, target_item)
+        else:
+            # Copy files
+            shutil.copy2(source_item, target_item)
+
+
+class PostInstallCommand(install):
+    def run(self):
+        super().run()
+
+        # Define source and destination directories
+        libs_source_dir = Path(self.build_lib, "libs")
+        libs_target_dir = Path(get_install_path(), "japl", "libs")
+
+        includes_source_dir = Path(self.build_lib, "include")
+        includes_target_dir = Path(get_install_path(), "japl", "include")
+
+        # Create the destination directory if it doesn't exist
+        os.makedirs(libs_target_dir, exist_ok=True)
+        os.makedirs(includes_target_dir, exist_ok=True)
+
+        # Copy all .o files to the destination directory
+        copy_dir(libs_source_dir, libs_target_dir)
+        copy_dir(includes_source_dir, includes_target_dir)
+
+
+class BuildCommand(build):
+    # user_options = build_ext.user_options + [
+    #         ("build-temp=", None, "Specify a directory fro temporary build files.")
+    #         ]
+
+
+    # def initialize_options(self) -> None:
+    #     super().initialize_options()
+    #     self.build_temp = TEMP_LIBS_DIR  # default to None; can be set by user
+
+
+    # def finalize_options(self) -> None:
+    #     super().finalize_options()
+    #     if self.build_temp:
+    #         os.makedirs(self.build_temp, exist_ok=True)
+
+
+    def run(self) -> None:
+        self.parallel = os.cpu_count()
+        return super().run()
+
+
+class BuildExtCommand(build_ext):
+    user_options = build_ext.user_options + [
+            ("build-temp=", None, "Specify a directory fro temporary build files.")
+            ]
+
+
+    def initialize_options(self) -> None:
+        super().initialize_options()
+        self.build_temp = "libs"  # default to None; can be set by user
+
+
+    def finalize_options(self) -> None:
+        super().finalize_options()
+        if self.build_temp:
+            os.makedirs(self.build_temp, exist_ok=True)
+
+
+    def build_extension(self, ext) -> None:
+        # override the temporary build directory
+        if self.build_temp:
+            self.build_temp = os.path.abspath(self.build_temp)
+            self.build_temp_dir = self.build_temp
+        return super().build_extension(ext)
+
+
+    def build_extensions(self) -> None:
+        self.parallel = os.cpu_count()
+        super().build_extensions()
+
+        # Define source and destination directories
+        build_temp = self.build_temp  # Temporary build directory
+        libs_dest_dir = Path(self.build_lib, "libs")  # Installation directory
+
+        include_dir = Path(ROOT_DIR, "include")
+        include_dest_dir = Path(self.build_lib, "include")  # Installation directory
+
+        # Create the destination directory if it doesn't exist
+        os.makedirs(libs_dest_dir, exist_ok=True)
+        os.makedirs(include_dest_dir, exist_ok=True)
+
+        # Copy all .o files to the destination directory
+        copy_dir(build_temp, libs_dest_dir)
+        # copy all .hpp files to destination directory
+        copy_dir(include_dir, include_dest_dir)
 
 
 class CleanCommand(Command):
@@ -22,12 +153,18 @@ class CleanCommand(Command):
     def run(self):
         shutil.rmtree('./build', ignore_errors=True)
         shutil.rmtree('./dist', ignore_errors=True)
+        shutil.rmtree('./libs', ignore_errors=True)
         root_path = os.path.dirname(__file__)
         file_patterns = ["*.so", "*.dll", "*.pyd"]
         for pattern in file_patterns:
             for file in glob.iglob(os.path.join(root_path, "**", pattern), recursive=True):
                 print("removing:", file)
                 os.remove(file)
+
+        # if package installed cleanup moved dirs "libs" & "include"
+        japl_install_dir = Path(sysconfig.get_path("purelib"), "japl")
+        if os.path.exists(japl_install_dir):
+            shutil.rmtree(japl_install_dir)
 
 
 if platform.system().lower() == "windows":
@@ -57,36 +194,36 @@ def get_extension_modules() -> list:
                   extra_link_args=[],
                   cxx_std=17)
 
-    atmosphere_data_src = ["libs/atmosphere/data/_atmosphere_alts.cpp",
-                           "libs/atmosphere/data/_atmosphere_density.cpp",
-                           "libs/atmosphere/data/_atmosphere_grav_accel.cpp",
-                           "libs/atmosphere/data/_atmosphere_pressure.cpp",
-                           "libs/atmosphere/data/_atmosphere_speed_of_sound.cpp",
-                           "libs/atmosphere/data/_atmosphere_temperature.cpp"]
+    atmosphere_data_src = ["src/atmosphere_alts.cpp",
+                           "src/atmosphere_density.cpp",
+                           "src/atmosphere_grav_accel.cpp",
+                           "src/atmosphere_pressure.cpp",
+                           "src/atmosphere_speed_of_sound.cpp",
+                           "src/atmosphere_temperature.cpp"]
 
     try:
         from pybind11.setup_helpers import Pybind11Extension
-        linterp_ext = Pybind11Extension("linterp", ["libs/linterp/src/linterp.cpp"], **kwargs)
+        linterp_ext = Pybind11Extension("linterp", ["src/linterp/linterp.cpp"], **kwargs)
 
         atmosphere_ext = Pybind11Extension("atmosphere", [*atmosphere_data_src,
-                                                          "libs/linterp/src/linterp.cpp",
-                                                          "libs/atmosphere/atmosphere.cpp"], **kwargs)
+                                                          "src/linterp/linterp.cpp",
+                                                          "src/atmosphere.cpp"], **kwargs)
 
-        aerotable_ext = Pybind11Extension("aerotable", ["libs/linterp/src/linterp.cpp",
-                                                        "libs/datatable/datatable.cpp",
-                                                        "libs/aerotable/aerotable.cpp",
+        aerotable_ext = Pybind11Extension("aerotable", ["src/linterp/linterp.cpp",
+                                                        "src/datatable.cpp",
+                                                        "src/aerotable.cpp",
                                                         ], **kwargs)
 
         model_ext = Pybind11Extension("model", [*atmosphere_data_src,
-                                                "libs/linterp/src/linterp.cpp",
-                                                "libs/datatable/datatable.cpp",
-                                                "libs/aerotable/aerotable.cpp",
-                                                "libs/atmosphere/atmosphere.cpp",
-                                                "libs/model/model.cpp",
+                                                "src/linterp/linterp.cpp",
+                                                "src/datatable.cpp",
+                                                "src/aerotable.cpp",
+                                                "src/atmosphere.cpp",
+                                                "src/model.cpp",
                                                 ], **kwargs)
 
-        datatable_ext = Pybind11Extension("datatable", ["libs/linterp/src/linterp.cpp",
-                                                        "libs/datatable/datatable.cpp"], **kwargs)
+        datatable_ext = Pybind11Extension("datatable", ["src/linterp/linterp.cpp",
+                                                        "src/datatable.cpp"], **kwargs)
 
         return [linterp_ext, atmosphere_ext, aerotable_ext, model_ext, datatable_ext]
     except ImportError:
@@ -105,8 +242,7 @@ setup(
         name='japl',
         version='0.1',
         install_requires=get_install_requires(),
-        packages=find_packages('.'),
-        package_dir={'': '.'},
+        packages=find_packages(),
         ext_modules=get_extension_modules(),
         libraries=[],
         author="nobono",
@@ -118,7 +254,11 @@ setup(
             ],
         cmdclass={
             "clean": CleanCommand,
+            "build_ext": BuildExtCommand,
+            "build": BuildCommand,
+            "install": PostInstallCommand,
             },
+        package_data={"japl": ["libs/*.o", "include/*"]},
         entry_points={
             "console_scripts": [
                 "japl = bin.japl:main"  # make 'japl' callable

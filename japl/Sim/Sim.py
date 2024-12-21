@@ -32,7 +32,7 @@ class Sim:
         self.istep = 0
         self.Nt = int(self.t_span[1] / self.dt)
         self.t_array = np.linspace(self.t_span[0], self.t_span[1], self.Nt + 1)
-        self.T = np.array([])
+        self.T = np.zeros((self.Nt + 1,))
 
         # ODE solver params
         self.rtol: float = kwargs.get("rtol", 1e-6)
@@ -49,19 +49,9 @@ class Sim:
 
         # init simobj data arrays
         for simobj in self.simobjs:
-            self.__init_simobj(simobj)
+            simobj._init_data_array(self.T)
 
         self.profiler = Profiler()
-
-
-    def __init_simobj(self, simobj: SimObject):
-        # pre-allocate output arrays
-        self.T = np.zeros((self.Nt + 1, ))
-        simobj.Y = np.zeros((self.Nt + 1, len(simobj.X0)))
-        simobj.U = np.zeros((self.Nt + 1, len(simobj.U0)))
-        simobj.Y[0] = simobj.X0
-        simobj.U[0] = simobj.U0
-        simobj._set_T_array_ref(self.T)  # simobj.T reference to sim.T
 
 
     def add_event(self, func: Callable, action: str) -> None:
@@ -185,27 +175,35 @@ class Sim:
         X_state_update = np.empty_like(X)
         X_state_update[:] = np.nan
 
+        # -----------------------------------------------------------
+        # run user-defined functions here, before parent SimObject's
+        # model update step.
+        # TODO THIS IS NOT TESTED
+        # for func in simobj.model.pre_update_functions:
+        #     func(tstep, X_prev.copy(), U.copy(), S, dt, simobj)
+        # -----------------------------------------------------------
+
         # apply any user-defined input functions
-        if simobj.model.user_input_function:
-            U = simobj.model.user_input_function(tstep, X_prev, U.copy(), S, dt, simobj)
+        if simobj.model.input_function:
+            U = simobj.model.input_function(tstep, X_prev, U.copy(), S, dt, simobj)
 
         # apply direct updates to input
-        if simobj.model.direct_input_update_func:
+        if simobj.model.input_updates:
             # TODO: (working) expanding for matrix
             # for info in state_mat_reshape_info:
             #     id, size, shape = info
-            U_temp = simobj.model.direct_input_update_func(tstep, X.copy(), U, S, dt).flatten()
+            U_temp = simobj.model.input_updates(tstep, X.copy(), U, S, dt).flatten()
             input_update_mask = ~np.isnan(U_temp)
             U[input_update_mask] = U_temp[input_update_mask]  # ignore nan values
 
         # apply direct updates to state
-        if simobj.model.direct_state_update_func:
-            X_state_update = simobj.model.direct_state_update_func(tstep, X_prev, U, S, dt).flatten()
+        if simobj.model.state_updates:
+            X_state_update = simobj.model.state_updates(tstep, X_prev, U, S, dt).flatten()
             if X_state_update is None:
                 raise Exception("Model direct_state_update_func returns None."
                                 f"(in SimObject \"{simobj.name})\"")
 
-        if not simobj.model.dynamics_func:
+        if not simobj.model.dynamics:
             self.T[istep] = tstep + dt
             simobj.Y[istep] = X
             simobj.U[istep] = U
@@ -264,7 +262,7 @@ class Sim:
 
             # run user-defined functions here, after parent SimObject's
             # model update step.
-            for func in simobj.model.user_insert_functions:
+            for func in simobj.model.post_update_functions:
                 func(tstep, X_new.copy(), U.copy(), S, dt, simobj)
 
             # store results
