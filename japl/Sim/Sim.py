@@ -147,22 +147,6 @@ class Sim:
         return False
 
 
-    # @DeprecationWarning
-    # def step(self, t: float, X: np.ndarray, U: np.ndarray, S: np.ndarray, dt: float, simobj: SimObject):
-    #     """This method is the main step function for the Sim class."""
-
-    #     ########################################################
-    #     # device input
-    #     ########################################################
-    #     if self.device_input_type:
-    #         iota = -self.device_input_data["ly"] * 0.69  # noqa
-    #     # force = np.array([1000*lx, 0, 1000*ly])
-    #     # acc_ext = acc_ext + force / mass
-    #     ########################################################
-    #     Xdot = simobj.step(t, X, U, S, dt)
-    #     return Xdot
-
-
     @staticmethod
     def _step_solve(istep: int,
                     dt: float,
