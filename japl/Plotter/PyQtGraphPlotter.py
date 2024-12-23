@@ -161,7 +161,6 @@ class PyQtGraphPlotter:
             self.add_simobject(simobj)
 
             step_func = plot_obj._step_solve
-            dynamics_func = plot_obj.step
             method = plot_obj.integrate_method
             rtol = plot_obj.rtol
             atol = plot_obj.atol
@@ -170,11 +169,13 @@ class PyQtGraphPlotter:
 
             # create function for each time step
             step_func = partial(step_func,
-                                dynamics_func=dynamics_func,
                                 istep=0,
                                 dt=dt,
+                                T=plot_obj.T,
+                                t_array=plot_obj.t_array,
                                 simobj=simobj,
                                 method=method,
+                                events=plot_obj.events,
                                 rtol=rtol,
                                 atol=atol)
 
