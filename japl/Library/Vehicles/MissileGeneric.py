@@ -267,4 +267,5 @@ model = MissileGeneric.from_expression(dt,
                                        modules=[atmosphere.modules,
                                                 aerotable.modules,
                                                 debug_module],
-                                       definitions=defs)
+                                       definitions=defs,
+                                       use_multiprocess_build=False)
