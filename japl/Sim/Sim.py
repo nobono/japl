@@ -130,6 +130,9 @@ class Sim:
             if flag_sim_stop:
                 return flag_sim_stop
 
+        # update SimObject time step index
+        simobj.set_istep(istep)
+
         flag_sim_stop = self._step_solve(istep=istep, simobj=simobj, dt=self.dt, T=self.T,
                                          t_array=self.t_array, method=self.integrate_method,
                                          events=self.events, rtol=self.rtol, atol=self.atol)
@@ -209,9 +212,6 @@ class Sim:
         X = simobj.Y[istep - 1].copy()  # init with previous state
         U = simobj.U[istep - 1].copy()      # init with current input array (zeros)
         S = simobj.S0
-
-        # update SimObject time step index
-        simobj.set_istep(istep)
 
         ##################################################################
         # apply direct state updates
