@@ -9,6 +9,25 @@ from japl.Util.Profiler import Profiler
 from scipy.integrate import solve_ivp
 
 
+# NOTE below is currently unused feature ----------------------------------
+# which may be used in the future.
+#
+# ########################################################
+# # device input
+# ########################################################
+# if self.device_input_type:
+#     iota = -self.device_input_data["ly"] * 0.69  # noqa
+# # force = np.array([1000*lx, 0, 1000*ly])
+# # acc_ext = acc_ext + force / mass
+# ########################################################
+#
+# # get device input
+# if self.device_input_type:
+#     (lx, ly, _, _) = self.device_input.get()
+#     self.device_input_data["lx"] = lx
+#     self.device_input_data["ly"] = ly
+# -------------------------------------------------------------------------
+
 
 class Sim:
 
@@ -183,12 +202,6 @@ class Sim:
         # DEBUG PROFILE #########
         # self.profiler()
         #########################
-
-        # # get device input
-        # if self.device_input_type:
-        #     (lx, ly, _, _) = self.device_input.get()
-        #     self.device_input_data["lx"] = lx
-        #     self.device_input_data["ly"] = ly
 
         # setup time and initial state for step
         tstep = t_array[istep - 1]
