@@ -839,7 +839,10 @@ class Model:
         header = "\n".join(["from japl import SimObject",
                             f"from {name}.model import {name} as _model",
                             "", "", ""])
-        simobj_class = JaplClass(name, parent="SimObject", members={"state vars": self.state_vars,
+        simobj_class = JaplClass(name, parent="SimObject", members={"state_dim": Symbol(str(self.state_dim)),
+                                                                    "input_dim": Symbol(str(self.input_dim)),
+                                                                    "static_dim": Symbol(str(self.static_dim)),
+                                                                    "state vars": self.state_vars,
                                                                     "input vars": self.input_vars,
                                                                     "static vars": self.static_vars,
                                                                     "model": Symbol("_model()")})
