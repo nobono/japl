@@ -16,11 +16,14 @@ from sympy.codegen.ast import NoneToken
 from sympy.codegen.ast import Variable
 from sympy.codegen.ast import Return
 from sympy.codegen.ast import Symbol
+from sympy.codegen.ast import String
 from sympy.codegen.ast import Dummy
 from sympy.codegen.ast import Type
 from sympy.codegen.ast import Tuple
 from sympy.codegen.ast import Comment
 from sympy.matrices import MatrixExpr
+from sympy.matrices.expressions.blockmatrix import MatrixElement
+from sympy.tensor.array.expressions.from_indexed_to_array import ArrayElement
 from japl.Util.Util import iter_type_check
 from japl.CodeGen.Ast import CodeGenFunctionCall
 from japl.CodeGen.Ast import CodeGenFunctionPrototype
@@ -31,6 +34,7 @@ from japl.CodeGen.Globals import _STD_DUMMY_NAME
 from japl.CodeGen.Globals import _STD_RETURN_NAME
 from japl.CodeGen.Ast import get_lang_types
 from japl.CodeGen.Ast import convert_symbols_to_variables
+from japl.CodeGen.Ast import flatten_matrix_to_array
 from japl.CodeGen.Util import is_empty_expr
 from japl.CodeGen.Util import optimize_expression
 from japl.BuildTools.BuildTools import parallel_subs
@@ -58,7 +62,7 @@ class JaplFunction(Function):
     function_proto: FunctionPrototype
     function_body: CodeBlock
     body = CodeBlock()
-    expr: Expr|Matrix
+    expr: Expr|Matrix|NoneToken
     return_type = JaplType()
     is_static: bool
 
@@ -349,7 +353,7 @@ class JaplFunction(Function):
         # --------------------------------------------------------------------
 
         self.return_type = Types.from_expr(expr)
-        func_name = self.get_full_name()
+        func_name = self.get_full_name(code_type)
         expr_codeblock = self._to_codeblock(expr, code_type=code_type)
         codeblock = CodeBlock(*arg_unpacks, *repl_assignments, *expr_codeblock.args)
         func_def = CodeGenFunctionDefinition(return_type=self.return_type,
@@ -388,18 +392,44 @@ class JaplFunction(Function):
         for (param, arg_symbol) in zip(arg_parameters, function_args):
             if param.type.is_array:
                 subs_dict = {}
-                arg_shape = [range(dim) for dim in arg_symbol.shape]
+
+                # -----------------------------------------------------
+                # decide if should apply flatten_matrix_to_array:
+                # if should_be_flat_array:
+                # -----------------------------------------------------
+                filt_array_shape = [i for i in arg_symbol.shape if i != 1]
+                should_be_flat_array = (len(filt_array_shape) <= 1)
+
+                if should_be_flat_array:
+                    if filt_array_shape:
+                        arg_shape = [[*range(filt_array_shape[0])]]
+                    else:
+                        # Matrix([a]), of single item will have no filt_array_shape
+                        arg_shape = [[0]]
+                    rhs_symbol = flatten_matrix_to_array(param.symbol, name=param.symbol.name)
+                else:
+                    arg_shape = [range(dim) for dim in arg_symbol.shape]
+                    rhs_symbol = param.symbol
+                # -----------------------------------------------------
+
+                # arg_shape = [range(dim) for dim in arg_symbol.shape]
                 for idx, sub_expr in zip(itertools.product(*arg_shape), arg_symbol):
                     # if MatrixElement contains only a Symbol, unpack this from the
                     # array-like arg:
                     #       "double x = _X_arg[0]"
                     if isinstance(sub_expr, Symbol) and do_unpack_symbols:
                         sub_expr_type = Types.from_expr(sub_expr).as_const()
+                        rhs_name = getattr(rhs_symbol, "name")
+                        if len(arg_shape) > 1:
+                            rhs_element = MatrixElement(rhs_name, *idx)
+                        else:
+                            rhs_element = ArrayElement(rhs_name, idx)
+
                         arg_unpacks += [Declaration(Variable(sub_expr,
                                                              type=sub_expr_type,
-                                                             value=param.symbol[idx]))]
+                                                             value=rhs_element))]
                     else:
-                        subs_dict.update({sub_expr: param.symbol[idx]})
+                        subs_dict.update({sub_expr: rhs_symbol[idx]})
                 target_expr = target_expr.subs(subs_dict)
 
         # process for keyword-args
@@ -430,8 +460,15 @@ class JaplFunction(Function):
         return target_expr, arg_unpacks
 
 
-    def get_full_name(self) -> str:
-        return f"{self.class_name}::{self.name}" if self.class_name else self.name
+    def get_full_name(self, code_type: str) -> str:
+        if code_type == "c":
+            return f"{self.class_name}::{self.name}" if self.class_name else self.name
+        elif code_type == "py":
+            return f"{self.class_name}.{self.name}" if self.class_name else self.name
+        elif code_type == "octave":
+            return f"{self.class_name}.{self.name}" if self.class_name else self.name
+        else:
+            raise Exception("unhandled case.")
 
 
     def get_proto(self):
@@ -460,15 +497,16 @@ class JaplFunction(Function):
                         do_param_unpack=do_param_unpack)
 
 
-    def _build(self, code_type: str):
+    def _build(self, code_type: str, use_parallel: bool = True):
         """method called by CodeGen.Builder used to build
         this AST object."""
-        self._build_function(code_type=code_type)
+        self._build_function(code_type=code_type, use_parallel=use_parallel)
 
 
     def __reduce__(self) -> str | tuple[Any, ...]:
         """defines serialization of class object"""
-        state = {"kwargs": self.function_kwargs}
+        state = {"function_kwargs": self.function_kwargs,
+                 "is_static": self.is_static}
         return (self.__class__, (self.function_args, tuple(self.function_kwargs.items()),), state)
 
 

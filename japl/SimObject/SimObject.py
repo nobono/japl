@@ -13,33 +13,6 @@ from pandas import DataFrame
 from pandas import MultiIndex
 from japl.Util.Pubsub import Publisher
 from japl.Util.Pubsub import Subscriber
-# from sympy import Symbol
-# from pyqtgraph import GraphicsView, PlotCurveItem,
-# from pyqtgraph import CircleROI
-# from matplotlib.axes import Axes
-# import astropy.units as u
-# from astropy.units.quantity import Quantity
-# from japl.Util.UnitCheck import assert_physical_type
-# from japl.Model.Model import ModelType
-# from matplotlib.patches import Circle
-
-
-
-# class ShapeCollection:
-#
-#     """This is a class which abstracts the line / shape plots of different
-#     plotting backends."""
-
-#     def __init__(self, color: str, radius: float) -> None:
-#         # assert plotting_backend in ["matplotlib", "pyqtgraph", "mpl", "qt"]
-#         # self.plotting_backend = plotting_backend
-#         self.color = color
-#         self.radius = radius
-
-
-#     def setup(self):
-#         self.patch = Circle((0, 0), radius=size, color=color)
-#         self.trace = Line2D([0], [0], color=color)
 
 
 
@@ -124,7 +97,8 @@ class SimObject:
     __slots__ = ("_dtype", "name", "color", "size", "model",
                  "state_dim", "input_dim", "static_dim",
                  "X0", "U0", "S0", "Y", "U", "plot",
-                 "_T", "_istep", "publisher", "subscriber")
+                 "_T", "_istep", "publisher", "subscriber",
+                 "children_pre_update", "children_post_update")
 
     model: Model
 
@@ -153,8 +127,14 @@ class SimObject:
         self.U = np.array([], dtype=self._dtype)
         self._T = np.array([])
         self._istep: int = 1  # sim step counter set by Sim class
+
+        # pub / sub members for passing info between SimObjects
         self.publisher = Publisher()
         self.subscriber = Subscriber(str(id(self)))
+
+        # list containers for child SimObjects
+        self.children_pre_update: list[SimObject] = []
+        self.children_post_update: list[SimObject] = []
 
         # interface for visualization
         self.plot = _PlotInterface(
@@ -166,8 +146,20 @@ class SimObject:
             self.color = self.plot.color
 
 
-    def _set_sim_step(self, istep: int):
-        self._istep = istep
+    def __str__(self) -> str:
+        return "SimObject(name={name})".format(name=self.name)
+
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+
+    def get_istep(self):
+        return self._istep
+
+
+    def set_istep(self, val: int):
+        self._istep = int(val)
 
 
     def set_draw(self, size: float = 1, color: str = "black") -> None:
@@ -207,6 +199,35 @@ class SimObject:
             super().__setattr__(name, val)
         else:
             return self.set(name, val)
+
+
+    @DeprecationWarning
+    def _get_sim_func_call_list(self) -> list[Callable]:
+        """Returns list of Callables which simulate this SimObject.
+        Functions are gathered recursively from connected / cascading SimObjects.
+
+        -------------------------------------------------------------------
+
+        **Update sequence**
+
+        - pre_update_functions
+        - (user) input_function
+        >
+        - input_updates
+        - state_updates
+        - dynamics
+
+        - post_update_functions
+
+        -------------------------------------------------------------------
+        """
+        calls = []
+        for simobj in self.children_pre_update:
+            calls += simobj._get_sim_func_call_list()
+        calls += self.model._get_sim_func_call_list()
+        for simobj in self.children_post_update:
+            calls += simobj._get_sim_func_call_list()
+        return calls
 
 
     def get_current(self, var_names: str|list[str]) -> np.ndarray|float:
@@ -421,33 +442,6 @@ class SimObject:
         assert self.model._pre_sim_checks()
 
         return True
-
-
-    def step(self, t: float, X: np.ndarray, U: np.ndarray, S: np.ndarray, dt: float) -> np.ndarray:
-        """This method is the update-step of the SimObject dynamic model. It calls
-        the SimObject Model's step() function.
-
-        -------------------------------------------------------------------
-        -- Arguments
-        -------------------------------------------------------------------
-        -- t - current time
-        -- X - current state array of SimObject
-        -- U - current input array of SimObject
-        -- S - static variables array of SimObject
-        -- dt - delta time
-        -------------------------------------------------------------------
-        -------------------------------------------------------------------
-        -- Returns:
-        -------------------------------------------------------------------
-        -- X_dot - state dynamics "Xdot = A*X + B*U"
-        -------------------------------------------------------------------
-        """
-        # self.update(X)
-        return self.model.step(t, X, U, S, dt)
-
-
-    def update(self, X: np.ndarray):
-        pass
 
 
     def init_state(self, state: np.ndarray|list, dtype: type = float) -> None:
