@@ -286,8 +286,8 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
                     x0 = 1/a
                     # 
                     _Ret_arg = np.empty((2, 1))
-                    _Ret_arg[0, 0] = x0*_Dummy_var1[0, 0] + _Dummy_var0[0, 0]
-                    _Ret_arg[1, 0] = x0*_Dummy_var1[1, 0] + _Dummy_var0[1, 0]
+                    _Ret_arg[0, 0] = x0*_Dummy_var1[0] + _Dummy_var0[0]
+                    _Ret_arg[1, 0] = x0*_Dummy_var1[1] + _Dummy_var0[1]
                     return _Ret_arg"""
         self.assertEqual(pycode(f.function_def), dedent(truth))
         # print(pycode(f.function_def))
