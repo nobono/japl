@@ -527,6 +527,31 @@ class SimObject:
             return np.array([])
 
 
+    def set_input_function(self, func: Callable) -> None:
+        """This method takes a function and inserts it before the
+        Model's direct input updates. The outputs of this function
+        feed directly into the models inputs.
+
+        NOTE that if the Model has any defined direct input updates,
+        the user's changes to the input array may be modified or
+        over-written.
+
+        -------------------------------------------------------------------
+        **Arguments**
+
+        ``func``
+        :   Callable function with the signature:
+                func(t, X, U, S, dt, ...) -> U
+            where X is the state array, U is the input array,
+            S is the static variable array.
+
+            this function must return the input array U
+            to have any affect on the model.
+        -------------------------------------------------------------------
+        """
+        self.model.set_input_function(func)
+
+
     def _set_T_array_ref(self, _T) -> None:
         """This method is used to reference the internal _T time array to the
         Sim class Time array 'T'. This method exists to avoid redundant time arrays in
