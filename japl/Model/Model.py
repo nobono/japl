@@ -9,6 +9,7 @@ from enum import Enum
 from sympy import Matrix, MatrixSymbol, Symbol, Expr, Function
 from sympy import nan as sp_nan
 from sympy import simplify
+from sympy.codegen.ast import NoneToken
 
 from japl.Model.StateRegister import StateRegister
 from japl.Util.Desym import Desym
@@ -17,6 +18,7 @@ from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
 from japl.BuildTools.CCodeGenerator import CCodeGenerator
 from japl.BuildTools import BuildTools
 
+from japl.CodeGen.CodeGen import cache_py_function
 from japl.CodeGen import FileBuilder
 from japl.CodeGen import CFileBuilder
 from japl.CodeGen import ModuleBuilder
@@ -49,19 +51,19 @@ class Model:
 
     """
 
-    dynamics: Optional[Callable]
     state_vars: Matrix
     input_vars: Matrix
     static_vars: Matrix
-    state_updates: Optional[Callable]
-    input_updates: Optional[Callable]
+    state_updates: Callable
+    input_updates: Callable
+    dynamics: Callable
 
     def __init__(self, **kwargs) -> None:
         self._dtype = np.float64
         self.state_register = StateRegister()
         self.input_register = StateRegister()
         self.static_register = StateRegister()
-        self.dynamics_expr = Expr(None)
+        self.dynamics_expr = NoneToken()
         self.modules: dict = {}
         self.dt_var = Symbol("")
         self.vars: tuple = ()
@@ -70,7 +72,7 @@ class Model:
         self.static_dim = 0
         self.state_updates_expr: Matrix
         self.input_updates_expr: Matrix
-        self.input_function: Optional[Callable] = None
+        self.input_function: Callable
         self.pre_update_functions: list[Callable] = []
         self.post_update_functions: list[Callable] = []
 
@@ -80,12 +82,6 @@ class Model:
             self.input_vars = Matrix([])
         if not hasattr(self, "static_vars"):
             self.static_vars = Matrix([])
-        if not hasattr(self, "dynamics"):
-            self.dynamics: Optional[Callable] = None
-        if not hasattr(self, "state_updates"):
-            self.state_updates: Optional[Callable] = None
-        if not hasattr(self, "input_updates"):
-            self.input_updates: Optional[Callable] = None
 
         # init registers
         self.set_state(self.state_vars)  # NOTE: will convert any Function to Symbol
@@ -96,6 +92,9 @@ class Model:
         self.state_dim = len(self.state_vars)
         self.input_dim = len(self.input_vars)
         self.static_dim = len(self.static_vars)
+
+        # namespace dict for cached functions
+        self._namespace = {}
 
         # proxy state array updated at each step
         # ***************************************
@@ -110,6 +109,41 @@ class Model:
         self._sym_references: list[dict] = []
 
 
+    def has_input_function(self) -> bool:
+        return hasattr(self, "input_function")
+
+
+    def has_state_updates(self) -> bool:
+        return hasattr(self, "state_updates")
+
+
+    def has_input_updates(self) -> bool:
+        return hasattr(self, "input_updates")
+
+
+    def has_dynamics(self) -> bool:
+        return hasattr(self, "dynamics")
+
+
+    def has_input_updates_expr(self) -> bool:
+        # must be (expr == None)
+        # not (expr is None)
+        return not (self.input_updates_expr == None)  # noqa
+
+
+    def has_state_updates_expr(self) -> bool:
+        # must be (expr == None)
+        # not (expr is None)
+        return not (self.state_updates_expr == None)  # noqa
+
+
+    def has_dynamics_expr(self) -> bool:
+        # must be (expr == None)
+        # not (expr is None)
+        return not (self.dynamics_expr == None)  # noqa
+
+
+    @DeprecationWarning
     def __set_current_state(self, X: np.ndarray):
         # TODO this only used right now to access quaternion in
         # Plotter. maybe we can dispense with these somehow...
@@ -124,6 +158,20 @@ class Model:
         """Getter for Model state reference array. Used to access the
         state array between time steps outside of the Sim class."""
         return self._iX_reference.copy()
+
+
+    def cache_py_function(self, func: JaplFunction, use_parallel: bool = True) -> Callable:
+        func._build("py", use_parallel=use_parallel)
+        cache_py_function(func.function_def, namespace=self._namespace)
+        return self._namespace[func.name]
+
+
+    def get_cached_function(self, name: str) -> Callable:
+        ret = self._namespace.get(name, None)
+        if ret is None:
+            raise Exception()
+        else:
+            return ret
 
 
     @classmethod
@@ -287,56 +335,6 @@ class Model:
         self.state_register._pre_sim_checks()
         self.input_register._pre_sim_checks()
         return True
-
-
-    def __call__(self, *args) -> np.ndarray:
-        """This method calls an update step to the model after the
-        Model object has been initialized."""
-        # NOTE: in certain situations dynamics_func may be undefined.
-        # namely, when Model is built from_function() and dynamics_func
-        # is left unspecified. Typically this results from a Model being
-        # updated exclusively by direct / external updates.
-        if self.dynamics:
-            return self.dynamics(*args).flatten()
-        else:
-            return np.empty([])
-
-
-    def step(self, t: float, X: np.ndarray, U: np.ndarray, S: np.ndarray, dt: float) -> np.ndarray:
-        """This method is the step method of Model over a single time step.
-
-        -------------------------------------------------------------------
-        **Arguments**
-
-        ``t`` : float
-        :   current time
-
-        ``X`` : np.ndarray
-        :   state array for nstep of the model
-
-        ``U`` : np.ndarray
-        :   input array for nstep of the model
-
-        ``S`` : np.ndarray
-        :   static variables array of SimObject
-
-        ``dt`` : float
-        :   delta time
-
-        -------------------------------------------------------------------
-
-        **Returns**
-
-        ``Xdot``
-        :   dynamics of the state
-        -------------------------------------------------------------------
-        """
-
-        self.__set_current_state(X)
-        # self.__update_A_matrix_exprs(self.A, X)
-        # return self.A @ X + self.B @ U
-        # return self.dynamics_func(X, U).flatten()
-        return self(t, X, U, S, dt)
 
 
     def get_static_id(self, names: str|list[str]) -> int|list[int]:
@@ -506,29 +504,6 @@ class Model:
         -------------------------------------------------------------------
         """
         return self.state_register.get_sym(name)
-
-
-    # @DeprecationWarning
-    # def __process_direct_state_updates(self, direct_updates: Matrix|Expr):
-    #     """This method creates an update function from a symbolic
-    #     Matrix. Any DirectUpdate elements will be updated using its
-    #     substitution expression, "sub_expr", while Symbol & Function
-    #     elements result in NaN.
-
-    #     -------------------------------------------------------------------
-    #     **Arguments**
-
-    #     ``direct_updates`` : [Matrix | list]
-    #     :   expression for direct state updates
-
-    #     **Returns**
-
-    #     ``Callable``
-    #     :   lambdified sympy expression
-    #     -------------------------------------------------------------------
-    #     """
-    #     update_func = Desym(self.vars, Matrix(direct_updates), modules=self.modules)
-    #     return update_func
 
 
     def set_input_function(self, func: Callable) -> None:
@@ -724,6 +699,33 @@ class Model:
     #     return obj
 
 
+    def cache_build(self, use_parallel: bool = True):
+        """Builds core JaplFunctions (input_updates, state_updates, dynamics)
+        and caches function in self._namespace. This is to provide Model functionality
+        without having to use code generation to output a python module."""
+        t = Symbol("t", real=True)
+        dt = Symbol("dt", real=True)
+        params = [t, self.state_vars, self.input_vars, self.static_vars, dt]
+
+        if self.has_input_updates_expr():
+            class input_updates(JaplFunction):  # noqa
+                expr = self.input_updates_expr
+            self.input_updates = self.cache_py_function(func=input_updates(*params),
+                                                        use_parallel=use_parallel)
+
+        if self.has_state_updates_expr():
+            class state_updates(JaplFunction):  # noqa
+                expr = self.state_updates_expr
+            self.state_updates = self.cache_py_function(func=state_updates(*params),
+                                                        use_parallel=use_parallel)
+
+        if self.has_dynamics_expr():
+            class dynamics(JaplFunction):  # noqa
+                expr = self.dynamics_expr
+            self.dynamics = self.cache_py_function(func=dynamics(*params),
+                                                   use_parallel=use_parallel)
+
+
     def create_c_module(self, name: str, path: str = "./"):
         """
         Creates a c-lang module.
@@ -742,25 +744,7 @@ class Model:
         t = Symbol("t", real=True)
         dt = Symbol("dt", real=True)
         params = [t, self.state_vars, self.input_vars, self.static_vars, dt]
-        # ---------------------------------------------------------------
-        # old codegen
-        # ---------------------------------------------------------------
-        # gen = CCodeGenerator(use_std_args=True)
-        # gen.add_function(expr=self.dynamics_expr,
-        #                  params=params,
-        #                  function_name="Model::dynamics",
-        #                  return_name="Xdot")
-        # gen.add_function(expr=self.state_direct_updates,
-        #                  params=params,
-        #                  function_name="Model::state_updates",
-        #                  return_name="Xnew")
-        # gen.add_function(expr=self.input_direct_updates,
-        #                  params=params,
-        #                  function_name="Model::input_updates",
-        #                  return_name="Unew")
-        # gen.create_module(module_name=name, path=path,
-        #                   class_properties=["aerotable", "atmosphere"])
-        # ---------------------------------------------------------------
+
         class dynamics(JaplFunction):  # noqa
             class_name = "Model"
             # is_static = True
@@ -823,7 +807,10 @@ class Model:
         header = "\n".join(["from japl import SimObject",
                             f"from {name}.model import {name} as _model",
                             "", "", ""])
-        simobj_class = JaplClass(name, parent="SimObject", members={"state vars": self.state_vars,
+        simobj_class = JaplClass(name, parent="SimObject", members={"state_dim": Symbol(str(self.state_dim)),
+                                                                    "input_dim": Symbol(str(self.input_dim)),
+                                                                    "static_dim": Symbol(str(self.static_dim)),
+                                                                    "state vars": self.state_vars,
                                                                     "input vars": self.input_vars,
                                                                     "static vars": self.static_vars,
                                                                     "model": Symbol("_model()")})

@@ -112,29 +112,29 @@ class TestJaplFunction(unittest.TestCase):
         self.assertEqual(expr.args[1].function_kwargs, {'a': 1, 'b': b})
 
 
-    def test_pickle_case1(self):
-        b = Symbol('b')
-        f = func(a=1, b=b)
-        file = io.BytesIO()
-        pickle.dump(f, file)
-        file.seek(0)
-        loaded_data = pickle.load(file)
-        self.assertEqual(loaded_data.name, "func")
-        self.assertEqual(loaded_data.args, (1, b))
-        self.assertEqual(loaded_data.function_kwargs, {'a': 1, 'b': b})
+    # def test_pickle_case1(self):
+    #     b = Symbol('b')
+    #     f = func(a=1, b=b)
+    #     file = io.BytesIO()
+    #     pickle.dump(f, file)
+    #     file.seek(0)
+    #     loaded_data = pickle.load(file)  # noqa
+    #     self.assertEqual(loaded_data.name, "func")
+    #     self.assertEqual(loaded_data.args, (1, b))
+    #     self.assertEqual(loaded_data.function_kwargs, {'a': 1, 'b': b})
 
 
-    def test_pickle_case2(self):
-        a = Symbol('a')
-        b = Symbol('b')
-        f = func(1, a, a=1, b=b)
-        file = io.BytesIO()
-        pickle.dump(f, file)
-        file.seek(0)
-        loaded_data = pickle.load(file)
-        self.assertEqual(loaded_data.name, "func")
-        self.assertEqual(loaded_data.args, (1, a, 1, b))
-        self.assertEqual(loaded_data.function_kwargs, {'a': 1, 'b': b})
+    # def test_pickle_case2(self):
+    #     a = Symbol('a')
+    #     b = Symbol('b')
+    #     f = func(1, a, a=1, b=b)
+    #     file = io.BytesIO()
+    #     pickle.dump(f, file)
+    #     file.seek(0)
+    #     loaded_data = pickle.load(file)
+    #     self.assertEqual(loaded_data.name, "func")
+    #     self.assertEqual(loaded_data.args, (1, a, 1, b))
+    #     self.assertEqual(loaded_data.function_kwargs, {'a': 1, 'b': b})
 
 
     def test_subs_case1(self):

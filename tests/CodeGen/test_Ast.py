@@ -13,6 +13,8 @@ from japl.CodeGen.Ast import PyType
 from japl.CodeGen.Ast import CType
 from japl.CodeGen.Ast import CTypes
 from japl.CodeGen.Ast import CodeGenFunctionCall
+from japl.CodeGen.Ast import flatten_matrix_to_array
+from sympy.tensor.array.expressions import ArraySymbol
 from sympy.codegen.ast import Variable
 from sympy.codegen.ast import String
 
@@ -23,6 +25,14 @@ class TestAst(unittest.TestCase):
 
     def setUp(self) -> None:
         pass
+
+
+    def test_flatten_matrix_to_array(self):
+        m = MatrixSymbol("a", 3, 1)
+        ret = flatten_matrix_to_array(m, name=m.name)
+        self.assertIsInstance(ret, ArraySymbol)
+        self.assertEqual(ret.shape, (3,))
+        self.assertEqual(ret.name.name, 'a')  # type:ignore
 
 
     def test_CType_case1(self):

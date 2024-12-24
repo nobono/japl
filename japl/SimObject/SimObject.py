@@ -13,33 +13,6 @@ from pandas import DataFrame
 from pandas import MultiIndex
 from japl.Util.Pubsub import Publisher
 from japl.Util.Pubsub import Subscriber
-# from sympy import Symbol
-# from pyqtgraph import GraphicsView, PlotCurveItem,
-# from pyqtgraph import CircleROI
-# from matplotlib.axes import Axes
-# import astropy.units as u
-# from astropy.units.quantity import Quantity
-# from japl.Util.UnitCheck import assert_physical_type
-# from japl.Model.Model import ModelType
-# from matplotlib.patches import Circle
-
-
-
-# class ShapeCollection:
-#
-#     """This is a class which abstracts the line / shape plots of different
-#     plotting backends."""
-
-#     def __init__(self, color: str, radius: float) -> None:
-#         # assert plotting_backend in ["matplotlib", "pyqtgraph", "mpl", "qt"]
-#         # self.plotting_backend = plotting_backend
-#         self.color = color
-#         self.radius = radius
-
-
-#     def setup(self):
-#         self.patch = Circle((0, 0), radius=size, color=color)
-#         self.trace = Line2D([0], [0], color=color)
 
 
 
@@ -124,7 +97,8 @@ class SimObject:
     __slots__ = ("_dtype", "name", "color", "size", "model",
                  "state_dim", "input_dim", "static_dim",
                  "X0", "U0", "S0", "Y", "U", "plot",
-                 "_T", "_istep", "publisher", "subscriber")
+                 "_T", "_istep", "publisher", "subscriber",
+                 "children_pre_update", "children_post_update")
 
     model: Model
 
@@ -153,8 +127,14 @@ class SimObject:
         self.U = np.array([], dtype=self._dtype)
         self._T = np.array([])
         self._istep: int = 1  # sim step counter set by Sim class
+
+        # pub / sub members for passing info between SimObjects
         self.publisher = Publisher()
         self.subscriber = Subscriber(str(id(self)))
+
+        # list containers for child SimObjects
+        self.children_pre_update: list[SimObject] = []
+        self.children_post_update: list[SimObject] = []
 
         # interface for visualization
         self.plot = _PlotInterface(
@@ -166,8 +146,20 @@ class SimObject:
             self.color = self.plot.color
 
 
-    def _set_sim_step(self, istep: int):
-        self._istep = istep
+    def __str__(self) -> str:
+        return "SimObject(name={name})".format(name=self.name)
+
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+
+    def get_istep(self):
+        return self._istep
+
+
+    def set_istep(self, val: int):
+        self._istep = int(val)
 
 
     def set_draw(self, size: float = 1, color: str = "black") -> None:
@@ -197,12 +189,30 @@ class SimObject:
 
 
     def __getattr__(self, name) -> np.ndarray|float:
-        if not len(self.Y):
-            raise Exception(f"cannot get \"{name}\". output array Y not initialized.")
+        """method used for getting variables from the SimObject / Model.
+        This method behaves differently before simulation has started vs.
+        during simulation.
+
+        *BEFORE* simulation: `SimObject.var` returns a string. This behavior
+        is useful for configuration (e.g. configuring plots). The variable string
+        will be passed to the configuration object and the user retains the
+        convenience of intellisense.
+
+        *DURING* simulation: `SimObject.var` returns the value(s) of the variable
+        name from the *CURRENT* simulation timestep. This is useful for referencing
+        the current variable value in the simulation data-array without having to
+        directly access / index said data-array.
+        """
+
+        if not len(self.Y):  # check if data-array is initialized
+            return name
         return self.get_current(name)
 
 
     def __setattr__(self, name, val) -> None:
+        """This method sets the value for the variable name in the data-array
+        for the current simulation timestep."""
+        # allow normal __setattr__ behavior for attributes defined in __slots__
         if name in self.__slots__:
             super().__setattr__(name, val)
         else:
@@ -423,33 +433,6 @@ class SimObject:
         return True
 
 
-    def step(self, t: float, X: np.ndarray, U: np.ndarray, S: np.ndarray, dt: float) -> np.ndarray:
-        """This method is the update-step of the SimObject dynamic model. It calls
-        the SimObject Model's step() function.
-
-        -------------------------------------------------------------------
-        -- Arguments
-        -------------------------------------------------------------------
-        -- t - current time
-        -- X - current state array of SimObject
-        -- U - current input array of SimObject
-        -- S - static variables array of SimObject
-        -- dt - delta time
-        -------------------------------------------------------------------
-        -------------------------------------------------------------------
-        -- Returns:
-        -------------------------------------------------------------------
-        -- X_dot - state dynamics "Xdot = A*X + B*U"
-        -------------------------------------------------------------------
-        """
-        # self.update(X)
-        return self.model.step(t, X, U, S, dt)
-
-
-    def update(self, X: np.ndarray):
-        pass
-
-
     def init_state(self, state: np.ndarray|list, dtype: type = float) -> None:
         """This method takes a numpy array or list (or nested list) and stores this data
         into the initial state SimObject.X0. This method is for user convenience when initializing
@@ -531,6 +514,31 @@ class SimObject:
                         but no state index is registered under this name.")
         else:
             return np.array([])
+
+
+    def set_input_function(self, func: Callable) -> None:
+        """This method takes a function and inserts it before the
+        Model's direct input updates. The outputs of this function
+        feed directly into the models inputs.
+
+        NOTE that if the Model has any defined direct input updates,
+        the user's changes to the input array may be modified or
+        over-written.
+
+        -------------------------------------------------------------------
+        **Arguments**
+
+        ``func``
+        :   Callable function with the signature:
+                func(t, X, U, S, dt, ...) -> U
+            where X is the state array, U is the input array,
+            S is the static variable array.
+
+            this function must return the input array U
+            to have any affect on the model.
+        -------------------------------------------------------------------
+        """
+        self.model.set_input_function(func)
 
 
     def _set_T_array_ref(self, _T) -> None:

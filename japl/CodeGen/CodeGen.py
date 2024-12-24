@@ -6,12 +6,14 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Callable
 from typing import Any, Optional, Union
+from sympy import Function
 from sympy.codegen.ast import Basic
 from sympy.codegen.ast import Variable
 from japl.global_opts import get_root_dir
 from japl.CodeGen.JaplFunction import JaplFunction
 from japl.CodeGen.Ast import CType
 from japl.CodeGen.Ast import CTypes
+from japl.CodeGen.Ast import CodeGenFunctionDefinition
 from japl.CodeGen.Printer import ccode
 from japl.CodeGen.Printer import pycode
 from japl.CodeGen.Util import copy_dir
@@ -19,6 +21,20 @@ from japl.CodeGen.Util import copy_dir
 Writes = list[str]
 AstNode = Union[str, list, tuple, Basic, "Builder"]
 
+
+
+def cache_py_function(function_def: CodeGenFunctionDefinition, namespace: dict):
+    # dynamically geneating pycode and compiling
+    includes = "\n".join([
+        "import numpy as np",
+        "import math"
+        "",
+        ""])
+    name = function_def.name
+    filename = f"{name}.py"
+    code_str = str(pycode(function_def))
+    code_compiled = compile(includes + code_str, filename=filename, mode="exec")
+    exec(code_compiled, namespace)
 
 
 class Builder:

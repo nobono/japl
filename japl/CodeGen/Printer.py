@@ -86,28 +86,6 @@ class CCodeGenPrinter(C99CodePrinter):
                          self._print_Scope(expr))
 
 
-    def _print_Constructor(self, expr):
-        params = expr.parameters
-        # handle both Declaration and Variables passed
-        if isinstance(expr.variable, Declaration):
-            var = expr.variable.variable
-        else:
-            var = expr.variable
-
-        if var.type == untyped:
-            raise ValueError("C does not support untyped variables")
-
-        elif isinstance(var, Variable):
-            result = '{t} {s}({p})'.format(
-                t=self._print(var.type),
-                s=self._print(var.symbol),
-                p=", ".join([self._print(p) for p in params])
-            )
-        else:
-            raise NotImplementedError("Unknown type of var: %s" % type(var))
-        return result
-
-
     def _print_ImmutableDenseMatrix(self, expr, name: str = ""):
         # NOTE: name keyword arg must be passed. This is typically
         # passed from the CodeGen Printer method "_print()".

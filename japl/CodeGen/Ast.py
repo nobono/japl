@@ -12,6 +12,8 @@ from sympy.codegen.ast import Tuple
 from sympy.codegen.ast import Type
 from sympy.codegen.ast import Node
 from sympy.codegen.ast import Expr
+from sympy.tensor import Array
+from sympy.tensor.array.expressions import ArraySymbol
 from sympy import true, false
 from sympy.core.function import Function
 from sympy.core.numbers import Number
@@ -33,6 +35,25 @@ def get_lang_types(code_type: str):
         return OctTypes
     else:
         raise Exception(f"codegen for {code_type} not avaialable.")
+
+
+def flatten_matrix_to_array(expr: MatrixSymbol|Matrix, name: str):
+    # --------------------------------------------------------------------
+    # NOTE:
+    # handle MatrixSymbol which should be flattened to ArraySymbol
+    # if MatrixSymbol has shape (..., N, ...) then convert to ArraySymbol
+    # of shape (N,).
+    # this is so accessing flattened array paramter is correct because
+    # accessing MatryxSymbol like: `a[0]` --> `a[0, 0]` and accessing
+    # an ArraySymbol like: `a[0]` --> `a[0]`
+    # --------------------------------------------------------------------
+    shape = np.prod(expr.shape)  # type:ignore
+    if isinstance(expr, MatrixSymbol):
+        return ArraySymbol(name, (shape,))
+    elif isinstance(expr, Matrix):  # type:ignore
+        return Array(expr.flat())
+    else:
+        raise Exception("unhandled case.")
 
 
 def convert_symbols_to_variables(params, code_type: str, dummy_symbol_gen: Generator) -> Variable|tuple:
@@ -151,32 +172,6 @@ class JaplTypes:
     @staticmethod
     def from_expr(expr):
         return JaplType()
-
-
-@DeprecationWarning
-class Constructor(Token):
-
-    """Token for adding constructor to variable Declaration.
-    Signature `Constructor(Variable, Tuple)`
-
-    Arguments
-    ---------
-        variable:
-            takes a Variable or Declaration
-        parameters:
-            the parameters of the constructor
-    """
-
-    __slots__ = _fields = ("variable", "parameters",)
-    defaults = {"parameters": Tuple()}
-
-    @staticmethod
-    def _construct_variable(params):
-        return params
-
-    @staticmethod
-    def _construct_parameters(params):
-        return params
 
 
 class KwargsToken(Token):
@@ -626,6 +621,11 @@ class CodeGenFunctionCall(FunctionCall, KwargsToken):
     _construct_name = String
     _construct_function_args = staticmethod(lambda args: Tuple(*args))
     _construct_function_kwargs = staticmethod(lambda kwargs: Kwargs(kwargs))
+
+
+    def __new__(cls, *args, **kwargs):
+        obj = super().__new__(cls, *args, **kwargs)
+        return obj
 
 
     @staticmethod

@@ -240,7 +240,7 @@ def get_extension_modules() -> list:
 
 setup(
         name='japl',
-        version='0.1',
+        version='0.2',
         install_requires=get_install_requires(),
         packages=find_packages(),
         ext_modules=get_extension_modules(),
