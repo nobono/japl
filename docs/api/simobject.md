@@ -4,3 +4,5 @@
         filters:
             - "!^__"
             - "!^_"
+
+::: japl.SimObject.SimObject.PlotterInterface

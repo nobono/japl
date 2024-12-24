@@ -16,7 +16,7 @@ from japl.Util.Pubsub import Subscriber
 
 
 
-class _PlotInterface:
+class PlotterInterface:
 
     """This is a class for interfacing SimObject data with the plotter."""
 
@@ -137,7 +137,7 @@ class SimObject:
         self.children_post_update: list[SimObject] = []
 
         # interface for visualization
-        self.plot = _PlotInterface(
+        self.plot = PlotterInterface(
                 state_select={},
                 size=self.size,
                 color=self.color

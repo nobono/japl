@@ -58,7 +58,7 @@ class Model:
     input_updates: Callable
     dynamics: Callable
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self) -> None:
         self._dtype = np.float64
         self.state_register = StateRegister()
         self.input_register = StateRegister()
