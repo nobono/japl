@@ -189,12 +189,30 @@ class SimObject:
 
 
     def __getattr__(self, name) -> np.ndarray|float:
-        if not len(self.Y):
-            raise Exception(f"cannot get \"{name}\". output array Y not initialized.")
+        """method used for getting variables from the SimObject / Model.
+        This method behaves differently before simulation has started vs.
+        during simulation.
+
+        *BEFORE* simulation: `SimObject.var` returns a string. This behavior
+        is useful for configuration (e.g. configuring plots). The variable string
+        will be passed to the configuration object and the user retains the
+        convenience of intellisense.
+
+        *DURING* simulation: `SimObject.var` returns the value(s) of the variable
+        name from the *CURRENT* simulation timestep. This is useful for referencing
+        the current variable value in the simulation data-array without having to
+        directly access / index said data-array.
+        """
+
+        if not len(self.Y):  # check if data-array is initialized
+            return name
         return self.get_current(name)
 
 
     def __setattr__(self, name, val) -> None:
+        """This method sets the value for the variable name in the data-array
+        for the current simulation timestep."""
+        # allow normal __setattr__ behavior for attributes defined in __slots__
         if name in self.__slots__:
             super().__setattr__(name, val)
         else:
