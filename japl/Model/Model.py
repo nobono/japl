@@ -58,7 +58,7 @@ class Model:
     input_updates: Callable
     dynamics: Callable
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self) -> None:
         self._dtype = np.float64
         self.state_register = StateRegister()
         self.input_register = StateRegister()
@@ -186,27 +186,41 @@ class Model:
         """This method initializes a Model from a callable function.
         The provided function must have the following signature:
 
-            func(t, X, U, S, dt)
+        `func(t, X, U, S, dt)`
 
         where,
 
-            - 't' is the sim-time
-            - 'X' is the current state
-            - 'U', is the current inputs
-            - 'S' is the static variables array
-            - 'dt' is the time step.
+        - `t` is the sim-time
+        - `X` is the current state
+        - `U`, is the current inputs
+        - `S` is the static variables array
+        - `dt` is the time step.
 
         -------------------------------------------------------------------
-        -- Arguments
-        -------------------------------------------------------------------
-        -- dt_var - symbolic dt variable
-        -- state_vars - iterable of symbolic state variables
-        -- input_vars - iterable of symbolic input variables
-        -- func - callable function which returns the state dynamics
-        -------------------------------------------------------------------
-        -- Returns
-        -------------------------------------------------------------------
-        -- model - the initialized Model
+
+        Parameters:
+            dt_var:
+                symbolic dt variable
+
+            state_vars:
+                iterable of symbolic state variables
+
+            input_vars:
+                iterable of symbolic input variables
+
+            dynamics_func:
+                callable function which returns the state dynamics
+
+            state_update_func:
+                callable function which returns the external state updates
+
+            input_update_func:
+                callable function which returns the external input updates
+
+        Returns:
+            model:
+                the initialized Model
+
         -------------------------------------------------------------------
         """
         # TODO initialize model.state_dim somehow ...
@@ -259,45 +273,41 @@ class Model:
 
         -------------------------------------------------------------------
 
-        **Arguments**
+        Parameters:
+            dt_var:
+                symbolic dt
 
-        ``dt_var`` : Symbol
-        :   symbolic dt
+            state_vars:
+                iterable of symbolic state variables
 
-        ``state_vars`` : Iterable[Symbol]
-        :   iterable of symbolic state variables
+            input_vars:
+                iterable of symbolic input variables
 
-        ``input_vars`` : Iterable[Symbol]
-        :   iterable of symbolic input variables
+            dynamics_expr:
+                Sympy symbolic dynamics expression
 
-        ``dynamics_expr`` : Expr
-        :   Sympy symbolic dynamics expression
+            static_vars:
+                iterable of symbolic static variables
 
-        ``static_vars`` : Iterable[Symbol]
-        :   iterable of symbolic static variables
+            modules:
+                pass custom library to Desym (see sympy.lambdify)
 
-        ``modules`` : Optional
-        :   pass custom library to Desym (see sympy.lambdify)
+        Returns:
+            cls:
+                the initialized Model
 
-        -------------------------------------------------------------------
-        **Returns**
+        NOTE:
+            static variables are symbolic variables which are initialized
+            but not stored as part of the state or input arrays.
 
-        ``cls`` : Model
-        :   the initialized Model
-
-        > NOTE: static variables are symbolic variables which are initialized
-        but not stored as part of the state or input arrays.
-
-        -------------------------------------------------------------------
-        **Examples**
-
-        ```python
-        >>> from sympy import symbols
-        >>> dt, a, b, c, d, e = symbols("dt, a, b, c, d, e")
-        >>> state = Matrix([a, b, c])
-        >>> input = Matrix([d, e])
-        >>> model = Model.from_expression(dt, state, input)
-        ```
+        Examples:
+            ```python
+            >>> from sympy import symbols
+            >>> dt, a, b, c, d, e = symbols("dt, a, b, c, d, e")
+            >>> state = Matrix([a, b, c])
+            >>> input = Matrix([d, e])
+            >>> model = Model.from_expression(dt, state, input)
+            ```
 
         -------------------------------------------------------------------
         """
@@ -350,17 +360,15 @@ class Model:
         state.
 
         -------------------------------------------------------------------
-        **Arguments**
 
-        ``name`` : str | list[str]
-        :   name of the symbolic state variable
-            name or a list of symbolic state variable names
+        Parameters:
+            names:
+                name of the symbolic state variable\
+                name or a list of symbolic state variable names
 
-        **Returns**
+        Returns:
+            the index of the state variable in the state array or list of indices.
 
-        ``int | list[int]``
-        :   the index of the state variable in the
-            state array or list of indices.
         -------------------------------------------------------------------
         """
         return self.static_register.get_ids(names)
@@ -377,17 +385,16 @@ class Model:
         state.
 
         -------------------------------------------------------------------
-        **Arguments**
 
-        ``name``: str | list[str]
-        :   name of the symbolic state variable
-            name or a list of symbolic state variable names
+        Parameters:
+            names:
+                name of the symbolic state variable\
+                name or a list of symbolic state variable names
 
-        **Returns**
+        Returns:
+            the index of the state variable in the state\
+            array or list of indices.
 
-        ``int | list[int]``
-        :   the index of the state variable in the
-            state array or list of indices.
         -------------------------------------------------------------------
         """
         return self.state_register.get_ids(names)
@@ -404,17 +411,16 @@ class Model:
         input.
 
         -------------------------------------------------------------------
-        **Arguments**
 
-        ``name`` : str | list[str]
-        :   name of the symbolic input variable
-            name or a list of symbolic input variable names
+        Parameters:
+            names:
+                name of the symbolic input variable\
+                name or a list of symbolic input variable names
 
-        **Returns**
-
-        ``int | list[int]``
-        :   the index of the input variable in the
+        Returns:
+            the index of the input variable in the\
             input array or list of indices.
+
         -------------------------------------------------------------------
         """
         return self.input_register.get_ids(names)
@@ -424,20 +430,19 @@ class Model:
         """This method initializes the StateRegister attribute of the Model.
 
         -------------------------------------------------------------------
-        **Arguments**
 
-        ``state_vars`` : Iterable[Symbol]
-        :   iterable of symbolic state variables
+        Parameters:
+            state_vars:
+                iterable of symbolic state variables
 
-        ``labels`` : Optional[str]
-        :   iterable of labels that may be used by the
-            Plotter class. order labels must correspond to order
-            of state_vars.
+            labels:
+                iterable of labels that may be used by the\
+                Plotter class. order labels must correspond to order\
+                of state_vars.
 
-        **Returns**
+        Returns:
+            the symbolic object of the state variable
 
-        ``Symbol``
-        :   the symbolic object of the state variable
         -------------------------------------------------------------------
         """
         return self.state_register.set(vars=state_vars, labels=labels)
@@ -447,20 +452,19 @@ class Model:
         """This method initializes the (inputs) StateRegister attribute of the Model.
 
         -------------------------------------------------------------------
-        **Arguments**
 
-        ``input_vars`` : Iterable[Symbol]
-        :   iterable of symbolic input variables
+        Parameters:
+            input_vars:
+                iterable of symbolic input variables
 
-        ``labels`` : Optional[str]
-        :   iterable of labels that may be used by the
-             Plotter class. order labels must correspond to order
-             of input_vars.
+            labels:
+                iterable of labels that may be used by the
+                Plotter class. order labels must correspond to order
+                of input_vars.
 
-        **Returns**
+        Returns:
+            the symbolic object of the state variable
 
-        ``Symbol``
-        :   the symbolic object of the state variable
         -------------------------------------------------------------------
         """
         return self.input_register.set(vars=input_vars, labels=labels)
@@ -470,20 +474,19 @@ class Model:
         """This method initializes the StateRegister attribute of the Model.
 
         -------------------------------------------------------------------
-        **Arguments**
 
-        ``static_vars`` : Iterable[Symbol]
-        :   iterable of symbolic state variables
+        Parameters:
+            static_vars:
+                iterable of symbolic state variables
 
-        ``labels`` : (optional)
-        :   iterable of labels that may be used by the
-            Plotter class. order labels must correspond to order
-            of state_vars.
+            labels:
+                iterable of labels that may be used by the
+                Plotter class. order labels must correspond to order
+                of state_vars.
 
-        **Returns**
+        Returns:
+            the symbolic object of the static variable
 
-        ``Symbol``
-        :   the symbolic object of the static variable
         -------------------------------------------------------------------
         """
         return self.static_register.set(vars=static_vars, labels=labels)
@@ -494,15 +497,14 @@ class Model:
         with the provided name.
 
         -------------------------------------------------------------------
-        **Arguments**
 
-        ``name`` : str
-        :   name of the symbolic state variable
+        Parameters:
+            name: str
+                name of the symbolic state variable
 
-        **Returns**
+        Returns:
+            the symbolic object of the state variable
 
-        Symbol
-        :   the symbolic object of the state variable
         -------------------------------------------------------------------
         """
         return self.state_register.get_sym(name)
@@ -518,16 +520,17 @@ class Model:
         over-written.
 
         -------------------------------------------------------------------
-        **Arguments**
 
-        ``func``
-        :   Callable function with the signature:
-                func(t, X, U, S, dt, ...) -> U
-            where X is the state array, U is the input array,
-            S is the static variable array.
+        Parameters:
+            func:
+                Callable function with the signature:
+                    func(t, X, U, S, dt, *args) -> U
+                where X is the state array, U is the input array,
+                S is the static variable array.
 
-            this function must return the input array U
-            to have any affect on the model.
+                this function must return the input array U
+                to have any affect on the model.
+
         -------------------------------------------------------------------
         """
         self.input_function = func
@@ -538,13 +541,14 @@ class Model:
         Model's update step.
 
         -------------------------------------------------------------------
-        **Arguments**
 
-        funcs
-        :   list of Callable functions with the signature:
-                func(t, X, U, S, dt, ...)
-            where X is the state array, U is the input array,
-            S is the static variable array.
+        Parameters:
+            funcs:
+                list of Callable functions with the signature:
+                    func(t, X, U, S, dt, *args)
+                where X is the state array, U is the input array,
+                S is the static variable array.
+
         -------------------------------------------------------------------
         """
         if isinstance(funcs, list):
@@ -558,13 +562,14 @@ class Model:
         Model's update step.
 
         -------------------------------------------------------------------
-        **Arguments**
 
-        funcs
-        :   list of Callable functions with the signature:
-                func(t, X, U, S, dt, ...)
-            where X is the state array, U is the input array,
-            S is the static variable array.
+        Parameters:
+            funcs:
+                list of Callable functions with the signature:
+                    func(t, X, U, S, dt, ...)
+                where X is the state array, U is the input array,
+                S is the static variable array.
+
         -------------------------------------------------------------------
         """
         if isinstance(funcs, list):
@@ -704,7 +709,16 @@ class Model:
     def cache_build(self, use_parallel: bool = True):
         """Builds core JaplFunctions (input_updates, state_updates, dynamics)
         and caches function in self._namespace. This is to provide Model functionality
-        without having to use code generation to output a python module."""
+        without having to use code generation to output a python module.
+
+        -------------------------------------------------------------------
+
+        Parameters:
+            use_parallel:
+                whether to use multiprocessing in build process.
+
+        -------------------------------------------------------------------
+        """
         t = Symbol("t", real=True)
         dt = Symbol("dt", real=True)
         params = [t, self.state_vars, self.input_vars, self.static_vars, dt]
@@ -732,14 +746,24 @@ class Model:
         """
         Creates a c-lang module.
 
+        A python extension modules is created. The module, implemented in
+        c, can be imported by python. Several files are generated within the
+        module directly:
+
+        - `__init__.py` : handles namespaces
+        - `build.py` : build script
+        - `model.py` : contains Model subclass
+        - `simobj.py` : contains SimObject subclass
+
         -------------------------------------------------------------------
-        **Arguments**
 
-        ``name`` : str
-        :   name of the c-module to be created
+        Parameters:
+            name: str
+                name of the c-module to be created
 
-        ``path`` : Optional[str]
-        :   the output path to save the module to. (default is current path `"./"`)
+            path: Optional[str]
+                the output path to save the module to. (default is current path `"./"`)
+
         -------------------------------------------------------------------
         """
         filename = f"{name}.cpp"

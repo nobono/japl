@@ -4,13 +4,21 @@ nav:
   - About: about.md
   - Getting Started: installation.md
   - Introduction:
-    - JaplFunction: japlfunction.md
+    - JaplFunction: introduction/japlfunction.md
   - Examples:
-    - Creating a Function: example_create_function.md
+    - Creating a Function: examples/create_function.md
   - API Reference:
     - Model: api/model.md
+    - SimObject: api/simobject.md
+    - Sim: api/sim.md
+    - Plotter: api/plotter.md
+    - DataTable: api/datatable.md
+    - CodeGen: api/codegen.md
+
+  - Structural Overview:
+    - CodeGeneration: overview/code_generation.md
   - Developers:
-    - CodeGeneration: code_generation.md
+    - Rules of Engagement: dev/rules_of_engagement.md
   - License: LICENSE.md
 
 theme:
@@ -18,6 +26,8 @@ theme:
   logo: assets/japl_logo.png
   features:
     - content.code.copy
+    # - content.code.fences
+    # - content.tabs.link
   palette:
     # Palette toggle for light mode
     - scheme: default
@@ -38,7 +48,7 @@ theme:
 plugins:
   - search
   - mkdocstrings:
-      enabled: !ENV [ENABLE_MKDOCSTRINGS, true]
+      # enabled: !ENV [ENABLE_MKDOCSTRINGS, true]
       # custom_templates: templates
       default_handler: python
       handlers:
@@ -48,12 +58,16 @@ plugins:
             show_root_heading: true
             show_source: false
             separate_signature: true
-            heading_level: 1
+            heading_level: 2
+            show_signature_annotations: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            merge_init_into_class: true
+            show_docstring_parameters: true
 
 markdown_extensions:
   # aligning images
   - attr_list
-
   - def_list
 
   # mkdocs-material syntax highlighting
