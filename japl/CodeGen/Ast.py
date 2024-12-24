@@ -174,32 +174,6 @@ class JaplTypes:
         return JaplType()
 
 
-@DeprecationWarning
-class Constructor(Token):
-
-    """Token for adding constructor to variable Declaration.
-    Signature `Constructor(Variable, Tuple)`
-
-    Arguments
-    ---------
-        variable:
-            takes a Variable or Declaration
-        parameters:
-            the parameters of the constructor
-    """
-
-    __slots__ = _fields = ("variable", "parameters",)
-    defaults = {"parameters": Tuple()}
-
-    @staticmethod
-    def _construct_variable(params):
-        return params
-
-    @staticmethod
-    def _construct_parameters(params):
-        return params
-
-
 class KwargsToken(Token):
 
     """Token but accepts kwargs input.

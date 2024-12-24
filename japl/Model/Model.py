@@ -337,38 +337,6 @@ class Model:
         return True
 
 
-    @DeprecationWarning
-    def _get_sim_func_call_list(self) -> list[Callable]:
-        """Returns list of Callables which simulate this model.
-        List includes function calls from child models gathered recursively.
-
-        -------------------------------------------------------------------
-        **Update sequence**
-
-        - pre_update_functions
-        - (user) input_function
-        >
-        - input_updates
-        - state_updates
-        - dynamics
-
-        - post_update_functions
-        -------------------------------------------------------------------
-        """
-        calls = []
-        calls += self.pre_update_functions
-        if getattr(self, "input_function", None) is not None:
-            calls += [self.input_function]
-        if getattr(self, "input_updates", None) is not None:
-            calls += [self.input_updates]
-        if getattr(self, "state_updates", None) is not None:
-            calls += [self.state_updates]
-        if getattr(self, "dynamics", None) is not None:
-            calls += [self.dynamics]
-        calls += self.post_update_functions
-        return calls
-
-
     def get_static_id(self, names: str|list[str]) -> int|list[int]:
         """This method get the sympy variable associated with the provided
         name. variables must first be added to the StateRegister. If a list

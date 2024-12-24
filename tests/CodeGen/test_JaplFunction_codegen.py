@@ -3,7 +3,6 @@ from textwrap import dedent
 from sympy import symbols
 from sympy import symbols
 from japl.CodeGen.JaplFunction import JaplFunction
-from japl.CodeGen.Ast import Constructor
 from japl.CodeGen.Ast import CType, CTypes
 from japl.CodeGen.Ast import PyType, PyTypes
 from japl.CodeGen.Ast import Kwargs
@@ -332,20 +331,6 @@ class TestJaplFunction_CodeGen(unittest.TestCase):
                    return _Ret_arg;
                 }"""
         self.assertEqual(ccode(f.function_def), dedent(truth))
-
-
-    # def test_to_constructor(self):
-    #     var = Variable("a", type=CTypes.float64).as_Declaration()
-    #     self.assertEqual(ccode(Constructor(var)), "double a()")
-    #     var = Variable("a", type=CTypes.float64).as_Declaration()
-    #     params = (1, 2)
-    #     self.assertEqual(ccode(Constructor(var, params)), "double a(1, 2)")
-    #     var = Variable("a", type=CTypes.float64)
-    #     params = (1, 2)
-    #     self.assertEqual(ccode(Constructor(var, params)), "double a(1, 2)")
-    #     var = Variable("a", type=CTypes.float64)
-    #     params = (Dict(dict({'a': 1, 'b': 2})),)
-    #     self.assertEqual(ccode(Constructor(var, params)), 'double a({{"a", 1}, {"b", 2}})')
 
 
     # def test_(self):

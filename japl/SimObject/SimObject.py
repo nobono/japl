@@ -219,35 +219,6 @@ class SimObject:
             return self.set(name, val)
 
 
-    @DeprecationWarning
-    def _get_sim_func_call_list(self) -> list[Callable]:
-        """Returns list of Callables which simulate this SimObject.
-        Functions are gathered recursively from connected / cascading SimObjects.
-
-        -------------------------------------------------------------------
-
-        **Update sequence**
-
-        - pre_update_functions
-        - (user) input_function
-        >
-        - input_updates
-        - state_updates
-        - dynamics
-
-        - post_update_functions
-
-        -------------------------------------------------------------------
-        """
-        calls = []
-        for simobj in self.children_pre_update:
-            calls += simobj._get_sim_func_call_list()
-        calls += self.model._get_sim_func_call_list()
-        for simobj in self.children_post_update:
-            calls += simobj._get_sim_func_call_list()
-        return calls
-
-
     def get_current(self, var_names: str|list[str]) -> np.ndarray|float:
         """This method will get data from SimObject.Y array corresponding
         to the state-name \"var_names\". but returns the current time step
