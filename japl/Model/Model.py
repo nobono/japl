@@ -258,6 +258,7 @@ class Model:
         (see Sympy.lambdify) with computational optimization (see Sympy.cse).
 
         -------------------------------------------------------------------
+
         **Arguments**
 
         ``dt_var`` : Symbol
@@ -297,6 +298,7 @@ class Model:
         >>> input = Matrix([d, e])
         >>> model = Model.from_expression(dt, state, input)
         ```
+
         -------------------------------------------------------------------
         """
         # first build model using provided definitions
