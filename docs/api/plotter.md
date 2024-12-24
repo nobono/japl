@@ -1,4 +1,4 @@
-::: japl.Model.Model.Model
+::: japl.Plotter.PyQtGraphPlotter.PyQtGraphPlotter
     handler: python
     options:
         filters:

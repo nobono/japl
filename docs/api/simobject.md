@@ -1,4 +1,4 @@
-::: japl.Model.Model.Model
+::: japl.SimObject.SimObject.SimObject
     handler: python
     options:
         filters:

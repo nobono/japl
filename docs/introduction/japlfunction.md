@@ -1,6 +1,6 @@
 # JaplFunction
 
-Symbolic Functions allow one to define a function by specifying:
+JaplFunctions are created by defining a class which inherits from [`JaplFunction`](docs/api/japlfunction.md):
 
 - function name
 - function signature

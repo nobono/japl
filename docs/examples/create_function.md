@@ -2,7 +2,7 @@
 
 ---
 
-## Create a Symbolic Function ([JaplFunction](japlfunction.md))
+## Create a Symbolic Function ([JaplFunction](../introduction/japlfunction.md))
 
 The goal is to create a Symbolic Function for discrete linear motion:
 

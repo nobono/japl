@@ -154,11 +154,13 @@ class SimObject:
         return self.__str__()
 
 
-    def get_istep(self):
+    def get_istep(self) -> int:
+        """gets current time-step index for the SimObject."""
         return self._istep
 
 
     def set_istep(self, val: int):
+        """sets current time-step index for the SimObject."""
         self._istep = int(val)
 
 
@@ -173,11 +175,13 @@ class SimObject:
         is specified in Sim initialization.
 
         -------------------------------------------------------------------
+
         **Arguments**
 
-        ``T`` : np.ndarray
+        `T` : np.ndarray
         :   simulation Time array. A reference of this array is stored
             in SimObject to avoid redundancy.
+
         -------------------------------------------------------------------
         """
         # pre-allocate output arrays
@@ -274,10 +278,14 @@ class SimObject:
 
 
     def set(self, var_names: str|list[str], vals: float|list|np.ndarray) -> None:
-        """This method will set data from SimObject.Y array corresponding
+        """Sets the value(s) of the variable name(s) for the current time step (istep).
+
+        > *DEV NOTE*:
+
+        > This method will set data from SimObject.Y array corresponding
         to the state-name \"var_names\" and the current Sim time step.
 
-        This method is more general, using extra checks, making is slower
+        > This method is more general, using extra checks, making it slower
         than useing set_state_array, set_input_array, or set_static_array."""
 
         # allow multiple names in a single string (e.g. "a, b, c")
@@ -311,7 +319,7 @@ class SimObject:
 
 
     def get_state_array(self, state: np.ndarray, names: str|list[str]) -> np.ndarray:
-        """This method gets values from the state array given the state
+        """This method gets values from the state array from the provided variable
         names."""
         ret = self.model.get_state_id(names)
         if isinstance(names, list):
@@ -439,9 +447,12 @@ class SimObject:
         a dynamics model.
 
         -------------------------------------------------------------------
-        -- Arguments
-        -------------------------------------------------------------------
-        -- state - array, list or nested list of initial state array
+
+        **Arguments**
+
+        `state` :
+        :   array, list or nested list of initial state array
+
         -------------------------------------------------------------------
         """
 
@@ -461,9 +472,12 @@ class SimObject:
         a static variables dynamics model.
 
         -------------------------------------------------------------------
-        -- Arguments
-        -------------------------------------------------------------------
-        -- state - array, list or nested list of static array
+
+        **Arguments**
+
+        `state` :
+        :   array, list or nested list of static array
+
         -------------------------------------------------------------------
         """
 
@@ -528,7 +542,7 @@ class SimObject:
         -------------------------------------------------------------------
         **Arguments**
 
-        ``func``
+        `func`
         :   Callable function with the signature:
                 func(t, X, U, S, dt, ...) -> U
             where X is the state array, U is the input array,
