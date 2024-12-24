@@ -1,3 +1,4 @@
+# __JAPL_MODEL_SOURCE__
 from sympy import Matrix
 from sympy import Symbol
 from japl import JaplFunction
