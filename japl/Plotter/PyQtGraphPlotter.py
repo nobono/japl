@@ -874,6 +874,7 @@ class PyQtGraphPlotter:
     #     pass
 
 
+    # NOTE: idk if this is used
     def plot_obj(self, simobj: SimObject, **kwargs) -> "PyQtGraphPlotter":
         self.add_simobject(simobj)
         for subplot_id in range(len(simobj.plot.get_config())):
