@@ -1,44 +1,32 @@
 from japl import Atmosphere
 # from sympy import Function
 from sympy import Symbol
-from japl.Symbolic.KwargFunction import KwargFunction
+from japl.CodeGen.JaplFunction import JaplFunction
 
 
 
-class pressure(KwargFunction):
-    pass
+class pressure(JaplFunction):
     parent = "atmosphere"
-    # no_keyword = True
 
 
-class density(KwargFunction):
-    pass
+class density(JaplFunction):
     parent = "atmosphere"
-    # no_keyword = True
 
 
-class temperature(KwargFunction):
-    pass
+class temperature(JaplFunction):
     parent = "atmosphere"
-    # no_keyword = True
 
 
-class speed_of_sound(KwargFunction):
-    pass
+class speed_of_sound(JaplFunction):
     parent = "atmosphere"
-    # no_keyword = True
 
 
-class grav_accel(KwargFunction):
-    pass
+class grav_accel(JaplFunction):
     parent = "atmosphere"
-    # no_keyword = True
 
 
-class dynamic_pressure(KwargFunction):
-    pass
+class dynamic_pressure(JaplFunction):
     parent = "atmosphere"
-    # no_keyword = True
 
 
 class AtmosphereSymbolic:

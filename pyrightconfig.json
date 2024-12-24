@@ -13,5 +13,6 @@
     "reportUnusedVariable": false,
     "reportPrivateUsage": false,
     "reportUnnecessaryComparison": false,
+    "reportUnknownLambdaType": false,
 }
 

@@ -163,6 +163,9 @@ cython_debug/
 /cached_interpolate
 /derivation/nav/generated
 
+# ignore temp libs dir
+/libs
+
 *.png
 *.pickle
 *.mat

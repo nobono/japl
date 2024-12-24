@@ -1,13 +1,19 @@
 #!/usr/bin/env python
 
 import os
-import subprocess
+import sys
+import importlib.util
 # import curses
 import argparse
 from textwrap import dedent
+from pathlib import Path
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-__JAPL_EXT_MODULE_INIT_HEADER = "#__japl_extension_module__"
+__JAPL_EXT_MODULE_INIT_HEADER__ = "#__japl_extension_module__"
+__JAPL_MODEL_SOURCE_HEADER__ = "#__japl_model_source__"
 
+__IGNORE_DIRS__ = [".git", "build", "bin", "src", "include", "libs", "tests", "typings",
+                   "__pycache__"]
 
 
 # def main(stdscr):
@@ -42,50 +48,127 @@ __JAPL_EXT_MODULE_INIT_HEADER = "#__japl_extension_module__"
 #             break
 
 
+def get_root_dir():
+    # Find the module spec for the japl package
+    spec = importlib.util.find_spec("japl")
+    if spec is None or spec.origin is None:
+        raise RuntimeError("japl package is not installed or cannot be found.")
+    # Get the root directory of the japl package
+    root_dir = os.path.dirname(spec.origin)
+    return root_dir
 
-def find_models(start_dir: str = '.', max_depth: int = 20) -> tuple:
+
+def file_is_model_source(root: str, file: str):
+    # look for model source files in dir
+    # look for JAPL model source header
+    first_line = ""
+    is_pyfile = file.split('.')[-1] == "py"
+    not_dot_file = not file[0] == '.'
+    if not_dot_file and is_pyfile:
+        with open(os.path.join(root, file)) as f:
+            first_line = f.readline()
+        first_line = first_line.lower().replace(" ", "").strip("\n")
+        if first_line == __JAPL_MODEL_SOURCE_HEADER__:
+            return True
+        else:
+            return False
+
+
+def dir_is_ext_module(root: str, files: list):
     init_file = "__init__.py"
     build_file = "build.py"
-    model_paths = []
-    model_names = []
+    # for root, dirs, files in os.walk(path):
+    if (build_file in files) and (init_file in files):  # look for build.py & __init__.py in dir
+        with open(os.path.join(root, init_file)) as f:  # look for JAPL ext_module header
+            first_line = f.readline()
+        first_line = first_line.lower().replace(" ", "").strip("\n")
+        if first_line == __JAPL_EXT_MODULE_INIT_HEADER__:
+            return True
+        else:
+            return False
+
+
+def find_ext_models(start_dir: str = '.', max_depth: int = 20) -> dict:
+    """finds already build japl Models which may or may not be already compiled."""
+    found_models = {}
+    ignores = __IGNORE_DIRS__
 
     # Get the length of the start directory path for depth calculation
     start_depth = start_dir.rstrip(os.path.sep).count(os.path.sep)
 
     for root, dirs, files in os.walk(start_dir):
+        # skip ignored dirs
+        for ignore in ignores:
+            if ignore in dirs:
+                dirs.remove(ignore)
 
         # Calculate the current depth by counting the separators in the path
         current_depth = root.count(os.path.sep) - start_depth
         if current_depth >= max_depth:
             # return early
-            return (model_names, model_paths)
+            return found_models
 
-        # look for build.py & __init__.py in dir
-        if (build_file in files) and (init_file in files):
-            # look for JAPL ext_module header
-            first_line = ""
-            with open(os.path.join(root, init_file)) as f:
-                first_line = f.readline()
-                first_line = first_line.lower().replace(" ", "").strip("\n")
-            if first_line == __JAPL_EXT_MODULE_INIT_HEADER:
-                model_names += [os.path.dirname(root)]
-                model_paths += [os.path.join(root)]
-    return (model_names, model_paths)
+        if dir_is_ext_module(root, files):
+            model_name = os.path.basename(root)
+            model_path = os.path.join(root)
+            found_models[model_name] = model_path
+
+    return found_models
 
 
+def find_src_models(start_dir: str = '.', max_depth: int = 20) -> dict:
+    """finds source code which is intended to generate japl Models."""
+    found_models = {}
+    ignores = __IGNORE_DIRS__
 
-def build_model(dir: str):
-    # if dir:
-    #     build_file_path = os.path.join(dir, "build.py")
-    #     dir_exists = os.path.isdir(dir)
-    #     build_file_exists = os.path.isfile(build_file_path)
+    # Get the length of the start directory path for depth calculation
+    start_depth = start_dir.rstrip(os.path.sep).count(os.path.sep)
 
-    #     if dir_exists and build_file_exists:
-    #         result = subprocess.run(["python", build_file_path],
-    #                                 capture_output=True, text=True, check=True)
-    # else:
-    #     pass
-    pass
+    for st_dir in [start_dir, get_root_dir()]:
+        for root, dirs, files in os.walk(st_dir):
+            # skip ignored dirs
+            for ignore in ignores:
+                if ignore in dirs:
+                    dirs.remove(ignore)
+
+            # Calculate the current depth by counting the separators in the path
+            current_depth = root.count(os.path.sep) - start_depth
+            if current_depth >= max_depth:
+                # return early
+                return found_models
+
+            for file in files:
+                if file_is_model_source(root, file):
+                    model_name = os.path.basename(file.split('.')[0])
+                    model_path = os.path.join(root, file)
+                    found_models[model_name] = model_path
+
+    return found_models
+
+
+
+def build_model(found_models: dict, **kwargs):
+    model_id = kwargs.get("id")
+    model_name = kwargs.get("name")
+    if model_id is not None:
+        src_path = Path([*found_models.values()][model_id])
+    elif model_name is not None:
+        src_path = Path(found_models[model_name])
+    else:
+        raise Exception("unhandled case.")
+    # import_first = '.'.join(src_path.parts[:-1])
+    # import_second = src_path.parts[-1].split('.')[0]
+    # load_module_str = f"from {import_first} import {import_second}"
+    os.system(f"python {src_path}")  # run model source file
+
+
+def show(found_models: dict):
+    row_format_str = "{:<10} {:<25} {:<25}"
+    print("-" * 50)
+    print(row_format_str.format("id", "name", "path"))
+    print("-" * 50)
+    for id, (name, dir) in enumerate(found_models.items()):
+        print(row_format_str.format(id, name, dir))
 
 
 def main():
@@ -94,10 +177,21 @@ def main():
     list_parser = subparsers.add_parser("list", help="List of available models")
     build_parser = subparsers.add_parser("build", help="Build an available model")
 
-    build_parser.add_argument("path",
-                              default="",
+    build_parser.add_argument("id",
+                              default=None,
+                              type=int,
+                              nargs="?",
+                              help="id of available models to build")
+    build_parser.add_argument("-p", "--path",
+                              default=".",
+                              type=str,
                               nargs="?",
                               help="Name of available models to build")
+    build_parser.add_argument("-n", "--name",
+                              default=None,
+                              type=str,
+                              nargs="?",
+                              help="name (filename) of available models to build")
     list_parser.add_argument("path",
                              default=".",
                              nargs="?",
@@ -117,16 +211,15 @@ def main():
     # Check which command was given and call the corresponding function
     match args.command:
         case "list":
-            row_format_str = "{:<10} {:<15} {:<20}"
-            model_names, dirs = find_models(args.path)
-            print("-" * 50)
-            print(row_format_str.format("id", "name", "path"))
-            print("-" * 50)
-            for id, (name, dir) in enumerate(zip(model_names, dirs)):
-                print(row_format_str.format(id, name, dir))
+            found_models = find_ext_models(args.path)
+            show(found_models)
 
         case "build":
-            build_model(dir=args.path)
+            found_models = find_src_models(args.path)
+            show(found_models)
+            if (args.id is not None) or (args.name is not None):
+                kwargs = {"id": args.id}
+                build_model(found_models, **kwargs)
 
         case _:
             print(dedent(japl_header))

@@ -391,6 +391,21 @@ def build_model(state: Matrix,
     # write_array(input, "./temp_input.py")
     # write_array(dynamics, "./temp_dynamics.py")
 
+    # replace Functions in state, input, static arrays to Symbols
+    # ------------------------------------------------------------------
+    # NOTE: this was added to avoid japl.CodeGen from dealing with
+    # sympy Function. Not sure if this violates logic elsewhere, though.
+    # ------------------------------------------------------------------
+    for i, item in enumerate(state):  # type:ignore
+        if isinstance(item, Function):
+            state[i] = Symbol(getattr(item, "name"))
+    for i, item in enumerate(input):  # type:ignore
+        if isinstance(item, Function):
+            input[i] = Symbol(getattr(item, "name"))
+    for i, item in enumerate(static):  # type:ignore
+        if isinstance(item, Function):
+            static[i] = Symbol(getattr(item, "name"))
+
     exec_time = perf_counter() - start_time
     print("exec time: %.3f seconds" % exec_time)
 

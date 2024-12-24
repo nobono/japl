@@ -1,8 +1,19 @@
+import sys
 import numpy as np
 from typing import Any, Iterable
 from typing import get_args
 import timeit
 
+
+
+def noprint(func):
+    """Decorator which suppresses printing to stdout via sys.stdout"""
+    def wrapped(*args, **kwargs):
+        sys.stdout = None
+        ret = func(*args, **kwargs)
+        sys.stdout = sys.__stdout__
+        return ret
+    return wrapped
 
 
 def profile(func):

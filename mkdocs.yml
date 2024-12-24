@@ -1,15 +1,33 @@
 site_name: JAPL
 
 nav:
-  - Home: index.md
   - About: about.md
   - Getting Started: installation.md
+  - Introduction:
+    - JaplFunction: introduction/japlfunction.md
+  - Examples:
+    - Creating a Function: examples/create_function.md
+  - API Reference:
+    - Model: api/model.md
+    - SimObject: api/simobject.md
+    - Sim: api/sim.md
+    - Plotter: api/plotter.md
+    - DataTable: api/datatable.md
+    - CodeGen: api/codegen.md
+
+  - Structural Overview:
+    - CodeGeneration: overview/code_generation.md
+  - Developers:
+    - Rules of Engagement: dev/rules_of_engagement.md
+  - License: LICENSE.md
 
 theme:
   name: material
   logo: assets/japl_logo.png
   features:
     - content.code.copy
+    # - content.code.fences
+    # - content.tabs.link
   palette:
     # Palette toggle for light mode
     - scheme: default
@@ -27,9 +45,30 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
 
+plugins:
+  - search
+  - mkdocstrings:
+      # enabled: !ENV [ENABLE_MKDOCSTRINGS, true]
+      # custom_templates: templates
+      default_handler: python
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_root_heading: true
+            show_source: false
+            separate_signature: true
+            heading_level: 2
+            show_signature_annotations: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            merge_init_into_class: true
+            show_docstring_parameters: true
+
 markdown_extensions:
   # aligning images
   - attr_list
+  - def_list
 
   # mkdocs-material syntax highlighting
   - pymdownx.highlight:
@@ -38,14 +77,13 @@ markdown_extensions:
       pygments_lang_class: true
   - pymdownx.inlinehilite
   - pymdownx.snippets
-  - pymdownx.superfences
-
-  # # mermaid flowcharts
-  # - pymdownx.superfences:
-  #     custom_fences:
-  #       - name: mermaid
-  #         class: mermaid
-  #         format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.blocks.html
+  - pymdownx.superfences:
+      # mermaid flowcharts
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
 
   # allow Latex
   - pymdownx.arithmatex:
@@ -63,3 +101,6 @@ extra:
       as to measure the effectiveness of our documentation and whether users
       find what they're searching for. With your consent, you're helping us to
       make our documentation better.
+
+extra_css:
+  - stylesheets/extra.css

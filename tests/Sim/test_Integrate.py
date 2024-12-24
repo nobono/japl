@@ -4,7 +4,7 @@ from japl.Sim.Integrate import runge_kutta_4
 
 
 
-class TestExample(unittest.TestCase):
+class TestIntegrate(unittest.TestCase):
 
 
     def setUp(self):

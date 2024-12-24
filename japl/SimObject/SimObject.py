@@ -12,37 +12,11 @@ from matplotlib import colors as mplcolors
 from pandas import DataFrame
 from pandas import MultiIndex
 from japl.Util.Pubsub import Publisher
-# from sympy import Symbol
-# from pyqtgraph import GraphicsView, PlotCurveItem,
-# from pyqtgraph import CircleROI
-# from matplotlib.axes import Axes
-# import astropy.units as u
-# from astropy.units.quantity import Quantity
-# from japl.Util.UnitCheck import assert_physical_type
-# from japl.Model.Model import ModelType
-# from matplotlib.patches import Circle
+from japl.Util.Pubsub import Subscriber
 
 
 
-# class ShapeCollection:
-#
-#     """This is a class which abstracts the line / shape plots of different
-#     plotting backends."""
-
-#     def __init__(self, color: str, radius: float) -> None:
-#         # assert plotting_backend in ["matplotlib", "pyqtgraph", "mpl", "qt"]
-#         # self.plotting_backend = plotting_backend
-#         self.color = color
-#         self.radius = radius
-
-
-#     def setup(self):
-#         self.patch = Circle((0, 0), radius=size, color=color)
-#         self.trace = Line2D([0], [0], color=color)
-
-
-
-class _PlotInterface:
+class PlotterInterface:
 
     """This is a class for interfacing SimObject data with the plotter."""
 
@@ -117,23 +91,32 @@ class _PlotInterface:
 
 
 class SimObject:
-    __slots__ = ("_dtype", "name", "color", "size", "model",
-                 "state_dim", "input_dim", "static_dim",
-                 "X0", "U0", "S0", "Y", "U", "plot",
-                 "_T", "_istep", "publisher")
 
     """This is a base class for simulation objects"""
 
+    __slots__ = ("_dtype", "name", "color", "size", "model",
+                 "state_dim", "input_dim", "static_dim",
+                 "X0", "U0", "S0", "Y", "U", "plot",
+                 "_T", "_istep", "publisher", "subscriber",
+                 "children_pre_update", "children_post_update")
+
+    model: Model
+
+    def __new__(cls, model: Model = Model(), **kwargs):
+        obj = super().__new__(cls)
+        if isinstance(cls.model, Model):  # type:ignore
+            obj.model = cls.model
+        else:
+            obj.model = model
+        return obj
 
 
-    def __init__(self, model: Model = Model(), **kwargs) -> None:
+    def __init__(self, *args, **kwargs) -> None:
 
-        assert isinstance(model, Model)
         self._dtype = kwargs.get("dtype", float)
         self.name = kwargs.get("name", "SimObject")
         self.color = kwargs.get("color")
         self.size = kwargs.get("size", 1)
-        self.model = model
         self.state_dim = self.model.state_dim
         self.input_dim = self.model.input_dim
         self.static_dim = self.model.static_dim
@@ -144,12 +127,17 @@ class SimObject:
         self.U = np.array([], dtype=self._dtype)
         self._T = np.array([])
         self._istep: int = 1  # sim step counter set by Sim class
-        self.publisher = Publisher()
 
-        # self._setup_model(**kwargs)
+        # pub / sub members for passing info between SimObjects
+        self.publisher = Publisher()
+        self.subscriber = Subscriber(str(id(self)))
+
+        # list containers for child SimObjects
+        self.children_pre_update: list[SimObject] = []
+        self.children_post_update: list[SimObject] = []
 
         # interface for visualization
-        self.plot = _PlotInterface(
+        self.plot = PlotterInterface(
                 state_select={},
                 size=self.size,
                 color=self.color
@@ -158,8 +146,22 @@ class SimObject:
             self.color = self.plot.color
 
 
-    def _set_sim_step(self, istep: int):
-        self._istep = istep
+    def __str__(self) -> str:
+        return "SimObject(name={name})".format(name=self.name)
+
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+
+    def get_istep(self) -> int:
+        """gets current time-step index for the SimObject."""
+        return self._istep
+
+
+    def set_istep(self, val: int):
+        """sets current time-step index for the SimObject."""
+        self._istep = int(val)
 
 
     def set_draw(self, size: float = 1, color: str = "black") -> None:
@@ -167,21 +169,53 @@ class SimObject:
         self.color = color
 
 
-    # @DeprecationWarning
-    # def _setup_model(self, **kwargs) -> None:
-    #     # mass properties
-    #     self.mass: float = kwargs.get("mass", 1)
-    #     self.Ixx: float = kwargs.get("Ixx", 1)
-    #     self.Iyy: float = kwargs.get("Iyy", 1)
-    #     self.Izz: float = kwargs.get("Izz", 1)
-    #     self.cg: float = kwargs.get("cg", 0)
+    def _init_data_array(self, T: np.ndarray):
+        """Initialzes the data array for SimObject. SimObject
+        pre-allocates data array for Sim once number of sim time steps
+        is specified in Sim initialization.
+
+        -------------------------------------------------------------------
+
+        Parameters:
+            T:
+                simulation Time array. A reference of this array is stored
+                in SimObject to avoid redundancy.
+
+        -------------------------------------------------------------------
+        """
+        # pre-allocate output arrays
+        self.Y = np.zeros((len(T), len(self.X0)))
+        self.U = np.zeros((len(T), len(self.U0)))
+        self.Y[0] = self.X0
+        self.U[0] = self.U0
+        self._set_T_array_ref(T)  # simobj.T reference to sim.T
 
 
     def __getattr__(self, name) -> np.ndarray|float:
+        """method used for getting variables from the SimObject / Model.
+        This method behaves differently before simulation has started vs.
+        during simulation.
+
+        *BEFORE* simulation: `SimObject.var` returns a string. This behavior
+        is useful for configuration (e.g. configuring plots). The variable string
+        will be passed to the configuration object and the user retains the
+        convenience of intellisense.
+
+        *DURING* simulation: `SimObject.var` returns the value(s) of the variable
+        name from the *CURRENT* simulation timestep. This is useful for referencing
+        the current variable value in the simulation data-array without having to
+        directly access / index said data-array.
+        """
+
+        if not len(self.Y):  # check if data-array is initialized
+            return name
         return self.get_current(name)
 
 
     def __setattr__(self, name, val) -> None:
+        """This method sets the value for the variable name in the data-array
+        for the current simulation timestep."""
+        # allow normal __setattr__ behavior for attributes defined in __slots__
         if name in self.__slots__:
             super().__setattr__(name, val)
         else:
@@ -192,6 +226,14 @@ class SimObject:
         """This method will get data from SimObject.Y array corresponding
         to the state-name \"var_names\". but returns the current time step
         of specific variable name in the running simulation.
+
+        -------------------------------------------------------------------
+
+        Parameters:
+            var_names:
+                variable name(s)
+
+        -------------------------------------------------------------------
         """
         ret = self.get(var_names)
         if hasattr(ret, "shape"):
@@ -210,7 +252,16 @@ class SimObject:
         to the state-name \"var_names\".
 
         This method is more general, using extra checks, making is slower
-        than useing get_state_array, get_input_array, or get_static_array."""
+        than useing get_state_array, get_input_array, or get_static_array.
+
+        -------------------------------------------------------------------
+
+        Parameters:
+            var_names:
+                variable name(s)
+
+        -------------------------------------------------------------------
+        """
 
         # allow multiple names in a single string (e.g. "a, b, c")
         if isinstance(var_names, str):
@@ -243,11 +294,22 @@ class SimObject:
 
 
     def set(self, var_names: str|list[str], vals: float|list|np.ndarray) -> None:
-        """This method will set data from SimObject.Y array corresponding
-        to the state-name \"var_names\" and the current Sim time step.
+        """Sets the value(s) of the variable name(s) for the current time step (istep).
 
-        This method is more general, using extra checks, making is slower
-        than useing set_state_array, set_input_array, or set_static_array."""
+        -------------------------------------------------------------------
+
+        Parameters:
+            var_names: variable name(s) to set
+            vals: values to set (order must agree with var_names)
+
+        -------------------------------------------------------------------
+
+        NOTE:
+            This method will set data from SimObject.Y array corresponding
+            to the state-name \"var_names\" and the current Sim time step.
+
+            This method is more general, using extra checks, making it slower
+            than useing set_state_array, set_input_array, or set_static_array."""
 
         # allow multiple names in a single string (e.g. "a, b, c")
         if isinstance(var_names, str) and (',' in var_names)\
@@ -279,85 +341,140 @@ class SimObject:
             raise Exception("unhandled case.")
 
 
-    def get_state_array(self, state: np.ndarray, names: str|list[str]) -> np.ndarray:
-        """This method gets values from the state array given the state
-        names."""
+    def get_state_array(self, array: np.ndarray, names: str|list[str]) -> np.ndarray:
+        """This method gets values from the state array from the provided variable
+        names.
+
+        -------------------------------------------------------------------
+
+        Parameters:
+            array: state data-array
+            names: variable names to get
+
+        -------------------------------------------------------------------
+        """
         ret = self.model.get_state_id(names)
         if isinstance(names, list):
             if len(names) == 1:
-                return state[ret][0]
+                return array[ret][0]
             else:
-                return state[ret]
+                return array[ret]
         else:
-            return state[ret]
+            return array[ret]
 
 
-    def set_state_array(self, state: np.ndarray, names: str|list[str],
+    def set_state_array(self, array: np.ndarray, names: str|list[str],
                         vals: float|list|np.ndarray) -> None:
         """This method sets values of the state array according to the
-        provided state names and provided values."""
+        provided state names and provided values.
+
+        -------------------------------------------------------------------
+
+        Parameters:
+            array: state data-array
+            names: variable names to set
+
+        -------------------------------------------------------------------
+        """
         ret = self.model.get_state_id(names)
         if isinstance(names, list):
             if len(names) == 1:
-                state[ret][0] = np.asarray(vals)
+                array[ret][0] = np.asarray(vals)
             else:
-                state[ret] = np.asarray(vals)
+                array[ret] = np.asarray(vals)
         else:
-            state[ret] = np.asarray(vals)
+            array[ret] = np.asarray(vals)
 
 
-    def get_input_array(self, input: np.ndarray, names: str|list[str]) -> float|np.ndarray:
+    def get_input_array(self, array: np.ndarray, names: str|list[str]) -> float|np.ndarray:
         """This method gets values from the input array given the input
-        names."""
+        names.
+
+        -------------------------------------------------------------------
+
+        Parameters:
+            array: input data-array
+            names: variable names to get
+
+        -------------------------------------------------------------------
+        """
         ret = self.model.get_input_id(names)
         if isinstance(names, list):
             if len(names) == 1:
-                return input[ret][0]
+                return array[ret][0]
             else:
-                return input[ret]
+                return array[ret]
         else:
-            return input[ret]
+            return array[ret]
 
 
-    def set_input_array(self, input: np.ndarray, names: str|list[str],
+    def set_input_array(self, array: np.ndarray, names: str|list[str],
                         vals: float|list|np.ndarray) -> None:
         """This method sets values of the input array according to the
-        provided input names and provided values."""
+        provided input names and provided values.
+
+        -------------------------------------------------------------------
+
+        Parameters:
+            array: input data-array
+            names: variable names to set
+
+        -------------------------------------------------------------------
+
+        """
         ret = self.model.get_input_id(names)
         if isinstance(names, list):
             if len(names) == 1:
-                input[ret][0] = np.asarray(vals)
+                array[ret][0] = np.asarray(vals)
             else:
-                input[ret] = np.asarray(vals)
+                array[ret] = np.asarray(vals)
         else:
-            input[ret] = np.asarray(vals)
+            array[ret] = np.asarray(vals)
 
 
-    def get_static_array(self, static: np.ndarray, names: str|list[str]) -> np.ndarray:
+    def get_static_array(self, array: np.ndarray, names: str|list[str]) -> np.ndarray:
         """This method gets values from the static array given the state
-        names."""
+        names.
+
+        -------------------------------------------------------------------
+
+        Parameters:
+            array: static data-array
+            names: variable names to get
+
+        -------------------------------------------------------------------
+        """
         ret = self.model.get_static_id(names)
         if isinstance(names, list):
             if len(names) == 1:
-                return static[ret][0]
+                return array[ret][0]
             else:
-                return static[ret]
+                return array[ret]
         else:
-            return static[ret]
+            return array[ret]
 
 
-    def set_static_array(self, static: np.ndarray, names: str|list[str],
+    def set_static_array(self, array: np.ndarray, names: str|list[str],
                          vals: float|list|np.ndarray) -> None:
         """This method sets values of the static array according to the
-        provided state names and provided values."""
+        provided state names and provided values.
+
+        -------------------------------------------------------------------
+
+        Parameters:
+            array: static data-array
+            names: variable names to set
+
+        -------------------------------------------------------------------
+        """
         ret = self.model.get_static_id(names)
         if isinstance(names, list):
             if len(names) == 1:
-                static[ret][0] = np.asarray(vals)
+                array[ret][0] = np.asarray(vals)
             else:
-                static[ret] = np.asarray(vals)
+                array[ret] = np.asarray(vals)
         else:
-            static[ret] = np.asarray(vals)
+            array[ret] = np.asarray(vals)
 
 
     def _pre_sim_checks(self) -> bool:
@@ -402,42 +519,16 @@ class SimObject:
         return True
 
 
-    def step(self, t: float, X: np.ndarray, U: np.ndarray, S: np.ndarray, dt: float) -> np.ndarray:
-        """This method is the update-step of the SimObject dynamic model. It calls
-        the SimObject Model's step() function.
-
-        -------------------------------------------------------------------
-        -- Arguments
-        -------------------------------------------------------------------
-        -- t - current time
-        -- X - current state array of SimObject
-        -- U - current input array of SimObject
-        -- S - static variables array of SimObject
-        -- dt - delta time
-        -------------------------------------------------------------------
-        -------------------------------------------------------------------
-        -- Returns:
-        -------------------------------------------------------------------
-        -- X_dot - state dynamics "Xdot = A*X + B*U"
-        -------------------------------------------------------------------
-        """
-        # self.update(X)
-        return self.model.step(t, X, U, S, dt)
-
-
-    def update(self, X: np.ndarray):
-        pass
-
-
     def init_state(self, state: np.ndarray|list, dtype: type = float) -> None:
         """This method takes a numpy array or list (or nested list) and stores this data
         into the initial state SimObject.X0. This method is for user convenience when initializing
         a dynamics model.
 
         -------------------------------------------------------------------
-        -- Arguments
-        -------------------------------------------------------------------
-        -- state - array, list or nested list of initial state array
+
+        Parameters:
+            state: array, list or nested list of initial state array
+
         -------------------------------------------------------------------
         """
 
@@ -457,9 +548,10 @@ class SimObject:
         a static variables dynamics model.
 
         -------------------------------------------------------------------
-        -- Arguments
-        -------------------------------------------------------------------
-        -- state - array, list or nested list of static array
+
+        Parameters:
+            state: array, list or nested list of static array
+
         -------------------------------------------------------------------
         """
 
@@ -475,7 +567,16 @@ class SimObject:
 
     def get_plot_data(self, subplot_id: int, index: Optional[int]) -> tuple[np.ndarray, np.ndarray]:
         """This method returns state data from the SimObject according
-        to the user specified state_select."""
+        to the user specified state_select.
+
+        -------------------------------------------------------------------
+
+        Parameters:
+            subplot_id:
+            index:
+
+        -------------------------------------------------------------------
+        """
 
         if not self.plot.get_config():
             Warning(f"No state_select configuration set for SimObject \"{self.name}\".")
@@ -512,6 +613,32 @@ class SimObject:
             return np.array([])
 
 
+    def set_input_function(self, func: Callable) -> None:
+        """This method takes a function and inserts it before the
+        Model's direct input updates. The outputs of this function
+        feed directly into the models inputs.
+
+        NOTE that if the Model has any defined direct input updates,
+        the user's changes to the input array may be modified or
+        over-written.
+
+        -------------------------------------------------------------------
+
+        Parameters:
+            func:
+                Callable function with the signature:
+                    func(t, X, U, S, dt, ...) -> U
+                where X is the state array, U is the input array,
+                S is the static variable array.
+
+                this function must return the input array U
+                to have any affect on the model.
+
+        -------------------------------------------------------------------
+        """
+        self.model.set_input_function(func)
+
+
     def _set_T_array_ref(self, _T) -> None:
         """This method is used to reference the internal _T time array to the
         Sim class Time array 'T'. This method exists to avoid redundant time arrays in
@@ -521,6 +648,8 @@ class SimObject:
 
 
     def _update_patch_data(self, xdata: np.ndarray, ydata: np.ndarray, subplot_id: int, **kwargs) -> None:
+        """Used by Plotter module to update the plotable objects of the
+        SimObject's PlotterInterface"""
         self.plot._update_patch_data(xdata, ydata, subplot_id=subplot_id, **kwargs)
 
 
@@ -528,7 +657,6 @@ class SimObject:
         """Creates DataFrame for each data array (state, input, static) on completion
         of a simulation run."""
         # define the multi-level column structure
-        column_structure = []
         data = {}
         for name in self.model.state_register.keys():
             struct_tuple = ("state", name)

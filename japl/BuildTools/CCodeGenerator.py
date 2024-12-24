@@ -4,6 +4,7 @@ from typing import Optional
 from tqdm import tqdm
 import numpy as np
 from japl.BuildTools.CodeGeneratorBase import CodeGeneratorBase
+from japl.BuildTools.FunctionInfo import FunctionInfo
 from sympy import ccode
 from sympy import Expr
 from sympy import Matrix
@@ -15,13 +16,18 @@ from textwrap import dedent
 from japl.BuildTools.BuildTools import parallel_subs
 from japl.BuildTools.BuildTools import parallel_cse
 from collections import defaultdict
-from japl.Symbolic.KwargFunction import KwargFunction
+from japl.global_opts import get_root_dir
+from pathlib import Path
+import subprocess
+
+
+Writes = list[str]
 
 
 
 class CCodeGenerator(CodeGeneratorBase):
 
-    __JAPL_EXT_MODULE_INIT_HEADER = "# __JAPL_EXTENSION_MODULE__\n"
+    JAPL_EXT_MODULE_INIT_HEADER__ = "# __JAPL_EXTENSION_MODULE__\n"
     comment_prefix: str = "//"
     pre_bracket: str = "["
     post_bracket: str = "]"
@@ -30,16 +36,29 @@ class CCodeGenerator(CodeGeneratorBase):
 
     header: list[str] = ["#include <iostream>",
                          "#include <model.hpp>",
+                         "#include <vector>",
                          "#include <pybind11/pybind11.h>",
                          "#include <pybind11/numpy.h>",
                          "#include <pybind11/stl.h>  // Enables automatic conversion",
                          "",
                          "namespace py = pybind11;",
+                         "using std::vector;",
+                         "",
                          ""]
+
+
+    std_args = ("t", "_X_arg", "_U_arg", "_S_arg", "dt")
+    std_args_types = ("double&",
+                      "vector<double>&",
+                      "vector<double>&",
+                      "vector<double>&",
+                      "double&")
+
+    NUM_FUNC_RETURNS = 1
 
     def __init__(self, strict: bool = False, use_std_args: bool = False):
         self.strict = strict
-        self.function_register = {}
+        self.function_register: dict[str, FunctionInfo] = {}
         self.use_std_args = use_std_args  # use standard Model args
 
 
@@ -123,30 +142,16 @@ class CCodeGenerator(CodeGeneratorBase):
             type_str = primitive_type
         else:
             primitive_type = "double"
-            type_str = f"py::array_t<{primitive_type}>"
+            type_str = f"vector<{primitive_type}>"
         return type_str
 
 
-    def _write_function_definition(self, name: str, expr: Expr|Matrix, params: list,
-                                   by_reference: dict = {}):
-        return_type_str = self._get_return_type(expr)
-        params_list, params_unpack = self._get_function_parameters(params=params,
-                                                                   by_reference=by_reference)
-        func_proto = f"{return_type_str} {name}({params_list})" + " {\n"  # }
-        return func_proto + self._indent_lines(params_unpack)
-
-
-    def _write_function_returns(self, expr: Expr|Matrix, return_names: list[str]):
-        if len(return_names) > 1:
+    def _write_function_returns(self, return_names: list[str]):
+        if len(return_names) > self.NUM_FUNC_RETURNS:
             raise Exception("CCodeGenerator currently only supports returns of a"
                             "single object.")
         return_name = return_names[0]
-        if self._is_array_type(expr):
-            # convert vector to array_t
-            return_str = "py::array_t<double>(" + return_name + ".size(), " + return_name + ".data())"
-            return f"return {return_str}" + self.endl
-        else:
-            return f"return {return_name}" + self.endl
+        return f"return {return_name}" + self.endl
 
 
     @staticmethod
@@ -218,7 +223,7 @@ class CCodeGenerator(CodeGeneratorBase):
         # TODO: probably move this to _get_type
         # handle pass-by-reference
         # NOTE: currently does not work for array types
-        ref_char = ''
+        ref_char = '&'
         if CodeGeneratorBase._is_array_type(param):
             pass
         #     # check if all items in param are defined
@@ -234,7 +239,7 @@ class CCodeGenerator(CodeGeneratorBase):
             if param in by_reference:
                 ref_char = '&'
 
-        param_str = f"{type_str} {ref_char}{param_name}"
+        param_str = f"{type_str}{ref_char} {param_name}"
         return param_str
 
 
@@ -268,16 +273,16 @@ class CCodeGenerator(CodeGeneratorBase):
 
         # register function info
         self.function_register.update({
-            function_name: dict(
-                expr=expr,
-                params=params,
-                return_name=return_name,
-                use_cse=use_cse,
-                is_symmetric=is_symmetric,
-                description=description,
-                by_reference=by_reference,
-                )
-            })
+                function_name: FunctionInfo(
+                    name=function_name,
+                    expr=expr,
+                    params=params,
+                    return_name=return_name,
+                    use_cse=use_cse,
+                    is_symmetric=is_symmetric,
+                    description=description,
+                    by_reference=by_reference)
+                })
 
 
     @staticmethod
@@ -350,109 +355,34 @@ class CCodeGenerator(CodeGeneratorBase):
         return (replacements, expr_simple, len(dreps_pops))  # type:ignore
 
 
-    def _build_function(self, function_name: str, **func_register_info) -> list[str]:
-
-        MAX_PRUNE_ITER = 10
-
-        expr = func_register_info.get("expr")
-        params = func_register_info.get("params")
-        return_name = func_register_info.get("return_name")
-        use_cse = func_register_info.get("use_cse")
-        is_symmetric = func_register_info.get("is_symmetric")
-        by_reference = func_register_info.get("by_reference", {})
-        assert expr
-        assert params
-        assert return_name
-        assert isinstance(use_cse, bool)
-        assert isinstance(is_symmetric, bool)
-
-        if use_cse:
-            # old method
-            # expr_replacements, expr_simple = cse(expr, symbols("X_temp0:1000"), optimizations='basic')
-
-            # NOTE: handles MatrixSymbols in expression.
-            # wrapping in Matrix() simplifies the form of
-            # any matrix operation expressions.
-            if expr.is_Matrix:
-                expr = Matrix(expr)
-
-            ######################################################
-            # optimize pass-by-reference exprs
-            ######################################################
-            # add by_reference expressions to expr and
-            # do cse optimization to get substitutions.
-            # then split main expr & pass-by-reference
-            # expression again for individual processing
-            by_ref_nadds = len(by_reference)
-            if by_ref_nadds > 0:
-                by_ref_expr = Matrix([*by_reference.values()])
-                expr = Matrix([*expr, *by_ref_expr])
-            ######################################################
-
-            replacements, expr_simple = cse(expr)
-            expr_simple = expr_simple[0]
-
-            # must further optimize and make substitutions
-            # between indices of expr
-            for _ in range(MAX_PRUNE_ITER):
-                replacements, expr_simple, nredundant = self._subs_prune(replacements, expr_simple)
-                if nredundant == 0:
-                    break
-
-            ######################################################
-            # optimize pass-by-reference exprs
-            ######################################################
-            if by_ref_nadds > 0:
-                expr_simple = expr_simple[:-by_ref_nadds]
-                for i, (k, v) in enumerate(by_reference.items()):
-                    by_reference[k] = expr_simple[-by_ref_nadds:][i]
-            ######################################################
-
-            # remove added reference expr which were
-            # added for cse()
-            if by_ref_nadds > 0:
-                expr = Matrix(expr[:-by_ref_nadds])
-
-        else:
-            replacements = []
-            expr_simple = expr
-
-        return_type_str = self._get_return_type(expr_simple)
-        params_list, params_unpack = self._get_function_parameters(params=params,
-                                                                   by_reference=by_reference,
+    def _build_function_prototype(self, function_info: FunctionInfo, expr: Expr|Matrix) -> FunctionInfo:
+        function_name = function_info.name
+        return_type_str = self._get_return_type(expr)
+        params_list, params_unpack = self._get_function_parameters(function_info=function_info,
                                                                    use_std_args=self.use_std_args)
-        func_proto = f"{return_type_str} {function_name}({params_list})" + " {\n"  # }
-        func_def = func_proto + self._indent_lines(params_unpack)
-        # old
-        # func_def = self._write_function_definition(name=function_name,
-        #                                            expr=expr_simple,
-        #                                            params=params,
-        #                                            by_reference=by_reference)
+        params_list_str = ", ".join(params_list)
+        params_unpack_str = "".join(params_unpack)
+        func_proto = f"{return_type_str} {function_name}({params_list_str})" + " {\n"  # }
+        func_def = self._indent_lines(params_unpack_str)
+        function_info.params_list = params_list
+        function_info.params_unpack = params_unpack
+        function_info.proto = func_proto
+        function_info.body += func_def
+        return function_info
 
-        return_array = self._instantiate_return_variable(expr=expr, name=return_name)
-        sub_expr = self._write_subexpressions(replacements)  # type:ignore
-        func_body = self._write_matrix(matrix=Matrix(expr_simple),
-                                       variable=return_name,
-                                       is_symmetric=is_symmetric)
-        func_ret = self._write_function_returns(expr=expr, return_names=[return_name])
 
-        writes = [
-                  func_def,
-                  self._indent_lines(return_array),
-                  self._indent_lines(sub_expr),
-                  self._indent_lines(func_body),
-                  ]
-
-        #######################################
-        # write other defined subexpressions
-        #######################################
+    def _handle_pass_by_reference_params(self, function_info: FunctionInfo) -> list[str]:
+        writes = []
+        params_list = function_info.params_list
+        by_reference = function_info.by_reference
         # find '&' (pass-by-reference) params in parameter name list
-        by_ref_params_list = [i for i in params_list.split(",") if ('&' in i) or ("py::array" in i)]
-        for ref_param in by_ref_params_list:
-            if '&' in ref_param:
-                ref_param_type, ref_param_name = ref_param.split('&')
-                # TODO this does nothing
-            elif "py::array" in ref_param:
+        # params_list_str = ", ".join(params_list)
+        # by_ref_params_list = [i for i in params_list_str.split(",") if ('&' in i) or ("py::array" in i)]
+        for ref_param in params_list:
+            # NOTE: right now by_reference is assigned type "py::array"
+            # this is the only way to match function param name to
+            # by_reference items.
+            if "py::array" in ref_param:
                 ref_param_type, ref_param_name = ref_param.split('py::array')
 
                 #####
@@ -501,42 +431,181 @@ class CCodeGenerator(CodeGeneratorBase):
                     by_ref_subexpr_str += assign_str
 
                 # usr_sub_expr_simple = parallel_subs(by_reference, replacements)
-                writes += [self._indent_lines(by_ref_ptr_str),
-                           self._indent_lines(by_ref_subexpr_str)]
-
-            else:
-                raise Exception("unhandled case, but also make this code better.")
-
-            ###################################################
-            # by_ref_param_name = ref_param_name
-            # by_ref_ptr_name = f"{by_ref_param_name}_ptr"
-            # by_ref_ptr_str = (f"double* {by_ref_ptr_name} = static_cast<double*>"
-            #                   f"({by_ref_param_name}.mutable_data())" + self.endl)
-            ###################################################
-
-            # apply subs from previous code to subexpressions
-            # breakpoint()
-            # by_ref_replacements, by_ref_expr_simple = parallel_cse(Matrix([*by_reference.values()]))
-            # breakpoint()
-            # by_reference = parallel_subs(by_reference, [replacements])  # type:ignore
-            # for _ in range(MAX_PRUNE_ITER):
-            #     replacements, expr_simple, nredundant = self._subs_prune(replacements, Matrix([*by_reference.values()]))
-            #     if nredundant == 0:
-            #         break
-
-
-        # close function
-        writes += [self._indent_lines(func_ret),
-                   "}"]
-
+                writes = [self._indent_lines(by_ref_ptr_str),
+                          self._indent_lines(by_ref_subexpr_str)]
         return writes
 
 
-    def create_module(self, module_name: str, path: str = "."):
+    def _optimize_expression(self, function_info: FunctionInfo):
+        MAX_PRUNE_ITER = 10
+        expr = function_info.expr
+        params = function_info.params
+        return_name = function_info.return_name
+        use_cse = function_info.use_cse
+        is_symmetric = function_info.is_symmetric
+        by_reference = function_info.by_reference
+        assert expr
+        assert params
+        assert return_name
+        assert isinstance(use_cse, bool)
+        assert isinstance(is_symmetric, bool)
+
+        replacements = []
+        expr_simple = expr
+        if use_cse:
+            # old method
+            # expr_replacements, expr_simple = cse(expr, symbols("X_temp0:1000"), optimizations='basic')
+
+            # NOTE: handles MatrixSymbols in expression.
+            # wrapping in Matrix() simplifies the form of
+            # any matrix operation expressions.
+            if expr.is_Matrix:
+                expr = Matrix(expr)
+
+                ######################################################
+                # optimize pass-by-reference exprs
+                ######################################################
+                # add by_reference expressions to expr and
+                # do cse optimization to get substitutions.
+                # then split main expr & pass-by-reference
+                # expression again for individual processing
+                by_ref_nadds = len(by_reference)
+                if by_ref_nadds > 0:
+                    by_ref_expr = Matrix([*by_reference.values()])
+                    expr = Matrix([*expr, *by_ref_expr])
+                ######################################################
+
+                replacements, expr_simple = cse(expr)
+                expr_simple = expr_simple[0]  # type:ignore
+
+                # must further optimize and make substitutions
+                # between indices of expr
+                for _ in range(MAX_PRUNE_ITER):
+                    replacements, expr_simple, nredundant = self._subs_prune(replacements, expr_simple)
+                    if nredundant == 0:
+                        break
+
+                ######################################################
+                # optimize pass-by-reference exprs
+                ######################################################
+                if by_ref_nadds > 0:
+                    expr_simple = expr_simple[:-by_ref_nadds]
+                    for i, (k, v) in enumerate(by_reference.items()):
+                        by_reference[k] = expr_simple[-by_ref_nadds:][i]  # type:ignore
+                ######################################################
+
+                # remove added reference expr which were
+                # added for cse()
+                if by_ref_nadds > 0:
+                    expr = Matrix(expr[:-by_ref_nadds])
+
+        return replacements, expr_simple
+
+
+    def _build_function(self, function_name: str, function_info: FunctionInfo) -> Writes:
+        expr = function_info.expr
+        params = function_info.params
+        return_name = function_info.return_name
+        use_cse = function_info.use_cse
+        is_symmetric = function_info.is_symmetric
+        by_reference = function_info.by_reference
+        assert expr
+        assert params
+        assert return_name
+        assert isinstance(use_cse, bool)
+        assert isinstance(is_symmetric, bool)
+
+        replacements, expr_simple = self._optimize_expression(function_info=function_info)
+
+        func_info = self._build_function_prototype(function_info=function_info,  # NOTE: this modifies function_info
+                                                   expr=expr_simple)  # type:ignore
+        return_array = self._instantiate_return_variable(expr=expr, name=return_name)
+        sub_expr = self._write_subexpressions(replacements)  # type:ignore
+        func_body = self._write_matrix(matrix=Matrix(expr_simple),
+                                       variable=return_name,
+                                       is_symmetric=is_symmetric)
+        func_ret = self._write_function_returns(return_names=[return_name])
+
+        writes = [
+                  func_info.proto,
+                  func_info.body,
+                  self._indent_lines(return_array),
+                  self._indent_lines(sub_expr),
+                  self._indent_lines(func_body),
+                  ]
+
+        #######################################
+        # write other defined subexpressions
+        #######################################
+        writes += self._handle_pass_by_reference_params(function_info=func_info)
+
+        # close function
+        writes += [self._indent_lines(func_ret)]
+        writes += ["}"]
+        return writes
+
+
+    def _create_module_directory(self, name: str, path: str) -> Path:
         # create extension module directory
-        module_dir_name = module_name
-        module_dir_path = os.path.join(path, module_dir_name)
+        module_dir_path = Path(path, name)
+        if os.path.exists(module_dir_path):
+            input_str = f"{module_dir_path} already exists. Overwrite? (y/n):"
+            if input(input_str).strip().lower() == "y":
+                shutil.rmtree(module_dir_path)
+            else:
+                print("exiting.")
+                quit()
         os.mkdir(module_dir_path)
+        return module_dir_path
+
+
+    @staticmethod
+    def _parse_class_func(func_name: str) -> tuple[str, str]:
+        # handle func_name references class method "Class::method"
+        class_ref = ""
+        if "::" in func_name:
+            _func_str_split = func_name.split("::")
+            class_ref = "".join(_func_str_split[0])
+            func_name = "".join(_func_str_split[1:])
+        return class_ref, func_name
+
+
+    def _write_function_call_wrapper(self, func_name: str, description: str) -> Writes:
+        class_def, func_name = CCodeGenerator._parse_class_func(func_name)
+        # lambda wrapper to convert return of vector<> to py::array_t<>
+        _std_params_str = ", ".join([f"{typ} {var}" for typ, var in zip(self.std_args_types, self.std_args)])
+        _std_params_names_str = ", ".join([i for i in self.std_args])
+        method_bind_str = (f"\t\t.def(\"{func_name}\",\n"
+                           f"\t\t\t[](Model& self, {_std_params_str}) -> py::array_t<double> "
+                           "{\n"
+                           f"\t\t\t\tvector<double> ret = self.{func_name}({_std_params_names_str});\n"
+                           "\t\t\t\tpy::array_t<double> np_ret(ret.size());\n"
+                           "\t\t\t\tstd::copy(ret.begin(), ret.end(), np_ret.mutable_data());\n"
+                           "\t\t\t\treturn np_ret;\n"
+                           "\t\t\t}"
+                           f", \"{description}\")")
+        return [method_bind_str]
+
+
+    def _write_sets_gets(self, class_properties: list) -> Writes:
+        # write setters / getters for class properties
+        ret = []
+        for property in class_properties:
+            gets_sets = (f"\t\t.def_property(\"{property}\",\n"
+                         f"\t\t\t[](const Model& self) -> const decltype(Model::{property})& "
+                         "{"
+                         f"return self.{property}" + ";},\n"
+                         f"\t\t\t[](Model& self, const decltype(Model::{property})& value) "
+                         "{" + f"self.{property}" + " = value;})")
+            ret += [gets_sets]
+        return ret
+
+
+
+    def create_module(self, module_name: str, path: str = ".",
+                      class_properties: list = []):
+
+        module_dir_path = self._create_module_directory(name=module_name, path=path)
 
         # output directory warning
         # if os.path.isdir(module_dir_path):
@@ -544,51 +613,107 @@ class CCodeGenerator(CodeGeneratorBase):
 
         self.path = path
         self.file_name = module_name + ".cpp"
-        file_path = os.path.join(module_dir_path, self.file_name)
+        file_path = Path(module_dir_path, self.file_name)
         self.file = open(file_path, "w")
 
         header = self._write_header()
         self._write_lines(header)
 
+        class_bind_str = "\tpybind11::class_<Model>(m, \"Model\")"
+        class_constructor_str = "\t\t.def(pybind11::init<>())"
+
+        function_writes = []
         pybind_writes = ["", "", f"PYBIND11_MODULE({module_name}, m) " + "{"]  # }
+        pybind_writes += [class_bind_str]
+        pybind_writes += [class_constructor_str]
 
         try:
             # get functions from register
             for func_name, info in tqdm(self.function_register.items(), ncols=80, desc="Build"):
-                # handle func_name references class method "Class::method"
-                class_ref = ""
-                if "::" in func_name:
-                    _func_str_split = func_name.split("::")
-                    class_ref = "".join(_func_str_split[0])
-                    func_name = "".join(_func_str_split[1:])
+                print(func_name)
+                description = info.description
+
                 # build the function
-                writes = self._build_function(function_name=func_name, **info)
-                description = info["description"]
-                pybind_writes += [f"\tm.def(\"{func_name}\", &{class_ref}::{func_name}, \"{description}\");"]
-                for line in writes:
-                    self._write_lines(line)
+                function_writes += self._build_function(function_name=func_name, function_info=info)
 
-                # create __init__.py file
-                with open(os.path.join(module_dir_path, "__init__.py"), "a+") as f:
-                    f.write(self.__JAPL_EXT_MODULE_INIT_HEADER)
-                    f.write(f"from {module_dir_name}.{module_dir_name} import {func_name}\n")
+                # handles casting of pytypes to ctypes
+                pybind_writes += self._write_function_call_wrapper(func_name=func_name,
+                                                                   description=description)
 
+            # write setters / getters for class properties
+            pybind_writes += self._write_sets_gets(class_properties)
+
+            # create __init__.py file
+            with open(os.path.join(module_dir_path, "__init__.py"), "a+") as f:
+                f.write(self.JAPL_EXT_MODULE_INIT_HEADER__)
+                f.write("import linterp\n")
+                f.write("import datatable\n")
+                f.write("import aerotable\n")
+                f.write("import atmosphere\n")
+                f.write(f"from {module_name}.{module_name} import *\n")
+
+            pybind_writes += ['\t;']
             pybind_writes += ["}"]
 
+            for line in function_writes:
+                self._write_lines(line)
             for line in pybind_writes:
                 self._write_lines(line)
-
             self.create_build_file(path=module_dir_path,
                                    module_name=module_name,
                                    source=self.file_name)
-
             self._close()
         except Exception as e:
             shutil.rmtree(module_dir_path, ignore_errors=True)
             raise Exception(e)
 
+        # copy over japl libs
+        try:
+            os.mkdir(Path(module_dir_path, "libs"))
+        except Exception as e:
+            print("Error moving libs to model dir", e)
+        self.copy_dir(Path(get_root_dir(), "libs"), Path(module_dir_path, "libs"))
 
-    def create_build_file(self, module_name: str, path: str, source: str):
+        # try to build
+        try:
+            subprocess.run(["python", Path(module_dir_path, "build.py")])
+        except Exception as e:
+            print("Error building model", e)
+
+
+    @staticmethod
+    def copy_dir(source_dir, target_dir) -> None:
+        """
+        Recursively copies all directories and files from source_dir to target_dir.
+
+        Parameters:
+        -----------
+            source_dir (str): The source directory to copy from.
+            target_dir (str): The target directory to copy to.
+
+        Raises:
+        -------
+            ValueError: If source_dir does not exist or is not a directory.
+        """
+        if not os.path.isdir(source_dir):
+            raise ValueError(f"Source directory '{source_dir}' does not exist or is not a directory.")
+
+        # Ensure the target directory exists
+        os.makedirs(target_dir, exist_ok=True)
+
+        for item in os.listdir(source_dir):
+            source_item = os.path.join(source_dir, item)
+            target_item = os.path.join(target_dir, item)
+
+            if os.path.isdir(source_item):
+                # Recursively copy directories
+                CCodeGenerator.copy_dir(source_item, target_item)
+            else:
+                # Copy files
+                shutil.copy2(source_item, target_item)
+
+
+    def create_build_file(self, module_name: str, path: str|Path, source: str):
         file_name = source.split('.')[0]
         cxx_std = 17
 
@@ -601,7 +726,7 @@ class CCodeGenerator(CodeGeneratorBase):
         from setuptools.command.build_ext import build_ext
         from setuptools import Command
         from pybind11.setup_helpers import Pybind11Extension
-        from japl.global_opts import JAPL_HOME_DIR
+        from japl.global_opts import get_root_dir
 
 
 
@@ -642,8 +767,18 @@ class CCodeGenerator(CodeGeneratorBase):
         ext_module = Pybind11Extension(name="{module_name}",
                                        sources=sources,
                                        extra_compile_args=[],
-                                       extra_link_args=[],
-                                       include_dirs=[os.path.join(JAPL_HOME_DIR, "libs", "model")],
+                                       extra_link_args=["{path}/libs/src/linterp/linterp.o",
+                                                        "{path}/libs/src/datatable.o",
+                                                        "{path}/libs/src/atmosphere_alts.o",
+                                                        "{path}/libs/src/atmosphere_density.o",
+                                                        "{path}/libs/src/atmosphere_grav_accel.o",
+                                                        "{path}/libs/src/atmosphere_pressure.o",
+                                                        "{path}/libs/src/atmosphere_temperature.o",
+                                                        "{path}/libs/src/atmosphere_speed_of_sound.o",
+                                                        "{path}/libs/src/atmosphere.o",
+                                                        "{path}/libs/src/aerotable.o",
+                                                        "{path}/libs/src/model.o"],
+                                       include_dirs=[os.path.join(get_root_dir(), "include")],
                                        cxx_std={cxx_std})
         """"""
 

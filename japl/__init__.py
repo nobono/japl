@@ -13,3 +13,5 @@ from japl.Model.StateRegister import StateRegister
 from japl.Aero.Atmosphere import Atmosphere
 from japl.MassProp.MassPropTable import MassPropTable
 from japl.Math import Rotation
+
+from japl.CodeGen import JaplFunction

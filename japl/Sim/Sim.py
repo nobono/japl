@@ -9,6 +9,25 @@ from japl.Util.Profiler import Profiler
 from scipy.integrate import solve_ivp
 
 
+# NOTE below is currently unused feature ----------------------------------
+# which may be used in the future.
+#
+# ########################################################
+# # device input
+# ########################################################
+# if self.device_input_type:
+#     iota = -self.device_input_data["ly"] * 0.69  # noqa
+# # force = np.array([1000*lx, 0, 1000*ly])
+# # acc_ext = acc_ext + force / mass
+# ########################################################
+#
+# # get device input
+# if self.device_input_type:
+#     (lx, ly, _, _) = self.device_input.get()
+#     self.device_input_data["lx"] = lx
+#     self.device_input_data["ly"] = ly
+# -------------------------------------------------------------------------
+
 
 class Sim:
 
@@ -26,13 +45,15 @@ class Sim:
         self.simobjs = simobjs
         self.events: list[tuple] = kwargs.get("events", [])
         self.integrate_method = kwargs.get("integrate_method", "rk4")
-        assert self.integrate_method in ["odeint", "euler", "rk4"]
+        if self.integrate_method not in ["odeint", "euler", "rk4"]:
+            raise Exception(f"integrate method: {self.integrate_method} not recongized. "
+                            "only [odeint, euler, rk4] available.")
 
         # setup time array
         self.istep = 0
         self.Nt = int(self.t_span[1] / self.dt)
         self.t_array = np.linspace(self.t_span[0], self.t_span[1], self.Nt + 1)
-        self.T = np.array([])
+        self.T = np.zeros((self.Nt + 1,))
 
         # ODE solver params
         self.rtol: float = kwargs.get("rtol", 1e-6)
@@ -49,19 +70,13 @@ class Sim:
 
         # init simobj data arrays
         for simobj in self.simobjs:
-            self.__init_simobj(simobj)
+            for child in simobj.children_pre_update:
+                child._init_data_array(self.T)
+            simobj._init_data_array(self.T)
+            for child in simobj.children_post_update:
+                child._init_data_array(self.T)
 
         self.profiler = Profiler()
-
-
-    def __init_simobj(self, simobj: SimObject):
-        # pre-allocate output arrays
-        self.T = np.zeros((self.Nt + 1, ))
-        simobj.Y = np.zeros((self.Nt + 1, len(simobj.X0)))
-        simobj.U = np.zeros((self.Nt + 1, len(simobj.U0)))
-        simobj.Y[0] = simobj.X0
-        simobj.U[0] = simobj.U0
-        simobj._set_T_array_ref(self.T)  # simobj.T reference to sim.T
 
 
     def add_event(self, func: Callable, action: str) -> None:
@@ -81,42 +96,65 @@ class Sim:
         if self.device_input_type:
             self.device_input.start()
 
-        # solver
-        # TODO should we combine all given SimObjects into single state?
-        #       this would be efficient for n-body problem...
         for istep in range(1, self.Nt + 1):
-            flag_sim_stop = self._step_solve(dynamics_func=self.step,
-                                             istep=istep,
-                                             dt=self.dt,
-                                             simobj=simobj,
-                                             method=self.integrate_method,
-                                             rtol=self.rtol,
-                                             atol=self.atol)
+            self.istep = istep
+            self._run(istep=istep, simobj=simobj)
+
+        # OLD METHOD ----------------------------------------------------------
+        # # solver
+        # # TODO should we combine all given SimObjects into single state?
+        # #       this would be efficient for n-body problem...
+        # for istep in range(1, self.Nt + 1):
+        #     flag_sim_stop = self._step_solve(dynamics_func=self.step,
+        #                                      istep=istep,
+        #                                      dt=self.dt,
+        #                                      T=self.T,
+        #                                      t_array=self.t_array,
+        #                                      simobj=simobj,
+        #                                      method=self.integrate_method,
+        #                                      events=self.events,
+        #                                      rtol=self.rtol,
+        #                                      atol=self.atol)
+        #     if flag_sim_stop:
+        #         break
+        # ---------------------------------------------------------------------
+
+
+    def _run(self, istep: int, simobj: SimObject) -> bool:
+        # update mixing ---------------------------------------------------
+        # updates from input, state, dynamics need to be kept separate
+        # then mixed correctly (NOTE this is a certainty?).
+        # -----------------------------------------------------------------
+        for child in simobj.children_pre_update:
+            flag_sim_stop = self._run(istep=istep, simobj=child)
             if flag_sim_stop:
-                break
+                return flag_sim_stop
+
+        # update SimObject time step index
+        simobj.set_istep(istep)
+
+        flag_sim_stop = self._step_solve(istep=istep, simobj=simobj, dt=self.dt, T=self.T,
+                                         t_array=self.t_array, method=self.integrate_method,
+                                         events=self.events, rtol=self.rtol, atol=self.atol)
+        if flag_sim_stop:
+            return flag_sim_stop
+
+        for child in simobj.children_post_update:
+            flag_sim_stop = self._run(istep=istep, simobj=child)
+            if flag_sim_stop:
+                return flag_sim_stop
+
+        return False
 
 
-    def step(self, t: float, X: np.ndarray, U: np.ndarray, S: np.ndarray, dt: float, simobj: SimObject):
-        """This method is the main step function for the Sim class."""
-
-        ########################################################
-        # device input
-        ########################################################
-        if self.device_input_type:
-            iota = -self.device_input_data["ly"] * 0.69  # noqa
-        # force = np.array([1000*lx, 0, 1000*ly])
-        # acc_ext = acc_ext + force / mass
-        ########################################################
-        Xdot = simobj.step(t, X, U, S, dt)
-        return Xdot
-
-
-    def _step_solve(self,
-                    dynamics_func: Callable,
-                    istep: int,
+    @staticmethod
+    def _step_solve(istep: int,
                     dt: float,
+                    T: np.ndarray,
+                    t_array: np.ndarray,
                     simobj: SimObject,
                     method: str,
+                    events: list[tuple],
                     rtol: float = 1e-6,
                     atol: float = 1e-6,
                     max_step: float = 0.2
@@ -149,24 +187,15 @@ class Sim:
         flag_sim_stop = False
 
         # DEBUG PROFILE #########
-        self.profiler()
+        # self.profiler()
         #########################
 
-        # get device input
-        if self.device_input_type:
-            (lx, ly, _, _) = self.device_input.get()
-            self.device_input_data["lx"] = lx
-            self.device_input_data["ly"] = ly
-
         # setup time and initial state for step
-        tstep = self.t_array[istep - 1]
-        tstep_next = self.t_array[istep]
+        tstep = t_array[istep - 1]
+        tstep_next = t_array[istep]
         X = simobj.Y[istep - 1].copy()  # init with previous state
         U = simobj.U[istep - 1].copy()      # init with current input array (zeros)
         S = simobj.S0
-
-        # update SimObject time step index
-        simobj._set_sim_step(istep - 1)
 
         ##################################################################
         # apply direct state updates
@@ -185,28 +214,36 @@ class Sim:
         X_state_update = np.empty_like(X)
         X_state_update[:] = np.nan
 
+        # -----------------------------------------------------------
+        # run user-defined functions here, before parent SimObject's
+        # model update step.
+        # TODO THIS IS NOT TESTED
+        # for func in simobj.model.pre_update_functions:
+        #     func(tstep, X_prev.copy(), U.copy(), S, dt, simobj)
+        # -----------------------------------------------------------
+
         # apply any user-defined input functions
-        if simobj.model.user_input_function:
-            U = simobj.model.user_input_function(tstep, X_prev, U.copy(), S, dt, simobj)
+        if simobj.model.has_input_function():
+            U = simobj.model.input_function(tstep, X_prev, U.copy(), S, dt, simobj)
 
         # apply direct updates to input
-        if simobj.model.direct_input_update_func:
+        if simobj.model.has_input_updates():
             # TODO: (working) expanding for matrix
             # for info in state_mat_reshape_info:
             #     id, size, shape = info
-            U_temp = simobj.model.direct_input_update_func(tstep, X.copy(), U, S, dt).flatten()
+            U_temp = simobj.model.input_updates(tstep, X.copy(), U, S, dt).flatten()
             input_update_mask = ~np.isnan(U_temp)
             U[input_update_mask] = U_temp[input_update_mask]  # ignore nan values
 
         # apply direct updates to state
-        if simobj.model.direct_state_update_func:
-            X_state_update = simobj.model.direct_state_update_func(tstep, X_prev, U, S, dt).flatten()
+        if simobj.model.has_state_updates():
+            X_state_update = simobj.model.state_updates(tstep, X_prev, U, S, dt).flatten()
             if X_state_update is None:
                 raise Exception("Model direct_state_update_func returns None."
                                 f"(in SimObject \"{simobj.name})\"")
 
-        if not simobj.model.dynamics_func:
-            self.T[istep] = tstep + dt
+        if not simobj.model.has_dynamics():
+            T[istep] = tstep + dt
             simobj.Y[istep] = X
             simobj.U[istep] = U
         else:
@@ -216,7 +253,7 @@ class Sim:
             match method:
                 case "euler":
                     X_new, T_new = euler(
-                            f=dynamics_func,
+                            f=simobj.model.dynamics,
                             t=tstep,
                             X=X_prev,
                             dt=dt,
@@ -229,11 +266,12 @@ class Sim:
 
                 case "rk4":
                     X_new, T_new = runge_kutta_4(
-                            f=dynamics_func,
+                            f=simobj.model.dynamics,
                             t=tstep,
                             X=X_prev,
                             dt=dt,
-                            args=(U, S, dt, simobj,),
+                            args=(U, S, dt,),
+                            # args=(U, S, dt, simobj,),
                             )
                     # mix non-NaN values from dynamics
                     # and direct / external updates
@@ -242,12 +280,12 @@ class Sim:
 
                 case "odeint":
                     sol = solve_ivp(
-                            fun=dynamics_func,
+                            fun=simobj.model.dynamics,
                             t_span=(tstep, tstep_next),
                             t_eval=[tstep_next],
                             y0=X,
                             args=(U, S, dt, simobj,),
-                            events=self.events,
+                            events=events,
                             rtol=rtol,
                             atol=atol,
                             max_step=max_step
@@ -260,31 +298,31 @@ class Sim:
                     X_new[mask] = X_state_update[mask]
 
                 case _:
-                    raise Exception(f"integration method {self.integrate_method} is not defined")
+                    raise Exception(f"integration method {method} is not defined")
 
             # run user-defined functions here, after parent SimObject's
             # model update step.
-            for func in simobj.model.user_insert_functions:
+            for func in simobj.model.post_update_functions:
                 func(tstep, X_new.copy(), U.copy(), S, dt, simobj)
 
             # store results
-            self.T[istep] = T_new
+            T[istep] = T_new
             simobj.Y[istep] = X_new
             simobj.U[istep] = U
-            self.istep += 1
+            istep += 1
 
             # check events
-            for event in self.events:
+            for event in events:
                 action, event_func = event
                 flag_event = event_func(tstep, X, U, S, dt, simobj)
                 if flag_event:
                     match action:
                         case "stop":
                             # trim output arrays
-                            self.T = self.T[:self.istep + 1]
-                            simobj.Y = simobj.Y[:self.istep + 1]
-                            simobj.U = simobj.U[:self.istep + 1]
-                            simobj._set_T_array_ref(self.T)
+                            T = T[:istep + 1]
+                            simobj.Y = simobj.Y[:istep + 1]
+                            simobj.U = simobj.U[:istep + 1]
+                            simobj._set_T_array_ref(T)
                             flag_sim_stop = True
                         case _:
                             pass

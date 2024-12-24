@@ -25,7 +25,7 @@ class StateRegister(dict):
             ]
     """
 
-    def __init__(self, state: dict|list[str]|str = {}):
+    def __init__(self):
         self._syms: list[Symbol] = []
         self.matrix_info = {}  # info as full matrices in register
 
@@ -81,19 +81,23 @@ class StateRegister(dict):
         """
         register an iterable of sympy Symbols
 
-        Arguments
-        ----------
-        input_vars:
-            iterable of symbolic input variables
+        -------------------------------------------------------------------
 
-        labels:
-            (optional) iterable of labels that may be used by the
+        **Arguments**
+
+        `input_vars`:
+        :   iterable of symbolic input variables
+
+        `labels`:
+        :   (optional) iterable of labels that may be used by the
                     Plotter class. order labels must correspond to order
                     of input_vars.
 
-        Returns
-        --------
+        **Returns**
+
         (Symbol) - the symbolic object of the state variable
+
+        -------------------------------------------------------------------
         """
         for id, var in enumerate(vars):  # type:ignore
             # recursive
@@ -147,15 +151,19 @@ class StateRegister(dict):
         input.
 
         -------------------------------------------------------------------
-        -- Arguments
-        -------------------------------------------------------------------
-        -- name - (str | list[str]) name of the symbolic input variable
-                name or a list of symbolic input variable names
-        -------------------------------------------------------------------
-        -- Returns
-        -------------------------------------------------------------------
-        -- (int | list[int]) - the index of the input variable in the
-                input array or list of indices.
+
+        **Arguments**
+
+        `name` :
+        :   (str | list[str]) name of the symbolic input variable
+            name or a list of symbolic input variable names
+
+        **Returns**
+
+        `int | list[int]` :
+        :   the index of the input variable in the
+            input array or list of indices.
+
         -------------------------------------------------------------------
         """
         if isinstance(names, list):
@@ -194,13 +202,17 @@ class StateRegister(dict):
         with the provided name.
 
         -------------------------------------------------------------------
-        -- Arguments
-        -------------------------------------------------------------------
-        -- name - (str) name of the symbolic state variable
-        -------------------------------------------------------------------
-        -- Returns
-        -------------------------------------------------------------------
-        -- (Symbol) - the symbolic object of the state variable
+
+        **Arguments**
+
+        `name` : str
+        :   name of the symbolic state variable
+
+        **Returns**
+
+        `Symbol` :
+        :   the symbolic object of the state variable
+
         -------------------------------------------------------------------
         """
         return self[name]["sym"]
