@@ -588,8 +588,8 @@ class Model:
         # -----------------------------------------
         free_symbols = self.state_updates_expr.free_symbols
         independent_symbols = [i for i in self.state_vars if i in free_symbols]  # sort by state position
-        independent_symbols += self.static_vars
-        return independent_symbols
+        independent_symbols += [*self.static_vars]
+        return independent_symbols  # type:ignore
 
 
     # def save(self, path: str, name: str):
