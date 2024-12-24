@@ -54,8 +54,7 @@ plugins:
       handlers:
         python:
           options:
-            # docstring_style: google
-            docstring_style: numpy
+            docstring_style: google
             show_root_heading: true
             show_source: false
             separate_signature: true
