@@ -186,7 +186,7 @@ class Model:
         """This method initializes a Model from a callable function.
         The provided function must have the following signature:
 
-            func(t, X, U, S, dt)
+        `func(t, X, U, S, dt)`
 
         where,
 
@@ -198,24 +198,28 @@ class Model:
 
         -------------------------------------------------------------------
 
-        **Arguments**
+        Parameters:
+            dt_var:
+                symbolic dt variable
 
-        `dt_var` :
-        :   symbolic dt variable
+            state_vars:
+                iterable of symbolic state variables
 
-        `state_vars` :
-        :   iterable of symbolic state variables
+            input_vars:
+                iterable of symbolic input variables
 
-        `input_vars` :
-        :   iterable of symbolic input variables
+            dynamics_func:
+                callable function which returns the state dynamics
 
-        `func` :
-        :   callable function which returns the state dynamics
+            state_update_func:
+                callable function which returns the external state updates
 
-        **Returns**
+            input_update_func:
+                callable function which returns the external input updates
 
-        `model` :
-        :   the initialized Model
+        Returns:
+            model:
+                the initialized Model
 
         -------------------------------------------------------------------
         """
@@ -269,45 +273,41 @@ class Model:
 
         -------------------------------------------------------------------
 
-        **Arguments**
+        Parameters:
+            dt_var:
+                symbolic dt
 
-        `dt_var` : Symbol
-        :   symbolic dt
+            state_vars:
+                iterable of symbolic state variables
 
-        `state_vars` : Iterable[Symbol]
-        :   iterable of symbolic state variables
+            input_vars:
+                iterable of symbolic input variables
 
-        `input_vars` : Iterable[Symbol]
-        :   iterable of symbolic input variables
+            dynamics_expr:
+                Sympy symbolic dynamics expression
 
-        `dynamics_expr` : Expr
-        :   Sympy symbolic dynamics expression
+            static_vars:
+                iterable of symbolic static variables
 
-        `static_vars` : Iterable[Symbol]
-        :   iterable of symbolic static variables
+            modules:
+                pass custom library to Desym (see sympy.lambdify)
 
-        `modules` : Optional
-        :   pass custom library to Desym (see sympy.lambdify)
+        Returns:
+            cls:
+                the initialized Model
 
-        -------------------------------------------------------------------
-        **Returns**
+        NOTE:
+            static variables are symbolic variables which are initialized
+            but not stored as part of the state or input arrays.
 
-        `cls` : Model
-        :   the initialized Model
-
-        > NOTE: static variables are symbolic variables which are initialized
-        but not stored as part of the state or input arrays.
-
-        -------------------------------------------------------------------
-        **Examples**
-
-        ```python
-        >>> from sympy import symbols
-        >>> dt, a, b, c, d, e = symbols("dt, a, b, c, d, e")
-        >>> state = Matrix([a, b, c])
-        >>> input = Matrix([d, e])
-        >>> model = Model.from_expression(dt, state, input)
-        ```
+        Examples:
+            ```python
+            >>> from sympy import symbols
+            >>> dt, a, b, c, d, e = symbols("dt, a, b, c, d, e")
+            >>> state = Matrix([a, b, c])
+            >>> input = Matrix([d, e])
+            >>> model = Model.from_expression(dt, state, input)
+            ```
 
         -------------------------------------------------------------------
         """
@@ -361,17 +361,13 @@ class Model:
 
         -------------------------------------------------------------------
 
-        **Arguments**
+        Parameters:
+            names:
+                name of the symbolic state variable\
+                name or a list of symbolic state variable names
 
-        `name` : str | list[str]
-        :   name of the symbolic state variable
-            name or a list of symbolic state variable names
-
-        **Returns**
-
-        `int | list[int]`
-        :   the index of the state variable in the
-            state array or list of indices.
+        Returns:
+            the index of the state variable in the state array or list of indices.
 
         -------------------------------------------------------------------
         """
@@ -390,17 +386,14 @@ class Model:
 
         -------------------------------------------------------------------
 
-        **Arguments**
+        Parameters:
+            names:
+                name of the symbolic state variable\
+                name or a list of symbolic state variable names
 
-        `name`: str | list[str]
-        :   name of the symbolic state variable
-            name or a list of symbolic state variable names
-
-        **Returns**
-
-        `int | list[int]`
-        :   the index of the state variable in the
-            state array or list of indices.
+        Returns:
+            the index of the state variable in the state\
+            array or list of indices.
 
         -------------------------------------------------------------------
         """
@@ -419,16 +412,13 @@ class Model:
 
         -------------------------------------------------------------------
 
-        **Arguments**
+        Parameters:
+            names:
+                name of the symbolic input variable\
+                name or a list of symbolic input variable names
 
-        `name` : str | list[str]
-        :   name of the symbolic input variable
-            name or a list of symbolic input variable names
-
-        **Returns**
-
-        `int | list[int]`
-        :   the index of the input variable in the
+        Returns:
+            the index of the input variable in the\
             input array or list of indices.
 
         -------------------------------------------------------------------
@@ -441,20 +431,17 @@ class Model:
 
         -------------------------------------------------------------------
 
-        **Arguments**
+        Parameters:
+            state_vars:
+                iterable of symbolic state variables
 
-        `state_vars` : Iterable[Symbol]
-        :   iterable of symbolic state variables
+            labels:
+                iterable of labels that may be used by the\
+                Plotter class. order labels must correspond to order\
+                of state_vars.
 
-        `labels` : Optional[str]
-        :   iterable of labels that may be used by the
-            Plotter class. order labels must correspond to order
-            of state_vars.
-
-        **Returns**
-
-        `Symbol`
-        :   the symbolic object of the state variable
+        Returns:
+            the symbolic object of the state variable
 
         -------------------------------------------------------------------
         """
@@ -466,20 +453,17 @@ class Model:
 
         -------------------------------------------------------------------
 
-        **Arguments**
+        Parameters:
+            input_vars:
+                iterable of symbolic input variables
 
-        `input_vars` : Iterable[Symbol]
-        :   iterable of symbolic input variables
+            labels:
+                iterable of labels that may be used by the
+                Plotter class. order labels must correspond to order
+                of input_vars.
 
-        `labels` : Optional[str]
-        :   iterable of labels that may be used by the
-             Plotter class. order labels must correspond to order
-             of input_vars.
-
-        **Returns**
-
-        `Symbol`
-        :   the symbolic object of the state variable
+        Returns:
+            the symbolic object of the state variable
 
         -------------------------------------------------------------------
         """
@@ -491,20 +475,17 @@ class Model:
 
         -------------------------------------------------------------------
 
-        **Arguments**
+        Parameters:
+            static_vars:
+                iterable of symbolic state variables
 
-        `static_vars` : Iterable[Symbol]
-        :   iterable of symbolic state variables
+            labels:
+                iterable of labels that may be used by the
+                Plotter class. order labels must correspond to order
+                of state_vars.
 
-        `labels` : (optional)
-        :   iterable of labels that may be used by the
-            Plotter class. order labels must correspond to order
-            of state_vars.
-
-        **Returns**
-
-        `Symbol`
-        :   the symbolic object of the static variable
+        Returns:
+            the symbolic object of the static variable
 
         -------------------------------------------------------------------
         """
@@ -517,15 +498,12 @@ class Model:
 
         -------------------------------------------------------------------
 
-        **Arguments**
+        Parameters:
+            name: str
+                name of the symbolic state variable
 
-        `name` : str
-        :   name of the symbolic state variable
-
-        **Returns**
-
-        Symbol
-        :   the symbolic object of the state variable
+        Returns:
+            the symbolic object of the state variable
 
         -------------------------------------------------------------------
         """
@@ -543,16 +521,15 @@ class Model:
 
         -------------------------------------------------------------------
 
-        **Arguments**
+        Parameters:
+            func:
+                Callable function with the signature:
+                    func(t, X, U, S, dt, *args) -> U
+                where X is the state array, U is the input array,
+                S is the static variable array.
 
-        `func`
-        :   Callable function with the signature:
-                func(t, X, U, S, dt, ...) -> U
-            where X is the state array, U is the input array,
-            S is the static variable array.
-
-            this function must return the input array U
-            to have any affect on the model.
+                this function must return the input array U
+                to have any affect on the model.
 
         -------------------------------------------------------------------
         """
@@ -565,13 +542,12 @@ class Model:
 
         -------------------------------------------------------------------
 
-        **Arguments**
-
-        `funcs`
-        :   list of Callable functions with the signature:
-                func(t, X, U, S, dt, ...)
-            where X is the state array, U is the input array,
-            S is the static variable array.
+        Parameters:
+            funcs:
+                list of Callable functions with the signature:
+                    func(t, X, U, S, dt, *args)
+                where X is the state array, U is the input array,
+                S is the static variable array.
 
         -------------------------------------------------------------------
         """
@@ -587,13 +563,12 @@ class Model:
 
         -------------------------------------------------------------------
 
-        **Arguments**
-
-        `funcs`
-        :   list of Callable functions with the signature:
-                func(t, X, U, S, dt, ...)
-            where X is the state array, U is the input array,
-            S is the static variable array.
+        Parameters:
+            funcs:
+                list of Callable functions with the signature:
+                    func(t, X, U, S, dt, ...)
+                where X is the state array, U is the input array,
+                S is the static variable array.
 
         -------------------------------------------------------------------
         """
@@ -738,10 +713,9 @@ class Model:
 
         -------------------------------------------------------------------
 
-        **Arguments**
-
-        `use_parallel`: bool (default=True)
-        :   whether to use multiprocessing in build process.
+        Parameters:
+            use_parallel:
+                whether to use multiprocessing in build process.
 
         -------------------------------------------------------------------
         """
@@ -782,13 +756,14 @@ class Model:
         - `simobj.py` : contains SimObject subclass
 
         -------------------------------------------------------------------
-        **Arguments**
 
-        `name` : str
-        :   name of the c-module to be created
+        Parameters:
+            name: str
+                name of the c-module to be created
 
-        `path` : Optional[str]
-        :   the output path to save the module to. (default is current path `"./"`)
+            path: Optional[str]
+                the output path to save the module to. (default is current path `"./"`)
+
         -------------------------------------------------------------------
         """
         filename = f"{name}.cpp"
