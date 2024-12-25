@@ -31,12 +31,28 @@ from scipy.integrate import solve_ivp
 
 class Sim:
 
+    """This class configures a Sim object which will run SimObject(s)
+    and the underlying Models."""
+
     def __init__(self,
                  t_span: list|tuple,
                  dt: float,
                  simobjs: list[SimObject],
                  **kwargs,
                  ) -> None:
+        """
+        -------------------------------------------------------------------
+
+        Parameters:
+            t_span: time span [low, high] to run simulation
+
+            dt: time increment
+
+            simobjs: list of SimObjects to run within the simulation
+
+
+        -------------------------------------------------------------------
+        """
 
         self._dtype = kwargs.get("dtype", np.float64)
 
@@ -80,11 +96,13 @@ class Sim:
 
 
     def add_event(self, func: Callable, action: str) -> None:
+        """Adds an event to the simulation"""
         # TODO make better...
         self.events += [(action, func)]
 
 
     def run(self) -> None:
+        """Runs the simulation"""
 
         # TODO: handle multiple simobjs
         simobj = self.simobjs[0]
