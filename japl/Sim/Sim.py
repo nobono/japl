@@ -105,16 +105,16 @@ class Sim:
         # # TODO should we combine all given SimObjects into single state?
         # #       this would be efficient for n-body problem...
         # for istep in range(1, self.Nt + 1):
-        #     flag_sim_stop = self._step_solve(dynamics_func=self.step,
-        #                                      istep=istep,
-        #                                      dt=self.dt,
-        #                                      T=self.T,
-        #                                      t_array=self.t_array,
-        #                                      simobj=simobj,
-        #                                      method=self.integrate_method,
-        #                                      events=self.events,
-        #                                      rtol=self.rtol,
-        #                                      atol=self.atol)
+        #     flag_sim_stop = self.step_solve(dynamics_func=self.step,
+        #                                     istep=istep,
+        #                                     dt=self.dt,
+        #                                     T=self.T,
+        #                                     t_array=self.t_array,
+        #                                     simobj=simobj,
+        #                                     method=self.integrate_method,
+        #                                     events=self.events,
+        #                                     rtol=self.rtol,
+        #                                     atol=self.atol)
         #     if flag_sim_stop:
         #         break
         # ---------------------------------------------------------------------
@@ -133,7 +133,7 @@ class Sim:
         # update SimObject time step index
         simobj.set_istep(istep)
 
-        flag_sim_stop = self._step_solve(istep=istep, simobj=simobj, dt=self.dt, T=self.T,
+        flag_sim_stop = self.step_solve(istep=istep, simobj=simobj, dt=self.dt, T=self.T,
                                          t_array=self.t_array, method=self.integrate_method,
                                          events=self.events, rtol=self.rtol, atol=self.atol)
         if flag_sim_stop:
@@ -148,17 +148,17 @@ class Sim:
 
 
     @staticmethod
-    def _step_solve(istep: int,
-                    dt: float,
-                    T: np.ndarray,
-                    t_array: np.ndarray,
-                    simobj: SimObject,
-                    method: str,
-                    events: list[tuple],
-                    rtol: float = 1e-6,
-                    atol: float = 1e-6,
-                    max_step: float = 0.2
-                    ) -> bool:
+    def step_solve(istep: int,
+                   dt: float,
+                   T: np.ndarray,
+                   t_array: np.ndarray,
+                   simobj: SimObject,
+                   method: str,
+                   events: list[tuple],
+                   rtol: float = 1e-6,
+                   atol: float = 1e-6,
+                   max_step: float = 0.2
+                   ) -> bool:
         """
             This method is an update step for the ODE solver from time step 't' to 't + dt';
         used by FuncAnimation.
