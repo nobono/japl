@@ -164,25 +164,25 @@ class Sim:
         used by FuncAnimation.
 
         -------------------------------------------------------------------
-        -- Arguments
-        -------------------------------------------------------------------
-        -- step_func - function to be integrated
-        -- istep - integer step
-        -- dt - time step
-        -- simobj - SimObject
-        -- method - integration method to use
-        -- rtol - relative tolerance for ODE Solver
-        -- atol - absolute tolerance for ODE Solver
-        -- max_step - max step size for ODE Solver
-        -------------------------------------------------------------------
-        -------------------------------------------------------------------
-        -- Returns:
-        -------------------------------------------------------------------
-        --- sim-stop-flag - bool
-        --- t - time array of solution points
-        --- y - (Nt x N_state) array of solution points from ODE solver
-        -------------------------------------------------------------------
 
+        Parameters:
+            istep: integer step
+            dt: time step
+            T: simulation time array
+            t_array: simulation time-step array
+            simobj: SimObject being processed
+            method: integration method to use
+            rtol: relative tolerance for ODE Solver
+            atol: absolute tolerance for ODE Solver
+            max_step: max step size for ODE Solver (seconds)
+
+        Returns:
+            sim_stop_flag: flag to stop simulation. based on event trigger or
+                           end of sim.
+            t: time array of solution points
+            y: (Nt x N_state) array of solution points from ODE solver
+
+        -------------------------------------------------------------------
         """
         flag_sim_stop = False
 
