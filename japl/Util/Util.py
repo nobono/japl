@@ -3,7 +3,17 @@ import numpy as np
 from typing import Any, Iterable
 from typing import get_args
 import timeit
+import yaml
 
+
+
+def parse_yaml(path: str):
+    with open("example.yaml") as stream:
+        try:
+            ret = yaml.safe_load(stream)
+            return ret
+        except yaml.YAMLError as e:
+            raise Exception(e)
 
 
 def noprint(func):
