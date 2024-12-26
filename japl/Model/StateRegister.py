@@ -3,6 +3,7 @@ import numpy as np
 
 from sympy import Matrix, symbols, MatrixSymbol
 from sympy import Symbol, Function
+from sympy.core.function import FunctionClass
 from sympy.matrices.expressions.matexpr import MatrixElement
 
 from japl.BuildTools.DirectUpdate import DirectUpdateSymbol
@@ -63,7 +64,7 @@ class StateRegister(dict):
         elif isinstance(var, MatrixElement):
             return var
         else:
-            raise Exception("unhandled case.")
+            raise Exception(f"unhandled case. for {var} of type {type(var)}")
 
 
     @staticmethod
