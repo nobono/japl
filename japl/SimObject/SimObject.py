@@ -519,7 +519,7 @@ class SimObject:
         return True
 
 
-    def init_state(self, state: np.ndarray|list, dtype: type = float) -> None:
+    def init_state(self, state: np.ndarray|list|dict, dtype: type = float) -> None:
         """This method takes a numpy array or list (or nested list) and stores this data
         into the initial state SimObject.X0. This method is for user convenience when initializing
         a dynamics model.
@@ -532,9 +532,18 @@ class SimObject:
         -------------------------------------------------------------------
         """
 
-        if isinstance(state, list):
+        if isinstance(state, np.ndarray):
+            _X0 = state.flatten()
+        elif isinstance(state, list):
             state = flatten_list(state)
-        _X0 = np.asarray(state, dtype=dtype).flatten()
+            _X0 = np.asarray(state, dtype=dtype).flatten()
+        elif isinstance(state, dict):  # type:ignore
+            _X0 = []
+            for var in self.model.state_vars:
+                if var in state:
+                    val = state[var]
+                    _X0 += [val]
+            _X0 = np.ndarray(_X0)
 
         if _X0.shape != self.X0.shape:
             raise Exception("\n\nattempting to initialize state X0 but array sizes do not match."

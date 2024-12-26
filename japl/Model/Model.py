@@ -742,6 +742,17 @@ class Model:
                                                    use_parallel=use_parallel)
 
 
+    def build_yaml_config_file(self) -> FileBuilder:
+        """Builds a yaml configuration file which contains the
+        Model variables required for initialization. This file is
+        for convenience. The Model can always be initialized manually."""
+        code_str = ""
+        for var in self._get_independent_symbols():
+            code_str += f"{var.name}: 0\n"
+        builder = FileBuilder("config.yaml", contents=[code_str])
+        return builder
+
+
     def create_c_module(self, name: str, path: str = "./"):
         """
         Creates a c-lang module.
@@ -843,4 +854,11 @@ class Model:
         simobj_file_builder = FileBuilder("simobj.py", contents=[header, pycode(simobj_class)])
 
         builder = ModuleBuilder(name, [file_builder])
-        CodeGenerator.build_c_module(builder, other_builders=[model_file_builder, simobj_file_builder])
+
+        # Yaml config file
+        # ---------------------------------------------------------------------------
+        config_file_builder = self.build_yaml_config_file()
+
+        CodeGenerator.build_c_module(builder, other_builders=[model_file_builder,
+                                                              simobj_file_builder,
+                                                              config_file_builder])

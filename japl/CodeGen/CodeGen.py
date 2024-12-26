@@ -124,6 +124,8 @@ class FileBuilder(Builder):
                     "oct": "m",
                     "octave": "m",
                     "matlab": "m",
+                    "yaml": "",
+                    "yml": "",
                     }
         if ext not in type_map:
             raise Exception(f"file extension {ext} not supported.")
