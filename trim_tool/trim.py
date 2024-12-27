@@ -6,7 +6,7 @@ from japl import JAPL_HOME_DIR
 
 
 atmos = Atmosphere()
-aero = AeroTable(JAPL_HOME_DIR + "/aeromodel/aeromodel_psb.mat")
+aero = AeroTable(JAPL_HOME_DIR + "/aerodata/aeromodel_psb.mat")
 
 
 class AeroTool:

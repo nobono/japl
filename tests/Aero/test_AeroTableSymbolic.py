@@ -13,7 +13,7 @@ class TestAeroTableSymbolic(unittest.TestCase):
 
     def setUp(self) -> None:
         self.TOLERANCE_PLACES = 15
-        aero_file = f"{os.path.dirname(__file__)}/../../aeromodel/aeromodel_psb.mat"
+        aero_file = f"{os.path.dirname(__file__)}/../../aerodata/aeromodel_psb.mat"
         self.aerotable_sym = AeroTableSymbolic()
         self.aerotable = AeroTable(aero_file)
         self.alts = np.linspace(0, 30_000, 100)

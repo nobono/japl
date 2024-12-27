@@ -27,7 +27,7 @@ class TestCmsCompare(unittest.TestCase):
         Static values pulled from CMS unit test."""
         units = ""
 
-        path = f"{DIR}/../../aeromodel/cms_sr_stage1aero.mat"
+        path = f"{DIR}/../../aerodata/cms_sr_stage1aero.mat"
         aerotable = AeroTable(path,
                               from_template="CMS",
                               units=units)
@@ -102,7 +102,7 @@ class TestCmsCompare(unittest.TestCase):
         """Testing of inverting aerodynamics.
         Static values pulled from CMS unit test."""
         units = "si"
-        path = f"{DIR}/../../aeromodel/cms_sr_stage1aero.mat"
+        path = f"{DIR}/../../aerodata/cms_sr_stage1aero.mat"
         aerotable = AeroTable(path,
                               from_template="CMS",
                               units=units)
@@ -168,7 +168,7 @@ class TestCmsCompare(unittest.TestCase):
         """Testing of inverting aerodynamics.
         Static values pulled from CMS unit test."""
         units = "si"
-        path = f"{DIR}/../../aeromodel/cms_sr_stage1aero.mat"
+        path = f"{DIR}/../../aerodata/cms_sr_stage1aero.mat"
         aerotable = AeroTable(path,
                               from_template="CMS",
                               units=units)

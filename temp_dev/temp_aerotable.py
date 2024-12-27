@@ -7,8 +7,8 @@ DIR = os.path.dirname(__file__)
 
 units = "si"
 
-# aerotable = AeroTable(f"{DIR}/../aeromodel/aeromodel_psb.mat")
-aerotable = AeroTable(f"{DIR}/../aeromodel/cms_sr_stage1aero.mat",
+# aerotable = AeroTable(f"{DIR}/../aerodata/aeromodel_psb.mat")
+aerotable = AeroTable(f"{DIR}/../aerodata/cms_sr_stage1aero.mat",
                       from_template="CMS",
                       units=units)
 

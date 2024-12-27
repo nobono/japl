@@ -7,7 +7,7 @@ from japl.Aero.Atmosphere import Atmosphere
 
 
 atm = Atmosphere()
-at = AeroTable("./aeromodel/aeromodel_psb.ma")
+at = AeroTable("./aerodata/aeromodel_psb.ma")
 
 method = "linear"
 

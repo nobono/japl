@@ -11,7 +11,7 @@ class TestAeroTable(unittest.TestCase):
     def setUp(self) -> None:
         self.TOLERANCE_PLACES = 10
         self.DIR = os.path.dirname(__file__)
-        aero_file = f"{self.DIR}/../../aeromodel/aeromodel_psb.mat"
+        aero_file = f"{self.DIR}/../../aerodata/aeromodel_psb.mat"
         self.aerotable = AeroTable(aero_file)
         self.alts = np.linspace(0, 30_000, 100)
 
@@ -42,7 +42,7 @@ class TestAeroTable(unittest.TestCase):
 
     def test_CMS_getAoA_compare(self):
         """This test, tests against CMS's getAoA method."""
-        aerotable = AeroTable(f"{self.DIR}/../../aeromodel/cms_sr_stage1aero.mat",
+        aerotable = AeroTable(f"{self.DIR}/../../aerodata/cms_sr_stage1aero.mat",
                               from_template="CMS",
                               units="english")
         CN = 0.236450041229858

@@ -6,7 +6,7 @@ import linterp
 
 
 np.random.seed(123)
-DIR = "/home/david/work_projects/control/aeromodel/stage_1_aero.mat"
+DIR = "/home/david/work_projects/control/aerodata/stage_1_aero.mat"
 # stage_1 = AeroTable(DIR, from_template="orion")
 aerotable = AeroTable(DIR, from_template="orion")
 

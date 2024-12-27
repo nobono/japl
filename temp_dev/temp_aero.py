@@ -85,7 +85,7 @@ B = np.array([
 model.ss(A, B)
 
 vehicle = SimObject(model=model, size=2, color='tab:blue')
-vehicle.aerotable = AeroTable("./aeromodel/aeromodel_psb.mat")
+vehicle.aerotable = AeroTable("./aerodata/aeromodel_psb.mat")
 atmosphere = Atmosphere()
 
 

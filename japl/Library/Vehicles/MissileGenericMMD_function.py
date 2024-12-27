@@ -73,12 +73,12 @@ def create_mass_props(stage_table: MatFile):
 ################################################
 
 atmosphere = Atmosphere()
-# aerotable = AeroTable(DIR + "/../../../aeromodel/cms_sr_stage1aero.mat",
+# aerotable = AeroTable(DIR + "/../../../aerodata/cms_sr_stage1aero.mat",
 #                       from_template="CMS")
-aerotable = AeroTable(DIR + "/../../../aeromodel/stage_1_aero.mat",
+aerotable = AeroTable(DIR + "/../../../aerodata/stage_1_aero.mat",
                       from_template="CMS")
-stage_1_aero = MatFile(DIR + "/../../../aeromodel/stage_1_aero.mat")
-stage_1_mass = MatFile(DIR + "/../../../aeromodel/stage_1_mass.mat")
+stage_1_aero = MatFile(DIR + "/../../../aerodata/stage_1_aero.mat")
+stage_1_mass = MatFile(DIR + "/../../../aerodata/stage_1_mass.mat")
 
 mass_props = create_mass_props(stage_1_mass)
 

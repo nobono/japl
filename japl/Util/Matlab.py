@@ -241,10 +241,10 @@ class MatFile:
 
 # if __name__ == "__main__":
 
-#     with open("aeromodel/aeromodel.pickle", "ab") as f:
+#     with open("aerodata/aeromodel.pickle", "ab") as f:
 #         pickle.dump(aeromodel, f)
 
-#     __aero_data_path = "/home/david/work_projects/control/aeromodel/aeromodel_bs.mat"
-#     __aero_data_path_psb = "/home/david/work_projects/control/aeromodel/aeromodel_psb.mat"
+#     __aero_data_path = "/home/david/work_projects/control/aerodata/aeromodel_bs.mat"
+#     __aero_data_path_psb = "/home/david/work_projects/control/aerodata/aeromodel_psb.mat"
 
 #     data = MatFile(__aero_data_path)

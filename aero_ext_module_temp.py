@@ -7,7 +7,7 @@ from japl import AeroTable
 import aerotable
 import linterp
 
-aero_file = f"aeromodel/aeromodel_psb.mat"
+aero_file = f"aerodata/aeromodel_psb.mat"
 aero = AeroTable(aero_file)
 alts = np.linspace(0, 30_000, 100)
 

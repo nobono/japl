@@ -13,7 +13,7 @@ class TestExample(unittest.TestCase):
 
 
     def setUp(self):
-        self.aeromodel_path = "./aeromodel/aeromodel_psb.mat"
+        self.aeromodel_path = "./aerodata/aeromodel_psb.mat"
         self.TOLERANCE_PLACES = 14
         self.TOLERANCE = 1e-14
 

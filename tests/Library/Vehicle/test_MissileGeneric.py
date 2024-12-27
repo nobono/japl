@@ -93,8 +93,8 @@ class test_MissileGeneric(unittest.TestCase):
         self.dt = 0.01
         self.t_span = [0, 0.1]
         self.atmosphere = Atmosphere()
-        self.aerotable = AeroTable(f"{DIR}/../../../aeromodel/aeromodel_psb.mat")
-        # self.aerotable = AeroTable("../../../aeromodel/aeromodel_psb.mat")
+        self.aerotable = AeroTable(f"{DIR}/../../../aerodata/aeromodel_psb.mat")
+        # self.aerotable = AeroTable("../../../aerodata/aeromodel_psb.mat")
 
 
     def create_simobj(self):
