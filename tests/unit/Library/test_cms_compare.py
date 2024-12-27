@@ -2,7 +2,9 @@ import unittest
 import os
 import numpy as np
 from japl import AeroTable
-DIR = os.path.dirname(__file__)
+from japl.global_opts import get_root_dir
+
+ROOT_DIR = get_root_dir()
 
 
 
@@ -27,7 +29,7 @@ class TestCmsCompare(unittest.TestCase):
         Static values pulled from CMS unit test."""
         units = ""
 
-        path = f"{DIR}/../../aerodata/cms_sr_stage1aero.mat"
+        path = f"{ROOT_DIR}/aerodata/cms_sr_stage1aero.mat"
         aerotable = AeroTable(path,
                               from_template="CMS",
                               units=units)
@@ -102,7 +104,7 @@ class TestCmsCompare(unittest.TestCase):
         """Testing of inverting aerodynamics.
         Static values pulled from CMS unit test."""
         units = "si"
-        path = f"{DIR}/../../aerodata/cms_sr_stage1aero.mat"
+        path = f"{ROOT_DIR}/aerodata/cms_sr_stage1aero.mat"
         aerotable = AeroTable(path,
                               from_template="CMS",
                               units=units)
@@ -168,7 +170,7 @@ class TestCmsCompare(unittest.TestCase):
         """Testing of inverting aerodynamics.
         Static values pulled from CMS unit test."""
         units = "si"
-        path = f"{DIR}/../../aerodata/cms_sr_stage1aero.mat"
+        path = f"{ROOT_DIR}/aerodata/cms_sr_stage1aero.mat"
         aerotable = AeroTable(path,
                               from_template="CMS",
                               units=units)

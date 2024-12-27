@@ -12,8 +12,9 @@ from japl.Sim.Integrate import runge_kutta_4
 from japl.Aero.Atmosphere import Atmosphere
 from japl.Math import Rotation
 from japl.Math import Vec
+from japl.global_opts import get_root_dir
 
-DIR = os.path.dirname(__file__)
+ROOT_DIR = get_root_dir()
 
 
 
@@ -93,7 +94,7 @@ class test_MissileGeneric(unittest.TestCase):
         self.dt = 0.01
         self.t_span = [0, 0.1]
         self.atmosphere = Atmosphere()
-        self.aerotable = AeroTable(f"{DIR}/../../../aerodata/aeromodel_psb.mat")
+        self.aerotable = AeroTable(f"{ROOT_DIR}/aerodata/aeromodel_psb.mat")
         # self.aerotable = AeroTable("../../../aerodata/aeromodel_psb.mat")
 
 
