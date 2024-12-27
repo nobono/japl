@@ -46,12 +46,85 @@ import numpy as np
 # print(s.state_dim)
 
 
+from japl.Util import parse_yaml
 from japl import PyQtGraphPlotter
+from japl import SimObject
+from japl import Model
 from japl import Sim
-import lin
+from japl import AeroTable
+from japl import Atmosphere
+# import mmd
+# simobj = mmd.SimObject()
+
+# -------------------------------------------------------------------------
+from japl.Library.Vehicles.MissileGenericMMD import (dt,
+                                                     state,
+                                                     input,
+                                                     dynamics,
+                                                     static,
+                                                     modules,
+                                                     defs)
+model = Model.from_expression(dt,
+                              state,
+                              input,
+                              dynamics,
+                              static_vars=static,
+                              modules=modules,
+                              definitions=defs,
+                              use_multiprocess_build=True)
+model.cache_build()
+simobj = SimObject(model)
+inits = dict(
+        q_0=1,
+        q_1=0,
+        q_2=0,
+        q_3=0,
+        r_i_x=6_378_137.0,
+        r_i_y=0,
+        r_i_z=0,
+        v_i_x=50,
+        v_i_y=50,
+        v_i_z=0,
+        alpha=0,
+        alpha_dot=0,
+        beta=0,
+        beta_dot=0,
+        p=0,
+        wet_mass=100,
+        dry_mass=50,
+
+        omega_n=50,
+        zeta=0.7,
+        K_phi=1,
+        omega_p=20,
+        phi_c=0,
+        T_r=0.5,
+        is_boosting=1,
+        stage=0,
+        is_launched=1)
+# -------------------------------------------------------------------------
 
 
-plotter = PyQtGraphPlotter(frame_rate=30,
+def input_func(*args):
+    return np.array([0.] * 7)
+
+
+# inits = parse_yaml("./mmd/config_state.yaml")
+simobj.init_state(inits)
+simobj.set_input_function(input_func)
+simobj.plot.set_config({
+    "EAST": {"xaxis": "time",
+             "yaxis": simobj.r_e},
+    "NORTH": {"xaxis": "time",
+              "yaxis": simobj.r_n},
+    "UP": {"xaxis": "time",
+           "yaxis": simobj.r_u},
+    })
+
+sim = Sim(t_span=[0, 10], dt=0.1, simobjs=[simobj])
+
+plotter = PyQtGraphPlotter(figsize=[10, 10],
+                           frame_rate=30,
                            aspect="auto",
                            axis_color="grey",
                            background_color="black",
@@ -59,21 +132,7 @@ plotter = PyQtGraphPlotter(frame_rate=30,
                            # quiet=True,
                            )
 
-
-def input_func(*args):
-    return np.array([1.])
-
-
-simobj = lin.SimObject()
-simobj.init_state([0, 0])
-simobj.set_input_function(input_func)
-simobj.plot.set_config({
-    "XY": {"xaxis": "time",
-           "yaxis": simobj.pos}
-    })
-
-sim = Sim(t_span=[0, 10], dt=0.1, simobjs=[simobj])
-# sim.run()
-plotter.animate(sim).show()
+# plotter.animate(sim).show()
+sim.run()
 
 # print(simobj.Y)
