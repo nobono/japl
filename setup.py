@@ -15,6 +15,9 @@ import platform
 
 
 ROOT_DIR = Path(os.path.dirname(__file__))
+AERODATA_FILE_FILTER = ["aeromodel_bs.mat",
+                        "aeromodel_psb.mat",
+                        "cms_sr_stage1aero.mat"]
 
 
 def get_install_path():
@@ -77,9 +80,7 @@ class PostInstallCommand(install):
         # Copy all .o files to the destination directory
         copy_dir(libs_source_dir, libs_target_dir)
         copy_dir(includes_source_dir, includes_target_dir)
-        copy_dir(aerodata_source_dir, aerodata_target_dir, filter=["aeromodel_bs.mat",
-                                                                   "aeromodel_psb.mat",
-                                                                   "cms_sr_stage1aero.mat"])
+        copy_dir(aerodata_source_dir, aerodata_target_dir, filter=AERODATA_FILE_FILTER)
 
 
 class BuildCommand(build):
@@ -153,9 +154,7 @@ class BuildExtCommand(build_ext):
         # copy all .hpp files to destination directory
         copy_dir(include_dir, include_dest_dir)
         # copy default aerodata files to destination directory
-        copy_dir(aerodata_dir, aerodata_dest_dir, filter=["aeromodel_bs.mat",
-                                                          "aeromodel_psb.mat",
-                                                          "cms_sr_stage1aero.mat"])
+        copy_dir(aerodata_dir, aerodata_dest_dir, filter=AERODATA_FILE_FILTER)
 
 
 class CleanCommand(Command):
