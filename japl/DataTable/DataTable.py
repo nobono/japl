@@ -1,3 +1,4 @@
+from datatable import DataTable as CppDataTable
 from japl.Interpolation.Interpolation import LinearInterp
 from typing import Optional, Union
 import numpy as np
@@ -12,6 +13,9 @@ class DataTable(np.ndarray):
     for LinearInterp but includes additional checks for __call__()
     arguments."""
 
+    axes: dict
+    cpp_datatable: Optional[CppDataTable]  # backend datatable implementation (pybind11)
+
     def __new__(cls, input_array, axes: dict):
         input_array = cls.check_input_data(input_array)
         data_table = np.asarray(input_array).view(cls)
@@ -20,11 +24,11 @@ class DataTable(np.ndarray):
         # invalid DataTable will always return zero.
         if input_array is None:
             obj.axes = {}
-            obj.interp = None
+            obj.cpp_datatable = None
         else:
             obj.axes = axes.copy()
             _axes = obj._get_table_args(**axes)
-            obj.interp = LinearInterp(_axes, data_table)
+            obj.cpp_datatable = CppDataTable(data_table, _axes)
         return obj
 
 
@@ -33,8 +37,7 @@ class DataTable(np.ndarray):
         if obj is None:
             return
         self.axes = getattr(obj, "axes", {})
-        # self.interp: Optional[LinearInterp] = None
-        self.interp: Optional[LinearInterp] = getattr(obj, "interp", None)
+        self.cpp_datatable = getattr(obj, "cpp_datatable", CppDataTable())
 
 
     # TODO Datatable slicing
@@ -64,13 +67,30 @@ class DataTable(np.ndarray):
     def __call__(self, *args, **kwargs) -> float|np.ndarray:
         """Checks if kwargs matches table axes then calls LinearInterp.
         Arguments
-        ----------
-        kwargs:
-            keyword args which should match table.axes dict
 
-        Returns
-        -------
-        float | numpy.ndarray
+        dimensions of the DataTable must be reflected in the arguments passed.
+        For example, if axes of dimension = 3 passed args:
+
+        -------------------------------------------------------------------
+
+        Parameters:
+            kwargs:
+                keyword args which should match table.axes dict
+
+        Returns:
+            float | numpy.ndarray
+
+        -------------------------------------------------------------------
+
+        valid:
+            - table(1, 2, 3)
+            - table([x1, ...], [y1, ...], [z1, ...])
+
+        In the following, the dimensions of the arguments vs.
+        the number of points desired is not discernable.
+
+        invalid:
+            - table([1, 2, 3])
         """
         # handle dict being passed
         if len(args) == 1 and isinstance(args[0], dict):
@@ -83,12 +103,30 @@ class DataTable(np.ndarray):
         if len(args) != len(self.axes):
             raise Exception(f"missing DataTable arguments for: {list(self.axes.keys())[len(args):]}")
 
-        if self.interp is None:
-            # default return value: 0
+        if self.cpp_datatable is None:
             return 0.0
         else:
-            ret = self.interp(args)
-        if len(ret.shape) < 1:
+            # -------------------------------------------------------------
+            # NOTE: cpp_datatable takes multiple points
+            # as a list of points. if passing broadcasting
+            # indices: ([x1, x2, ...], [y1, y2, ...])
+            # points but me reformatted.
+            # -------------------------------------------------------------
+            if hasattr(args[0], "__len__"):
+                if isinstance(args[0], np.ndarray):
+                    # remember shape of passed args
+                    _input_shape = args[0].shape
+                    # flatten multidimensional arg arrays
+                    _args = np.column_stack([i.ravel() for i in args])
+                    ret = self.cpp_datatable(_args)
+                    ret = ret.reshape(_input_shape)
+                else:
+                    _args = np.column_stack(args)
+                    ret = self.cpp_datatable(_args)
+            else:
+                ret = self.cpp_datatable((args,))
+
+        if len(ret.shape) < 1 or ret.shape == (1,):
             return ret.item()  # type:ignore
         else:
             return ret
