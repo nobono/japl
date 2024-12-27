@@ -539,11 +539,14 @@ class SimObject:
             _X0 = np.asarray(state, dtype=dtype).flatten()
         elif isinstance(state, dict):  # type:ignore
             _X0 = []
-            for var in self.model.state_vars:
+            state_vars_names = [getattr(i, "name") for i in self.model.state_vars]
+            for var in state_vars_names:
                 if var in state:
                     val = state[var]
                     _X0 += [val]
-            _X0 = np.ndarray(_X0)
+                else:
+                    _X0 += [0]
+            _X0 = np.array(_X0, dtype=dtype)
 
         if _X0.shape != self.X0.shape:
             raise Exception("\n\nattempting to initialize state X0 but array sizes do not match."
