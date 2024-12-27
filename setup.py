@@ -21,17 +21,16 @@ def get_install_path():
     return sysconfig.get_path("purelib")
 
 
-def copy_dir(source_dir, target_dir) -> None:
+def copy_dir(source_dir, target_dir, filter: list[str] = []) -> None:
     """
     Recursively copies all directories and files from source_dir to target_dir.
 
     Parameters:
-    -----------
-        source_dir (str): The source directory to copy from.
-        target_dir (str): The target directory to copy to.
+        source_dir: The source directory to copy from.
+        target_dir: The target directory to copy to.
+        filter: (Optional) list of filenames that will be copied.
 
     Raises:
-    -------
         ValueError: If source_dir does not exist or is not a directory.
     """
     if not os.path.isdir(source_dir):
@@ -46,10 +45,14 @@ def copy_dir(source_dir, target_dir) -> None:
 
         if os.path.isdir(source_item):
             # Recursively copy directories
-            copy_dir(source_item, target_item)
+            copy_dir(source_item, target_item, filter=filter)
         else:
             # Copy files
-            shutil.copy2(source_item, target_item)
+            if filter:
+                if item in filter:
+                    shutil.copy2(source_item, target_item)
+            else:
+                shutil.copy2(source_item, target_item)
 
 
 class PostInstallCommand(install):
@@ -63,13 +66,20 @@ class PostInstallCommand(install):
         includes_source_dir = Path(self.build_lib, "include")
         includes_target_dir = Path(get_install_path(), "japl", "include")
 
+        aerodata_source_dir = Path(self.build_lib, "aerodata")
+        aerodata_target_dir = Path(get_install_path(), "japl", "aerodata")
+
         # Create the destination directory if it doesn't exist
         os.makedirs(libs_target_dir, exist_ok=True)
         os.makedirs(includes_target_dir, exist_ok=True)
+        os.makedirs(aerodata_target_dir, exist_ok=True)
 
         # Copy all .o files to the destination directory
         copy_dir(libs_source_dir, libs_target_dir)
         copy_dir(includes_source_dir, includes_target_dir)
+        copy_dir(aerodata_source_dir, aerodata_target_dir, filter=["aeromodel_bs.mat",
+                                                                   "aeromodel_psb.mat",
+                                                                   "cms_sr_stage1aero.mat"])
 
 
 class BuildCommand(build):
@@ -96,7 +106,7 @@ class BuildCommand(build):
 
 class BuildExtCommand(build_ext):
     user_options = build_ext.user_options + [
-            ("build-temp=", None, "Specify a directory fro temporary build files.")
+            ("build-temp=", None, "Specify a directory for temporary build files.")
             ]
 
 
@@ -130,14 +140,22 @@ class BuildExtCommand(build_ext):
         include_dir = Path(ROOT_DIR, "include")
         include_dest_dir = Path(self.build_lib, "include")  # Installation directory
 
+        aerodata_dir = Path(ROOT_DIR, "aerodata")
+        aerodata_dest_dir = Path(self.build_lib, "aerodata")  # Installation directory
+
         # Create the destination directory if it doesn't exist
         os.makedirs(libs_dest_dir, exist_ok=True)
         os.makedirs(include_dest_dir, exist_ok=True)
+        os.makedirs(aerodata_dest_dir, exist_ok=True)
 
         # Copy all .o files to the destination directory
         copy_dir(build_temp, libs_dest_dir)
         # copy all .hpp files to destination directory
         copy_dir(include_dir, include_dest_dir)
+        # copy default aerodata files to destination directory
+        copy_dir(aerodata_dir, aerodata_dest_dir, filter=["aeromodel_bs.mat",
+                                                          "aeromodel_psb.mat",
+                                                          "cms_sr_stage1aero.mat"])
 
 
 class CleanCommand(Command):
@@ -258,10 +276,11 @@ setup(
             "build": BuildCommand,
             "install": PostInstallCommand,
             },
-        package_data={"japl": ["libs/*.o", "include/*"]},
+        package_data={"japl": ["libs/*.o", "include/*", "aerodata/*"]},
         entry_points={
             "console_scripts": [
                 "japl = bin.japl:main"  # make 'japl' callable
                 ]
-            }
+            },
+        include_package_data=True
         )
