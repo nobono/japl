@@ -11,8 +11,8 @@ from sympy import nan as sp_nan
 from sympy import simplify
 from sympy.codegen.ast import NoneToken
 
-from japl import Atmosphere
-from japl import AeroTable
+from japl.Aero.Atmosphere import Atmosphere
+from japl.Aero.AeroTable import AeroTable
 from japl.Model.StateRegister import StateRegister
 from japl.Util.Desym import Desym
 
@@ -744,6 +744,11 @@ class Model:
                 expr = self.input_updates_expr
             self.input_updates = self.cache_py_function(func=input_updates(*params),
                                                         use_parallel=use_parallel)
+
+            # ret = input_updates(*params)
+            # ret._build("py")
+            # print(pycode(ret.function_def))
+            # quit()
 
         if self.has_state_updates_expr():
             class state_updates(JaplFunction):  # noqa
