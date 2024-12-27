@@ -1,8 +1,8 @@
 import unittest
 import numpy as np
 import quaternion
-from japl import SimObject
-from japl import Sim
+from japl.SimObject.SimObject import SimObject
+from japl.Sim.Sim import Sim
 # from japl import Model
 # from sympy import MatrixSymbol, Matrix, symbols
 from japl.Library.Vehicles import RigidBodyModel

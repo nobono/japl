@@ -1,7 +1,7 @@
 from typing import Optional
 # from sympy import Function
 from sympy import Symbol
-from japl import AeroTable
+from japl.Aero.AeroTable import AeroTable
 from japl.Util.Matlab import MatFile
 from japl.CodeGen.JaplFunction import JaplFunction
 

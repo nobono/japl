@@ -1,7 +1,7 @@
 import os
 from sympy import Matrix, Symbol, symbols
 from sympy import sign, rad
-from japl import Model
+from japl.Model.Model import Model
 # from japl.Math.MathSymbolic import zero_protect_sym
 from sympy import Function
 from japl.Aero.AtmosphereSymbolic import AtmosphereSymbolic
@@ -11,10 +11,6 @@ from japl.Math import RotationSymbolic
 from japl.Math import VecSymbolic
 
 DIR = os.path.dirname(__file__)
-
-
-class MissileGeneric(Model):
-    pass
 
 
 ################################################
@@ -260,12 +256,12 @@ dynamics = state.diff(t)
 # Build Model
 ##################################################
 
-model = MissileGeneric.from_expression(dt,
-                                       state,
-                                       input,
-                                       dynamics,
-                                       modules=[atmosphere.modules,
-                                                aerotable.modules,
-                                                debug_module],
-                                       definitions=defs,
-                                       use_multiprocess_build=False)
+model = Model.from_expression(dt,
+                              state,
+                              input,
+                              dynamics,
+                              modules=[atmosphere.modules,
+                                       aerotable.modules,
+                                       debug_module],
+                              definitions=defs,
+                              use_multiprocess_build=False)

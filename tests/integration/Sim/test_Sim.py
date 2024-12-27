@@ -2,9 +2,9 @@ import unittest
 import numpy as np
 from sympy import symbols
 from sympy import Matrix
-from japl import SimObject
-from japl import Model
-from japl import Sim
+from japl.SimObject.SimObject import SimObject
+from japl.Model.Model import Model
+from japl.Sim.Sim import Sim
 from japl.Util import noprint
 
 

@@ -1,7 +1,7 @@
 import unittest
 import os
 import numpy as np
-from japl import AeroTable
+from japl.Aero.AeroTable import AeroTable
 from japl.global_opts import get_root_dir
 
 ROOT_DIR = get_root_dir()

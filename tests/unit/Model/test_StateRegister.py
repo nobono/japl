@@ -1,6 +1,6 @@
 import unittest
 from sympy import symbols, Matrix, Symbol, MatrixSymbol
-from japl import StateRegister
+from japl.Model.StateRegister import StateRegister
 
 
 

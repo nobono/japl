@@ -1,4 +1,4 @@
-from japl import Atmosphere
+from japl.Aero.Atmosphere import Atmosphere
 # from sympy import Function
 from sympy import Symbol
 from japl.CodeGen.JaplFunction import JaplFunction

@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 from sympy import symbols, Matrix
-from japl import Model
+from japl.Model.Model import Model
 from japl.Util import noprint
 
 

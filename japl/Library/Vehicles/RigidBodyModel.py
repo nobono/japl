@@ -1,12 +1,8 @@
 from sympy import Matrix, symbols, Symbol
 from sympy.core.function import Function
-from japl import Model
+from japl.Model.Model import Model
 # from japl.BuildTools.DirectUpdate import DirectUpdate
 
-
-
-class RigidBodyModel(Model):
-    pass
 
 
 t = symbols("t")
@@ -140,9 +136,9 @@ dynamics = state.diff(t)
 # Build Model
 ##################################################
 
-model = RigidBodyModel.from_expression(dt,
-                                       state,
-                                       input,
-                                       dynamics,
-                                       definitions=defs,
-                                       modules=[])
+model = Model.from_expression(dt,
+                              state,
+                              input,
+                              dynamics,
+                              definitions=defs,
+                              modules=[])

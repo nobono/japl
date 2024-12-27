@@ -26,8 +26,15 @@ def set_plotlib(plotlib: str) -> None:
 def get_root_dir():
     # Find the module spec for the japl package
     spec = importlib.util.find_spec("japl")
-    if spec is None or spec.origin is None:
+    if spec is None:
         raise RuntimeError("japl package is not installed or cannot be found.")
     # Get the root directory of the japl package
-    root_dir = os.path.dirname(spec.origin)
-    return os.path.dirname(root_dir)
+    if spec.origin:
+        root_dir = os.path.dirname(spec.origin)
+        return os.path.dirname(root_dir)
+    else:
+        # this is for when package is installed in editable mode
+        # using `pip install -e .`
+        root_dir = os.path.dirname(__file__)
+        anchor_dir, _ = os.path.split(root_dir)
+        return anchor_dir

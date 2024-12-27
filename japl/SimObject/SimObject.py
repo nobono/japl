@@ -3,6 +3,7 @@ import re
 import numpy as np
 from collections.abc import Generator
 from typing import Optional, Callable
+from japl.global_opts import get_plotlib
 from japl.Model.Model import Model
 from japl.Util.Util import flatten_list
 from pyqtgraph import ScatterPlotItem, PlotDataItem, mkPen
@@ -30,7 +31,7 @@ class PlotterInterface:
         # color cycle list
         self.color_cycle = self.__color_cycle()
         self.__plot_config = state_select
-        self.plotting_backend = japl.get_plotlib()
+        self.plotting_backend = get_plotlib()
 
         if not color:
             self.color_code = next(self.color_cycle)

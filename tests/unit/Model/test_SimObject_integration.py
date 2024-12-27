@@ -1,7 +1,9 @@
 import unittest
 import numpy as np
 from sympy import symbols, Matrix, Symbol, MatrixSymbol
-from japl import StateRegister, SimObject, Model
+from japl.Model.Model import Model
+from japl.Model.StateRegister import StateRegister
+from japl.SimObject.SimObject import SimObject
 
 
 
