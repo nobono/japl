@@ -152,8 +152,8 @@ class Sim:
         simobj.set_istep(istep)
 
         flag_sim_stop = self.step_solve(istep=istep, simobj=simobj, dt=self.dt, T=self.T,
-                                         t_array=self.t_array, method=self.integrate_method,
-                                         events=self.events, rtol=self.rtol, atol=self.atol)
+                                        t_array=self.t_array, method=self.integrate_method,
+                                        events=self.events, rtol=self.rtol, atol=self.atol)
         if flag_sim_stop:
             return flag_sim_stop
 
