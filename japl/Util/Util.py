@@ -7,8 +7,8 @@ import yaml
 
 
 
-def parse_yaml(path: str):
-    with open("example.yaml") as stream:
+def parse_yaml(path: str) -> dict:
+    with open(path) as stream:
         try:
             ret = yaml.safe_load(stream)
             return ret
