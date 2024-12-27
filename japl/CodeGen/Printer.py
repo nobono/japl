@@ -9,6 +9,7 @@ from sympy.codegen.ast import numbered_symbols
 from sympy.codegen.ast import Variable
 from sympy.codegen.ast import Comment
 from sympy.codegen.ast import untyped
+from sympy.core.function import Function
 from japl.CodeGen.Ast import CTypes
 from japl.CodeGen.Ast import get_lang_types
 from japl.CodeGen.Ast import PyTypes
@@ -130,6 +131,36 @@ class PyCodeGenPrinter(PythonCodePrinter):
         return f"# {str(expr)}"
 
 
+    def _print_Piecewise(self, expr):
+        # -----------------------------------------------------------------
+        # handle case where Piecewise contains Assignments as the values:
+        #
+        # Assignments are created within _to_codeblock() but this will produce
+        # invalid syntax for python code since assignments cannot be made within
+        # conditional expressions.
+        # -----------------------------------------------------------------
+        flag_assign_case = False
+
+        writes = []
+        for i, (piece_expr, cond) in enumerate(expr.args):
+            if isinstance(piece_expr, Assignment):
+                flag_assign_case = True
+                if cond == True:  # Default case (NOTE: comparison must be '==' not 'is') # noqa
+                    writes.append("else:\n")
+                    writes.append(self._indent_codestring(self._print(piece_expr)) + "\n")
+                elif i == 0:
+                    writes.append(f"if {cond}:\n")
+                    writes.append(self._indent_codestring(self._print(piece_expr)) + "\n")
+                else:
+                    writes.append(f"elif {cond}:\n")
+                    writes.append(self._indent_codestring(self._print(piece_expr)) + "\n")
+
+        if flag_assign_case:
+            return "".join(writes)
+        else:
+            return super()._print_Piecewise(expr)
+
+
     def _print_JaplClass(self, expr):
         Types = get_lang_types(self.code_type)
         name = expr.name
@@ -170,8 +201,13 @@ class PyCodeGenPrinter(PythonCodePrinter):
         #
         # super()._print_Function(expr) is not supported by PythonCodePrinter
         # ---------------------------------------------------------------
-        return self._print_JaplFunction(expr)
-
+        if isinstance(expr, JaplFunction):
+            return self._print_JaplFunction(expr)
+        elif isinstance(expr, Function):
+            print(expr)
+            return super()._print_Function(expr)
+        else:
+            raise Exception(f"unhandled Function type. {expr.__class__}")
 
 
     def _print_JaplFunction(self, expr: JaplFunction):
@@ -219,7 +255,12 @@ class PyCodeGenPrinter(PythonCodePrinter):
         # append function kwargs
         if len(expr.function_args) and len(expr.function_kwargs):
             params_str += ", "
-        params_str += expr._dict_to_kwargs_str(expr.function_kwargs)
+
+        # convert function_kwargs [dict] to keyword args syntax.
+        kwargs_writes = []
+        for key, val in expr.function_kwargs.items():
+            kwargs_writes += [f"{key}={self._print(val)}"]
+        params_str += ", ".join(kwargs_writes)
 
         return "%s(%s)" % (expr.name, params_str)
 
