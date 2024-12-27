@@ -11,6 +11,8 @@ from sympy import nan as sp_nan
 from sympy import simplify
 from sympy.codegen.ast import NoneToken
 
+from japl import Atmosphere
+from japl import AeroTable
 from japl.Model.StateRegister import StateRegister
 from japl.Util.Desym import Desym
 
@@ -40,6 +42,10 @@ from japl.CodeGen import pycode
 #   - self._iX_reference? (unused i think)
 #   - self._sym_references? (only only for StateSpace)
 
+# TODO: pre-sim checks
+#   - input function returns correct dimensions
+#   - check aerotable & atmosphere
+
 
 
 class Model:
@@ -57,6 +63,9 @@ class Model:
     state_updates: Callable
     input_updates: Callable
     dynamics: Callable
+
+    aerotable: AeroTable
+    atmosphere: Atmosphere
 
     def __init__(self) -> None:
         self._dtype = np.float64
@@ -174,6 +183,14 @@ class Model:
             return ret
 
 
+    def set_aerotable(self, aerotable: AeroTable):
+        self.aerotable = aerotable
+
+
+    def set_atmosphere(self, atmosphere: Atmosphere):
+        self.atmosphere = atmosphere
+
+
     @classmethod
     def from_function(cls,
                       dt_var: Symbol,
@@ -223,7 +240,6 @@ class Model:
 
         -------------------------------------------------------------------
         """
-        # TODO initialize model.state_dim somehow ...
         model = cls()
         model.set_state(state_vars)
         model.set_input(input_vars)
@@ -742,17 +758,6 @@ class Model:
                                                    use_parallel=use_parallel)
 
 
-    def build_yaml_config_file(self) -> FileBuilder:
-        """Builds a yaml configuration file which contains the
-        Model variables required for initialization. This file is
-        for convenience. The Model can always be initialized manually."""
-        code_str = ""
-        for var in self._get_independent_symbols():
-            code_str += f"{var.name}: 0\n"
-        builder = FileBuilder("config.yaml", contents=[code_str])
-        return builder
-
-
     def create_c_module(self, name: str, path: str = "./"):
         """
         Creates a c-lang module.
@@ -805,21 +810,22 @@ class Model:
 
         # settings symbolic arrays
         # ---------------------------------------------------------------------------
-        state_var_names = [getattr(i, "name") for i in self.state_vars]
-        input_var_names = [getattr(i, "name") for i in self.input_vars]  # type:ignore
-        static_var_names = [getattr(i, "name") for i in self.static_vars]  # type:ignore
+        _spacer = f"\n{tab}{tab}"
+        state_var_names = f",{_spacer}".join([f"\"{getattr(i, 'name')}\"" for i in self.state_vars])
+        input_var_names = f",{_spacer}".join([f"\"{getattr(i, 'name')}\"" for i in self.input_vars])  # type:ignore
+        static_var_names = f",{_spacer}".join([f"\"{getattr(i, 'name')}\"" for i in self.static_vars])  # type:ignore
         if not state_var_names:
             state_vars_member = Symbol("Matrix([])")
         else:
-            state_vars_member = Symbol(f"Matrix({state_var_names})")
+            state_vars_member = Symbol(f"Matrix(symbols([{_spacer}{state_var_names}]))")
         if not input_var_names:
             input_vars_member = Symbol("Matrix([])")
         else:
-            input_vars_member = Symbol(f"Matrix({input_var_names})")
+            input_vars_member = Symbol(f"Matrix(symbols([{_spacer}{input_var_names}]))")
         if not static_var_names:
             static_vars_member = Symbol("Matrix([])")
         else:
-            static_vars_member = Symbol(f"Matrix({static_var_names})")
+            static_vars_member = Symbol(f"Matrix(symbols([{_spacer}{static_var_names}]))")
 
         # Model class file
         # TODO JaplClass is sloppy
@@ -827,6 +833,7 @@ class Model:
         header = "\n".join(["from japl import Model as JaplModel",
                             f"from {name}.{name} import Model as CppModel",
                             "from sympy import Matrix",
+                            "from sympy import symbols",
                             "cpp_model = CppModel()",
                             "", "", ""])
         model_class = JaplClass(name, parent="JaplModel", members={"aerotable": Symbol("cpp_model.aerotable"),
@@ -855,10 +862,23 @@ class Model:
 
         builder = ModuleBuilder(name, [file_builder])
 
-        # Yaml config file
+        # Yaml state config file
         # ---------------------------------------------------------------------------
-        config_file_builder = self.build_yaml_config_file()
+        # Builds a yaml configuration file which contains the
+        # Model variables required for initialization. This file is
+        # for convenience. The Model can always be initialized manually.
+        code_str = ""
+        for var in self._get_independent_symbols():
+            code_str += f"{var.name}: 0\n"
+        state_config_file_builder = FileBuilder("config_state.yaml", contents=[code_str])
+
+        # Yaml static array config file
+        # ---------------------------------------------------------------------------
+        # code_str = ""
+        # for var in self.static_vars:
+        #     code_str += f"{getattr(var, 'name')}: 0\n"
+        # static_config_file_builder = FileBuilder("config_static.yaml", contents=[code_str])
 
         CodeGenerator.build_c_module(builder, other_builders=[model_file_builder,
                                                               simobj_file_builder,
-                                                              config_file_builder])
+                                                              state_config_file_builder])
