@@ -173,3 +173,9 @@ cython_debug/
 
 # make exception for /docs
 !/docs/assets/*
+
+# make exceptions for generic aerodata files
+# these are used by some generic model and unittests
+!/aerodata/aeromodel_bs.mat
+!/aerodata/aeromodel_psb.mat
+!/aerodata/cms_sr_stage1aero.mat
