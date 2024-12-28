@@ -1,4 +1,5 @@
 # import pickle
+import re
 from scipy.io import loadmat
 from astropy import units as u
 import numpy as np
@@ -237,6 +238,73 @@ class MatFile:
     def __repr__(self) -> str:
         attrs = [i for i in dir(self) if "__" not in i and not isinstance(getattr(self, i), Callable)]
         return "\n".join(attrs)
+
+
+    def findall(self, pattern: str, case_sensitive: bool = False) -> dict:
+        """Searches MatFile for possible keys. This is useful
+        when different files have slightly different namespaces
+        for contained items.
+
+        From the list of provided keys, the first found instance is
+        returned.
+        -------------------------------------------------------------------
+
+        Parameters:
+            file: MatFile
+
+            pattern: regex pattern to filter for
+
+            case_sensitive: require key case case sensitivity
+
+        Returns:
+            list of found attributes in MatFile
+
+        -------------------------------------------------------------------
+        """
+        found_attrs = {}
+        file_attrs = [i for i in dir(self) if "__" not in i]
+        for attr in file_attrs:
+            if case_sensitive:
+                if (match := re.match(f".*{pattern}.*", attr)) is not None:
+                    found_attrs[match.string] = getattr(self, match.string)
+            else:
+                if (match := re.match(f".*{pattern}.*", attr, re.IGNORECASE)) is not None:
+                    found_attrs[match.string] = getattr(self, match.string)
+        return found_attrs
+
+
+    def find(self, keys: list[str], case_sensitive: bool = False):
+        """Searches MatFile for possible keys. This is useful
+        when different files have slightly different namespaces
+        for contained items.
+
+        From the list of provided keys, the first found instance is
+        returned.
+        -------------------------------------------------------------------
+
+        Parameters:
+            file: MatFile
+
+            keys: list of keys to find
+
+            case_sensitive: require key case case sensitivity. if False,
+                            matfile will be searched for both .lower() and
+                            .upper() case of keys.
+
+        -------------------------------------------------------------------
+        """
+        file_attrs = [i for i in dir(self) if "__" not in i]
+        for key in keys:
+            if case_sensitive:
+                if key in file_attrs:
+                    return getattr(self, key)
+            else:
+                file_attrs_lower = [i.lower() for i in dir(self) if "__" not in i]
+                if key.lower() in file_attrs_lower:
+                    idx = file_attrs_lower.index(key.lower())
+                    return getattr(self, file_attrs[idx])
+
+        raise Exception(f"cannot find attributes {keys} in MatFile.")
 
 
 # if __name__ == "__main__":
