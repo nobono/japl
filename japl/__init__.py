@@ -15,3 +15,4 @@ from japl.MassProp.MassPropTable import MassPropTable
 from japl.Math import Rotation
 
 from japl.CodeGen import JaplFunction
+from japl.Util.Matlab import MatFile
