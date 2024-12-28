@@ -160,6 +160,7 @@ class DataTable(np.ndarray):
 
     @staticmethod
     def pad_with(vector, pad_width, iaxis, kwargs):
+        """Ancillary method to be used by `numpy.pad`."""
         flip_axis = kwargs["flip_axis"]
         if flip_axis == iaxis:
             if pad_width[0] > 0:
