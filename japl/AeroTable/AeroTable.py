@@ -99,7 +99,12 @@ class AeroTable:
         for name in self.table_names:
             if hasattr(self, name):
                 if not getattr(self, name).isnone():
-                    tables_str += f"\t{name}\n"
+                    fmt_str = "\t{name}:\n\t\tshape:{shape}\n\t\taxes:{axes}\n"
+                    tables_str += fmt_str.format(
+                            name=name,
+                            shape=getattr(self, name).shape,
+                            axes=tuple(getattr(self, name).axes.keys())
+                            )
         for name in self.scalar_names:
             if hasattr(self, name):
                 if getattr(self, name) is not None:
