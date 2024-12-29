@@ -35,14 +35,28 @@ class AeroTable:
     Sref: float
     Lref: float
     MRC: float
-    CA: DataTable
     CA_Boost: DataTable
     CA_Coast: DataTable
     CNB: DataTable
     CYB: DataTable
+    CLMB: DataTable
+    CLNB: DataTable
     CA_Boost_alpha: DataTable
     CA_Coast_alpha: DataTable
     CNB_alpha: DataTable
+
+    table_names = ("CA_Boost",
+                   "CA_Coast",
+                   "CNB",
+                   "CYB",
+                   "CLMB",
+                   "CLNB",
+                   "CA_Boost_alpha",
+                   "CA_Coast_alpha",
+                   "CNB_alpha")
+    scalar_names = ("Sref",
+                    "Lref",
+                    "MRC")
 
     def __new__(cls, path: str = "",
                 ignore_units: bool = False,
@@ -74,6 +88,21 @@ class AeroTable:
     #     self.stages: list[AeroTable] = []
     #     self.stage_id: int = 0
     #     self.is_stage: bool = True
+
+
+    def __repr__(self) -> str:
+        header_str = f"{self.__class__}\n"
+        tables_str = "Tables:\n"
+        scalars_str = "Scalars:\n"
+        for name in self.table_names:
+            if hasattr(self, name):
+                if not getattr(self, name).isnone():
+                    tables_str += f"\t{name}\n"
+        for name in self.scalar_names:
+            if hasattr(self, name):
+                if getattr(self, name) is not None:
+                    scalars_str += f"\t{name}\n"
+        return header_str + tables_str + scalars_str
 
 
     def _build_from_matfile(self, file: MatFile,
