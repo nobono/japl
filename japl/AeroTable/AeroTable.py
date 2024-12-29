@@ -134,7 +134,7 @@ class AeroTable:
         -------------------------------------------------------------------
         """
         # NOTE: this will search the MatFile for any attributes unit related
-        unit_info = file.findall("unit", case_sensitive=False)
+        unit_info = file.findall("*unit*", case_sensitive=False)
 
         AXES_ORDER = ["alpha", "beta", "phi", "mach", "alt", "iota"]
 
