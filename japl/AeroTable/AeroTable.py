@@ -70,9 +70,6 @@ class AeroTable(Staged):
 
         obj = super().__new__(cls)
         obj.increments = Increments()
-        obj.stages = []
-        obj.stage_id = 0
-        obj.is_stage = True
         if path:
             matfile = MatFile(path)
             obj._build_from_matfile(matfile,

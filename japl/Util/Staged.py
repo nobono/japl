@@ -29,6 +29,14 @@ class Staged:
     stage_id: int
     is_stage: bool
 
+    def __new__(cls, *args, **kwargs):
+        obj = super().__new__(cls, *args, **kwargs)
+        obj.stages = []
+        obj.stage_id = 0
+        obj.is_stage = True
+        return obj
+
+
     def add_stage(self, child) -> None:
         """Adds a child AeroTable object as an ordered child
         of this object."""
