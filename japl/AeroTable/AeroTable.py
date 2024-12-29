@@ -139,6 +139,9 @@ class AeroTable:
 
         AXES_ORDER = ["alpha", "beta", "phi", "mach", "alt", "iota"]
 
+        # -----------------------------------------------------------------
+        # handle units & conversion
+        # -----------------------------------------------------------------
         if ignore_units:
             angle_conv_const = 1.0
             length_conv_const = 1.0
@@ -205,6 +208,11 @@ class AeroTable:
         CYB_Basic = file.find(["CYB_Basic", "CY_Basic"])
         CYB_IT = file.find(["CYB_IT", "CY_IT"])
 
+        # -----------------------------------------------------------------
+        # handle files where the named attribute in the file structure
+        # has a child which holds the data array.
+        # -----------------------------------------------------------------
+        child_names = ["table"]
         tables = {
                   "CA_Boost": CA_Boost,
                   "CA_Coast": CA_Coast,
@@ -227,9 +235,14 @@ class AeroTable:
                   "CYB_IT": CYB_IT,
                   }
 
+        # check for all child_names in file attribute
+        # in order to access data array.
         for key, val in tables.items():
-            if hasattr(val, "table"):
-                tables[key] = val.table
+            for name in child_names:
+                if hasattr(val, name):
+                    if isinstance(array := getattr(val, name), np.ndarray):
+                        tables[key] = array
+                        break
 
         # axes_dims = [len(i) for i in unordered_axes.values()]  # ensure possible table axes are unique
         # if len(axes_dims) == len(set(axes_dims)):
