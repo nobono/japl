@@ -1,6 +1,7 @@
 import os
 import unittest
 import numpy as np
+from pathlib import Path
 from japl.Util.Matlab import MatFile
 from japl.global_opts import get_root_dir
 from japl.AeroTable.AeroTable import AeroTable
@@ -22,6 +23,17 @@ class TestAeroTable(unittest.TestCase):
                                    length_units=u.imperial.foot,  # type:ignore
                                    lref_units=u.imperial.inch)  # type:ignore
         self.alts = np.linspace(0, 30_000, 100)
+
+
+    def test_case1(self):
+        aero = AeroTable()
+        self.assertEqual(aero.stages, [])
+        self.assertEqual(aero.stage_id, 0)
+
+
+    def test_case2(self):
+        aero_file_path = Path(self.ROOT_DIR, "aerodata/cms_sr_stage1aero.mat")
+        aero = AeroTable(aero_file_path)
 
 
     def test_CNB_alpha(self):

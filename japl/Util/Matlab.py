@@ -1,5 +1,6 @@
 # import pickle
 import re
+from pathlib import Path
 from scipy.io import loadmat
 from astropy import units as u
 import numpy as np
@@ -196,7 +197,7 @@ class MatFile:
     and unpacks the output of scipy.io.loadmat() into a user-friendly data structure.
     """
 
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str|Path) -> None:
         self._raw_data = loadmat(path)
         if isinstance(self._raw_data, dict):
             for k, v in self._raw_data.items():

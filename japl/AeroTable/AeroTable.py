@@ -60,7 +60,7 @@ class AeroTable:
                     "Lref",
                     "MRC")
 
-    def __new__(cls, path: str = "",
+    def __new__(cls, path: str|Path = "",
                 ignore_units: bool = False,
                 angle_units: Unit = u.rad,  # type:ignore
                 length_units: Unit = u.m,  # type:ignore
