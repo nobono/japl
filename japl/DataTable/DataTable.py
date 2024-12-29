@@ -13,8 +13,13 @@ class DataTable(np.ndarray):
     for LinearInterp but includes additional checks for __call__()
     arguments."""
 
-    axes: dict
+    # ---------------------------------------------------------------------
+    # NOTE: cpp_datatable is the c++ backend implementation of
+    # DataTable. cpp_datable must be reinitialized after every
+    # DataTable operation (i.e. axis-reflection, slicing, ...etc)
+    # ---------------------------------------------------------------------
     cpp_datatable: Optional[CppDataTable]  # backend datatable implementation (pybind11)
+    axes: dict
 
     def __new__(cls, input_array, axes: dict):
         input_array = cls.check_input_data(input_array)
@@ -141,7 +146,7 @@ class DataTable(np.ndarray):
             if label in current_labels:
                 id_swap_order += [current_labels.index(label)]
         self.axes = {key: self.axes[key] for key in set_labels if key in self.axes}
-        return self.transpose(id_swap_order)
+        return DataTable(self.transpose(id_swap_order), self.axes)
 
 
     @staticmethod
