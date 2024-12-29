@@ -176,7 +176,7 @@ class MatStruct:
 
 
     @staticmethod
-    def is_struct(data: np.ndarray) -> bool:
+    def is_struct(data) -> bool:
         """This method detects whether an object returned by scipy.io.loadmat
         is a matlab struct object. Matlab struct objects are loaded as np.ndarrays
         with multiple named dtypes."""
@@ -273,7 +273,7 @@ class MatFile:
         return found_attrs
 
 
-    def find(self, keys: list[str], case_sensitive: bool = False):
+    def find(self, keys: str|list[str], case_sensitive: bool = False, default: Any = None):
         """Searches MatFile for possible keys. This is useful
         when different files have slightly different namespaces
         for contained items.
@@ -291,8 +291,14 @@ class MatFile:
                             matfile will be searched for both .lower() and
                             .upper() case of keys.
 
+            default: return if no matching attributes can be found in the
+                     MatFile
+
         -------------------------------------------------------------------
         """
+        if isinstance(keys, str):
+            keys = [keys]
+
         file_attrs = [i for i in dir(self) if "__" not in i]
         for key in keys:
             if case_sensitive:
@@ -304,15 +310,4 @@ class MatFile:
                     idx = file_attrs_lower.index(key.lower())
                     return getattr(self, file_attrs[idx])
 
-        raise Exception(f"cannot find attributes {keys} in MatFile.")
-
-
-# if __name__ == "__main__":
-
-#     with open("aerodata/aeromodel.pickle", "ab") as f:
-#         pickle.dump(aeromodel, f)
-
-#     __aero_data_path = "/home/david/work_projects/control/aerodata/aeromodel_bs.mat"
-#     __aero_data_path_psb = "/home/david/work_projects/control/aerodata/aeromodel_psb.mat"
-
-#     data = MatFile(__aero_data_path)
+        return default
