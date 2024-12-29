@@ -37,6 +37,7 @@ class AeroTable:
     MRC: float
     CA_Boost: DataTable
     CA_Coast: DataTable
+    CA: DataTable
     CNB: DataTable
     CYB: DataTable
     CLMB: DataTable
@@ -47,6 +48,7 @@ class AeroTable:
 
     table_names = ("CA_Boost",
                    "CA_Coast",
+                   "CA",
                    "CNB",
                    "CYB",
                    "CLMB",
@@ -135,6 +137,8 @@ class AeroTable:
         # NOTE: this will search the MatFile for any attributes unit related
         unit_info = file.findall("unit", case_sensitive=False)
 
+        AXES_ORDER = ["alpha", "beta", "phi", "mach", "alt", "iota"]
+
         if ignore_units:
             angle_conv_const = 1.0
             length_conv_const = 1.0
@@ -179,12 +183,13 @@ class AeroTable:
 
         CA_Boost = file.find(["CA_Boost", "CA_Powered"])
         CA_Coast = file.find(["CA_Coast", "CA_Unpowered"])
+        CA = file.find(["CA"])
         CNB = file.find(["CN", "CNB"])
         CLMB = file.find(["CLM", "CLMB"])
         CLNB = file.find(["CLN", "CLNB"])
         CYB = file.find(["CY", "CYB"])
 
-        CA_Basic = file.find(["CA_Basic"], default=default)
+        CA_Basic = file.find(["CA_Basic"])
         CA_0_Boost = file.find(["CA_0_Boost", "CA0_Boost"])
         CA_0_Coast = file.find(["CA_0_Coast", "CA0_Coast"])
         CA_IT = file.find(["CA_IT"])
@@ -203,6 +208,7 @@ class AeroTable:
         tables = {
                   "CA_Boost": CA_Boost,
                   "CA_Coast": CA_Coast,
+                  "CA": CA,
                   "CNB": CNB,
                   "CLMB": CLMB,
                   "CLNB": CLNB,
@@ -234,6 +240,7 @@ class AeroTable:
         # -----------------------------------------------------------------
         CA_Boost = self._deduce_datatable(tables["CA_Boost"], possible_axes=possible_axes)
         CA_Coast = self._deduce_datatable(tables["CA_Coast"], possible_axes=possible_axes)
+        CA = self._deduce_datatable(tables["CA"], possible_axes=possible_axes)
         CNB = self._deduce_datatable(tables["CNB"], possible_axes=possible_axes)
         CLMB = self._deduce_datatable(tables["CLMB"], possible_axes=possible_axes)
         CLNB = self._deduce_datatable(tables["CLNB"], possible_axes=possible_axes)
@@ -255,6 +262,12 @@ class AeroTable:
         CYB_Basic = self._deduce_datatable(tables["CYB_Basic"], possible_axes=possible_axes)
         CYB_IT = self._deduce_datatable(tables["CYB_IT"], possible_axes=possible_axes)
 
+        # -----------------------------------------------------------------
+        # do generic build of partial tables:
+        #   - first, check if full table is already given
+        #   - then, check if full table can be built from partials
+        #   - finally, default to null DataTable
+        # -----------------------------------------------------------------
         if not (CA_Boost.isnone() and CA_Coast.isnone()):
             self.CA_Boost = CA_Boost
             self.CA_Coast = CA_Coast
@@ -265,6 +278,11 @@ class AeroTable:
         else:
             self.CA_Boost = DataTable(None, {})
             self.CA_Coast = DataTable(None, {})
+
+        if not CA.isnone():
+            self.CA = CA
+        else:
+            self.CNB = DataTable(None, {})
 
         if not CNB.isnone():
             self.CNB = CNB
@@ -317,29 +335,30 @@ class AeroTable:
             self.CNB = self.CNB.mirror_axis("alpha")
         if not self.CYB.isnone():
             self.CYB = self.CYB.mirror_axis("alpha")
-
-        self.CA_Boost_alpha = self.CA_Boost_alpha.mirror_axis("alpha")
-        self.CA_Coast_alpha = self.CA_Coast_alpha.mirror_axis("alpha")
-        self.CNB_alpha = self.CNB_alpha.mirror_axis("alpha")
+        if not self.CA_Boost_alpha.isnone():
+            self.CA_Boost_alpha = self.CA_Boost_alpha.mirror_axis("alpha")
+        if not self.CA_Coast_alpha.isnone():
+            self.CA_Coast_alpha = self.CA_Coast_alpha.mirror_axis("alpha")
+        if not self.CNB_alpha.isnone():
+            self.CNB_alpha = self.CNB_alpha.mirror_axis("alpha")
 
         # -----------------------------------------------------------------
         # Ensure axes order
         # -----------------------------------------------------------------
-        axes_order = ["alpha", "beta", "phi", "mach", "alt", "iota"]
         if not CA_Boost.isnone():
-            self.CA_Boost = self.CA_Boost.swap_to_label_order(axes_order)
+            self.CA_Boost = self.CA_Boost.swap_to_label_order(AXES_ORDER)
         if not CA_Coast.isnone():
-            self.CA_Coast = self.CA_Coast.swap_to_label_order(axes_order)
+            self.CA_Coast = self.CA_Coast.swap_to_label_order(AXES_ORDER)
         if not CNB.isnone():
-            self.CNB = self.CNB.swap_to_label_order(axes_order)
+            self.CNB = self.CNB.swap_to_label_order(AXES_ORDER)
         if not CYB.isnone():
-            self.CYB = self.CYB.swap_to_label_order(axes_order)
+            self.CYB = self.CYB.swap_to_label_order(AXES_ORDER)
         if not self.CA_Boost_alpha.isnone():
-            self.CA_Boost_alpha = self.CA_Boost_alpha.swap_to_label_order(axes_order)
+            self.CA_Boost_alpha = self.CA_Boost_alpha.swap_to_label_order(AXES_ORDER)
         if not self.CA_Coast_alpha.isnone():
-            self.CA_Coast_alpha = self.CA_Coast_alpha.swap_to_label_order(axes_order)
+            self.CA_Coast_alpha = self.CA_Coast_alpha.swap_to_label_order(AXES_ORDER)
         if not self.CNB_alpha.isnone():
-            self.CNB_alpha = self.CNB_alpha.swap_to_label_order(axes_order)
+            self.CNB_alpha = self.CNB_alpha.swap_to_label_order(AXES_ORDER)
 
         # -----------------------------------------------------------------
         # other values
