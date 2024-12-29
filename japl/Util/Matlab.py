@@ -253,7 +253,7 @@ class MatFile:
         Parameters:
             file: MatFile
 
-            pattern: regex pattern to filter for
+            pattern: regular expression (regex) pattern to filter for
 
             case_sensitive: require key case case sensitivity
 
@@ -266,10 +266,12 @@ class MatFile:
         file_attrs = [i for i in dir(self) if "__" not in i]
         for attr in file_attrs:
             if case_sensitive:
-                if (match := re.match(f".*{pattern}.*", attr)) is not None:
+                _pattern = pattern.replace("*", ".*")
+                if (match := re.match(_pattern, attr)) is not None:
                     found_attrs[match.string] = getattr(self, match.string)
             else:
-                if (match := re.match(f".*{pattern}.*", attr, re.IGNORECASE)) is not None:
+                _pattern = pattern.replace("*", ".*")
+                if (match := re.match(_pattern, attr, re.IGNORECASE)) is not None:
                     found_attrs[match.string] = getattr(self, match.string)
         return found_attrs
 
