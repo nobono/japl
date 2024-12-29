@@ -31,9 +31,35 @@ class TestAeroTable(unittest.TestCase):
         self.assertEqual(aero.stage_id, 0)
 
 
-    def test_case2(self):
+    def test_file_type_1(self):
         aero_file_path = Path(self.ROOT_DIR, "aerodata/cms_sr_stage1aero.mat")
         aero = AeroTable(aero_file_path)
+        self.assertTrue(not aero.CA_Boost.isnone())
+        self.assertTrue(not aero.CA_Coast.isnone())
+        self.assertTrue(not aero.CNB.isnone())
+        self.assertTrue(not aero.CA_Boost_alpha.isnone())
+        self.assertTrue(not aero.CA_Coast_alpha.isnone())
+        self.assertTrue(not aero.CNB_alpha.isnone())
+        self.assertTrue(hasattr(aero, "Sref"))
+        self.assertTrue(hasattr(aero, "Lref"))
+        self.assertTrue(hasattr(aero, "MRC"))
+
+
+    def test_file_type_2(self):
+        aero_file_path = Path(self.ROOT_DIR, "aerodata/aeromodel_psb.mat")
+        aero = AeroTable(aero_file_path)
+        self.assertTrue(not aero.CA_Boost.isnone())
+        self.assertTrue(not aero.CA_Coast.isnone())
+        self.assertTrue(not aero.CNB.isnone())
+        self.assertTrue(not aero.CYB.isnone())
+        self.assertTrue(not aero.CLMB.isnone())
+        self.assertTrue(not aero.CLNB.isnone())
+        self.assertTrue(not aero.CA_Boost_alpha.isnone())
+        self.assertTrue(not aero.CA_Coast_alpha.isnone())
+        self.assertTrue(not aero.CNB_alpha.isnone())
+        self.assertTrue(hasattr(aero, "Sref"))
+        self.assertTrue(hasattr(aero, "Lref"))
+        self.assertTrue(hasattr(aero, "MRC"))
 
 
     def test_CNB_alpha(self):
