@@ -48,5 +48,22 @@ class TestMatFile(unittest.TestCase):
         self.assertEqual(getattr(struct, "array").tolist(), [1, 2, 3])
 
 
+    def test_find(self):
+        file = MatFile(Path(get_root_dir(), "tests/unit/Util/test_file.mat"))
+        self.assertEqual(file.find("num_float"), 1)
+        self.assertEqual(file.find(["num_float"]), 1)
+        self.assertEqual(file.find(["invalid"]), None)
+        self.assertEqual(file.find(["invalid"], default="DEFAULT"), "DEFAULT")
+
+
+    def test_findall(self):
+        """test findall() regex pattern filtering"""
+        file = MatFile(Path(get_root_dir(), "tests/unit/Util/test_file.mat"))
+        self.assertEqual(file.findall("num"), {})
+        self.assertEqual(file.findall("num*"), {"num_float": 1, "num_int": 2})
+        self.assertEqual(file.findall("float"), {})
+        self.assertEqual(file.findall("*float"), {"num_float": 1})
+
+
 if __name__ == '__main__':
     unittest.main()

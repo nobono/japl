@@ -266,11 +266,11 @@ class MatFile:
         file_attrs = [i for i in dir(self) if "__" not in i]
         for attr in file_attrs:
             if case_sensitive:
-                _pattern = pattern.replace("*", ".*")
+                _pattern = pattern.replace("*", ".*") + r'\b'  # apply word boundaries
                 if (match := re.match(_pattern, attr)) is not None:
                     found_attrs[match.string] = getattr(self, match.string)
             else:
-                _pattern = pattern.replace("*", ".*")
+                _pattern = pattern.replace("*", ".*") + r'\b'  # apply word boundaries
                 if (match := re.match(_pattern, attr, re.IGNORECASE)) is not None:
                     found_attrs[match.string] = getattr(self, match.string)
         return found_attrs
