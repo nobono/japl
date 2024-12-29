@@ -14,7 +14,7 @@ from japl.Aero.AtmosphereSymbolic import AtmosphereSymbolic
 from japl.Aero.Atmosphere import Atmosphere
 from japl.BuildTools.DirectUpdate import DirectUpdate
 from japl.Aero.AeroTableSymbolic import AeroTableSymbolic
-from japl.Aero.AeroTable import AeroTable
+from japl.AeroTable.AeroTable import AeroTable
 from japl.Math.RotationSymbolic import ecef_to_lla_sym
 from japl.Math import Rotation
 from japl.Library.Earth.Earth import Earth
@@ -75,8 +75,7 @@ def create_mass_props(stage_table: MatFile):
 atmosphere = Atmosphere()
 # aerotable = AeroTable(DIR + "/../../../aerodata/cms_sr_stage1aero.mat",
 #                       from_template="CMS")
-aerotable = AeroTable(DIR + "/../../../aerodata/stage_1_aero.mat",
-                      from_template="CMS")
+aerotable = AeroTable(DIR + "/../../../aerodata/stage_1_aero.mat")
 stage_1_aero = MatFile(DIR + "/../../../aerodata/stage_1_aero.mat")
 stage_1_mass = MatFile(DIR + "/../../../aerodata/stage_1_mass.mat")
 

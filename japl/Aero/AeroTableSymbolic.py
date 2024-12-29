@@ -1,7 +1,7 @@
 from typing import Optional
 # from sympy import Function
 from sympy import Symbol
-from japl.Aero.AeroTable import AeroTable
+from japl.AeroTable.AeroTable import AeroTable
 from japl.Util.Matlab import MatFile
 from japl.CodeGen.JaplFunction import JaplFunction
 
@@ -70,7 +70,7 @@ class AeroTableSymbolic:
 
 
     def __init__(self, data: Optional[str|dict|MatFile] = None, from_template: str = "", units: str = "si") -> None:
-        self.aerotable = AeroTable(data, from_template=from_template, units=units)
+        self.aerotable = AeroTable(data)
         # self.modules = {
         #         "aerotable.CA": self.aerotable.get_CA,
         #         "aerotable.CA_Boost": self.aerotable.get_CA_Boost,

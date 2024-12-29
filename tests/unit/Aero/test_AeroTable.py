@@ -105,7 +105,7 @@ class TestAeroTable(unittest.TestCase):
         #                       units="english")
 
         aero_file_path = f"{self.ROOT_DIR}/aerodata/cms_sr_stage1aero.mat"
-        aerotable = AeroTable(aero_file_path, ignore_units=True)
+        aerotable = AeroTable(aero_file_path)
         CN = 0.236450041229858
         CA = 0.400000000000000
         CN_alpha = 0.140346623943120

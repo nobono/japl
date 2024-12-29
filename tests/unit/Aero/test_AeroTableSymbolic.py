@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 from sympy import symbols
 from japl.Aero.AeroTableSymbolic import AeroTableSymbolic
-from japl.Aero.AeroTable import AeroTable
+from japl.AeroTable.AeroTable import AeroTable
 from japl.Util.Desym import Desym
 
 

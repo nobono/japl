@@ -1,10 +1,11 @@
 import os
 import unittest
 import numpy as np
+from astropy import units as u
 import quaternion
 from japl.SimObject.SimObject import SimObject
 from japl.Sim.Sim import Sim
-from japl.Aero.AeroTable import AeroTable
+from japl.AeroTable.AeroTable import AeroTable
 # from japl import Model
 # from sympy import MatrixSymbol, Matrix, symbols
 from japl.Library.Vehicles import MissileGeneric
@@ -33,7 +34,7 @@ class test_MissileGeneric(unittest.TestCase):
                 )
         sim.run()
 
-        truth = self.run_dynamics()
+        # truth = self.run_dynamics()
 
         # debug printing
         # state_id = -2
@@ -94,7 +95,11 @@ class test_MissileGeneric(unittest.TestCase):
         self.dt = 0.01
         self.t_span = [0, 0.1]
         self.atmosphere = Atmosphere()
-        self.aerotable = AeroTable(f"{ROOT_DIR}/aerodata/aeromodel_psb.mat")
+        self.aerotable = AeroTable(f"{ROOT_DIR}/aerodata/aeromodel_psb.mat",
+                                   # keep_units=True,
+                                   # angle_units=u.deg,
+                                   # length_units=u.imperial.foot
+                                   )
         # self.aerotable = AeroTable("../../../aerodata/aeromodel_psb.mat")
 
 

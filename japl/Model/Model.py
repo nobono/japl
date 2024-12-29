@@ -12,7 +12,7 @@ from sympy import simplify
 from sympy.codegen.ast import NoneToken
 
 from japl.Aero.Atmosphere import Atmosphere
-from japl.Aero.AeroTable import AeroTable
+from japl.AeroTable.AeroTable import AeroTable
 from japl.Model.StateRegister import StateRegister
 from japl.Util.Desym import Desym
 

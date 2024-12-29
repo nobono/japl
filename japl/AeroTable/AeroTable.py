@@ -59,7 +59,8 @@ class AeroTable(Staged):
                     "MRC")
 
     def __new__(cls, path: str|Path = "",
-                ignore_units: bool = False,
+                si_units: bool = True,
+                keep_units: bool = False,
                 angle_units: Unit = u.rad,  # type:ignore
                 length_units: Unit = u.m,  # type:ignore
                 sref_units: Unit = u.m**2,  # type:ignore
@@ -75,7 +76,8 @@ class AeroTable(Staged):
         if path:
             matfile = MatFile(path)
             obj._build_from_matfile(matfile,
-                                    ignore_units=ignore_units,
+                                    si_units=si_units,
+                                    keep_units=keep_units,
                                     angle_units=angle_units,
                                     length_units=length_units,
                                     sref_units=sref_units,
@@ -105,7 +107,8 @@ class AeroTable(Staged):
 
 
     def _build_from_matfile(self, file: MatFile,
-                            ignore_units: bool = False,
+                            si_units: bool = True,
+                            keep_units: bool = False,
                             angle_units: Unit = u.rad,  # type:ignore
                             length_units: Unit = u.m,  # type:ignore
                             sref_units: Optional[Unit] = None,  # type:ignore
@@ -137,9 +140,9 @@ class AeroTable(Staged):
         AXES_ORDER = ["alpha", "beta", "phi", "mach", "alt", "iota"]
 
         # -----------------------------------------------------------------
-        # handle units & conversion
+        # handle units & conversion behavior:
         # -----------------------------------------------------------------
-        if ignore_units:
+        if keep_units:
             angle_conv_const = 1.0
             length_conv_const = 1.0
             area_conv_const = 1.0
@@ -325,8 +328,8 @@ class AeroTable(Staged):
         # -----------------------------------------------------------------
         # create diff tables
         # -----------------------------------------------------------------
-        units = "si"
-        if units.lower() == "si":
+        using_si_units = not keep_units
+        if using_si_units:
             delta_alpha = np.radians(0.1)
         else:
             delta_alpha = 0.1
@@ -429,7 +432,13 @@ class AeroTable(Staged):
         return self.get_stage().Lref
 
     def get_MRC(self):
-        return self.get_stage().MRC
+        mrc = self.get_stage().MRC
+        # some files provide MRC as a 3d
+        # coordinate. TODO handle this better.
+        if hasattr(mrc, "__len__"):
+            return mrc[0]
+        else:
+            return mrc
 
     def get_CA(self, *args, **kwargs):
         return self.get_stage().CA(*args, **kwargs)
@@ -445,6 +454,12 @@ class AeroTable(Staged):
 
     def get_CYB(self, *args, **kwargs):
         return self.get_stage().CYB(*args, **kwargs)
+
+    def get_CLMB(self, *args, **kwargs):
+        return self.get_stage().CLMB(*args, **kwargs)
+
+    def get_CLNB(self, *args, **kwargs):
+        return self.get_stage().CLNB(*args, **kwargs)
 
     def get_CA_Boost_alpha(self, *args, **kwargs):
         return self.get_stage().CA_Boost_alpha(*args, **kwargs)

@@ -1,7 +1,8 @@
 import unittest
 import os
+from astropy import units as u
 import numpy as np
-from japl.Aero.AeroTable import AeroTable
+from japl.AeroTable.AeroTable import AeroTable
 from japl.global_opts import get_root_dir
 
 ROOT_DIR = get_root_dir()
@@ -30,9 +31,7 @@ class TestCmsCompare(unittest.TestCase):
         units = ""
 
         path = f"{ROOT_DIR}/aerodata/cms_sr_stage1aero.mat"
-        aerotable = AeroTable(path,
-                              from_template="CMS",
-                              units=units)
+        aerotable = AeroTable(path)
 
         alpha = 0.021285852300486
         alpha_max = 80
@@ -103,11 +102,8 @@ class TestCmsCompare(unittest.TestCase):
     def test_invert_aerodynamics_radians(self):
         """Testing of inverting aerodynamics.
         Static values pulled from CMS unit test."""
-        units = "si"
         path = f"{ROOT_DIR}/aerodata/cms_sr_stage1aero.mat"
-        aerotable = AeroTable(path,
-                              from_template="CMS",
-                              units=units)
+        aerotable = AeroTable(path, angle_units=u.deg, length_units=u.imperial.foot)  # type:ignore
 
         alpha = np.radians(0.021285852300486)
         alpha_max = np.radians(80)
@@ -169,11 +165,8 @@ class TestCmsCompare(unittest.TestCase):
     def test_invert_aerodynamics(self):
         """Testing of inverting aerodynamics.
         Static values pulled from CMS unit test."""
-        units = "si"
         path = f"{ROOT_DIR}/aerodata/cms_sr_stage1aero.mat"
-        aerotable = AeroTable(path,
-                              from_template="CMS",
-                              units=units)
+        aerotable = AeroTable(path, angle_units=u.deg, length_units=u.imperial.foot)  # type:ignore
 
         alpha = np.radians(0.021285852300486)
         alt = 0.097541062161326
