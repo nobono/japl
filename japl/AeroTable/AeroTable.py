@@ -86,12 +86,6 @@ class AeroTable:
         return obj
 
 
-    # def __init__(self, path: str = "") -> None:
-    #     self.stages: list[AeroTable] = []
-    #     self.stage_id: int = 0
-    #     self.is_stage: bool = True
-
-
     def __repr__(self) -> str:
         header_str = f"{self.__class__}\n"
         tables_str = "Tables:\n"
