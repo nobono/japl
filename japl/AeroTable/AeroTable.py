@@ -6,6 +6,7 @@ from astropy import units as u
 from scipy.optimize import minimize_scalar
 from japl.Util.Matlab import MatFile
 from japl.DataTable.DataTable import DataTable
+from japl.Util.Staged import Staged
 
 
 
@@ -27,11 +28,8 @@ class Increments:
     niota_prime = 0
 
 
-class AeroTable:
+class AeroTable(Staged):
     increments: Increments
-    stages: list["AeroTable"]
-    stage_id: int
-    is_stage: bool
     Sref: float
     Lref: float
     MRC: float
@@ -385,7 +383,7 @@ class AeroTable:
 
 
     @staticmethod
-    def _deduce_datatable(table: np.ndarray, possible_axes: dict) -> DataTable:
+    def _deduce_datatable(table: Optional[np.ndarray], possible_axes: dict) -> DataTable:
         """Attempts to auto-detect the order of DataTable axes from a list of
         unordered possible axes.
 
@@ -423,28 +421,6 @@ class AeroTable:
         axes = dict(ordered_axes)
         return DataTable(table, axes)
 
-
-    def add_stage(self, aerotable: "AeroTable") -> None:
-        """Adds a child AeroTable object as an ordered child
-        of this object."""
-        self.is_stage = False
-        aerotable.is_stage = True
-        self.stages += [aerotable]
-
-    def set_stage(self, stage: int) -> None:
-        """Set the current stage index for the aerotable. This is
-        so that \"get_stage()\" will return the corresponding aerotable."""
-        if int(stage) >= len(self.stages):
-            raise Exception(f"cannot access stage {int(stage)} "
-                            f"for container of size {len(self.stages)}")
-        self.stage_id = int(stage)
-
-    def get_stage(self) -> "AeroTable":
-        """Returns the current aerotable corresponding to the stage_id."""
-        if self.is_stage:
-            return self
-        else:
-            return self.stages[self.stage_id]
 
     def get_Sref(self):
         return self.get_stage().Sref

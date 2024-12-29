@@ -31,6 +31,18 @@ class TestAeroTable(unittest.TestCase):
         self.assertEqual(aero.stage_id, 0)
 
 
+    def test_stages(self):
+        aero = AeroTable()
+        stage1 = AeroTable()
+        stage2 = AeroTable()
+        aero.add_stage(stage1)
+        aero.add_stage(stage2)
+        self.assertEqual(aero.is_stage, False)
+        self.assertEqual(len(aero.stages), 2)
+        self.assertEqual(aero.stages[0].is_stage, True)
+        self.assertEqual(aero.stages[1].is_stage, True)
+
+
     def test_file_type_1(self):
         aero_file_path = Path(self.ROOT_DIR, "aerodata/cms_sr_stage1aero.mat")
         aero = AeroTable(aero_file_path)
