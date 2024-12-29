@@ -1,8 +1,10 @@
 import os
 import unittest
 import numpy as np
-from japl.Aero.AeroTable import AeroTable
+from japl.Util.Matlab import MatFile
 from japl.global_opts import get_root_dir
+from japl.AeroTable.AeroTable import AeroTable
+from astropy import units as u
 
 
 
@@ -12,8 +14,13 @@ class TestAeroTable(unittest.TestCase):
     def setUp(self) -> None:
         self.TOLERANCE_PLACES = 10
         self.ROOT_DIR = get_root_dir()
-        aero_file = f"{self.ROOT_DIR}/aerodata/aeromodel_psb.mat"
-        self.aerotable = AeroTable(aero_file)
+        aero_file_path = f"{self.ROOT_DIR}/aerodata/aeromodel_psb.mat"
+
+        # self.aerotable = AeroTable(aero_file_path)
+        self.aerotable = AeroTable(aero_file_path,
+                                   angle_units=u.deg,  # type:ignore
+                                   length_units=u.imperial.foot,  # type:ignore
+                                   lref_units=u.imperial.inch)  # type:ignore
         self.alts = np.linspace(0, 30_000, 100)
 
 
@@ -43,9 +50,12 @@ class TestAeroTable(unittest.TestCase):
 
     def test_CMS_getAoA_compare(self):
         """This test, tests against CMS's getAoA method."""
-        aerotable = AeroTable(f"{self.ROOT_DIR}/aerodata/cms_sr_stage1aero.mat",
-                              from_template="CMS",
-                              units="english")
+        # aerotable = AeroTable(f"{self.ROOT_DIR}/aerodata/cms_sr_stage1aero.mat",
+        #                       from_template="CMS",
+        #                       units="english")
+
+        aero_file_path = f"{self.ROOT_DIR}/aerodata/cms_sr_stage1aero.mat"
+        aerotable = AeroTable(aero_file_path, ignore_units=True)
         CN = 0.236450041229858
         CA = 0.400000000000000
         CN_alpha = 0.140346623943120
