@@ -25,9 +25,11 @@ public:
         {"CA_Coast", 6},
         {"CNB", 7},
         {"CYB", 8},
-        {"CA_Boost_alpha", 9},
-        {"CA_Coast_alpha", 10},
-        {"CNB_alpha", 11},
+        {"CLMB", 9},
+        {"CLNB", 10},
+        {"CA_Boost_alpha", 11},
+        {"CA_Coast_alpha", 12},
+        {"CNB_alpha", 13},
     };
 
     vector<AeroTable> stages;
@@ -41,6 +43,8 @@ public:
     DataTable CA_Coast;
     DataTable CNB;
     DataTable CYB;
+    DataTable CLMB;
+    DataTable CLNB;
     DataTable CA_Boost_alpha;
     DataTable CA_Coast_alpha;
     DataTable CNB_alpha;
@@ -61,6 +65,8 @@ public:
         CA_Coast(other.CA_Coast),
         CNB(other.CNB),
         CYB(other.CYB),
+        CLMB(other.CLMB),
+        CLNB(other.CLNB),
         CA_Boost_alpha(other.CA_Boost_alpha),
         CA_Coast_alpha(other.CA_Coast_alpha),
         CNB_alpha(other.CNB_alpha),
@@ -79,6 +85,8 @@ public:
         this->CA_Coast = other.CA_Coast;
         this->CNB = other.CNB;
         this->CYB = other.CYB;
+        this->CLMB = other.CLMB;
+        this->CLNB = other.CLNB;
         this->CA_Boost_alpha = other.CA_Boost_alpha;
         this->CA_Coast_alpha = other.CA_Coast_alpha;
         this->CNB_alpha = other.CNB_alpha;
@@ -118,6 +126,14 @@ public:
 
     double get_CYB(const map<string, double>& kwargs) {
         return this->CYB(kwargs)[0];
+    }
+
+    double get_CLMB(const map<string, double>& kwargs) {
+        return this->CLMB(kwargs)[0];
+    }
+
+    double get_CLNB(const map<string, double>& kwargs) {
+        return this->CLNB(kwargs)[0];
     }
 
     double get_CA_Boost_alpha(const map<string, double>& kwargs) {
@@ -213,12 +229,18 @@ public:
                 CYB = table;
                 break;
             case 9:
-                CA_Boost_alpha = table;
+                CLMB = table;
                 break;
             case 10:
-                CA_Coast_alpha = table;
+                CLNB = table;
                 break;
             case 11:
+                CA_Boost_alpha = table;
+                break;
+            case 12:
+                CA_Coast_alpha = table;
+                break;
+            case 13:
                 CNB_alpha = table;
                 break;
             default:

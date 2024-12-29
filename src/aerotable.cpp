@@ -134,6 +134,8 @@ PYBIND11_MODULE(aerotable, m) {
         .def("get_CA_Coast", &AeroTable::get_CA_Coast)
         .def("get_CNB", &AeroTable::get_CNB)
         .def("get_CYB", &AeroTable::get_CYB)
+        .def("get_CLMB", &AeroTable::get_CLMB)
+        .def("get_CLNB", &AeroTable::get_CLNB)
         .def("get_CA_Boost_alpha", &AeroTable::get_CA_Boost_alpha)
         .def("get_CA_Coast_alpha", &AeroTable::get_CA_Coast_alpha)
         .def("get_CNB_alpha", &AeroTable::get_CNB_alpha)
@@ -191,6 +193,12 @@ PYBIND11_MODULE(aerotable, m) {
         .def_property("CYB",
                       [](const AeroTable& self) -> const DataTable& {return self.CYB;},  // getter
                       [](AeroTable& self, const decltype(AeroTable::CYB)& value) {self.CYB = value;})  // setter
+        .def_property("CLMB",
+                      [](const AeroTable& self) -> const DataTable& {return self.CLMB;},  // getter
+                      [](AeroTable& self, const decltype(AeroTable::CLMB)& value) {self.CLMB = value;})  // setter
+        .def_property("CLNB",
+                      [](const AeroTable& self) -> const DataTable& {return self.CLNB;},  // getter
+                      [](AeroTable& self, const decltype(AeroTable::CLNB)& value) {self.CLNB = value;})  // setter
         .def_property("CA_Boost_alpha",
                       [](const AeroTable& self) -> const DataTable& {return self.CA_Boost_alpha;},  // getter
                       [](AeroTable& self, const decltype(AeroTable::CA_Boost_alpha)& value) {self.CA_Boost_alpha = value;})  // setter
