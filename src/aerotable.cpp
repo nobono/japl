@@ -114,22 +114,14 @@ double AeroTable::inv_aerodynamics(const map<string, double>& kwargs) {
 PYBIND11_MODULE(aerotable, m) {
     pybind11::class_<AeroTable>(m, "AeroTable")
         .def(py::init<py::kwargs&>())
-        // .def_readonly("Sref", &AeroTable::Sref)
-        // .def_readonly("Lref", &AeroTable::Lref)
-        // .def_readonly("MRC", &AeroTable::MRC)
-        // .def_readwrite("CA", &AeroTable::CA)
-        // .def_readonly("CA_Boost", &AeroTable::CA_Boost)
-        // .def_readonly("CA_Coast", &AeroTable::CA_Coast)
-        // .def_readwrite("CNB", &AeroTable::CNB)
-        // .def_readonly("CYB", &AeroTable::CYB)
-        // .def_readonly("CA_Boost_alpha", &AeroTable::CA_Boost_alpha)
-        // .def_readonly("CA_Coast_alpha", &AeroTable::CA_Coast_alpha)
-        // .def_readonly("CNB_alpha", &AeroTable::CNB_alpha)
 
+        // ------------------------------------------------------------------------------------------------
+        // class methods
+        // ------------------------------------------------------------------------------------------------
         .def("get_Sref", &AeroTable::get_Sref)
         .def("get_Lref", &AeroTable::get_Lref)
         .def("get_MRC", &AeroTable::get_MRC)
-        .def("get_CA", &AeroTable::get_CA  )
+        .def("get_CA", &AeroTable::get_CA)
         .def("get_CA_Boost", &AeroTable::get_CA_Boost)
         .def("get_CA_Coast", &AeroTable::get_CA_Coast)
         .def("get_CNB", &AeroTable::get_CNB)
@@ -140,9 +132,21 @@ PYBIND11_MODULE(aerotable, m) {
         .def("get_CA_Coast_alpha", &AeroTable::get_CA_Coast_alpha)
         .def("get_CNB_alpha", &AeroTable::get_CNB_alpha)
         .def("inv_aerodynamics", &AeroTable::inv_aerodynamics)
-
         .def_readonly("table_info", &AeroTable::table_info, "tables and their axes dimensions")
 
+        // ------------------------------------------------------------------------------------------------
+        // Staged class methods
+        // ------------------------------------------------------------------------------------------------
+        .def("add_stage", &AeroTable::add_stage)
+        .def("set_stage", &AeroTable::set_stage)
+        .def("get_stage", &AeroTable::get_stage)
+        .def_readonly("stages", &AeroTable::stages)
+        .def_readonly("stage_id", &AeroTable::stage_id, "id of current stage")
+        .def_readonly("is_stage", &AeroTable::is_stage, "true if class is stage instance; false if container for stages")
+
+        // ------------------------------------------------------------------------------------------------
+        // Setters & Getters
+        // ------------------------------------------------------------------------------------------------
         .def_property("increments",
                     [](const AeroTable& self) -> const decltype(AeroTable::increments)& {
                         // py::dict ret;

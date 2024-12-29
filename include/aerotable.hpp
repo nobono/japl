@@ -150,10 +150,10 @@ public:
 
     double inv_aerodynamics(const map<string, double>& kwargs);
 
-    void add_stage(AeroTable& aerotable) {
+    void add_stage(AeroTable& stage) {
         this->is_stage = false;
-        aerotable.is_stage = true;
-        this->stages.push_back(aerotable);
+        stage.is_stage = true;
+        this->stages.push_back(stage);
     }
 
     void set_stage(int& stage) {
@@ -169,7 +169,7 @@ public:
         this->stage_id = stage;
     }
 
-    AeroTable get_stage(void) {
+    AeroTable get_stage(void) const {
         if (this->is_stage) {
             return *this;
         } else {

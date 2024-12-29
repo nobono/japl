@@ -57,5 +57,22 @@ class TestCppAeroTable(unittest.TestCase):
         self.assertEqual(aero.increments, {"alpha": [1., 2., 3.]})
 
 
+    def test_stages(self):
+        stage1 = aerotable.AeroTable(Sref=1.0)
+        stage2 = aerotable.AeroTable(Sref=2.0)
+        aero = aerotable.AeroTable()
+        aero.add_stage(stage1)
+        aero.add_stage(stage2)
+        self.assertEqual(len(aero.stages), 2)
+        self.assertIsInstance(aero.stages[0], aerotable.AeroTable)
+        self.assertIsInstance(aero.stages[1], aerotable.AeroTable)
+        self.assertEqual(aero.stages[0].is_stage, True)
+        self.assertEqual(aero.stages[1].is_stage, True)
+        self.assertEqual(aero.stage_id, 0)
+        self.assertEqual(aero.is_stage, False)
+        self.assertEqual(stage1.is_stage, True)
+        self.assertEqual(stage2.is_stage, True)
+
+
 if __name__ == '__main__':
     unittest.main()
