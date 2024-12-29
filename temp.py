@@ -45,7 +45,14 @@ import numpy as np
 # print(m.state_dim)
 # print(s.state_dim)
 
+# New AeroTable test
+# --------------------------------------------------------
+from japl.AeroTable.AeroTable import AeroTable
+aero = AeroTable("./aerodata/aeromodel_psb.mat")
+# print(aero)
+quit()
 
+# --------------------------------------------------------
 from japl.Util import parse_yaml
 from japl import PyQtGraphPlotter
 from japl import SimObject
@@ -73,6 +80,8 @@ model = Model.from_expression(dt,
                               definitions=defs,
                               use_multiprocess_build=True)
 model.cache_build()
+model.set_aerotable()
+
 simobj = SimObject(model)
 inits = dict(
         q_0=1,
