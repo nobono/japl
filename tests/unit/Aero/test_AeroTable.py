@@ -2,10 +2,13 @@ import os
 import unittest
 import numpy as np
 from pathlib import Path
-from japl.Util.Matlab import MatFile
+# from japl.Util.Matlab import MatFile
 from japl.global_opts import get_root_dir
 from japl.AeroTable.AeroTable import AeroTable
 from astropy import units as u
+import linterp
+import datatable
+import aerotable
 
 
 
@@ -77,9 +80,36 @@ class TestAeroTable(unittest.TestCase):
     def test_get_active_tables(self):
         aero_file_path = Path(self.ROOT_DIR, "aerodata/aeromodel_psb.mat")
         aero = AeroTable(aero_file_path)
-        self.assertListEqual(list(aero.get_active_tables().keys()),
+        self.assertListEqual(list(aero.get_cpp_tables().keys()),
                              ['CA_Boost', 'CA_Coast', 'CNB', 'CYB', 'CLMB', 'CLNB',
                               'CA_Boost_alpha', 'CA_Coast_alpha', 'CNB_alpha'])
+
+
+    def test_cpp(self):
+        aero_file_path = Path(self.ROOT_DIR, "aerodata/aeromodel_psb.mat")
+        aero = AeroTable(aero_file_path)
+        # compare python class DataTable with CppDataTable
+        self.assertTrue((aero.CA_Boost == aero.cpp.CA_Boost.interp._data).all())
+        self.assertTrue((aero.CA_Coast == aero.cpp.CA_Coast.interp._data).all())
+        self.assertTrue((aero.CNB == aero.cpp.CNB.interp._data).all())
+        self.assertTrue((aero.CYB == aero.cpp.CYB.interp._data).all())
+        self.assertTrue((aero.CLMB == aero.cpp.CLMB.interp._data).all())
+        self.assertTrue((aero.CLNB == aero.cpp.CLNB.interp._data).all())
+        self.assertTrue((aero.CA_Boost_alpha == aero.cpp.CA_Boost_alpha.interp._data).all())
+        self.assertTrue((aero.CA_Coast_alpha == aero.cpp.CA_Coast_alpha.interp._data).all())
+        self.assertTrue((aero.CNB_alpha == aero.cpp.CNB_alpha.interp._data).all())
+
+        acitve_table_names = ['CA_Boost', 'CA_Coast', 'CNB', 'CYB', 'CLMB', 'CLNB',
+                              'CA_Boost_alpha', 'CA_Coast_alpha', 'CNB_alpha']
+
+        # compare table axes
+        for name in acitve_table_names:
+            py_table = getattr(aero, name)
+            cpp_table = getattr(aero.cpp, name)
+            for key in py_table.axes.keys():
+                py_table_axis = py_table.axes[key]
+                cpp_table_axis = cpp_table.axes[key]
+                self.assertListEqual(py_table_axis.tolist(), cpp_table_axis)
 
 
     def test_CNB_alpha(self):
