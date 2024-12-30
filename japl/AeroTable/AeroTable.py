@@ -7,6 +7,7 @@ from scipy.optimize import minimize_scalar
 from japl.Util.Matlab import MatFile
 from japl.DataTable.DataTable import DataTable
 from japl.Util.Staged import Staged
+from aerotable import AeroTable as CppAeroTable
 
 
 
@@ -58,8 +59,9 @@ class AeroTable(Staged):
                     "Lref",
                     "MRC")
 
+    cpp: CppAeroTable
+
     def __new__(cls, path: str|Path = "",
-                si_units: bool = True,
                 keep_units: bool = False,
                 angle_units: Unit = u.rad,  # type:ignore
                 length_units: Unit = u.m,  # type:ignore
@@ -73,7 +75,6 @@ class AeroTable(Staged):
         if path:
             matfile = MatFile(path)
             obj._build_from_matfile(matfile,
-                                    si_units=si_units,
                                     keep_units=keep_units,
                                     angle_units=angle_units,
                                     length_units=length_units,
@@ -81,6 +82,17 @@ class AeroTable(Staged):
                                     lref_units=lref_units,
                                     mrc_units=mrc_units)
         return obj
+
+
+    def get_active_tables(self) -> dict:
+        """Returns dict of active tables. Active tables
+        are tables which have been initialized."""
+        active_tables = {}
+        for name in self.table_names:
+            if hasattr(self, name):
+                if not (table := getattr(self, name)).isnone():
+                    active_tables[name] = table
+        return active_tables
 
 
     def __repr__(self) -> str:
@@ -104,7 +116,6 @@ class AeroTable(Staged):
 
 
     def _build_from_matfile(self, file: MatFile,
-                            si_units: bool = True,
                             keep_units: bool = False,
                             angle_units: Unit = u.rad,  # type:ignore
                             length_units: Unit = u.m,  # type:ignore
