@@ -5,6 +5,7 @@
 #include <map>
 
 #include "datatable.hpp"
+#include "staged.hpp"
 #include <pybind11/stl.h>
 #include "linterp/linterp.h"
 #include "boost/multi_array.hpp"
