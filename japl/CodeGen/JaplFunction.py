@@ -17,6 +17,7 @@ from sympy.codegen.ast import Variable
 from sympy.codegen.ast import Return
 from sympy.codegen.ast import Symbol
 from sympy.codegen.ast import String
+from sympy.codegen.ast import Basic
 from sympy.codegen.ast import Dummy
 from sympy.codegen.ast import Type
 from sympy.codegen.ast import Tuple
@@ -62,7 +63,7 @@ class JaplFunction(Function):
     function_proto: FunctionPrototype
     function_body: CodeBlock
     body = CodeBlock()
-    expr: Expr|Matrix|NoneToken
+    expr: Basic|Matrix
     return_type = JaplType()
     is_static: bool
 
