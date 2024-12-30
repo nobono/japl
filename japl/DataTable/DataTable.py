@@ -14,11 +14,11 @@ class DataTable(np.ndarray):
     arguments."""
 
     # ---------------------------------------------------------------------
-    # NOTE: cpp_datatable is the c++ backend implementation of
-    # DataTable. cpp_datable must be reinitialized after every
+    # NOTE: `cpp` is the c++ backend implementation of
+    # DataTable. `cpp` must be reinitialized after every
     # DataTable operation (i.e. axis-reflection, slicing, ...etc)
     # ---------------------------------------------------------------------
-    cpp_datatable: Optional[CppDataTable]  # backend datatable implementation (pybind11)
+    cpp: Optional[CppDataTable]  # backend datatable implementation (pybind11)
     axes: dict
 
     def __new__(cls, input_array, axes: dict):
@@ -29,11 +29,10 @@ class DataTable(np.ndarray):
         # invalid DataTable will always return zero.
         if input_array is None:
             obj.axes = {}
-            obj.cpp_datatable = None
+            obj.cpp = None
         else:
             obj.axes = axes.copy()
-            _axes = obj._get_table_args(**axes)
-            obj.cpp_datatable = CppDataTable(data_table, _axes)
+            obj.cpp = CppDataTable(data_table, obj.axes)
         return obj
 
 
@@ -42,7 +41,7 @@ class DataTable(np.ndarray):
         if obj is None:
             return
         self.axes = getattr(obj, "axes", {})
-        self.cpp_datatable = getattr(obj, "cpp_datatable", CppDataTable())
+        self.cpp = getattr(obj, "cpp", CppDataTable())
 
 
     # TODO Datatable slicing
@@ -108,11 +107,11 @@ class DataTable(np.ndarray):
         if len(args) != len(self.axes):
             raise Exception(f"missing DataTable arguments for: {list(self.axes.keys())[len(args):]}")
 
-        if self.cpp_datatable is None:
+        if self.cpp is None:
             return 0.0
         else:
             # -------------------------------------------------------------
-            # NOTE: cpp_datatable takes multiple points
+            # NOTE: `cpp` takes multiple points
             # as a list of points. if passing broadcasting
             # indices: ([x1, x2, ...], [y1, y2, ...])
             # points but me reformatted.
@@ -123,13 +122,13 @@ class DataTable(np.ndarray):
                     _input_shape = args[0].shape
                     # flatten multidimensional arg arrays
                     _args = np.column_stack([i.ravel() for i in args])
-                    ret = self.cpp_datatable(_args)
+                    ret = self.cpp(_args)
                     ret = ret.reshape(_input_shape)
                 else:
                     _args = np.column_stack(args)
-                    ret = self.cpp_datatable(_args)
+                    ret = self.cpp(_args)
             else:
-                ret = self.cpp_datatable((args,))
+                ret = self.cpp((args,))
 
         if len(ret.shape) < 1 or ret.shape == (1,):
             return ret.item()  # type:ignore

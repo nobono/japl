@@ -1,3 +1,4 @@
+import linterp
 import unittest
 import numpy as np
 import datatable

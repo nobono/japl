@@ -50,7 +50,7 @@ class TestDataTable(unittest.TestCase):
                          [6., 7., 8.]])
         mtable = table.mirror_axis("alpha")
         self.assertTrue((mtable == true).all())
-        self.assertTrue((true == mtable.cpp_datatable.interp._data).all())  # type:ignore
+        self.assertTrue((true == mtable.cpp.interp._data).all())  # type:ignore
         self.assertListEqual(mtable.axes["alpha"].tolist(), [-2, -1, 0, 1, 2])
         self.assertListEqual(mtable.axes["mach"].tolist(), self.axes["mach"].tolist())
 
@@ -62,7 +62,7 @@ class TestDataTable(unittest.TestCase):
                          [-8., -7., 6., 7., 8.]])
         mtable = table.mirror_axis("mach")
         self.assertTrue((mtable == true).all())
-        self.assertTrue((true == mtable.cpp_datatable.interp._data).all())  # type:ignore
+        self.assertTrue((true == mtable.cpp.interp._data).all())  # type:ignore
         self.assertListEqual(mtable.axes["mach"].tolist(), [-2, -1, 0, 1, 2])
         self.assertListEqual(mtable.axes["alpha"].tolist(), self.axes["alpha"].tolist())
 
@@ -76,7 +76,7 @@ class TestDataTable(unittest.TestCase):
                          [12., 14., 16.]])
         data = t1 + t2
         self.assertTrue((true == data).all())
-        self.assertTrue((true == data.cpp_datatable.interp._data).all())  # type:ignore
+        self.assertTrue((true == data.cpp.interp._data).all())  # type:ignore
         self.assertListEqual(data.axes["alpha"].tolist(), self.axes["alpha"].tolist())
         self.assertListEqual(data.axes["mach"].tolist(), self.axes["mach"].tolist())
 
@@ -113,7 +113,7 @@ class TestDataTable(unittest.TestCase):
                          [8., 9., 10.]])
         data = t1 + 2
         self.assertTrue((true == data).all())
-        self.assertTrue((true == data.cpp_datatable.interp._data).all())  # type:ignore
+        self.assertTrue((true == data.cpp.interp._data).all())  # type:ignore
         self.assertListEqual(data.axes["alpha"].tolist(), self.axes["alpha"].tolist())
         self.assertListEqual(data.axes["mach"].tolist(), self.axes["mach"].tolist())
 
@@ -157,7 +157,7 @@ class TestDataTable(unittest.TestCase):
                          [36., 49., 64.]])
         data = t1 * t2
         self.assertTrue((true == data).all())
-        self.assertTrue((true == data.cpp_datatable.interp._data).all())  # type:ignore
+        self.assertTrue((true == data.cpp.interp._data).all())  # type:ignore
         self.assertListEqual(data.axes["alpha"].tolist(), self.axes["alpha"].tolist())
         self.assertListEqual(data.axes["mach"].tolist(), self.axes["mach"].tolist())
 
@@ -171,7 +171,7 @@ class TestDataTable(unittest.TestCase):
                          [69., 90., 111.]])
         data = t1 @ t2
         self.assertTrue((true == data).all())
-        self.assertTrue((true == data.cpp_datatable.interp._data).all())  # type:ignore
+        self.assertTrue((true == data.cpp.interp._data).all())  # type:ignore
         self.assertListEqual(data.axes["alpha"].tolist(), self.axes["alpha"].tolist())
         self.assertListEqual(data.axes["mach"].tolist(), self.axes["mach"].tolist())
 
@@ -184,7 +184,7 @@ class TestDataTable(unittest.TestCase):
                          [12., 14., 16.]])
         data = t1 * 2
         self.assertTrue((true == data).all())
-        self.assertTrue((true == data.cpp_datatable.interp._data).all())  # type:ignore
+        self.assertTrue((true == data.cpp.interp._data).all())  # type:ignore
         self.assertListEqual(data.axes["alpha"].tolist(), self.axes["alpha"].tolist())
         self.assertListEqual(data.axes["mach"].tolist(), self.axes["mach"].tolist())
 

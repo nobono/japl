@@ -839,16 +839,16 @@ class Model:
                             f"from {name}.{name} import Model as CppModel",
                             "from sympy import Matrix",
                             "from sympy import symbols",
-                            "cpp_model = CppModel()",
+                            "cpp = CppModel()",
                             "", "", ""])
-        model_class = JaplClass(name, parent="JaplModel", members={"aerotable": Symbol("cpp_model.aerotable"),
-                                                                   "atmosphere": Symbol("cpp_model.atmosphere"),
+        model_class = JaplClass(name, parent="JaplModel", members={"aerotable": Symbol("cpp.aerotable"),
+                                                                   "atmosphere": Symbol("cpp.atmosphere"),
                                                                    "state_vars": state_vars_member,
                                                                    "input_vars": input_vars_member,
                                                                    "static_vars": static_vars_member})
-        footer = "\n".join([f"{tab}dynamics = cpp_model.dynamics",
-                            f"{tab}state_updates = cpp_model.state_updates",
-                            f"{tab}input_updates = cpp_model.input_updates"])
+        footer = "\n".join([f"{tab}dynamics = cpp.dynamics",
+                            f"{tab}state_updates = cpp.state_updates",
+                            f"{tab}input_updates = cpp.input_updates"])
         model_file_builder = FileBuilder("model.py", contents=[header, pycode(model_class), footer])
 
         # SimObject class file

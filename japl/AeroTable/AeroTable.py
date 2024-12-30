@@ -81,18 +81,22 @@ class AeroTable(Staged):
                                     sref_units=sref_units,
                                     lref_units=lref_units,
                                     mrc_units=mrc_units)
+            cpp_tables = obj.get_cpp_tables()
+            obj.cpp = CppAeroTable(**cpp_tables)
         return obj
 
 
-    def get_active_tables(self) -> dict:
-        """Returns dict of active tables. Active tables
-        are tables which have been initialized."""
-        active_tables = {}
+    def get_cpp_tables(self) -> dict:
+        """Returns dict of active cpp tables. Active cpp tables
+        are tables which have been initialized and so DataTable.cpp
+        is also initialized. The `cpp` attribute of DataTable is
+        the c++ class found in `include/datatable.cpp`."""
+        cpp_tables = {}
         for name in self.table_names:
             if hasattr(self, name):
                 if not (table := getattr(self, name)).isnone():
-                    active_tables[name] = table
-        return active_tables
+                    cpp_tables[name] = table.cpp
+        return cpp_tables
 
 
     def __repr__(self) -> str:
