@@ -65,7 +65,6 @@ class Model:
     dynamics: Callable
 
     aerotable: AeroTable
-    atmosphere: Atmosphere
 
     def __init__(self) -> None:
         self._dtype = np.float64
@@ -116,6 +115,8 @@ class Model:
         # this is only used with StateSpace model types
         # to allow sympy symbols within the A, B matrices.
         self._sym_references: list[dict] = []
+
+        self.aerotable = AeroTable()
 
 
     def has_input_function(self) -> bool:
@@ -185,10 +186,6 @@ class Model:
 
     def set_aerotable(self, aerotable: AeroTable):
         self.aerotable = aerotable
-
-
-    def set_atmosphere(self, atmosphere: Atmosphere):
-        self.atmosphere = atmosphere
 
 
     @classmethod
