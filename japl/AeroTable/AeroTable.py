@@ -83,7 +83,8 @@ class AeroTable(Staged):
                                     lref_units=lref_units,
                                     mrc_units=mrc_units)
             cpp_tables = obj._get_cpp_tables()
-            obj.cpp = CppAeroTable(**cpp_tables)
+            scalars = obj._get_scalars()
+            obj.cpp = CppAeroTable(**cpp_tables, **scalars)
         else:
             # handle tables passed as kwargs
             cpp_table_inits = {}  # table inits dictionary for cpp-init
@@ -104,8 +105,43 @@ class AeroTable(Staged):
                     cpp_default = DataTable(np.array([]), {"null": np.array([])})
                     setattr(obj, name, py_default)
                     cpp_table_inits[name] = cpp_default.cpp
-            obj.cpp = CppAeroTable(**cpp_table_inits)
+
+            # handle scalar values passed as kwargs
+            cpp_scalar_inits = {}
+            for name in obj.scalar_names:
+                if name in kwargs:
+                    scalar = kwargs.get(name)
+                    setattr(obj, name, scalar)
+                    cpp_scalar_inits[name] = scalar
+
+            obj.cpp = CppAeroTable(**cpp_table_inits, **cpp_scalar_inits)
         return obj
+
+
+    def add_stage(self, child) -> None:
+        """Adds a child AeroTable object as an ordered child
+        of this object."""
+        # NOTE: overloaded for the purpose of calling `cpp` member
+        super().add_stage(child)
+        self.cpp.add_stage(child.cpp)
+
+
+    def set_stage(self, stage: int) -> None:
+        """Set the current stage index for the aerotable. This is
+        so that `get_stage()` will return the corresponding aerotable."""
+        # NOTE: overloaded for the purpose of calling `cpp` member
+        super().set_stage(stage)
+        self.cpp.set_stage(stage)
+
+
+    def _get_scalars(self) -> dict:
+        """Returns dict of registered scalar values."""
+        cpp_scalars = {}
+        for name in self.scalar_names:
+            if hasattr(self, name):
+                if (scalar := getattr(self, name)) is not None:
+                    cpp_scalars[name] = scalar
+        return cpp_scalars
 
 
     def _get_cpp_tables(self) -> dict:
@@ -418,6 +454,11 @@ class AeroTable(Staged):
         self.Lref *= lref_conv_const
         self.MRC *= mrc_conv_const
 
+        # some files provide MRC as a 3d
+        # coordinate. TODO handle this better.
+        if hasattr(self.MRC, "__len__"):
+            self.MRC = self.MRC[0]  # type:ignore
+
 
     @staticmethod
     def _deduce_datatable(table: Optional[np.ndarray], possible_axes: dict) -> DataTable:
@@ -466,13 +507,7 @@ class AeroTable(Staged):
         return self.get_stage().Lref
 
     def get_MRC(self):
-        mrc = self.get_stage().MRC
-        # some files provide MRC as a 3d
-        # coordinate. TODO handle this better.
-        if hasattr(mrc, "__len__"):
-            return mrc[0]
-        else:
-            return mrc
+        return self.get_stage().MRC
 
     def get_CA(self, *args, **kwargs):
         return self.get_stage().CA(*args, **kwargs)
