@@ -98,55 +98,55 @@ public:
     }
 
     double get_Sref() {
-        return this->Sref;
+        return this->get_stage().Sref;
     }
 
     double get_Lref() {
-        return this->Lref;
+        return this->get_stage().Lref;
     }
 
     double get_MRC() {
-        return this->MRC;
+        return this->get_stage().MRC;
     }
 
     double get_CA(const map<string, double>& kwargs) {
-        return this->CA(kwargs)[0];
+        return this->get_stage().CA(kwargs)[0];
     }
 
     double get_CA_Boost(const map<string, double>& kwargs) {
-        return this->CA_Boost(kwargs)[0];
+        return this->get_stage().CA_Boost(kwargs)[0];
     }
 
     double get_CA_Coast(const map<string, double>& kwargs) {
-        return this->CA_Coast(kwargs)[0];
+        return this->get_stage().CA_Coast(kwargs)[0];
     }
 
     double get_CNB(const map<string, double>& kwargs) {
-        return this->CNB(kwargs)[0];
+        return this->get_stage().CNB(kwargs)[0];
     }
 
     double get_CYB(const map<string, double>& kwargs) {
-        return this->CYB(kwargs)[0];
+        return this->get_stage().CYB(kwargs)[0];
     }
 
     double get_CLMB(const map<string, double>& kwargs) {
-        return this->CLMB(kwargs)[0];
+        return this->get_stage().CLMB(kwargs)[0];
     }
 
     double get_CLNB(const map<string, double>& kwargs) {
-        return this->CLNB(kwargs)[0];
+        return this->get_stage().CLNB(kwargs)[0];
     }
 
     double get_CA_Boost_alpha(const map<string, double>& kwargs) {
-        return this->CA_Boost_alpha(kwargs)[0];
+        return this->get_stage().CA_Boost_alpha(kwargs)[0];
     }
 
     double get_CA_Coast_alpha(const map<string, double>& kwargs) {
-        return this->CA_Coast_alpha(kwargs)[0];
+        return this->get_stage().CA_Coast_alpha(kwargs)[0];
     }
 
     double get_CNB_alpha(const map<string, double>& kwargs) {
-        return this->CNB_alpha(kwargs)[0];
+        return this->get_stage().CNB_alpha(kwargs)[0];
     }
 
     double inv_aerodynamics(const map<string, double>& kwargs);
