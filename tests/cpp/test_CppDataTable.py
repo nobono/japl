@@ -51,5 +51,13 @@ class TestCppDataTable(unittest.TestCase):
         self.assertListEqual(ret.tolist(), [1, 5, 9])
 
 
+    def test_data_property_getter(self):
+        table = datatable.DataTable(self.data, self.axes)
+        self.assertTrue((table.data == self.data).all())
+        # ensure data is protected
+        table.data[0, 0] = 123
+        self.assertTrue(table.data[0, 0] == 1)
+
+
 if __name__ == '__main__':
     unittest.main()
