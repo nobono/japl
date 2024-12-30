@@ -111,6 +111,42 @@ double AeroTable::inv_aerodynamics(const map<string, double>& kwargs) {
 }
 
 
+// /* Trampoline class */
+// class PyAeroTable : public PyStaged<AeroTable> {
+// public:
+//     /* Inherit the constructors */
+//     using PyStaged<AeroTable>::Staged;
+
+//     /* Trampoline (need one for each virtual function) */
+//     void add_stage(AeroTable& stage) override {
+//         PYBIND11_OVERRIDE_PURE(
+//             void, /* Return type */
+//             Staged<AeroTable>,   /* Parent class */
+//             add_stage,   /* Name of function in C++ (must match Python name) */
+//             stage        /* Argument(s) */
+//         );
+//     }
+
+//     void set_stage(int& stage) override {
+//         PYBIND11_OVERRIDE_PURE(
+//             void, /* Return type */
+//             Staged<AeroTable>,   /* Parent class */
+//             set_stage,   /* Name of function in C++ (must match Python name) */
+//             stage        /* Argument(s) */
+//         );
+//     }
+
+//     AeroTable get_stage() const override {
+//         PYBIND11_OVERRIDE_PURE(
+//             AeroTable, /* Return type */
+//             Staged<AeroTable>,   /* Parent class */
+//             get_stage,   /* Name of function in C++ (must match Python name) */
+//         );
+//     }
+
+// };
+
+
 PYBIND11_MODULE(aerotable, m) {
     pybind11::class_<AeroTable>(m, "AeroTable")
         .def(py::init<py::kwargs&>())
