@@ -1,56 +1,7 @@
 import numpy as np
-# from typing import Any, Callable
-# from sympy import Basic
-# from sympy import symbols
-# from sympy import Matrix
-# from sympy import true, false
-# from sympy import cse
-# from sympy import MatrixSymbol
-# from sympy import Symbol
-# from sympy import Function
-# from sympy import Expr
-# from sympy.codegen.ast import CodeBlock, Element
-# from sympy.codegen.ast import Type
-# from sympy.codegen.ast import String
-# from sympy.codegen.ast import Token
-# from sympy.codegen.ast import Tuple
-# from japl.CodeGen import pycode
-# from japl.CodeGen import ccode
-# from japl.CodeGen import Builder
-# # from japl.CodeGen import FileBuilder
-# # from japl.CodeGen import CFileBuilder
-# # from japl.CodeGen import ModuleBuilder
-# # from japl.CodeGen import CodeGenerator
-# # from japl.CodeGen import JaplFunction
-# # from japl.CodeGen.Ast import CTypes, JaplType, JaplTypes, Kwargs, CType, PyType
-# # from japl.CodeGen.Ast import convert_symbols_to_variables
-# # from japl.CodeGen.Ast import Dict
-# # from japl.CodeGen.JaplFunction import numbered_symbols, get_lang_types, Variable
-# # from japl.CodeGen.Util import optimize_expression
-# # from japl.Library.Earth.Earth import Earth
-# # from sympy import sin, cos
-# # from japl.CodeGen.Ast import JaplClass
-# from japl import SimObject
-# from japl.CodeGen.Ast import CodeGenFunctionCall
-# from japl.CodeGen.Ast import Kwargs
-# from japl.CodeGen.JaplFunction import JaplFunction
-# from japl.Util.Util import iter_type_check
-# from pprint import pprint
-
-
-
-# import mmd
-# m = mmd.Model()
-# s = mmd.SimObject()
-# print(m.state_dim)
-# print(s.state_dim)
-
-# New AeroTable test
-# --------------------------------------------------------
-# from japl.AeroTable.AeroTable import AeroTable
-# print(aero)
-
-# --------------------------------------------------------
+import quaternion
+from japl.Library.Earth.Earth import Earth
+from japl import Rotation
 from japl.Util import parse_yaml
 from japl import PyQtGraphPlotter
 from japl import SimObject
@@ -60,19 +11,20 @@ from japl import AeroTable
 from japl import Atmosphere
 from japl.global_opts import get_root_dir
 from pathlib import Path
-
 import mmd
+
+
+
 simobj = mmd.SimObject()
 
-aero_file_path = Path(get_root_dir(), "aerodata/cms_sr_stage1aero.mat")
-pyaero = AeroTable(aero_file_path)
+# aero_file_path = Path(get_root_dir(), "aerodata/cms_sr_stage1aero.mat")
+# pyaero = AeroTable(aero_file_path)
+# simobj.model.set_aerotable(pyaero)
 
-print(id(simobj.model.aerotable))
-simobj.model.set_aerotable(pyaero)
-print(id(simobj.model.aerotable))
+# print(id(simobj.model.cpp.input_updates))
+# simobj.model.set_aerotable(pyaero)
+# print(id(simobj.model.input_updates))
 
-
-quit()
 # -------------------------------------------------------------------------
 # from japl.Library.Vehicles.MissileGenericMMD import (dt,
 #                                                      state,
@@ -91,12 +43,26 @@ quit()
 #                               use_multiprocess_build=True)
 # model.cache_build()
 
-# stage1 = AeroTable("./aerodata/stage_1_aero.mat")
-# stage2 = AeroTable("./aerodata/stage_2_aero.mat")
-# aero = AeroTable()
-# aero.add_stage(stage1)
-# aero.add_stage(stage2)
-# simobj.model.set_aerotable(aero)
+stage1 = AeroTable("./aerodata/stage_1_aero.mat")
+stage2 = AeroTable("./aerodata/stage_2_aero.mat")
+aero = AeroTable()
+aero.add_stage(stage1)
+aero.add_stage(stage2)
+simobj.model.set_aerotable(aero)
+
+
+# print(id(simobj.model.aerotable.cpp))
+# print(id(simobj.model.cpp.aerotable))
+
+# print(simobj.model.cpp.aerotable.get_Sref())
+# print(simobj.model.aerotable.get_Sref())
+
+# print(stage1.get_Sref())
+# print(stage1.cpp.get_Sref())
+
+# print(stage1.cpp.get_Sref())
+# print(aero.cpp.get_stage().get_Sref())
+# print(aero.get_stage().cpp.get_Sref())
 
 # simobj = SimObject(model)
 
@@ -135,9 +101,7 @@ def input_func(*args):
     U = np.array([0., 0, 0, 1, 5000, 1, 9.81])
     return U
 
-import quaternion
-from japl.Library.Earth.Earth import Earth
-from japl import Rotation
+
 VLEG = 0
 ecef0 = np.array([Earth.radius_equatorial, 0, 0])
 r0_enu = np.array([0, 0, 0], dtype=float)
@@ -249,6 +213,18 @@ simobj.init_static([
     ])
 
 simobj.set_input_function(input_func)
+
+t = 0.
+X = simobj.X0
+U = np.array([0., 0, 0, 1, 5000, 1, 9.81])
+S = simobj.S0
+dt = 0.1
+ret = simobj.model.dynamics(t, X, U, S, dt)
+print(simobj.model.aerotable.cpp.get_Sref())
+print(aero.get_stage().get_Sref())
+
+
+quit()
 simobj.plot.set_config({
     "EAST": {"xaxis": "time",
              "yaxis": simobj.r_e},
