@@ -51,7 +51,7 @@ double AeroTable::inv_aerodynamics(const map<string, double>& kwargs) {
     double alt = kwargs.at("alt");
     double iota = kwargs.at("iota");
 
-    AeroTable stage = this->get_stage();
+    // AeroTable stage = this->get_stage();
     double alpha_tol = 0.01;
     dVec increment_alpha = this->increments["alpha"];
     double alpha_max = *std::max_element(increment_alpha.begin(), increment_alpha.end());
@@ -76,18 +76,18 @@ double AeroTable::inv_aerodynamics(const map<string, double>& kwargs) {
         // get coeffs from aerotable
         map<string, double> table_args({{"alpha", alpha}, {"beta", beta}, {"phi", phi}, {"mach", mach}, {"alt", alt}, {"iota", iota}});
         if (boosting) {
-            CA = stage.get_CA_Boost(table_args);
+            CA = this->get_CA_Boost(table_args);
         } else {
-            CA = stage.get_CA_Coast(table_args);
+            CA = this->get_CA_Coast(table_args);
         }
-        CN = stage.get_CNB(table_args);
+        CN = this->get_CNB(table_args);
 
         if (boosting) {
-            CA_alpha = stage.get_CA_Boost_alpha(table_args);
+            CA_alpha = this->get_CA_Boost_alpha(table_args);
         } else {
-            CA_alpha = stage.get_CA_Coast_alpha(table_args);
+            CA_alpha = this->get_CA_Coast_alpha(table_args);
         }
-        CN = stage.get_CNB_alpha(table_args);
+        CN = this->get_CNB_alpha(table_args);
 
         // get derivative of CL wrt alpha
         double cosa = cos(alpha);
