@@ -46,6 +46,24 @@ class TestAeroTable(unittest.TestCase):
         self.assertEqual(aero.stages[1].is_stage, True)
 
 
+    def test_cpp_stages(self):
+        """This tests whether configuring stages in frontend
+        AeroTable is reflected in the backend."""
+        aero = AeroTable()
+        stage1 = AeroTable(Sref=1.23)
+        stage2 = AeroTable(Sref=2.34)
+        """add stage"""
+        aero.add_stage(stage1)
+        aero.add_stage(stage2)
+        self.assertEqual(len(aero.stages), len(aero.cpp.stages))
+        """set stage"""
+        self.assertTrue(aero.stage_id == aero.cpp.stage_id == 0)
+        self.assertTrue(aero.get_Sref() == aero.cpp.get_Sref() == 1.23)
+        aero.set_stage(1)
+        self.assertTrue(aero.stage_id == aero.cpp.stage_id == 1)
+        self.assertTrue(aero.get_Sref() == aero.cpp.get_Sref() == 2.34)
+
+
     def test_file_type_1(self):
         aero_file_path = Path(self.ROOT_DIR, "aerodata/cms_sr_stage1aero.mat")
         aero = AeroTable(aero_file_path)
