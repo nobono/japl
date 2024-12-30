@@ -3,21 +3,26 @@ import numpy as np
 from japl.AeroTable.AeroTable import AeroTable
 from japl.DataTable.DataTable import DataTable
 from japl.Model.Model import Model
+from aerotable import AeroTable as CppAeroTable
 
 
 class TestModel_integration(unittest.TestCase):
 
-    def test_py_to_cpp(self):
-        """tests Model.set_aerotable() from py-side AeroTable argument"""
-        data = np.ones((2, 2))
+
+    def setUp(self) -> None:
+        data = np.ones((2, 2), dtype=float)
         axes = ({'a': np.array([0., 1.]),
                  'b': np.array([0., 1.])})
-        table = DataTable(data, axes)
-        aero = AeroTable(CA=table)
+        self.table = DataTable(data, axes)
+
+
+    def test_py_to_cpp(self):
+        """tests Model.set_aerotable() from py-side AeroTable argument"""
+        aero = AeroTable(CA=self.table)
         model = Model()
-        self.assertListEqual(model.aerotable.CA.interp._data.tolist(), [])
+        self.assertListEqual(model.aerotable.cpp.CA.interp._data.tolist(), [])
         model.set_aerotable(aero)
-        self.assertTrue((model.aerotable.CA.interp._data == aero.CA).all())
+        self.assertTrue((model.aerotable.cpp.CA.interp._data == aero.CA).all())
 
 
 if __name__ == '__main__':
