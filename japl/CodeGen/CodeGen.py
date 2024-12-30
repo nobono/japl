@@ -11,6 +11,7 @@ from sympy.codegen.ast import Basic
 from sympy.codegen.ast import Variable
 from japl.global_opts import get_root_dir
 from japl.CodeGen.JaplFunction import JaplFunction
+from japl.CodeGen.Ast import JaplType
 from japl.CodeGen.Ast import CType
 from japl.CodeGen.Ast import CTypes
 from japl.CodeGen.Ast import CodeGenFunctionDefinition
@@ -184,7 +185,29 @@ class Pybind:
 
 
     def build(self) -> Writes:
+        # -----------------------------------------------------------------
+        # NOTE:
+        #   cpp classes are integrated with python
+        #   frontend via composition.
+
+        #   when a custom Model is created, said model
+        #   may have c++ methods exposed which are used
+        #   during Sim.
+        #
+        #   so when trying to set the cpp-aerotable to a new one,
+        #   the orginial aerotable.cpp must be preserved since it
+        #   is the reference to the original aerotable.cpp that is
+        #   called from within the cpp-model's sim-methods
+        #   (i.e. input_updates, state_updates, dynamics)
+
+        #   p.s. (aerotable.cpp == cpp-aerotable)
+
+        #   it is therefore, necessary to create a trampoline class
+        #   in pybind; which is a subclass of cpp-Model [see model.hpp].
+        # -----------------------------------------------------------------
         pybind_writes = Pybind.get_pybind_binding_writes(module_name=self.module_name)
+        tramp_class_name = f"{self.module_name}Model"
+        tramp_func_writes = Pybind.get_trampoline_class_writes(tramp_class_name)
         class_writes = []
         for class_name, methods in self.class_data.items():
             if class_name == "Model":  # TODO: do this better
@@ -196,10 +219,13 @@ class Pybind:
             for method in methods:
                 param_vars = method.get_proto().parameters
                 if class_name == "Model":  # TODO: do this better
+                    class_name = tramp_class_name
                     param_vars = ModuleBuilder.std_args
+                else:
+                    class_name = method.class_name
                 method_writes += Pybind.get_pybind_method_call_wrapper(func_name=method.name,
                                                                        parameters=param_vars,
-                                                                       class_name=method.class_name,
+                                                                       class_name=class_name,
                                                                        description=method.description,
                                                                        is_static=method.is_static)
             if len(method_writes):
@@ -221,8 +247,20 @@ class Pybind:
                                                                            parameters=param_vars,
                                                                            description=function.description)
 
-        writes = pybind_writes + class_writes + function_writes
+        writes = tramp_func_writes + pybind_writes + class_writes + function_writes
         writes += ["}"]
+        return writes
+
+
+    @staticmethod
+    def get_trampoline_class_writes(class_name: str) -> Writes:
+        """This is necessary to avoid pybind error of `Model` already being
+        registered since Model will already be registered from its extension
+        module. A custom cpp-Model extension module will subclass Model; but
+        to avoid said errors, create and register a trampoline class."""
+        writes = []
+        writes = ["", ""]
+        writes += [f"class {class_name} : public Model " + "{using Model::Model;};"]
         return writes
 
 
@@ -276,7 +314,7 @@ class Pybind:
 
 
     @staticmethod
-    def get_pybind_function_call_wrapper(func_name: str, return_type: CType,
+    def get_pybind_function_call_wrapper(func_name: str, return_type: JaplType,
                                          parameters: tuple, description: str) -> Writes:
         # lambda wrapper to convert return of vector<> to py::array_t<>
         if return_type.is_array:

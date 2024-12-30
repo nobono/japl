@@ -1,7 +1,9 @@
 import os
 import dill
+from pathlib import Path
 from typing import Callable, Optional
 import numpy as np
+from textwrap import dedent
 from enum import Enum
 # from scipy.sparse import csr_matrix
 # from scipy.sparse._csr import csr_matrix as Tcsr_matrix
@@ -9,6 +11,7 @@ from enum import Enum
 from sympy import Matrix, MatrixSymbol, Symbol, Expr, Function
 from sympy import nan as sp_nan
 from sympy import simplify
+from sympy.codegen.ast import Basic
 from sympy.codegen.ast import NoneToken
 
 from japl.Aero.Atmosphere import Atmosphere
@@ -28,6 +31,8 @@ from japl.CodeGen import CodeGenerator
 from japl.CodeGen import JaplFunction
 from japl.CodeGen import JaplClass
 from japl.CodeGen import pycode
+
+from model import Model as CppModel
 
 # ---------------------------------------------------
 
@@ -57,66 +62,95 @@ class Model:
 
     """
 
+    _dtype: type
+
+    state_register: StateRegister
+    input_register: StateRegister
+    static_register: StateRegister
+    modules: dict
+
+    state_dim: int
+    input_dim: int
+    static_dim: int
+
+    dt_var: Symbol
+    vars: tuple
     state_vars: Matrix
     input_vars: Matrix
     static_vars: Matrix
+
+    dynamics_expr: Basic|Matrix
+    state_updates_expr: Basic|Matrix
+    input_updates_expr: Basic|Matrix
+
+    input_function: Callable
+    pre_update_functions: list[Callable]
+    post_update_functions: list[Callable]
     state_updates: Callable
     input_updates: Callable
     dynamics: Callable
 
     aerotable: AeroTable
+    cpp: CppModel
 
-    def __init__(self) -> None:
-        self._dtype = np.float64
-        self.state_register = StateRegister()
-        self.input_register = StateRegister()
-        self.static_register = StateRegister()
-        self.dynamics_expr = NoneToken()
-        self.modules: dict = {}
-        self.dt_var = Symbol("")
-        self.vars: tuple = ()
-        self.state_dim = 0
-        self.input_dim = 0
-        self.static_dim = 0
-        self.state_updates_expr: Matrix
-        self.input_updates_expr: Matrix
-        self.input_function: Callable
-        self.pre_update_functions: list[Callable] = []
-        self.post_update_functions: list[Callable] = []
+    _namespace: dict
+    _iX_reference: np.ndarray
+    _sym_references: list[dict]
 
-        if not hasattr(self, "state_vars"):
-            self.state_vars = Matrix([])
-        if not hasattr(self, "input_vars"):
-            self.input_vars = Matrix([])
-        if not hasattr(self, "static_vars"):
-            self.static_vars = Matrix([])
+    def __new__(cls):
+        obj = super().__new__(cls)
+        obj._dtype = np.float64
+        obj.state_register = StateRegister()
+        obj.input_register = StateRegister()
+        obj.static_register = StateRegister()
+        obj.dynamics_expr = NoneToken()
+        obj.modules = {}
+        obj.dt_var = Symbol("")
+        obj.vars = ()
+        obj.state_dim = 0
+        obj.input_dim = 0
+        obj.static_dim = 0
+        obj.state_updates_expr = NoneToken()
+        obj.input_updates_expr = NoneToken()
+        # obj.input_function = None
+        obj.pre_update_functions = []
+        obj.post_update_functions = []
+
+        if not hasattr(obj, "state_vars"):
+            obj.state_vars = Matrix([])
+        if not hasattr(obj, "input_vars"):
+            obj.input_vars = Matrix([])
+        if not hasattr(obj, "static_vars"):
+            obj.static_vars = Matrix([])
 
         # init registers
-        self.set_state(self.state_vars)  # NOTE: will convert any Function to Symbol
-        self.set_input(self.input_vars)  # NOTE: will convert any Function to Symbol
-        self.set_static(self.static_vars)
+        obj.set_state(obj.state_vars)  # NOTE: will convert any Function to Symbol
+        obj.set_input(obj.input_vars)  # NOTE: will convert any Function to Symbol
+        obj.set_static(obj.static_vars)
 
         # data array dims
-        self.state_dim = len(self.state_vars)
-        self.input_dim = len(self.input_vars)
-        self.static_dim = len(self.static_vars)
+        obj.state_dim = len(obj.state_vars)
+        obj.input_dim = len(obj.input_vars)
+        obj.static_dim = len(obj.static_vars)
 
         # namespace dict for cached functions
-        self._namespace = {}
+        obj._namespace = {}
 
         # proxy state array updated at each step
         # ***************************************
         # this is ony used during animation or
         # when ODE solver is used step-by-step
         # ***************************************
-        self._iX_reference = np.array([])
+        obj._iX_reference = np.array([])
 
         # info on what matrix slice hold what state ref.
         # this is only used with StateSpace model types
         # to allow sympy symbols within the A, B matrices.
-        self._sym_references: list[dict] = []
+        obj._sym_references = []
 
-        self.aerotable = AeroTable()
+        obj.aerotable = AeroTable()
+        obj.cpp = CppModel()
+        return obj
 
 
     def has_input_function(self) -> bool:
@@ -760,7 +794,7 @@ class Model:
                                                    use_parallel=use_parallel)
 
 
-    def create_c_module(self, name: str, path: str = "./"):
+    def create_c_module(self, name: str, path: str|Path = "./"):
         """
         Creates a c-lang module.
 
@@ -832,20 +866,32 @@ class Model:
         # Model class file
         # TODO JaplClass is sloppy
         # ---------------------------------------------------------------------------
+        trampoline_class_name = f"{name}Model"
         header = "\n".join(["from japl import Model as JaplModel",
-                            f"from {name}.{name} import Model as CppModel",
+                            f"from {name}.{name} import {trampoline_class_name} as CppModel",
                             "from sympy import Matrix",
                             "from sympy import symbols",
-                            "cpp = CppModel()",
                             "", "", ""])
-        model_class = JaplClass(name, parent="JaplModel", members={"aerotable": Symbol("cpp.aerotable"),
-                                                                   "atmosphere": Symbol("cpp.atmosphere"),
+        model_class = JaplClass(name, parent="JaplModel", members={
+                                                                   # "aerotable": Symbol("cpp.aerotable"),
+                                                                   # "atmosphere": Symbol("cpp.atmosphere"),
                                                                    "state_vars": state_vars_member,
                                                                    "input_vars": input_vars_member,
                                                                    "static_vars": static_vars_member})
-        footer = "\n".join([f"{tab}dynamics = cpp.dynamics",
-                            f"{tab}state_updates = cpp.state_updates",
-                            f"{tab}input_updates = cpp.input_updates"])
+        footer = "\n".join([
+                            # f"{tab}dynamics = cpp.dynamics",
+                            # f"{tab}state_updates = cpp.state_updates",
+                            # f"{tab}input_updates = cpp.input_updates",
+                            "",
+                            f"{tab}def __new__(cls):",
+                            f"{tab}{tab}obj = super().__new__(cls)",
+                            f"{tab}{tab}obj.cpp = CppModel()",
+                            f"{tab}{tab}obj.dynamics = obj.cpp.dynamics",
+                            f"{tab}{tab}obj.state_updates = obj.cpp.state_updates",
+                            f"{tab}{tab}obj.input_updates = obj.cpp.input_updates",
+                            f"{tab}{tab}return obj",
+                            ])
+
         model_file_builder = FileBuilder("model.py", contents=[header, pycode(model_class), footer])
 
         # SimObject class file
