@@ -210,32 +210,46 @@ class Pybind:
         tramp_func_writes = Pybind.get_trampoline_class_writes(tramp_class_name)
         class_writes = []
         for class_name, methods in self.class_data.items():
-            if class_name == "Model":  # TODO: do this better
-                class_properties = ["aerotable", "atmosphere"]
-            else:
-                class_properties = []
 
+            # -------------------------------------------------------------
+            # handle methods
+            # -------------------------------------------------------------
             method_writes = []
             for method in methods:
                 param_vars = method.get_proto().parameters
                 if class_name == "Model":  # TODO: do this better
-                    class_name = tramp_class_name
+                    call_wrapper_class_name = tramp_class_name
                     param_vars = ModuleBuilder.std_args
                 else:
-                    class_name = method.class_name
+                    call_wrapper_class_name = method.class_name
                 method_writes += Pybind.get_pybind_method_call_wrapper(func_name=method.name,
                                                                        parameters=param_vars,
-                                                                       class_name=class_name,
+                                                                       class_name=call_wrapper_class_name,
                                                                        description=method.description,
                                                                        is_static=method.is_static)
+            # -------------------------------------------------------------
+            # handle init function
+            # -------------------------------------------------------------
             if len(method_writes):
                 class_writes += Pybind.get_pybind_class_init_writes(class_name)
                 class_writes += method_writes
 
-            class_writes += Pybind.get_pybind_property_sets_gets(class_name=class_name,
+            # -------------------------------------------------------------
+            # handle properties (setters & getters)
+            # -------------------------------------------------------------
+            if class_name == "Model":  # TODO: do this better
+                sets_gets_class_name = tramp_class_name
+                class_properties = ["aerotable", "atmosphere"]
+            else:
+                sets_gets_class_name = class_name
+                class_properties = []
+            class_writes += Pybind.get_pybind_property_sets_gets(class_name=sets_gets_class_name,
                                                                  class_properties=class_properties)
             class_writes += ["\t;"]
 
+        # -----------------------------------------------------------------
+        # handle module functions
+        # -----------------------------------------------------------------
         function_writes = []
         for func_name, functions in self.function_data.items():
             class_properties = []
