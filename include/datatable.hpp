@@ -75,6 +75,9 @@ public:
     // Creates NDInterpolator object from 2 vectors
     template <int N, class T>
     InterpMultilinear<N, T> create_interp_N(const vector<dVec> axes, const py::array_t<double> data);
+
+    // Getter for interp._data
+    py::array_t<double> get_data(void);
 };
 
 

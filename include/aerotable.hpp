@@ -80,7 +80,7 @@ public:
             return *this; // Handle self-assignment
         }
         this->CA = other.CA;
-        this->CA.interp = other.CA.interp;
+        // this->CA.interp = other.CA.interp;
         this->CA.axes = other.CA.axes;
         this->CA_Boost = other.CA_Boost;
         this->CA_Coast = other.CA_Coast;

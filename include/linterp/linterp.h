@@ -151,6 +151,11 @@ public:
         init(begins_ends.first.begin(), f_sizes, flat.data(), flat.data() + flat.size());
     }
 
+    // Getter for _data member
+    py::array_t<double> get_data(void) {
+        return this->_data.attr("copy")();
+    }
+
     // Copy Constructor
     NDInterpolator(const NDInterpolator& other)
         :

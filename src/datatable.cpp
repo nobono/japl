@@ -108,6 +108,21 @@ vector<double> DataTable::operator()(const map<string, double>& kwargs) {
     }
 }
 
+// Getter for interp._data
+// this is so pybind11 can  expose an attribute 'data' which calls
+// DataTable::get_data() which in turn calls InterpMultilinear<N, T>::get_data()
+py::array_t<double> DataTable::get_data(void) {
+    interp_table_t* table_ptr = &this->interp;
+    switch(this->interp.index()) {
+        case 0: return get_if<InterpMultilinear<1, double>>(table_ptr)->get_data();
+        case 1: return get_if<InterpMultilinear<2, double>>(table_ptr)->get_data();
+        case 2: return get_if<InterpMultilinear<3, double>>(table_ptr)->get_data();
+        case 3: return get_if<InterpMultilinear<4, double>>(table_ptr)->get_data();
+        case 4: return get_if<InterpMultilinear<5, double>>(table_ptr)->get_data();
+        default: throw std::invalid_argument("unhandled case.");
+    }
+}
+
 
 dVec DataTable::_get_table_args(const map<string, double>& kwargs) {
     dVec args;
@@ -193,5 +208,9 @@ PYBIND11_MODULE(datatable, m) {
 
         .def_readwrite("axes", &DataTable::axes, "table axes")
         .def_readonly("interp", &DataTable::interp, "interpolation object")
+
+        .def_property_readonly("data",
+               [](DataTable& self) -> const py::array_t<double> {return self.get_data();},
+               py::return_value_policy::copy)  // getter
         ;
 }
