@@ -80,7 +80,7 @@ class TestAeroTable(unittest.TestCase):
     def test_get_active_tables(self):
         aero_file_path = Path(self.ROOT_DIR, "aerodata/aeromodel_psb.mat")
         aero = AeroTable(aero_file_path)
-        self.assertListEqual(list(aero.get_cpp_tables().keys()),
+        self.assertListEqual(list(aero._get_cpp_tables().keys()),
                              ['CA_Boost', 'CA_Coast', 'CNB', 'CYB', 'CLMB', 'CLNB',
                               'CA_Boost_alpha', 'CA_Coast_alpha', 'CNB_alpha'])
 
