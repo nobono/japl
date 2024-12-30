@@ -3,7 +3,6 @@ import numpy as np
 from japl.AeroTable.AeroTable import AeroTable
 from japl.DataTable.DataTable import DataTable
 from japl.Model.Model import Model
-from aerotable import AeroTable as CppAeroTable
 
 
 class TestModel_integration(unittest.TestCase):
