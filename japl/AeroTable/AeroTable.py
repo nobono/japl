@@ -68,6 +68,7 @@ class AeroTable(Staged):
                 sref_units: Unit = u.m**2,  # type:ignore
                 lref_units: Unit = u.m,  # type:ignore
                 mrc_units: Unit = u.m,  # type:ignore
+                **kwargs,
                 ):
 
         obj = super().__new__(cls)
@@ -81,12 +82,33 @@ class AeroTable(Staged):
                                     sref_units=sref_units,
                                     lref_units=lref_units,
                                     mrc_units=mrc_units)
-            cpp_tables = obj.get_cpp_tables()
+            cpp_tables = obj._get_cpp_tables()
             obj.cpp = CppAeroTable(**cpp_tables)
+        else:
+            # handle tables passed as kwargs
+            cpp_table_inits = {}  # table inits dictionary for cpp-init
+            for name in obj.table_names:
+                if name in kwargs:
+                    table = kwargs.get(name)
+                    setattr(obj, name, table)
+                    cpp_table_inits[name] = table.cpp  # type:ignore
+                else:
+                    # -----------------------------------------------------
+                    # TODO: right now cpp_default is different than
+                    # py_default. cpp_datatable cannot accept None as
+                    # data or empty dict as axes. need to make this
+                    # consitent. py-side AeroTable reliles on use of
+                    # isnone() method (which relies on DataTable(data=None))
+                    # -----------------------------------------------------
+                    py_default = DataTable(None, {})
+                    cpp_default = DataTable(np.array([0.]), {"null": np.array([0.])})
+                    setattr(obj, name, py_default)
+                    cpp_table_inits[name] = cpp_default.cpp
+            obj.cpp = CppAeroTable(**cpp_table_inits)
         return obj
 
 
-    def get_cpp_tables(self) -> dict:
+    def _get_cpp_tables(self) -> dict:
         """Returns dict of active cpp tables. Active cpp tables
         are tables which have been initialized and so DataTable.cpp
         is also initialized. The `cpp` attribute of DataTable is
