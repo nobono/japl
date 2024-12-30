@@ -101,7 +101,7 @@ class AeroTable(Staged):
                     # isnone() method (which relies on DataTable(data=None))
                     # -----------------------------------------------------
                     py_default = DataTable(None, {})
-                    cpp_default = DataTable(np.array([0.]), {"null": np.array([0.])})
+                    cpp_default = DataTable(np.array([]), {"null": np.array([])})
                     setattr(obj, name, py_default)
                     cpp_table_inits[name] = cpp_default.cpp
             obj.cpp = CppAeroTable(**cpp_table_inits)
