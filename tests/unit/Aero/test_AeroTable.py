@@ -74,6 +74,14 @@ class TestAeroTable(unittest.TestCase):
         self.assertTrue(hasattr(aero, "MRC"))
 
 
+    def test_get_active_tables(self):
+        aero_file_path = Path(self.ROOT_DIR, "aerodata/aeromodel_psb.mat")
+        aero = AeroTable(aero_file_path)
+        self.assertListEqual(list(aero.get_active_tables().keys()),
+                             ['CA_Boost', 'CA_Coast', 'CNB', 'CYB', 'CLMB', 'CLNB',
+                              'CA_Boost_alpha', 'CA_Coast_alpha', 'CNB_alpha'])
+
+
     def test_CNB_alpha(self):
         """Test for CNB table diff wrt. alpha."""
         truth = [-32.047116446069630058,
