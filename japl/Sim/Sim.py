@@ -115,6 +115,9 @@ class Sim:
             self.device_input.start()
 
         for istep in range(1, self.Nt + 1):
+            # DEBUG PROFILE ---------
+            self.profiler()
+            # -----------------------
             self.istep = istep
             self._run(istep=istep, simobj=simobj)
 
