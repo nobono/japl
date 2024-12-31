@@ -28,10 +28,10 @@ interp_table_t;
 
 
 class DataTable {
-
 public:
     map<string, dVec> axes = {};
     interp_table_t interp;
+    bool _isnone = true;
 
     DataTable() {
         // Create empty Interp object
@@ -48,7 +48,9 @@ public:
     // copy constructor
     DataTable(const DataTable& other)
     :   axes(other.axes),
-        interp(other.interp) {}
+        interp(other.interp),
+        _isnone(other._isnone)
+    {}
 
     // copy assignment operator
     DataTable& operator=(const DataTable& other) {
@@ -57,6 +59,7 @@ public:
         }
         axes = other.axes;
         interp = other.interp;
+        _isnone = other._isnone;
         return *this;
     }
 
@@ -78,6 +81,10 @@ public:
 
     // Getter for interp._data
     py::array_t<double> get_data(void);
+
+    bool isnone() {
+        return this->_isnone;
+    }
 };
 
 

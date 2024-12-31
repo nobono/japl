@@ -22,6 +22,11 @@ DataTable::DataTable(py::array_t<double>& data, py::dict& axes) {
         _axes.push_back(axis_vec);
     }
 
+    // determine if DataTable is null / empty
+    if (data.size() > 0) {
+        this->_isnone = false;
+    }
+
     int ndim = static_cast<int>(axes.size());
     switch(ndim) {
         case 1:
@@ -71,26 +76,39 @@ DataTable::DataTable(py::array_t<double>& data, vector<dVec>& axes) {
 
 vector<double> DataTable::operator()(const vector<dVec>& points) {
     interp_table_t* table_ptr = &this->interp;
-    switch(this->interp.index()) {
-        case 0: return get_if<InterpMultilinear<1, double>>(table_ptr)->interpolate(points);
-        case 1: return get_if<InterpMultilinear<2, double>>(table_ptr)->interpolate(points);
-        case 2: return get_if<InterpMultilinear<3, double>>(table_ptr)->interpolate(points);
-        case 3: return get_if<InterpMultilinear<4, double>>(table_ptr)->interpolate(points);
-        case 4: return get_if<InterpMultilinear<5, double>>(table_ptr)->interpolate(points);
-        default: throw std::invalid_argument("unhandled case.");
+    if (this->_isnone == true) {
+        vector<double> ret = {0.0};
+        return ret;
+    }
+    else {
+        switch(this->interp.index()) {
+            case 0: return get_if<InterpMultilinear<1, double>>(table_ptr)->interpolate(points);
+            case 1: return get_if<InterpMultilinear<2, double>>(table_ptr)->interpolate(points);
+            case 2: return get_if<InterpMultilinear<3, double>>(table_ptr)->interpolate(points);
+            case 3: return get_if<InterpMultilinear<4, double>>(table_ptr)->interpolate(points);
+            case 4: return get_if<InterpMultilinear<5, double>>(table_ptr)->interpolate(points);
+            default: throw std::invalid_argument("unhandled case.");
+        }
     }
 }
 
 // Call interpolation table (python overload)
 py::array_t<double> DataTable::operator()(const py::array_t<double>& points) {
     interp_table_t* table_ptr = &this->interp;
-    switch(this->interp.index()) {
-        case 0: return get_if<InterpMultilinear<1, double>>(table_ptr)->interpolate(points);
-        case 1: return get_if<InterpMultilinear<2, double>>(table_ptr)->interpolate(points);
-        case 2: return get_if<InterpMultilinear<3, double>>(table_ptr)->interpolate(points);
-        case 3: return get_if<InterpMultilinear<4, double>>(table_ptr)->interpolate(points);
-        case 4: return get_if<InterpMultilinear<5, double>>(table_ptr)->interpolate(points);
-        default: throw std::invalid_argument("unhandled case.");
+    if (this->_isnone == true) {
+        py::array_t<double> ret(1);
+        ret.mutable_at(0) = 0.0;
+        return ret;
+    }
+    else {
+        switch(this->interp.index()) {
+            case 0: return get_if<InterpMultilinear<1, double>>(table_ptr)->interpolate(points);
+            case 1: return get_if<InterpMultilinear<2, double>>(table_ptr)->interpolate(points);
+            case 2: return get_if<InterpMultilinear<3, double>>(table_ptr)->interpolate(points);
+            case 3: return get_if<InterpMultilinear<4, double>>(table_ptr)->interpolate(points);
+            case 4: return get_if<InterpMultilinear<5, double>>(table_ptr)->interpolate(points);
+            default: throw std::invalid_argument("unhandled case.");
+        }
     }
 }
 
@@ -98,13 +116,19 @@ py::array_t<double> DataTable::operator()(const py::array_t<double>& points) {
 vector<double> DataTable::operator()(const map<string, double>& kwargs) {
     interp_table_t* table_ptr = &this->interp;
     vector<dVec> points = {this->_get_table_args(kwargs)};
-    switch(this->interp.index()) {
-        case 0: return get_if<InterpMultilinear<1, double>>(table_ptr)->interpolate(points);
-        case 1: return get_if<InterpMultilinear<2, double>>(table_ptr)->interpolate(points);
-        case 2: return get_if<InterpMultilinear<3, double>>(table_ptr)->interpolate(points);
-        case 3: return get_if<InterpMultilinear<4, double>>(table_ptr)->interpolate(points);
-        case 4: return get_if<InterpMultilinear<5, double>>(table_ptr)->interpolate(points);
-        default: throw std::invalid_argument("unhandled case.");
+    if (this->_isnone == true) {
+        vector<double> ret = {0.0};
+        return ret;
+    }
+    else {
+        switch(this->interp.index()) {
+            case 0: return get_if<InterpMultilinear<1, double>>(table_ptr)->interpolate(points);
+            case 1: return get_if<InterpMultilinear<2, double>>(table_ptr)->interpolate(points);
+            case 2: return get_if<InterpMultilinear<3, double>>(table_ptr)->interpolate(points);
+            case 3: return get_if<InterpMultilinear<4, double>>(table_ptr)->interpolate(points);
+            case 4: return get_if<InterpMultilinear<5, double>>(table_ptr)->interpolate(points);
+            default: throw std::invalid_argument("unhandled case.");
+        }
     }
 }
 
@@ -135,8 +159,15 @@ dVec DataTable::_get_table_args(const map<string, double>& kwargs) {
         }
     }
 
-    if (args.size() != this->axes.size()) {
-        throw std::invalid_argument("not enough arguments provided.");
+    // if DataTable is null, accept any number of arguments
+    if (this->_isnone) {
+        return args;
+    }
+
+    if (args.size() < this->axes.size()) {
+        throw std::invalid_argument("not enough arguments provided."
+                                    "number of expected args: " + std::to_string(this->axes.size())
+                                    + ", args provided: " + std::to_string(args.size()));
     }
 
     return args;
@@ -206,9 +237,10 @@ PYBIND11_MODULE(datatable, m) {
             return np_ret;
         }, py::return_value_policy::copy, "call operator.")
 
+        .def("isnone", &DataTable::isnone, "whether DataTable is null")
+
         .def_readwrite("axes", &DataTable::axes, "table axes")
         .def_readonly("interp", &DataTable::interp, "interpolation object")
-
         .def_property_readonly("data",
                [](DataTable& self) -> const py::array_t<double> {return self.get_data();},
                py::return_value_policy::copy)  // getter
