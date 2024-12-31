@@ -12,13 +12,13 @@ from aerotable import AeroTable as CppAeroTable
 
 
 class Increments:
-    alpha = np.empty([])
-    beta = np.empty([])
-    phi = np.empty([])
-    mach = np.empty([])
-    alt = np.empty([])
-    iota = np.empty([])
-    iota_prime = np.empty([])
+    alpha = np.array([])
+    beta = np.array([])
+    phi = np.array([])
+    mach = np.array([])
+    alt = np.array([])
+    iota = np.array([])
+    iota_prime = np.array([])
 
     nalpha = 0
     nbeta = 0
@@ -27,6 +27,29 @@ class Increments:
     nalt = 0
     niota = 0
     niota_prime = 0
+
+    names = ("alpha",
+             "beta",
+             "phi",
+             "mach",
+             "alt",
+             "iota",
+             "iota_prime")
+
+    def __init__(self, increments: dict = {}):
+        for key, val in increments.items():
+            if key in self.names:
+                setattr(self, key, val)
+
+
+    def to_dict(self):
+        """returns dict of non-empty increments."""
+        ret = {}
+        for key in self.names:
+            if (val := getattr(self, key)) is not None:
+                if val.size > 0:
+                    ret[key] = val
+        return ret
 
 
 class AeroTable(Staged):
@@ -62,6 +85,7 @@ class AeroTable(Staged):
     cpp: CppAeroTable
 
     def __new__(cls, path: str|Path = "",
+                increments: dict = {},
                 keep_units: bool = False,
                 angle_units: Unit = u.rad,  # type:ignore
                 length_units: Unit = u.m,  # type:ignore
@@ -72,7 +96,9 @@ class AeroTable(Staged):
                 ):
 
         obj = super().__new__(cls)
-        obj.increments = Increments()
+
+        obj.increments = Increments(increments)
+
         if path:
             matfile = MatFile(path)
             obj._build_from_matfile(matfile,
@@ -85,6 +111,8 @@ class AeroTable(Staged):
             cpp_tables = obj._get_cpp_tables()
             scalars = obj._get_scalars()
             obj.cpp = CppAeroTable(**cpp_tables, **scalars)
+            # TODO: set increments in cpp-aerotable contructor
+            obj.cpp.increments = obj.increments.to_dict()
         else:
             # handle tables passed as kwargs
             cpp_table_inits = {}  # table inits dictionary for cpp-init
@@ -103,6 +131,7 @@ class AeroTable(Staged):
                     # -----------------------------------------------------
                     py_default = DataTable(None, {})
                     cpp_default = DataTable(np.array([]), {"null": np.array([])})
+                    # cpp_default = DataTable([], {})
                     setattr(obj, name, py_default)
                     cpp_table_inits[name] = cpp_default.cpp
 
@@ -115,6 +144,7 @@ class AeroTable(Staged):
                     cpp_scalar_inits[name] = scalar
 
             obj.cpp = CppAeroTable(**cpp_table_inits, **cpp_scalar_inits)
+            obj.cpp.increments = obj.increments.to_dict()
         return obj
 
 
