@@ -220,6 +220,17 @@ class Model:
 
     def set_aerotable(self, aerotable: AeroTable):
         self.aerotable = aerotable
+        # -----------------------------------------------------------------
+        # NOTE:
+        # when creating a custom c++ Model, the Model's cpp member contains
+        # both the sim-methods which may call upon the cpp-implementations
+        # of aerotable, atmosphere, ...etc. Thus, Model.cpp.aerotable must
+        # be modified
+        #
+        # Not be confused with Model.aerotable.cpp, which is accessing the
+        # current aerotable's cpp-implementation.
+        # -----------------------------------------------------------------
+        self.cpp.aerotable = aerotable.cpp
 
 
     @classmethod
@@ -825,20 +836,22 @@ class Model:
 
         class dynamics(JaplFunction):  # noqa
             class_name = "Model"
-            # is_static = True
             expr = self.dynamics_expr
         class state_updates(JaplFunction):  # noqa
             class_name = "Model"
-            # is_static = True
             expr = self.state_updates_expr
         class input_updates(JaplFunction):  # noqa
             class_name = "Model"
-            # is_static = True
             expr = self.input_updates_expr
+
+        class set_aerotable(JaplFunction):
+            class_name = "Model"
+            no_def = True
 
         sim_methods = [dynamics(*params),
                        state_updates(*params),
-                       input_updates(*params)]
+                       input_updates(*params),
+                       set_aerotable()]
 
         file_builder = CFileBuilder(filename, sim_methods)
 
