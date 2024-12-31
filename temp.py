@@ -11,7 +11,26 @@ from japl import AeroTable
 from japl import Atmosphere
 from japl.global_opts import get_root_dir
 from pathlib import Path
+from astropy import units as u
+from aerotable import AeroTable as CppAeroTable
+from datatable import DataTable as CppDataTable
 import mmd
+
+####
+# aero_file_path = Path(get_root_dir(), "aerodata/cms_sr_stage1aero.mat")
+# pyaero = AeroTable(aero_file_path)
+
+# model = mmd.Model()
+# model.set_aerotable(pyaero)
+# print(model.aerotable.get_Sref())
+# print(model.cpp.aerotable.get_Sref())
+
+# simobj = mmd.SimObject()
+# simobj.model.set_aerotable(pyaero)
+# print(simobj.model.aerotable.get_Sref())
+# print(simobj.model.cpp.aerotable.get_Sref())
+# quit()
+####
 
 
 
@@ -43,26 +62,17 @@ simobj = mmd.SimObject()
 #                               use_multiprocess_build=True)
 # model.cache_build()
 
-stage1 = AeroTable("./aerodata/stage_1_aero.mat")
+stage1 = AeroTable("./aerodata/stage_1_aero.mat",
+                   angle_units=u.deg,
+                   length_units=u.imperial.foot)
 stage2 = AeroTable("./aerodata/stage_2_aero.mat")
+
+data = np.array(stage1.get_stage().CNB)
+axes = stage1.get_stage().CNB.axes
 aero = AeroTable()
 aero.add_stage(stage1)
 aero.add_stage(stage2)
 simobj.model.set_aerotable(aero)
-
-
-# print(id(simobj.model.aerotable.cpp))
-# print(id(simobj.model.cpp.aerotable))
-
-# print(simobj.model.cpp.aerotable.get_Sref())
-# print(simobj.model.aerotable.get_Sref())
-
-# print(stage1.get_Sref())
-# print(stage1.cpp.get_Sref())
-
-# print(stage1.cpp.get_Sref())
-# print(aero.cpp.get_stage().get_Sref())
-# print(aero.get_stage().cpp.get_Sref())
 
 # simobj = SimObject(model)
 
@@ -104,8 +114,8 @@ def input_func(*args):
 
 VLEG = 0
 ecef0 = np.array([Earth.radius_equatorial, 0, 0])
-r0_enu = np.array([0, 0, 0], dtype=float)
-v0_enu = np.array([0, 0, 0], dtype=float)
+r0_enu = np.array([0, 0, 1000], dtype=float)
+v0_enu = np.array([0, 0, 50], dtype=float)
 a0_enu = np.array([0, 0, 0], dtype=float)
 wet_mass0 = 108 / 2.2
 dry_mass0 = 11.
@@ -136,7 +146,7 @@ a0_ecef = Rotation.enu_to_ecef(a0_enu, ecef0)
 r0_eci = Rotation.ecef_to_eci(r0_ecef, t=0)
 v0_eci = Rotation.ecef_to_eci_velocity(v0_ecef, r_ecef=r0_ecef)
 a0_eci = Rotation.ecef_to_eci(a0_ecef, t=0)
-alpha0 = 0
+alpha0 = 0.1
 alpha_dot0 = 0
 beta0 = 0
 beta_dot0 = 0
@@ -152,8 +162,8 @@ v0_body = C_body_to_eci.T @ v0_eci
 v0_body_hat = v0_body / np.linalg.norm(v0_body)
 g0_body = C_body_to_eci.T @ np.array([-9.81, 0, 0])
 a0_body = C_body_to_eci.T @ a0_eci
-wet_mass0 = wet_mass0  # mass_props.wet_mass  # + (24.1224 / 2.2)
-dry_mass0 = dry_mass0
+# wet_mass0 = wet_mass0  # mass_props.wet_mass  # + (24.1224 / 2.2)
+# dry_mass0 = dry_mass0
 lift0 = 0
 slip0 = 0
 drag0 = 0
@@ -219,12 +229,11 @@ X = simobj.X0
 U = np.array([0., 0, 0, 1, 5000, 1, 9.81])
 S = simobj.S0
 dt = 0.1
-ret = simobj.model.dynamics(t, X, U, S, dt)
-print(simobj.model.aerotable.cpp.get_Sref())
-print(aero.get_stage().get_Sref())
 
+# ret = simobj.model.state_updates(t, X, U, S, dt)
+# ret = simobj.model.dynamics(t, X, U, S, dt)
+# ret = simobj.model.input_updates(t, X, U, S, dt)
 
-quit()
 simobj.plot.set_config({
     "EAST": {"xaxis": "time",
              "yaxis": simobj.r_e},
@@ -248,4 +257,4 @@ sim = Sim(t_span=[0, 10], dt=0.1, simobjs=[simobj])
 # plotter.animate(sim).show()
 print("done")
 sim.run()
-# print(simobj.Y)
+print(simobj.Y)
