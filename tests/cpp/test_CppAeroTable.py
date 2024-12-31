@@ -3,6 +3,8 @@ import unittest
 import numpy as np
 import datatable
 import aerotable
+from japl.AeroTable.AeroTable import AeroTable
+from japl.DataTable.DataTable import DataTable
 
 
 
@@ -56,6 +58,17 @@ class TestCppAeroTable(unittest.TestCase):
         aero = aerotable.AeroTable()
         aero.increments = {"alpha": np.array([1., 2, 3])}
         self.assertEqual(aero.increments, {"alpha": [1., 2., 3.]})
+
+
+    def test_aero_increments_from_pyside(self):
+        """tests increments in cpp-class set from py-class"""
+        pytable = DataTable(self.data, self.axes)
+        pyaero = AeroTable(CA=pytable, increments=self.axes)
+        # pyaero.increments.alpha = self.axes["alpha"]
+        self.assertTrue((pyaero.increments.to_dict()["alpha"] == self.axes["alpha"]).all())
+        self.assertTrue((pyaero.increments.to_dict()["mach"] == self.axes["mach"]).all())
+        self.assertListEqual(pyaero.cpp.increments["alpha"], self.axes["alpha"].tolist())
+        self.assertListEqual(pyaero.cpp.increments["mach"], self.axes["mach"].tolist())
 
 
     def test_stages(self):
