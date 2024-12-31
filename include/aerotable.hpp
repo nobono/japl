@@ -61,6 +61,9 @@ public:
     // copy constructor
     AeroTable(const AeroTable& other)
     :
+        stages(other.stages),
+        stage_id(other.stage_id),
+        is_stage(other.is_stage),
         CA(other.CA),
         CA_Boost(other.CA_Boost),
         CA_Coast(other.CA_Coast),
@@ -79,6 +82,9 @@ public:
         if (this == &other) {
             return *this; // Handle self-assignment
         }
+        this->stages = other.stages;
+        this->stage_id = other.stage_id;
+        this->is_stage = other.is_stage;
         this->CA = other.CA;
         // this->CA.interp = other.CA.interp;
         this->CA.axes = other.CA.axes;
