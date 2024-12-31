@@ -223,6 +223,7 @@ class Pybind:
                 else:
                     call_wrapper_class_name = method.class_name
                 method_writes += Pybind.get_pybind_method_call_wrapper(func_name=method.name,
+                                                                       return_type=method.return_type,
                                                                        parameters=param_vars,
                                                                        class_name=call_wrapper_class_name,
                                                                        description=method.description,
@@ -230,8 +231,12 @@ class Pybind:
             # -------------------------------------------------------------
             # handle init function
             # -------------------------------------------------------------
+            if class_name == "Model":  # TODO: do this better
+                pybind_init_class_name = tramp_class_name
+            else:
+                pybind_init_class_name = class_name
             if len(method_writes):
-                class_writes += Pybind.get_pybind_class_init_writes(class_name)
+                class_writes += Pybind.get_pybind_class_init_writes(pybind_init_class_name)
                 class_writes += method_writes
 
             # -------------------------------------------------------------
@@ -297,8 +302,8 @@ class Pybind:
 
 
     @staticmethod
-    def get_pybind_method_call_wrapper(func_name: str, parameters: tuple, class_name: str, description: str,
-                                       is_static: bool = False) -> Writes:
+    def get_pybind_method_call_wrapper(func_name: str, return_type: JaplType, parameters: tuple, class_name: str,
+                                       description: str, is_static: bool = False) -> Writes:
         class_def, func_name = ModuleBuilder.parse_class_func(func_name)
         # lambda wrapper to convert return of vector<> to py::array_t<>
         # _std_params_str = ", ".join([f"{typ} {var}" for typ, var in zip(ModuleBuilder.std_args_types,
@@ -315,15 +320,19 @@ class Pybind:
             class_self_param = f"{class_name}& self, "
             class_obj_accessor = "self."
 
-        method_bind_str = (f"\t\t.def(\"{func_name}\",\n"
-                           f"\t\t\t[]({class_self_param}{params_signature}) -> py::array_t<double> "
-                           "{\n"
-                           f"\t\t\t\tvector<double> ret = {class_obj_accessor}{func_name}({params_names});\n"
-                           "\t\t\t\tpy::array_t<double> np_ret(ret.size());\n"
-                           "\t\t\t\tstd::copy(ret.begin(), ret.end(), np_ret.mutable_data());\n"
-                           "\t\t\t\treturn np_ret;\n"
-                           "\t\t\t}"
-                           f", \"{description}\")")
+        if return_type.is_array:
+            method_bind_str = (f"\t\t.def(\"{func_name}\",\n"
+                               f"\t\t\t[]({class_self_param}{params_signature}) -> py::array_t<double> "
+                               "{\n"
+                               f"\t\t\t\tvector<double> ret = {class_obj_accessor}{func_name}({params_names});\n"
+                               "\t\t\t\tpy::array_t<double> np_ret(ret.size());\n"
+                               "\t\t\t\tstd::copy(ret.begin(), ret.end(), np_ret.mutable_data());\n"
+                               "\t\t\t\treturn np_ret;\n"
+                               "\t\t\t}"
+                               f", \"{description}\")")
+        else:
+            method_bind_str = f"\t\t.def(\"{func_name}\", &{class_name}::{func_name})"
+
         return [method_bind_str]
 
 

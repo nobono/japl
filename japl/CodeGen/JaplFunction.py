@@ -66,6 +66,7 @@ class JaplFunction(Function):
     expr: Basic|Matrix
     return_type = JaplType()
     is_static: bool
+    no_def: bool
 
     std_return_name = _STD_RETURN_NAME
     std_dummy_name = _STD_DUMMY_NAME
@@ -119,6 +120,17 @@ class JaplFunction(Function):
             obj.is_static = True
         else:
             obj.is_static = False
+
+        # `no_def`:
+        # purpose mainly with c as the target lang
+        # this means the function / method is an override
+        # of a virtual function already defined. The
+        # function definition will not be written to the
+        # file. only will be exposed in the pybind-ing
+        if hasattr(cls, "no_def"):
+            obj.no_def = True
+        else:
+            obj.no_def = False
         return obj
 
 
@@ -354,6 +366,11 @@ class JaplFunction(Function):
         # --------------------------------------------------------------------
 
         self.return_type = Types.from_expr(expr)
+
+        if self.no_def:
+            self.function_def = Comment("")
+            return
+
         func_name = self.get_full_name(code_type)
         expr_codeblock = self._to_codeblock(expr, code_type=code_type)
         codeblock = CodeBlock(*arg_unpacks, *repl_assignments, *expr_codeblock.args)
