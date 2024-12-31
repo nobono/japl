@@ -53,9 +53,9 @@ double AeroTable::inv_aerodynamics(const map<string, double>& kwargs) {
 
     // AeroTable stage = this->get_stage();
     double alpha_tol = 0.01;
-    dVec increment_alpha = this->increments["alpha"];
+    dVec increment_alpha = this->get_increments()["alpha"];
     double alpha_max = *std::max_element(increment_alpha.begin(), increment_alpha.end());
-    Sref = this->get_Sref();
+    double Sref = this->get_Sref();
 
     double alpha_last = -1000.0;
     int count = 0;
@@ -173,6 +173,7 @@ PYBIND11_MODULE(aerotable, m) {
         // ------------------------------------------------------------------------------------------------
         // Staged class methods
         // ------------------------------------------------------------------------------------------------
+        .def("get_increments", &AeroTable::get_increments, "returns increments of the current stage")
         .def("add_stage", &AeroTable::add_stage)
         .def("set_stage", &AeroTable::set_stage)
         .def("get_stage", &AeroTable::get_stage)

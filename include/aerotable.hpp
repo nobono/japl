@@ -61,6 +61,7 @@ public:
     // copy constructor
     AeroTable(const AeroTable& other)
     :
+        increments(other.increments),
         stages(other.stages),
         stage_id(other.stage_id),
         is_stage(other.is_stage),
@@ -82,6 +83,7 @@ public:
         if (this == &other) {
             return *this; // Handle self-assignment
         }
+        this->increments = other.increments;
         this->stages = other.stages;
         this->stage_id = other.stage_id;
         this->is_stage = other.is_stage;
@@ -101,6 +103,10 @@ public:
         this->Lref = other.Lref;
         this->MRC = other.MRC;
         return *this;
+    }
+
+    map<string, dVec>& get_increments() {
+        return this->get_stage().increments;
     }
 
     double get_Sref() {
@@ -176,7 +182,7 @@ public:
         this->stage_id = stage;
     }
 
-    AeroTable get_stage(void) const {
+    AeroTable& get_stage(void) {
         if (this->is_stage) {
             return *this;
         } else {
