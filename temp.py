@@ -101,21 +101,21 @@ inits = dict(
         omega_p=20,
         phi_c=0,
         T_r=0.5,
-        is_boosting=1,
+        is_boosting=0,
         stage=0,
         is_launched=1)
 # -------------------------------------------------------------------------
 
 
 def input_func(*args):
-    U = np.array([0., 0, 0, 1, 5000, 1, 9.81])
+    U = np.array([0., 0, 0, 0, 50, 0, 9.81], dtype=float)
     return U
 
 
-VLEG = 0
+VLEG = 50
 ecef0 = np.array([Earth.radius_equatorial, 0, 0])
-r0_enu = np.array([0, 0, 1000], dtype=float)
-v0_enu = np.array([0, 0, 50], dtype=float)
+r0_enu = np.array([0, 0, 30], dtype=float)
+v0_enu = np.array([0, 3, 3], dtype=float)
 a0_enu = np.array([0, 0, 0], dtype=float)
 wet_mass0 = 108 / 2.2
 dry_mass0 = 11.
@@ -146,7 +146,7 @@ a0_ecef = Rotation.enu_to_ecef(a0_enu, ecef0)
 r0_eci = Rotation.ecef_to_eci(r0_ecef, t=0)
 v0_eci = Rotation.ecef_to_eci_velocity(v0_ecef, r_ecef=r0_ecef)
 a0_eci = Rotation.ecef_to_eci(a0_ecef, t=0)
-alpha0 = 0.1
+alpha0 = 0
 alpha_dot0 = 0
 beta0 = 0
 beta_dot0 = 0
@@ -226,7 +226,7 @@ simobj.set_input_function(input_func)
 
 t = 0.
 X = simobj.X0
-U = np.array([0., 0, 0, 1, 5000, 1, 9.81])
+U = np.array([0., 0, 0, 1, 0, 0, 9.81])
 S = simobj.S0
 dt = 0.1
 
@@ -235,26 +235,31 @@ dt = 0.1
 # ret = simobj.model.input_updates(t, X, U, S, dt)
 
 simobj.plot.set_config({
-    "EAST": {"xaxis": "time",
-             "yaxis": simobj.r_e},
-    "NORTH": {"xaxis": "time",
-              "yaxis": simobj.r_n},
-    "UP": {"xaxis": "time",
+    "NU": {"xaxis": simobj.r_n,
            "yaxis": simobj.r_u},
+    "velU": {"xaxis": 't',
+             "yaxis": simobj.v_u},
+    # "EAST": {"xaxis": "time",
+    #          "yaxis": simobj.r_e},
+    # "NORTH": {"xaxis": "time",
+    #           "yaxis": simobj.r_n},
+    # "UP": {"xaxis": "time",
+    #        "yaxis": simobj.r_u},
     })
 
-sim = Sim(t_span=[0, 10], dt=0.1, simobjs=[simobj])
+sim = Sim(t_span=[0, 100], dt=0.1, simobjs=[simobj])
 
-# plotter = PyQtGraphPlotter(figsize=[10, 10],
-#                            frame_rate=30,
-#                            aspect="auto",
-#                            axis_color="grey",
-#                            background_color="black",
-#                            antialias=False,
-#                            # quiet=True,
-#                            )
+plotter = PyQtGraphPlotter(figsize=[10, 10],
+                           frame_rate=30,
+                           aspect="auto",
+                           axis_color="grey",
+                           background_color="black",
+                           antialias=False,
+                           # quiet=True,
+                           )
 
-# plotter.animate(sim).show()
-print("done")
-sim.run()
-print(simobj.Y)
+plotter.animate(sim).show()
+# print("done")
+# sim.run()
+# sim.profiler.print_info()
+# print(simobj.Y)
