@@ -204,7 +204,6 @@ class PyCodeGenPrinter(PythonCodePrinter):
         if isinstance(expr, JaplFunction):
             return self._print_JaplFunction(expr)
         elif isinstance(expr, Function):
-            print(expr)
             return super()._print_Function(expr)
         else:
             raise Exception(f"unhandled Function type. {expr.__class__}")
