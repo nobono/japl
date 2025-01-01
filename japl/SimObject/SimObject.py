@@ -127,7 +127,7 @@ class SimObject:
         self.Y = np.array([], dtype=self._dtype)
         self.U = np.array([], dtype=self._dtype)
         self._T = np.array([])
-        self._istep: int = 1  # sim step counter set by Sim class
+        self._istep: int = 0  # sim step counter set by Sim class
 
         # pub / sub members for passing info between SimObjects
         self.publisher = Publisher()
