@@ -107,11 +107,6 @@ inits = dict(
 # -------------------------------------------------------------------------
 
 
-def input_func(*args):
-    U = np.array([0., 0, 0, 0, 50, 0, 9.81], dtype=float)
-    return U
-
-
 VLEG = 50
 ecef0 = np.array([Earth.radius_equatorial, 0, 0])
 r0_enu = np.array([0, 0, 30], dtype=float)
@@ -222,6 +217,23 @@ simobj.init_static([
     is_launched,
     ])
 
+
+def input_func(*args, simobj: mmd.SimObject):
+    mass_dot = -0.
+    print(simobj.dry_mass)
+    if simobj.wet_mass <= 10.0:
+        mass_dot = 0.
+    U = np.array([0.,          # alpha_c
+                  0,           # beta_c
+                  0,           # a_c_y
+                  0,           # a_c_z
+                  50,          # thrust
+                  0,           # mass_dot
+                  9.81],       # gacc
+                 dtype=float)
+    return U
+
+
 simobj.set_input_function(input_func)
 
 t = 0.
@@ -234,11 +246,18 @@ dt = 0.1
 # ret = simobj.model.dynamics(t, X, U, S, dt)
 # ret = simobj.model.input_updates(t, X, U, S, dt)
 
+# ------------------------------------------------
+# TODO: idea:
+# - make "TITLE": simobj.___ auto make xaxis time
+# ------------------------------------------------
+
 simobj.plot.set_config({
     "NU": {"xaxis": simobj.r_n,
            "yaxis": simobj.r_u},
     "velU": {"xaxis": 't',
              "yaxis": simobj.v_u},
+    "mass": {"xaxis": 't',
+             "yaxis": simobj.wet_mass},
     # "EAST": {"xaxis": "time",
     #          "yaxis": simobj.r_e},
     # "NORTH": {"xaxis": "time",
@@ -247,7 +266,7 @@ simobj.plot.set_config({
     #        "yaxis": simobj.r_u},
     })
 
-sim = Sim(t_span=[0, 100], dt=0.1, simobjs=[simobj])
+sim = Sim(t_span=[0, 3], dt=0.1, simobjs=[simobj])
 
 plotter = PyQtGraphPlotter(figsize=[10, 10],
                            frame_rate=30,
@@ -258,8 +277,8 @@ plotter = PyQtGraphPlotter(figsize=[10, 10],
                            # quiet=True,
                            )
 
-plotter.animate(sim).show()
+# plotter.animate(sim).show()
 # print("done")
-# sim.run()
+sim.run()
 # sim.profiler.print_info()
 # print(simobj.Y)
