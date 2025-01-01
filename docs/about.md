@@ -1,8 +1,11 @@
 # About JAPL
 
----
+![JAPL LOGO](assets/japl_logo.png){ align=left width=200 }
 
-## **Introduction**
+<br><br><br>
+<br><br><br>
+
+## **Just Another Prototyping Layer**
 
 JAPL is a Python package designed to streamline the development
 and simulation of computational models. By leveraging symbolic
