@@ -17,6 +17,7 @@ from japl.CodeGen.Ast import CTypes
 from japl.CodeGen.Ast import CodeGenFunctionDefinition
 from japl.CodeGen.Printer import ccode
 from japl.CodeGen.Printer import pycode
+from japl.CodeGen.Printer import octave_code
 from japl.CodeGen.Util import copy_dir
 
 Writes = list[str]
@@ -147,7 +148,15 @@ class FileBuilder(Builder):
             elif isinstance(ast_node, JaplFunction):
                 ast_node._build(code_type=code_type)
                 self.writes += [""]
-                self.writes += [str(ccode(ast_node.get_def()))]
+                match code_type:
+                    case "c":
+                        self.writes += [str(ccode(ast_node.get_def()))]
+                    case "py":
+                        self.writes += [str(pycode(ast_node.get_def()))]
+                    case "oct":
+                        self.writes += [str(octave_code(ast_node.get_def()))]
+                    case _:
+                        raise Exception(f"unknown code_type {code_type}")
             else:
                 raise Exception(f"unhandled case for type {ast_node.__class__}.")
         return self.get_header_writes() + self.writes + self.get_footer_writes()
@@ -421,6 +430,26 @@ class CFileBuilder(FileBuilder):
         return writes
 
 
+class PyFileBuilder(FileBuilder):
+
+    __slots__ = FileBuilder.__slots__ + ("class_name", "class_properties")
+    defaults = {**FileBuilder.defaults, "class_name": "Model",
+                "class_properties": lambda: [], "code_type": "py"}
+
+    class_name: str
+    class_properties: list[str]
+
+
+    def get_header_writes(self) -> Writes:
+        """override this method to write to top of file"""
+        header = ["import math",
+                  "import numpy as np",
+                  "from japl import Model",
+                  "",
+                  ""]
+        return header
+
+
 class ModuleBuilder(Builder):
 
     data: dict[str, FileBuilder]
@@ -643,6 +672,20 @@ class CodeGenerator:
             subprocess.run(["python", Path(module_dir_path, "build.py")])
         except Exception as e:
             print("Error building model", e)
+
+
+    @staticmethod
+    def build_py_module(builder: ModuleBuilder, other_builders: list[FileBuilder] = []):
+        name = builder.name
+        module_dir_path = builder.create_module_directory(name=name, path="./")
+        init_file_builder = builder.create_init_file_builder()
+        builder.build()  # source files data within ModuleBuilder
+        init_file_builder.build()
+        init_file_builder.dumps(path=module_dir_path)
+
+        for blder in other_builders:
+            blder.build()
+            blder.dumps(path=module_dir_path)
 
 
     @staticmethod

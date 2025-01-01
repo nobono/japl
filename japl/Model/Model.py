@@ -26,6 +26,7 @@ from japl.BuildTools import BuildTools
 from japl.CodeGen.CodeGen import cache_py_function
 from japl.CodeGen import FileBuilder
 from japl.CodeGen import CFileBuilder
+from japl.CodeGen import PyFileBuilder
 from japl.CodeGen import ModuleBuilder
 from japl.CodeGen import CodeGenerator
 from japl.CodeGen import JaplFunction
@@ -943,3 +944,121 @@ class Model:
         CodeGenerator.build_c_module(builder, other_builders=[model_file_builder,
                                                               simobj_file_builder,
                                                               state_config_file_builder])
+
+
+    def create_py_module(self, name: str, path: str|Path = "./"):
+        """
+        Creates a python-lang module.
+
+        A python extension modules is created. The module, implemented in
+        c, can be imported by python. Several files are generated within the
+        module directly:
+
+        - `__init__.py` : handles namespaces
+        - `model.py` : contains Model subclass
+        - `simobj.py` : contains SimObject subclass
+
+        -------------------------------------------------------------------
+
+        Parameters:
+            name: str
+                name of the c-module to be created
+
+            path: Optional[str]
+                the output path to save the module to. (default is current path `"./"`)
+
+        -------------------------------------------------------------------
+        """
+        tab = "    "
+        t = Symbol("t", real=True)
+        dt = Symbol("dt", real=True)
+        _self = Symbol("self")
+        params = [_self, t, self.state_vars, self.input_vars, self.static_vars, dt]
+
+        class dynamics(JaplFunction):  # noqa
+            # class_name = "Model"
+            expr = self.dynamics_expr
+        class state_updates(JaplFunction):  # noqa
+            # class_name = "Model"
+            expr = self.state_updates_expr
+        class input_updates(JaplFunction):  # noqa
+            # class_name = "Model"
+            expr = self.input_updates_expr
+
+        # settings symbolic arrays
+        # ---------------------------------------------------------------------------
+        _spacer = f"\n{tab}{tab}"
+        state_var_names = f",{_spacer}".join([f"\"{getattr(i, 'name')}\"" for i in self.state_vars])
+        input_var_names = f",{_spacer}".join([f"\"{getattr(i, 'name')}\"" for i in self.input_vars])  # type:ignore
+        static_var_names = f",{_spacer}".join([f"\"{getattr(i, 'name')}\"" for i in self.static_vars])  # type:ignore
+        if not state_var_names:
+            state_vars_member = Symbol("Matrix([])")
+        else:
+            state_vars_member = Symbol(f"Matrix(symbols([{_spacer}{state_var_names}]))")
+        if not input_var_names:
+            input_vars_member = Symbol("Matrix([])")
+        else:
+            input_vars_member = Symbol(f"Matrix(symbols([{_spacer}{input_var_names}]))")
+        if not static_var_names:
+            static_vars_member = Symbol("Matrix([])")
+        else:
+            static_vars_member = Symbol(f"Matrix(symbols([{_spacer}{static_var_names}]))")
+
+        # Model class file
+        # TODO JaplClass is sloppy
+        # ---------------------------------------------------------------------------
+        header = "\n".join(["from japl import Model as JaplModel",
+                            "from sympy import Matrix",
+                            "from sympy import symbols",
+                            "import numpy as np",
+                            "import math",
+                            "", "", ""])
+        model_class = JaplClass(name, parent="JaplModel", members={
+                                                                   # "aerotable": Symbol("cpp.aerotable"),
+                                                                   # "atmosphere": Symbol("cpp.atmosphere"),
+                                                                   "state_vars": state_vars_member,
+                                                                   "input_vars": input_vars_member,
+                                                                   "static_vars": static_vars_member,
+                                                                   "input updates func": dynamics(*params),
+                                                                   "state updates func": input_updates(*params),
+                                                                   "dynamics func": state_updates(*params),
+                                                                   })
+
+        model_file_builder = FileBuilder("model.py", contents=[header, pycode(model_class)])
+
+        # SimObject class file
+        # ---------------------------------------------------------------------------
+        header = "\n".join(["from japl import SimObject",
+                            f"from {name}.model import {name} as _model",
+                            "", "", ""])
+        simobj_class = JaplClass(name, parent="SimObject", members={"state_dim": Symbol(str(self.state_dim)),
+                                                                    "input_dim": Symbol(str(self.input_dim)),
+                                                                    "static_dim": Symbol(str(self.static_dim)),
+                                                                    "state vars": self.state_vars,
+                                                                    "input vars": self.input_vars,
+                                                                    "static vars": self.static_vars,
+                                                                    "model": Symbol("_model()")})
+        simobj_file_builder = FileBuilder("simobj.py", contents=[header, pycode(simobj_class)])
+
+        builder = ModuleBuilder(name, [])
+
+        # Yaml state config file
+        # ---------------------------------------------------------------------------
+        # Builds a yaml configuration file which contains the
+        # Model variables required for initialization. This file is
+        # for convenience. The Model can always be initialized manually.
+        code_str = ""
+        for var in self._get_independent_symbols():
+            code_str += f"{var.name}: 0\n"
+        state_config_file_builder = FileBuilder("config_state.yaml", contents=[code_str])
+
+        # Yaml static array config file
+        # ---------------------------------------------------------------------------
+        # code_str = ""
+        # for var in self.static_vars:
+        #     code_str += f"{getattr(var, 'name')}: 0\n"
+        # static_config_file_builder = FileBuilder("config_static.yaml", contents=[code_str])
+
+        CodeGenerator.build_py_module(builder, other_builders=[model_file_builder,
+                                                               simobj_file_builder,
+                                                               state_config_file_builder])

@@ -191,6 +191,11 @@ class PyCodeGenPrinter(PythonCodePrinter):
                         writes += [f"{self.tab}{member.name}: {type_hint}\n"]
                         # raise Exception("unhandled case.")
                 writes += ["\n"]
+            if isinstance(item, JaplFunction):
+                item._build(code_type=self.code_type)
+                function_def_str = self._print(item.function_def)
+                writes += [self._indent_codestring(function_def_str) + "\n"]
+
         return "".join(writes)
 
 

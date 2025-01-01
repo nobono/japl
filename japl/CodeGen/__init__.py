@@ -9,6 +9,7 @@ from .CodeGen import CodeGenerator
 from .CodeGen import Builder
 from .CodeGen import FileBuilder
 from .CodeGen import CFileBuilder
+from .CodeGen import PyFileBuilder
 from .CodeGen import ModuleBuilder
 
 # Ensure submodules can still be imported directly
