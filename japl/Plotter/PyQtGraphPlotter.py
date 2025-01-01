@@ -160,7 +160,7 @@ class PyQtGraphPlotter:
             # setup simobj plots
             self.add_simobject(simobj)
 
-            step_func = plot_obj.step_solve
+            step_func = plot_obj.step
             method = plot_obj.integrate_method
             rtol = plot_obj.rtol
             atol = plot_obj.atol

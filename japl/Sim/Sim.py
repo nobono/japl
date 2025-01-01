@@ -119,7 +119,16 @@ class Sim:
             self.profiler()
             # -----------------------
             self.istep = istep
-            self._run(istep=istep, simobj=simobj)
+            self.step(istep=istep,
+                      dt=self.dt,
+                      T=self.T,
+                      t_array=self.t_array,
+                      simobj=simobj,
+                      method=self.integrate_method,
+                      events=self.events,
+                      rtol=self.rtol,
+                      atol=self.atol,
+                      max_step=self.max_step)
 
         # OLD METHOD ----------------------------------------------------------
         # # solver
@@ -141,27 +150,57 @@ class Sim:
         # ---------------------------------------------------------------------
 
 
-    def _run(self, istep: int, simobj: SimObject) -> bool:
+    @staticmethod
+    def step(istep: int,
+             dt: float,
+             T: np.ndarray,
+             t_array: np.ndarray,
+             simobj: SimObject,
+             method: str,
+             events: list[tuple],
+             rtol: float = 1e-6,
+             atol: float = 1e-6,
+             max_step: float = 0.2
+             ) -> bool:
         # update mixing ---------------------------------------------------
         # updates from input, state, dynamics need to be kept separate
         # then mixed correctly (NOTE this is a certainty?).
         # -----------------------------------------------------------------
         for child in simobj.children_pre_update:
-            flag_sim_stop = self._run(istep=istep, simobj=child)
+            flag_sim_stop = Sim.step(istep=istep,
+                                     dt=dt,
+                                     T=T,
+                                     t_array=t_array,
+                                     simobj=child,
+                                     method=method,
+                                     events=events,
+                                     rtol=rtol,
+                                     atol=atol,
+                                     max_step=max_step)
             if flag_sim_stop:
                 return flag_sim_stop
+
+        flag_sim_stop = Sim.step_solve(istep=istep, simobj=simobj, dt=dt, T=T,
+                                       t_array=t_array, method=method,
+                                       events=events, rtol=rtol, atol=atol)
 
         # update SimObject time step index
         simobj.set_istep(istep)
 
-        flag_sim_stop = self.step_solve(istep=istep, simobj=simobj, dt=self.dt, T=self.T,
-                                        t_array=self.t_array, method=self.integrate_method,
-                                        events=self.events, rtol=self.rtol, atol=self.atol)
         if flag_sim_stop:
             return flag_sim_stop
 
         for child in simobj.children_post_update:
-            flag_sim_stop = self._run(istep=istep, simobj=child)
+            flag_sim_stop = Sim.step(istep=istep,
+                                     dt=dt,
+                                     T=T,
+                                     t_array=t_array,
+                                     simobj=child,
+                                     method=method,
+                                     events=events,
+                                     rtol=rtol,
+                                     atol=atol,
+                                     max_step=max_step)
             if flag_sim_stop:
                 return flag_sim_stop
 
@@ -245,7 +284,7 @@ class Sim:
 
         # apply any user-defined input functions
         if simobj.model.has_input_function():
-            U = simobj.model.input_function(tstep, X_prev, U.copy(), S, dt, simobj)
+            U = simobj.model.input_function(tstep, X_prev, U.copy(), S, dt, simobj=simobj)
 
         # apply direct updates to input
         if simobj.model.has_input_updates():
