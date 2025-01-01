@@ -92,6 +92,7 @@ class Model:
     dynamics: Callable
 
     aerotable: AeroTable
+    atmosphere: Atmosphere
     cpp: CppModel
 
     _namespace: dict
@@ -150,6 +151,7 @@ class Model:
         obj._sym_references = []
 
         obj.aerotable = AeroTable()
+        obj.atmosphere = Atmosphere()
         obj.cpp = CppModel()
         return obj
 
