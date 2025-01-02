@@ -219,17 +219,16 @@ simobj.init_static([
 
 
 def input_func(*args, simobj: mmd.SimObject):
-    X = args[1]
+    # X = args[1]
     mass_dot = -10.
     if simobj.wet_mass <= 10.0:
         simobj.wet_mass = 10.0
-        # simobj.set_state_array(X, "wet_mass", 10.0)
         mass_dot = 0.
     U = np.array([0.,          # alpha_c
                   0,           # beta_c
                   0,           # a_c_y
                   0,           # a_c_z
-                  50,          # thrust
+                  50000,          # thrust
                   mass_dot,           # mass_dot
                   9.81],       # gacc
                  dtype=float)
@@ -254,8 +253,8 @@ dt = 0.1
 # ------------------------------------------------
 
 simobj.plot.set_config({
-    # "NU": {"xaxis": simobj.r_n,
-    #        "yaxis": simobj.r_u},
+    "NU": {"xaxis": simobj.r_n,
+           "yaxis": simobj.r_u},
     # "velU": {"xaxis": 't',
     #          "yaxis": simobj.v_u},
     "mass": {"xaxis": 't',
@@ -268,7 +267,7 @@ simobj.plot.set_config({
     #        "yaxis": simobj.r_u},
     })
 
-sim = Sim(t_span=[0, 6], dt=0.1, simobjs=[simobj])
+sim = Sim(t_span=[0, 5], dt=0.01, simobjs=[simobj])
 
 plotter = PyQtGraphPlotter(figsize=[10, 10],
                            frame_rate=30,
@@ -279,9 +278,9 @@ plotter = PyQtGraphPlotter(figsize=[10, 10],
                            # quiet=True,
                            )
 
-# plotter.animate(sim).show()
+plotter.animate(sim).show()
 # print("done")
-sim.run()
-# sim.profiler.print_info()
-print(simobj.Y[:, 55])
+# sim.run()
+sim.profiler.print_info()
+print(simobj.Y[:, 55].__len__())
 # print(np.where(simobj.Y[:, 55] < 10))
