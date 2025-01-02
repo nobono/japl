@@ -798,3 +798,4 @@ if __name__ == "__main__":
     # C++ CodeGen
     ##################################################
     model.create_c_module(name="mmd", path="./")
+    # model.create_py_module(name="mmd", path="./")
