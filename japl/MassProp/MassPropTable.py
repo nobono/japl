@@ -83,7 +83,7 @@ class MassPropTable:
     def __init__(self, data: Optional[str|dict|MatFile] = None, from_template: str = "", units: str = "si") -> None:
         self.units = units
         self.stages: list[MassPropTable] = []
-        self.is_stage: bool = False
+        self.is_stage: bool = True
         self.stage_id: int = 0
 
         # load table from dict or MatFile
@@ -106,25 +106,25 @@ class MassPropTable:
             case _:
                 data_dict, table_axes = from_default_table(data_dict, units=units)
 
-        _nozzle_area = data_dict.get("nozzle_area", None)
-        _mass_dot = data_dict.get("mass_dot", None)
-        _cg = data_dict.get("cg", None)
-        _dry_mass = data_dict.get("dry_mass", None)
-        _wet_mass = data_dict.get("wet_mass", None)
-        _vac_flag = data_dict.get("vac_flag", None)
-        _thrust = data_dict.get("thrust", None)
-        _prop_mass = data_dict.get("prop_mass", None)
-        _burn_time = data_dict.get("burn_time", None)
+        self._nozzle_area = data_dict.get("nozzle_area", None)
+        self._mass_dot = data_dict.get("mass_dot", None)
+        self._cg = data_dict.get("cg", None)
+        self._dry_mass = data_dict.get("dry_mass", None)
+        self._wet_mass = data_dict.get("wet_mass", None)
+        self._vac_flag = data_dict.get("vac_flag", None)
+        self._thrust = data_dict.get("thrust", None)
+        self._prop_mass = data_dict.get("prop_mass", None)
+        self._burn_time = data_dict.get("burn_time", None)
 
-        self.nozzle_area: float = _nozzle_area
-        self.mass_dot = RegularGridInterpolator((_burn_time,), _mass_dot)
-        self.cg = RegularGridInterpolator((_burn_time,), _cg)
-        self.dry_mass = _dry_mass
-        self.wet_mass = _wet_mass
-        self.vac_flag = _vac_flag
-        self.thrust = RegularGridInterpolator((_burn_time,), _thrust)
-        self.prop_mass = _prop_mass
-        self.burn_time = _burn_time
+        self.nozzle_area: float = self._nozzle_area
+        self.mass_dot = RegularGridInterpolator((self._burn_time,), self._mass_dot)
+        self.cg = RegularGridInterpolator((self._burn_time,), self._cg)
+        self.dry_mass = self._dry_mass
+        self.wet_mass = self._wet_mass
+        self.vac_flag = self._vac_flag
+        self.thrust = RegularGridInterpolator((self._burn_time,), self._thrust)
+        self.prop_mass = self._prop_mass
+        self.burn_time = self._burn_time
 
         self.burn_time_max = self.burn_time.max()
 
@@ -149,21 +149,23 @@ class MassPropTable:
             setattr(self, name, getattr(mass_props, name))
 
 
-    def add_stage(self, mass_props: "MassPropTable") -> None:
-        """Add a \"stage\" to the mass properties."""
-        self.stages += [mass_props]
-
+    def add_stage(self, child) -> None:
+        """Adds a child object as an ordered child
+        of this object."""
+        self.is_stage = False
+        child.is_stage = True
+        self.stages += [child]
 
     def set_stage(self, stage: int) -> None:
-        """Set the current stage index for the table. This is
-        so that \"get_stage()\" will return the corresponding table."""
+        """Set the current stage index for the object. This is
+        so that `get_stage()` will return the corresponding aerotable."""
         if int(stage) >= len(self.stages):
-            raise Exception("MassPropTable stages are not zero-order indexed.")
+            raise Exception(f"cannot access stage {int(stage)} "
+                            f"for container of size {len(self.stages)}")
         self.stage_id = int(stage)
 
-
-    def get_stage(self) -> "MassPropTable":
-        """Returns the current mass properties corresponding to the stage_id."""
+    def get_stage(self):
+        """Returns the current object corresponding to the stage_id."""
         if self.is_stage:
             return self
         else:
