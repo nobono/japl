@@ -590,7 +590,7 @@ class SimObject:
             _S0 = np.asarray(state, dtype=dtype).flatten()
         elif isinstance(state, dict):  # type:ignore
             _S0 = []
-            state_vars_names = [getattr(i, "name") for i in self.model.state_vars]
+            state_vars_names = [getattr(i, "name") for i in self.model.static_vars]
             for var in state_vars_names:
                 if var in state:
                     val = state[var]
