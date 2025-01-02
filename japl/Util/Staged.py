@@ -38,14 +38,14 @@ class Staged:
 
 
     def add_stage(self, child) -> None:
-        """Adds a child AeroTable object as an ordered child
+        """Adds a child object as an ordered child
         of this object."""
         self.is_stage = False
         child.is_stage = True
         self.stages += [child]
 
     def set_stage(self, stage: int) -> None:
-        """Set the current stage index for the aerotable. This is
+        """Set the current stage index for the object. This is
         so that `get_stage()` will return the corresponding aerotable."""
         if int(stage) >= len(self.stages):
             raise Exception(f"cannot access stage {int(stage)} "
@@ -53,7 +53,7 @@ class Staged:
         self.stage_id = int(stage)
 
     def get_stage(self):
-        """Returns the current aerotable corresponding to the stage_id."""
+        """Returns the current object corresponding to the stage_id."""
         if self.is_stage:
             return self
         else:
