@@ -110,6 +110,25 @@ class Sim:
         # run pre-sim checks
         simobj._pre_sim_checks()
 
+        # -------------------------------------------------------
+        # NOTE: experimental
+        # step to propagate dependent model states
+        # using t=0. this is if only independent states
+        # in the state array are used to initalize a model.
+        # -------------------------------------------------------
+        self.step(istep=1,
+                  dt=self.dt,
+                  T=self.T,
+                  t_array=self.t_array,
+                  simobj=simobj,
+                  method=self.integrate_method,
+                  events=self.events,
+                  rtol=self.rtol,
+                  atol=self.atol,
+                  max_step=self.max_step)
+        simobj.Y[0] = simobj.Y[1].copy()
+        # -------------------------------------------------------
+
         # begin device input read thread
         if self.device_input_type:
             self.device_input.start()
