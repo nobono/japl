@@ -520,6 +520,21 @@ class SimObject:
         return True
 
 
+    def init(self, vars: dict) -> None:
+        """This method initializes the model variables. pass a dict
+        of key, value pairs for variables in the state.
+
+        -------------------------------------------------------------------
+
+        Parameters:
+            vars: dictionary
+
+        -------------------------------------------------------------------
+        """
+        self.init_state(vars)
+        self.init_static(vars)
+
+
     def init_state(self, state: np.ndarray|list|dict, dtype: type = float) -> None:
         """This method takes a numpy array or list (or nested list) and stores this data
         into the initial state SimObject.X0. This method is for user convenience when initializing
