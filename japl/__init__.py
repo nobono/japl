@@ -9,6 +9,7 @@ from japl.DeviceInput.DeviceInput import DeviceInput
 from japl.Plotter.Plotter import Plotter
 from japl.Plotter.PyQtGraphPlotter import PyQtGraphPlotter
 from japl.AeroTable.AeroTable import AeroTable
+from japl.MassTable.MassTable import MassTable
 from japl.Model.StateRegister import StateRegister
 from japl.Aero.Atmosphere import Atmosphere
 from japl.MassProp.MassPropTable import MassPropTable
