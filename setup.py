@@ -231,6 +231,11 @@ def get_extension_modules() -> list:
                                                         "src/aerotable.cpp",
                                                         ], **kwargs)
 
+        masstable_ext = Pybind11Extension("masstable", ["src/linterp/linterp.cpp",
+                                                        "src/datatable.cpp",
+                                                        "src/masstable.cpp",
+                                                        ], **kwargs)
+
         model_ext = Pybind11Extension("model", [*atmosphere_data_src,
                                                 "src/linterp/linterp.cpp",
                                                 "src/datatable.cpp",
@@ -242,7 +247,7 @@ def get_extension_modules() -> list:
         datatable_ext = Pybind11Extension("datatable", ["src/linterp/linterp.cpp",
                                                         "src/datatable.cpp"], **kwargs)
 
-        return [linterp_ext, atmosphere_ext, aerotable_ext, model_ext, datatable_ext]
+        return [linterp_ext, atmosphere_ext, aerotable_ext, masstable_ext, model_ext, datatable_ext]
     except ImportError:
         sys.exit("Error: pybind11 must be installed to build this package.")
 
