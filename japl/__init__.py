@@ -1,5 +1,6 @@
 from japl.global_opts import get_plotlib, set_plotlib
 from japl.global_opts import JAPL_HOME_DIR
+from japl.global_opts import get_root_dir
 
 from japl.Model.Model import Model
 from japl.SimObject.SimObject import SimObject
@@ -17,3 +18,5 @@ from japl.Math import Rotation
 
 from japl.CodeGen import JaplFunction
 from japl.Util.Matlab import MatFile
+
+from japl.Library.Earth.Earth import Earth
