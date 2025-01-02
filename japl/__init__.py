@@ -9,6 +9,7 @@ from japl.Sim import Integrate
 from japl.DeviceInput.DeviceInput import DeviceInput
 from japl.Plotter.Plotter import Plotter
 from japl.Plotter.PyQtGraphPlotter import PyQtGraphPlotter
+from japl.DataTable.DataTable import DataTable
 from japl.AeroTable.AeroTable import AeroTable
 from japl.MassTable.MassTable import MassTable
 from japl.Model.StateRegister import StateRegister
