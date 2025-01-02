@@ -555,7 +555,7 @@ class SimObject:
         self.X0 = _X0
 
 
-    def init_static(self, state: np.ndarray|list, dtype: type = float) -> None:
+    def init_static(self, state: np.ndarray|list|dict, dtype: type = float) -> None:
         """This method takes a numpy array or list (or nested list) and stores this data
         into the initial static array SimObject.S0. This method is for user convenience when initializing
         a static variables dynamics model.
@@ -568,9 +568,21 @@ class SimObject:
         -------------------------------------------------------------------
         """
 
-        if isinstance(state, list):
+        if isinstance(state, np.ndarray):
+            _S0 = state.flatten()
+        elif isinstance(state, list):
             state = flatten_list(state)
-        _S0 = np.asarray(state, dtype=dtype).flatten()
+            _S0 = np.asarray(state, dtype=dtype).flatten()
+        elif isinstance(state, dict):  # type:ignore
+            _S0 = []
+            state_vars_names = [getattr(i, "name") for i in self.model.state_vars]
+            for var in state_vars_names:
+                if var in state:
+                    val = state[var]
+                    _S0 += [val]
+                else:
+                    _S0 += [0]
+            _S0 = np.array(_S0, dtype=dtype)
 
         if _S0.shape != self.S0.shape:
             raise Exception("\n\nattempting to initialize static array S0 but array sizes do not match."
