@@ -1012,12 +1012,14 @@ class Model:
         header = "\n".join(["from japl import Model as JaplModel",
                             "from sympy import Matrix",
                             "from sympy import symbols",
+                            "from japl import AeroTable",
+                            "from japl import Atmosphere",
                             "import numpy as np",
                             "import math",
                             "", "", ""])
         model_class = JaplClass(name, parent="JaplModel", members={
-                                                                   # "aerotable": Symbol("cpp.aerotable"),
-                                                                   # "atmosphere": Symbol("cpp.atmosphere"),
+                                                                   "aerotable": Symbol("AeroTable()"),
+                                                                   "atmosphere": Symbol("Atmosphere()"),
                                                                    "state_vars": state_vars_member,
                                                                    "input_vars": input_vars_member,
                                                                    "static_vars": static_vars_member,
@@ -1026,7 +1028,7 @@ class Model:
                                                                    "dynamics func": state_updates(*params),
                                                                    })
 
-        model_file_builder = FileBuilder("model.py", contents=[header, pycode(model_class)])
+        model_file_builder = FileBuilder("model.py", contents=[header, model_class])
 
         # SimObject class file
         # ---------------------------------------------------------------------------

@@ -11,6 +11,7 @@ from sympy.codegen.ast import Basic
 from sympy.codegen.ast import Variable
 from japl.global_opts import get_root_dir
 from japl.CodeGen.JaplFunction import JaplFunction
+from japl.CodeGen.JaplClass import JaplClass
 from japl.CodeGen.Ast import JaplType
 from japl.CodeGen.Ast import CType
 from japl.CodeGen.Ast import CTypes
@@ -145,6 +146,17 @@ class FileBuilder(Builder):
         for name, ast_node in self.data.items():
             if isinstance(ast_node, str):
                 self.writes += [ast_node]
+            elif isinstance(ast_node, JaplClass):
+                # ---------------------------------------------------------
+                # TODO: this is not generic
+                # when creating c-lang module or py-lang module,
+                # both generate a python file of the Model / Simobject.
+                # currently, this is not taking into account whether
+                # user wants to create a c-lang class.
+                # ---------------------------------------------------------
+                ast_node._build(code_type=code_type)
+                self.writes += [""]
+                self.writes += [pycode(ast_node)]
             elif isinstance(ast_node, JaplFunction):
                 ast_node._build(code_type=code_type)
                 self.writes += [""]

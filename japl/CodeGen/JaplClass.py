@@ -2,6 +2,8 @@ from sympy.codegen.ast import Token
 from sympy.codegen.ast import String
 from sympy import Function
 from sympy import Basic
+from sympy import Symbol
+from japl.CodeGen.JaplFunction import JaplFunction
 
 
 
@@ -21,6 +23,22 @@ class JaplClass(Token):
     # def _construct_members(val):
     #     return tuple([*val])
 
+
+    def _build(self, code_type: str) -> None:
+        # -----------------------------------------------------------------
+        # NOTE:
+        # this code is only here to add:
+        # `self.__some_method__` (for py-lang)
+        # or
+        # `this->__some_method__` (for c-lang).
+        # -----------------------------------------------------------------
+        for key in self.members.keys():
+            member = self.members[key]
+            if isinstance(member, JaplFunction):
+                self.members[key].header_def = [
+                        Symbol("aerotable = self.aerotable"),
+                        Symbol("atmosphere = self.atmosphere"),
+                        ]
 
 
 # ----------------------------------------------------------------

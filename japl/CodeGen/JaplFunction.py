@@ -67,6 +67,7 @@ class JaplFunction(Function):
     return_type = JaplType()
     is_static: bool
     no_def: bool
+    header_def: list
 
     std_return_name = _STD_RETURN_NAME
     std_dummy_name = _STD_DUMMY_NAME
@@ -371,9 +372,17 @@ class JaplFunction(Function):
             self.function_def = Comment("")
             return
 
+        # `header_def` writes expressions to the top of the function
+        # definition. This is currently used for python-lang module
+        # creation where custom Model sim-functions call class
+        # properties aerotable & atmosphere.
+        # "aerotable = self.aerotable ...etc"
+        # is placed at the top of the function definition
+        header_def = getattr(self, "header_def", [])
+
         func_name = self.get_full_name(code_type)
         expr_codeblock = self._to_codeblock(expr, code_type=code_type)
-        codeblock = CodeBlock(*arg_unpacks, *repl_assignments, *expr_codeblock.args)
+        codeblock = CodeBlock(*header_def, *arg_unpacks, *repl_assignments, *expr_codeblock.args)
         func_def = CodeGenFunctionDefinition(return_type=self.return_type,
                                              name=func_name,
                                              parameters=parameters,
