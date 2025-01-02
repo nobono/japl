@@ -179,6 +179,10 @@ cython_debug/
 !/aerodata/aeromodel_bs.mat
 !/aerodata/aeromodel_psb.mat
 !/aerodata/cms_sr_stage1aero.mat
+!/aerodata/stage_1_aero.mat
+!/aerodata/stage_2_aero.mat
+!/aerodata/stage_1_mass.mat
+!/aerodata/stage_2_mass.mat
 
 # allow test_file.mat for MatFile unit test
 !/tests/unit/Util/test_file.mat
