@@ -191,6 +191,52 @@ class MatStruct:
         return "\n".join(attrs)
 
 
+    def find(self, keys: str|list[str], case_sensitive: bool = False, default: Any = None):
+        """Searches MatFile for possible keys. This is useful
+        when different files have slightly different namespaces
+        for contained items.
+
+        From the list of provided keys, the first found instance is
+        returned.
+        -------------------------------------------------------------------
+
+        Parameters:
+            file: MatFile
+
+            keys: list of keys to find
+
+            case_sensitive: require key case case sensitivity. if False,
+                            matfile will be searched for both .lower() and
+                            .upper() case of keys.
+
+            default: return if no matching attributes can be found in the
+                     MatFile
+
+        -------------------------------------------------------------------
+        """
+        if isinstance(keys, str):
+            keys = [keys]
+
+        file_attrs = [i for i in dir(self) if "__" not in i]
+        for attr_key in file_attrs:
+            attr = getattr(self, attr_key)
+            if isinstance(attr, MatStruct):
+                ret = attr.find(keys, case_sensitive=case_sensitive, default=None)
+                if ret is not None:
+                    return ret
+            for key in keys:
+                if case_sensitive:
+                    if key in file_attrs:
+                        return getattr(self, key)
+                else:
+                    file_attrs_lower = [i.lower() for i in dir(self) if "__" not in i]
+                    if key.lower() in file_attrs_lower:
+                        idx = file_attrs_lower.index(key.lower())
+                        return getattr(self, file_attrs[idx])
+
+        return default
+
+
 class MatFile:
 
     """This class loads a matlab \".mat\" file given a user-defined path
@@ -303,14 +349,20 @@ class MatFile:
             keys = [keys]
 
         file_attrs = [i for i in dir(self) if "__" not in i]
-        for key in keys:
-            if case_sensitive:
-                if key in file_attrs:
-                    return getattr(self, key)
-            else:
-                file_attrs_lower = [i.lower() for i in dir(self) if "__" not in i]
-                if key.lower() in file_attrs_lower:
-                    idx = file_attrs_lower.index(key.lower())
-                    return getattr(self, file_attrs[idx])
+        for attr_key in file_attrs:
+            attr = getattr(self, attr_key)
+            if isinstance(attr, MatStruct):
+                ret = attr.find(keys, case_sensitive=case_sensitive, default=None)
+                if ret is not None:
+                    return ret
+            for key in keys:
+                if case_sensitive:
+                    if key in file_attrs:
+                        return getattr(self, key)
+                else:
+                    file_attrs_lower = [i.lower() for i in dir(self) if "__" not in i]
+                    if key.lower() in file_attrs_lower:
+                        idx = file_attrs_lower.index(key.lower())
+                        return getattr(self, file_attrs[idx])
 
         return default
