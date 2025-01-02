@@ -167,24 +167,23 @@ class PyQtGraphPlotter:
             dt = self.dt
             interval_ms = int(max(1, (1 / self.frame_rate) * 1000))
 
-            # --------------------------------------------------------
-            # NOTE: experimental:
-            # step to propagate dependent model states
-            # using t=0. this is if only independent states
-            # in the state array are used to initalize a model.
-            # --------------------------------------------------------
-            step_func(istep=1,
-                      dt=dt,
-                      T=plot_obj.T,
-                      t_array=plot_obj.t_array,
-                      simobj=simobj,
-                      method=plot_obj.integrate_method,
-                      events=plot_obj.events,
-                      rtol=plot_obj.rtol,
-                      atol=plot_obj.atol,
-                      max_step=plot_obj.max_step)
-            simobj.Y[0] = simobj.Y[1].copy()
-            # --------------------------------------------------------
+            # -------------------------------------------------------
+            # NOTE: experimental
+            # step to propagate dependent model states with t=0
+            # and calling direct state updates. this is if
+            # independent states are initialized array are used to
+            # initalize a model but dependent states were not.
+            # -------------------------------------------------------
+            if simobj.model.has_state_updates():
+                _t = 0.0
+                _X = simobj.X0
+                _U = simobj.U0
+                _S = simobj.S0
+                _dt = 0.0
+                _X0 = simobj.model.state_updates(_t, _X, _U, _S, _dt).flatten()
+                mask = ~np.isnan(_X0)
+                simobj.Y[0, mask] = _X0[mask]
+            # -------------------------------------------------------
 
             # create function for each time step
             step_func = partial(step_func,

@@ -112,21 +112,20 @@ class Sim:
 
         # -------------------------------------------------------
         # NOTE: experimental
-        # step to propagate dependent model states
-        # using t=0. this is if only independent states
-        # in the state array are used to initalize a model.
+        # step to propagate dependent model states with t=0
+        # and calling direct state updates. this is if
+        # independent states are initialized array are used to
+        # initalize a model but dependent states were not.
         # -------------------------------------------------------
-        self.step(istep=1,
-                  dt=self.dt,
-                  T=self.T,
-                  t_array=self.t_array,
-                  simobj=simobj,
-                  method=self.integrate_method,
-                  events=self.events,
-                  rtol=self.rtol,
-                  atol=self.atol,
-                  max_step=self.max_step)
-        simobj.Y[0] = simobj.Y[1].copy()
+        if simobj.model.has_state_updates():
+            _t = 0.0
+            _X = simobj.X0
+            _U = simobj.U0
+            _S = simobj.S0
+            _dt = 0.0
+            _X0 = simobj.model.state_updates(_t, _X, _U, _S, _dt).flatten()
+            mask = ~np.isnan(_X0)
+            simobj.Y[0, mask] = _X0[mask]
         # -------------------------------------------------------
 
         # begin device input read thread
@@ -272,6 +271,11 @@ class Sim:
         # setup time and initial state for step
         tstep = t_array[istep - 1]
         tstep_next = t_array[istep]
+
+        # TODO use this to remove dependancy on t_array:
+        # tstep = (istep - 1) * dt
+        # tstep_next = istep * dt
+
         X = simobj.Y[istep - 1].copy()  # init with previous state
         U = simobj.U[istep - 1].copy()      # init with current input array (zeros)
         S = simobj.S0
