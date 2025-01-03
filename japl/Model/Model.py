@@ -829,7 +829,7 @@ class Model:
                                                    use_parallel=use_parallel)
 
 
-    def create_module(self, name: str, path: str|Path = "./"):
+    def create_module(self, name: str, path: str|Path = "./", methods: list = []):
         """Create a module and specify a target-lang via argparse."""
         import argparse
         parser = argparse.ArgumentParser()
@@ -845,18 +845,18 @@ class Model:
         args = parser.parse_args()
 
         if args.python:
-            self.create_py_module(name=name, path=path)
+            self.create_py_module(name=name, path=path, methods=methods)
         elif args.c:
-            self.create_c_module(name=name, path=path)
+            self.create_c_module(name=name, path=path, methods=methods)
         elif args.octave:
             raise Exception("not yet implemented")
         else:
             print("no target language specified; defaulting to python.")
-            self.create_py_module(name=name, path=path)
+            self.create_py_module(name=name, path=path, methods=methods)
 
 
 
-    def create_c_module(self, name: str, path: str|Path = "./"):
+    def create_c_module(self, name: str, path: str|Path = "./", methods: list = []):
         """
         Creates a c-lang module.
 
@@ -1003,7 +1003,7 @@ class Model:
                                                               state_config_file_builder])
 
 
-    def create_py_module(self, name: str, path: str|Path = "./"):
+    def create_py_module(self, name: str, path: str|Path = "./", methods: list = []):
         """
         Creates a python-lang module.
 
@@ -1030,17 +1030,32 @@ class Model:
         t = Symbol("t", real=True)
         dt = Symbol("dt", real=True)
         _self = Symbol("self")
-        params = [_self, t, self.state_vars, self.input_vars, self.static_vars, dt]
+        params = [t, self.state_vars, self.input_vars, self.static_vars, dt]
 
-        class dynamics(JaplFunction):  # noqa
-            # class_name = "Model"
-            expr = self.dynamics_expr
-        class state_updates(JaplFunction):  # noqa
-            # class_name = "Model"
-            expr = self.state_updates_expr
-        class input_updates(JaplFunction):  # noqa
-            # class_name = "Model"
-            expr = self.input_updates_expr
+
+        # allow override of sim-methods # TODO can do this better elsewhere
+        # have this be the output of build_model()?
+
+        method_names = [i.name for i in methods]
+
+        if "dynamics" not in method_names and self.has_dynamics_expr():
+            class dynamics(JaplFunction):  # noqa
+                class_name = "Model"
+                expr = self.dynamics_expr
+            methods += [dynamics(*params)]
+
+        if "state_updates" not in method_names and self.has_state_updates_expr():
+            class state_updates(JaplFunction):  # noqa
+                class_name = "Model"
+                expr = self.state_updates_expr
+            methods += [state_updates(*params)]
+
+        if "input_updates" not in method_names and self.has_input_updates_expr():
+            class input_updates(JaplFunction):  # noqa
+                class_name = "Model"
+                expr = self.input_updates_expr
+            methods += [input_updates(*params)]
+
 
         # settings symbolic arrays
         # ---------------------------------------------------------------------------
@@ -1073,17 +1088,27 @@ class Model:
                             "import numpy as np",
                             "import math",
                             "", "", ""])
-        model_class = JaplClass(name, parent="JaplModel", members={
-                                                                   "aerotable": Symbol("AeroTable()"),
-                                                                   "masstable": Symbol("MassTable()"),
-                                                                   "atmosphere": Symbol("Atmosphere()"),
-                                                                   "state_vars": state_vars_member,
-                                                                   "input_vars": input_vars_member,
-                                                                   "static_vars": static_vars_member,
-                                                                   "input updates func": dynamics(*params),
-                                                                   "state updates func": input_updates(*params),
-                                                                   "dynamics func": state_updates(*params),
-                                                                   })
+
+
+        _methods = {"aerotable": Symbol("AeroTable()"),
+                    "masstable": Symbol("MassTable()"),
+                    "atmosphere": Symbol("Atmosphere()"),
+                    "state_vars": state_vars_member,
+                    "input_vars": input_vars_member,
+                    "static_vars": static_vars_member,
+                    # "input updates func": input_updates_func,
+                    # "state updates func": state_updates_func,
+                    # "dynamics func": dynamics_func}
+                    }
+
+        # add provided methods
+        # turn function to class method and
+        # append "self" arg.
+        for m in methods:
+            m.function_args = (_self, *m.function_args)
+            _methods[m.name] = m
+
+        model_class = JaplClass(name, parent="JaplModel", members=_methods)
 
         model_file_builder = FileBuilder("model.py", contents=[header, model_class])
 
