@@ -74,14 +74,14 @@ PYBIND11_MODULE(masstable, m) {
         .def_readonly("stage_id", &MassTable::stage_id, "id of current stage")
         .def_readonly("is_stage", &MassTable::is_stage, "true if class is stage instance; false if container for stages")
 
-        .def_readonly("nozzle_area", &MassTable::nozzle_area)
+        // .def_readonly("nozzle_area", &MassTable::nozzle_area)
 
         // ------------------------------------------------------------------------------------------------
         // Setters & Getters
         // ------------------------------------------------------------------------------------------------
-        // .def_property("nozzle_area",
-        //               [](const MassTable& self) -> const double& {return self.nozzle_area;},  // getter
-        //               [](MassTable& self, const decltype(MassTable::nozzle_area)& value) {self.nozzle_area = value;})  // setter
+        .def_property("nozzle_area",
+                      [](const MassTable& self) -> const double& {return self.nozzle_area;},  // getter
+                      [](MassTable& self, const decltype(MassTable::nozzle_area)& value) {self.nozzle_area = value;})  // setter
         .def_property("mass_dot",
                       [](const MassTable& self) -> const DataTable& {return self.mass_dot;},  // getter
                       [](MassTable& self, const decltype(MassTable::mass_dot)& value) {self.mass_dot = value;})  // setter

@@ -54,6 +54,9 @@ public:
     // copy constructor
     MassTable(const MassTable& other)
     :
+        stages(other.stages),
+        stage_id(other.stage_id),
+        is_stage(other.is_stage),
         mass_dot(other.mass_dot),
         cg(other.cg),
         thrust(other.thrust),
@@ -62,17 +65,18 @@ public:
         wet_mass(other.wet_mass),
         vac_flag(other.vac_flag),
         propellant_mass(other.propellant_mass),
-        burn_time(other.burn_time)
-    {
-        this->burn_time_max = *std::max_element(this->burn_time.begin(),
-                                                this->burn_time.end());
-    }
+        burn_time(other.burn_time),
+        burn_time_max(other.burn_time_max)
+    {}
 
     // move constructor
     MassTable& operator=(const MassTable& other) {
         if (this == &other) {
             return *this; // Handle self-assignment
         }
+        this->stages = other.stages;
+        this->stage_id = other.stage_id;
+        this->is_stage = other.is_stage;
         this->mass_dot = other.mass_dot;
         this->cg = other.cg;
         this->thrust = other.thrust;
@@ -82,8 +86,7 @@ public:
         this->vac_flag = other.vac_flag;
         this->propellant_mass = other.propellant_mass;
         this->burn_time = other.burn_time;
-        this->burn_time_max = *std::max_element(other.burn_time.begin(),
-                                                other.burn_time.end());
+        this->burn_time_max = other.burn_time_max;
         return *this;
     }
 

@@ -6,6 +6,7 @@
 
 #include "atmosphere.hpp"
 #include "aerotable.hpp"
+#include "masstable.hpp"
 #include <pybind11/stl.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
@@ -18,6 +19,7 @@ class Model {
 public:
     Atmosphere atmosphere = Atmosphere();
     AeroTable aerotable = AeroTable();
+    MassTable masstable = MassTable();
 
     function<void(double)> input_function;
     vector<function<void(double)>> pre_update_functions;
@@ -28,7 +30,8 @@ public:
 
     Model(const Model& other)
     :   atmosphere(other.atmosphere),
-        aerotable(other.aerotable) {}
+        aerotable(other.aerotable),
+        masstable(other.masstable) {}
 
     Model& operator=(Model& other) {
         if (this == &other) {
@@ -36,6 +39,7 @@ public:
         }
         this->atmosphere = other.atmosphere;
         this->aerotable = other.aerotable;
+        this->masstable = other.masstable;
         return *this;
     }
 
@@ -59,6 +63,10 @@ public:
 
     void set_aerotable(const AeroTable& aerotable) {
         this->aerotable = aerotable;
+    }
+
+    void set_masstable(const MassTable& masstable) {
+        this->masstable = masstable;
     }
 
     void set_atmosphere(const Atmosphere& atmosphere) {
