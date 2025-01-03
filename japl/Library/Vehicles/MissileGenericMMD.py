@@ -19,7 +19,7 @@ from japl.Math.RotationSymbolic import ecef_to_lla_sym
 from japl.Library.Earth.Earth import Earth
 from japl.Util.Util import flatten_list
 from japl.BuildTools.BuildTools import to_pycode
-from japl import JAPL_HOME_DIR
+# from japl import JAPL_HOME_DIR
 
 DIR = os.path.dirname(__file__)
 np.set_printoptions(suppress=True, precision=8)
@@ -806,4 +806,4 @@ if __name__ == "__main__":
     ##################################################
     # C++ CodeGen
     ##################################################
-    model.create_module(name="mmd", path="./")
+    model.create_module(name="mmd")
