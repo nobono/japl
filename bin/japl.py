@@ -189,12 +189,6 @@ def main():
                               type=str,
                               nargs="?",
                               help="Name of available models to build")
-    build_parser.add_argument("-py", "--python",
-                              action="store_true",
-                              help="target language")
-    build_parser.add_argument("-c", "--c",
-                              action="store_true",
-                              help="target language")
     build_parser.add_argument("-n", "--name",
                               default=None,
                               type=str,
@@ -204,6 +198,14 @@ def main():
                              default=".",
                              nargs="?",
                              help="Root path to begin search for model directories")
+
+    # target languages for build
+    build_parser.add_argument("-py", "--python",
+                              action="store_true",
+                              help="python target-language for build")
+    build_parser.add_argument("-c", "--c",
+                              action="store_true",
+                              help="c++ target-language for build")
 
 
     japl_header = """\
