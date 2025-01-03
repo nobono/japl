@@ -16,6 +16,7 @@ from sympy.codegen.ast import NoneToken
 
 from japl.Aero.Atmosphere import Atmosphere
 from japl.AeroTable.AeroTable import AeroTable
+from japl.MassTable.MassTable import MassTable
 from japl.Model.StateRegister import StateRegister
 from japl.Util.Desym import Desym
 
@@ -92,6 +93,7 @@ class Model:
     dynamics: Callable
 
     aerotable: AeroTable
+    masstable: MassTable
     atmosphere: Atmosphere
     cpp: CppModel
 
@@ -151,6 +153,7 @@ class Model:
         obj._sym_references = []
 
         obj.aerotable = AeroTable()
+        obj.masstable = MassTable()
         obj.atmosphere = Atmosphere()
         obj.cpp = CppModel()
         return obj
@@ -233,7 +236,25 @@ class Model:
         # Not be confused with Model.aerotable.cpp, which is accessing the
         # current aerotable's cpp-implementation.
         # -----------------------------------------------------------------
-        self.cpp.aerotable = aerotable.cpp
+        # self.cpp.aerotable = aerotable.cpp
+        self.cpp.set_aerotable(aerotable.cpp)
+
+
+    def set_masstable(self, masstable: MassTable):
+        self.masstable = masstable
+        # -----------------------------------------------------------------
+        # NOTE:
+        # when creating a custom c++ Model, the Model's cpp member contains
+        # both the sim-methods which may call upon the cpp-implementations
+        # of aerotable, atmosphere, ...etc. Thus, Model.cpp.aerotable must
+        # be modified
+        #
+        # Not be confused with Model.aerotable.cpp, which is accessing the
+        # current aerotable's cpp-implementation.
+        # -----------------------------------------------------------------
+        # self.cpp.masstable = masstable.cpp
+        self.cpp.set_masstable(masstable.cpp)
+
 
 
     @classmethod
@@ -840,9 +861,11 @@ class Model:
         class dynamics(JaplFunction):  # noqa
             class_name = "Model"
             expr = self.dynamics_expr
+
         class state_updates(JaplFunction):  # noqa
             class_name = "Model"
             expr = self.state_updates_expr
+
         class input_updates(JaplFunction):  # noqa
             class_name = "Model"
             expr = self.input_updates_expr
@@ -851,10 +874,15 @@ class Model:
             class_name = "Model"
             no_def = True
 
+        class set_masstable(JaplFunction):
+            class_name = "Model"
+            no_def = True
+
         sim_methods = [dynamics(*params),
                        state_updates(*params),
                        input_updates(*params),
-                       set_aerotable()]
+                       set_aerotable(),
+                       set_masstable()]
 
         file_builder = CFileBuilder(filename, sim_methods)
 
@@ -1013,12 +1041,14 @@ class Model:
                             "from sympy import Matrix",
                             "from sympy import symbols",
                             "from japl import AeroTable",
+                            "from japl import MassTable",
                             "from japl import Atmosphere",
                             "import numpy as np",
                             "import math",
                             "", "", ""])
         model_class = JaplClass(name, parent="JaplModel", members={
                                                                    "aerotable": Symbol("AeroTable()"),
+                                                                   "masstable": Symbol("MassTable()"),
                                                                    "atmosphere": Symbol("Atmosphere()"),
                                                                    "state_vars": state_vars_member,
                                                                    "input_vars": input_vars_member,
