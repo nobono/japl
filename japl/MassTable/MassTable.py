@@ -161,6 +161,9 @@ class MassTable(Staged):
         nan_ids = np.where(np.isnan(cg))[0]
         if len(nan_ids):
             last_number_id = nan_ids[0] - 1
+            # if last_number_id < 0:  # if all ids are nan
+            #     cg.fill(0.0)
+            # else:
             cg[nan_ids] = cg[last_number_id]
 
         # -----------------------------------------------------------------
@@ -303,5 +306,20 @@ class MassTable(Staged):
 
 
     def __repr__(self) -> str:
-        members = [i for i in dir(self) if "__" not in i]
-        return "\n".join(members)
+        header_str = f"{self.__class__}\n"
+        tables_str = "Tables:\n"
+        scalars_str = "Scalars:\n"
+        for name in self.table_names:
+            if hasattr(self, name):
+                if not getattr(self, name).isnone():
+                    fmt_str = "\t{name}:\n\t\tshape:{shape}\n\t\taxes:{axes}\n"
+                    tables_str += fmt_str.format(
+                            name=name,
+                            shape=getattr(self, name).shape,
+                            axes=tuple(getattr(self, name).axes.keys())
+                            )
+        for name in self.scalar_names:
+            if hasattr(self, name):
+                if getattr(self, name) is not None:
+                    scalars_str += f"\t{name}\n"
+        return header_str + tables_str + scalars_str
