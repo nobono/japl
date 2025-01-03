@@ -195,9 +195,6 @@ class MassTable(Staged):
         self.burn_ratio = file.find(["burn_ratio", "BurnRatio"], default=None)
         # calculate burn ratio if not already defined
         if self.burn_ratio is None:
-            # wet_mass = data.get("wet_mass")
-            # dry_mass = data.get("dry_mass")
-            # prop_mass = data.get("prop_mass")
             if (self.wet_mass - self.dry_mass) == 0.0:
                 self.burn_ratio = np.zeros_like(self.wet_mass)
             else:
