@@ -272,47 +272,45 @@ class AeroTable(Staged):
         # from the order of __setattr__ below:
         # -----------------------------------------------------------------
         default = np.array([])
-        self.increments.alpha = file.find(["alpha"], default=default)
-        self.increments.phi = file.find(["phi"], default=default)
-        self.increments.mach = file.find(["mach"], default=default)
-        self.increments.alt = file.find(["alt", "altitude"], default=default)
-        self.increments.iota = file.find(["iota"], default=default)
+
+        incr_types = (np.ndarray, list)
+
+        self.increments.alpha = file.find(["alpha"], default=default, expected_types=incr_types)
+        self.increments.phi = file.find(["phi"], default=default, expected_types=incr_types)
+        self.increments.mach = file.find(["mach"], default=default, expected_types=incr_types)
+        self.increments.alt = file.find(["alt", "altitude"], default=default, expected_types=incr_types)
+        self.increments.iota = file.find(["iota"], default=default, expected_types=incr_types)
         self.increments.alpha = self.increments.alpha * angle_conv_const
         self.increments.phi = self.increments.phi * angle_conv_const
         self.increments.alt = self.increments.alt * length_conv_const
         self.increments.iota = self.increments.iota * angle_conv_const
 
-        possible_axes = self.increments.__dict__
+        table_types = (np.ndarray, list)
 
-        CA_Boost = file.find(["CA_Boost", "CA_Powered"])
-        CA_Coast = file.find(["CA_Coast", "CA_Unpowered"])
-        CA = file.find(["CA"])
-        CNB = file.find(["CN", "CNB"])
-        CLMB = file.find(["CLM", "CLMB"])
-        CLNB = file.find(["CLN", "CLNB"])
-        CYB = file.find(["CY", "CYB"])
+        CA_Boost = file.find(["CA_Boost", "CA_Powered"], expected_types=table_types)
+        CA_Coast = file.find(["CA_Coast", "CA_Unpowered"], expected_types=table_types)
+        CA = file.find(["CA"], expected_types=table_types)
+        CNB = file.find(["CN", "CNB"], expected_types=table_types)
+        CLMB = file.find(["CLM", "CLMB"], expected_types=table_types)
+        CLNB = file.find(["CLN", "CLNB"], expected_types=table_types)
+        CYB = file.find(["CY", "CYB"], expected_types=table_types)
 
-        CA_Basic = file.find(["CA_Basic"])
-        CA_0_Boost = file.find(["CA_0_Boost", "CA0_Boost"])
-        CA_0_Coast = file.find(["CA_0_Coast", "CA0_Coast"])
-        CA_IT = file.find(["CA_IT"])
+        CA_Basic = file.find(["CA_Basic"], expected_types=table_types)
+        CA_0_Boost = file.find(["CA_0_Boost", "CA0_Boost"], expected_types=table_types)
+        CA_0_Coast = file.find(["CA_0_Coast", "CA0_Coast"], expected_types=table_types)
+        CA_IT = file.find(["CA_IT"], expected_types=table_types)
 
-        CNB_Basic = file.find(["CNB_Basic", "CN_Basic"])
-        CNB_IT = file.find(["CNB_IT", "CN_IT"])
+        CNB_Basic = file.find(["CNB_Basic", "CN_Basic"], expected_types=table_types)
+        CNB_IT = file.find(["CNB_IT", "CN_IT"], expected_types=table_types)
 
-        CLMB_Basic = file.find(["CLMB_Basic", "CLM_Basie"])
-        CLMB_IT = file.find(["CLMB_IT", "CLM_IT"])
-        CLNB_Basic = file.find(["CLNB_Basic", "CLN_Basic"])
-        CLNB_IT = file.find(["CLNB_IT", "CLN_IT"])
+        CLMB_Basic = file.find(["CLMB_Basic", "CLM_Basie"], expected_types=table_types)
+        CLMB_IT = file.find(["CLMB_IT", "CLM_IT"], expected_types=table_types)
+        CLNB_Basic = file.find(["CLNB_Basic", "CLN_Basic"], expected_types=table_types)
+        CLNB_IT = file.find(["CLNB_IT", "CLN_IT"], expected_types=table_types)
 
-        CYB_Basic = file.find(["CYB_Basic", "CY_Basic"])
-        CYB_IT = file.find(["CYB_IT", "CY_IT"])
+        CYB_Basic = file.find(["CYB_Basic", "CY_Basic"], expected_types=table_types)
+        CYB_IT = file.find(["CYB_IT", "CY_IT"], expected_types=table_types)
 
-        # -----------------------------------------------------------------
-        # handle files where the named attribute in the file structure
-        # has a child which holds the data array.
-        # -----------------------------------------------------------------
-        child_names = ["table"]
         tables = {
                   "CA_Boost": CA_Boost,
                   "CA_Coast": CA_Coast,
@@ -335,15 +333,6 @@ class AeroTable(Staged):
                   "CYB_IT": CYB_IT,
                   }
 
-        # check for all child_names in file attribute
-        # in order to access data array.
-        for key, val in tables.items():
-            for name in child_names:
-                if hasattr(val, name):
-                    if isinstance(array := getattr(val, name), np.ndarray):
-                        tables[key] = array
-                        break
-
         # axes_dims = [len(i) for i in unordered_axes.values()]  # ensure possible table axes are unique
         # if len(axes_dims) == len(set(axes_dims)):
 
@@ -351,6 +340,8 @@ class AeroTable(Staged):
         # create basic tables
         # will return None if table passed is None
         # -----------------------------------------------------------------
+        possible_axes = self.increments.__dict__
+
         CA_Boost = self._deduce_datatable(tables["CA_Boost"], possible_axes=possible_axes)
         CA_Coast = self._deduce_datatable(tables["CA_Coast"], possible_axes=possible_axes)
         CA = self._deduce_datatable(tables["CA"], possible_axes=possible_axes)
@@ -569,6 +560,7 @@ class AeroTable(Staged):
     def get_CNB_alpha(self, *args, **kwargs):
         return self.get_stage().CNB_alpha(*args, **kwargs)
 
+
     def inv_aerodynamics(self,
                          thrust: float,
                          acc_cmd: float,
@@ -630,6 +622,7 @@ class AeroTable(Staged):
         angle_of_attack = alpha
         return angle_of_attack
 
+
     def ld_guidance(self,
                     alpha: float,
                     beta: Optional[float] = None,
@@ -679,14 +672,10 @@ class AeroTable(Staged):
         optimal_alpha = np.clip(optimal_alpha, alpha_min, alpha_max)
         return opt_CL, opt_CD, optimal_alpha
 
+
     def _set_table_check(self):
         """handle errors when setting tables."""
         if not self.is_stage:
             raise Exception("cannot set tables of AeroTableable container.",
                             "This object is just a container for multiple"
                             "AeroTableable's within the \"stages\" attribute.")
-
-
-# print(Path("./aerodata/aeromodel_psb.mat").absolute().__str__())
-# from japl.global_opts import get_root_dir
-# aero = AeroTable(Path(f"{get_root_dir()}/aerodata/aeromodel_psb.mat").absolute().__str__())
