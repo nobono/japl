@@ -63,7 +63,7 @@ double AeroTable::inv_aerodynamics(const map<string, double>& kwargs) {
     bool boosting = (thrust > 0.0);
 
     // gradient search
-    while ((abs(alpha - alpha_last) > alpha_tol) and (count < 10)) {
+    while ((abs(alpha - alpha_last) > alpha_tol) && (count < 10)) {
         count += 1;
         alpha_last = alpha;
 
