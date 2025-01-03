@@ -70,7 +70,7 @@ class AeroTableSymbolic:
 
 
     def __init__(self, data: Optional[str|dict|MatFile] = None, from_template: str = "", units: str = "si") -> None:
-        self.aerotable = AeroTable(data)
+        # self.aerotable = AeroTable(data)
         # self.modules = {
         #         "aerotable.CA": self.aerotable.get_CA,
         #         "aerotable.CA_Boost": self.aerotable.get_CA_Boost,
