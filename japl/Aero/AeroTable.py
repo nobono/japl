@@ -193,6 +193,7 @@ def from_default_table(data: MatFile|dict, units: str = "si") -> tuple[MatFile|d
     return (data, table_axes)
 
 
+@DeprecationWarning
 class AeroTable:
 
     """This class is for containing Aerotable data for a particular

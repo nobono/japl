@@ -25,6 +25,7 @@ Writes = list[str]
 
 
 
+@DeprecationWarning
 class CCodeGenerator(CodeGeneratorBase):
 
     JAPL_EXT_MODULE_INIT_HEADER__ = "# __JAPL_EXTENSION_MODULE__\n"
