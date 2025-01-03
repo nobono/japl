@@ -240,6 +240,7 @@ def get_extension_modules() -> list:
                                                 "src/linterp/linterp.cpp",
                                                 "src/datatable.cpp",
                                                 "src/aerotable.cpp",
+                                                "src/masstable.cpp",
                                                 "src/atmosphere.cpp",
                                                 "src/model.cpp",
                                                 ], **kwargs)
