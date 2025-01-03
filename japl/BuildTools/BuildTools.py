@@ -726,6 +726,7 @@ def _subs_prune(replacements, expr_simple, nchunk: int = 2_000,
     return (replacements, expr_simple, len(dreps_pops))  # type:ignore
 
 
+@DeprecationWarning
 def to_pycode(func_name: str,
               expr: Expr|Matrix,
               state_vars: list|Matrix,
