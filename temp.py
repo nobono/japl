@@ -76,51 +76,21 @@ simobj.model.set_aerotable(aero)
 
 # simobj = SimObject(model)
 
-inits = dict(
-        q_0=1,
-        q_1=0,
-        q_2=0,
-        q_3=0,
-        r_i_x=6_378_137.0,
-        r_i_y=0,
-        r_i_z=0,
-        v_i_x=50,
-        v_i_y=50,
-        v_i_z=0,
-        alpha=0,
-        alpha_dot=0,
-        beta=0,
-        beta_dot=0,
-        p=0,
-        wet_mass=100,
-        dry_mass=50,
-
-        omega_n=50,
-        zeta=0.7,
-        K_phi=1,
-        omega_p=20,
-        phi_c=0,
-        T_r=0.5,
-        is_boosting=0,
-        stage=0,
-        is_launched=1)
-# -------------------------------------------------------------------------
-
 
 VLEG = 50
 ecef0 = np.array([Earth.radius_equatorial, 0, 0])
-r0_enu = np.array([0, 0, 30], dtype=float)
-v0_enu = np.array([0, 3, 3], dtype=float)
+r0_enu = np.array([0, 0, 50], dtype=float)
+v0_enu = np.array([0, 1, 1], dtype=float)
 a0_enu = np.array([0, 0, 0], dtype=float)
-wet_mass0 = 108 / 2.2
-dry_mass0 = 11.
-omega_n = 50  # natural frequency
-zeta = 0.7    # damping ratio
+# wet_mass0 = 108 / 2.2
+# dry_mass0 = 11.
+# omega_n = 50  # natural frequency
+# zeta = 0.7    # damping ratio
 
-K_phi = 1     # roll gain
-omega_p = 20  # natural frequency (roll)
-phi_c = 0     # roll angle command
-T_r = 0.5     # roll autopilot time constant
+# K_phi = 1     # roll gain
+# omega_p = 20  # natural frequency (roll)
+# phi_c = 0     # roll angle command
+# T_r = 0.5     # roll autopilot time constant
 
 vleg_ang = np.radians(VLEG - 90.0)
 quat0 = [np.cos(vleg_ang / 2), 0, np.sin(vleg_ang / 2), 0]
@@ -141,96 +111,132 @@ a0_ecef = Rotation.enu_to_ecef(a0_enu, ecef0)
 r0_eci = Rotation.ecef_to_eci(r0_ecef, t=0)
 v0_eci = Rotation.ecef_to_eci_velocity(v0_ecef, r_ecef=r0_ecef)
 a0_eci = Rotation.ecef_to_eci(a0_ecef, t=0)
-alpha0 = 0
-alpha_dot0 = 0
-beta0 = 0
-beta_dot0 = 0
-phi_hat0 = 0
-phi_hat_dot0 = 0
-p0 = 0
-q0 = 0
-r0 = 0
-mach0 = np.linalg.norm(v0_ecef) / 343.0  # based on ECEF-frame
-vel_mag0 = np.linalg.norm(v0_ecef)  # based on ECEF-frame
-vel_mag_dot0 = 0
-v0_body = C_body_to_eci.T @ v0_eci
-v0_body_hat = v0_body / np.linalg.norm(v0_body)
-g0_body = C_body_to_eci.T @ np.array([-9.81, 0, 0])
-a0_body = C_body_to_eci.T @ a0_eci
+
+# alpha0 = 0
+# alpha_dot0 = 0
+# beta0 = 0
+# beta_dot0 = 0
+# phi_hat0 = 0
+# phi_hat_dot0 = 0
+# p0 = 0
+# q0 = 0
+# r0 = 0
+# mach0 = np.linalg.norm(v0_ecef) / 343.0  # based on ECEF-frame
+# vel_mag0 = np.linalg.norm(v0_ecef)  # based on ECEF-frame
+# vel_mag_dot0 = 0
+# v0_body = C_body_to_eci.T @ v0_eci
+# v0_body_hat = v0_body / np.linalg.norm(v0_body)
+# g0_body = C_body_to_eci.T @ np.array([-9.81, 0, 0])
+# a0_body = C_body_to_eci.T @ a0_eci
 # wet_mass0 = wet_mass0  # mass_props.wet_mass  # + (24.1224 / 2.2)
 # dry_mass0 = dry_mass0
-lift0 = 0
-slip0 = 0
-drag0 = 0
-CA0 = 0
-CNB0 = 0
-q_bar0 = 0
-rho0 = 0
-accel0 = a0_body  # specific force (acceleromter measures this)
+# lift0 = 0
+# slip0 = 0
+# drag0 = 0
+# CA0 = 0
+# CNB0 = 0
+# q_bar0 = 0
+# rho0 = 0
+# accel0 = a0_body  # specific force (acceleromter measures this)
 
+# simobj.init_state([quat_launcher,
+#                    r0_eci, v0_eci, a0_eci,
+#                    alpha0, alpha_dot0,
+#                    beta0, beta_dot0,
+#                    phi_hat0, phi_hat_dot0,
+#                    p0, q0, r0,
+#                    r0_enu, v0_enu, a0_enu,
+#                    r0_ecef, v0_ecef, a0_ecef,
+#                    vel_mag0,
+#                    vel_mag_dot0,
+#                    mach0,
+#                    v0_body,
+#                    v0_body_hat,
+#                    g0_body,
+#                    a0_body,
+#                    wet_mass0,
+#                    dry_mass0,
+#                    CA0,
+#                    CNB0,
+#                    q_bar0,
+#                    lift0,
+#                    slip0,
+#                    drag0,
+#                    accel0,
+#                    rho0,
+#                    ])
+
+# -------------------------------------------------------------------------
 # inits = parse_yaml("./mmd/config_state.yaml")
-simobj.init_state([quat_launcher,
-                   r0_eci, v0_eci, a0_eci,
-                   alpha0, alpha_dot0,
-                   beta0, beta_dot0,
-                   phi_hat0, phi_hat_dot0,
-                   p0, q0, r0,
-                   r0_enu, v0_enu, a0_enu,
-                   r0_ecef, v0_ecef, a0_ecef,
-                   vel_mag0,
-                   vel_mag_dot0,
-                   mach0,
-                   v0_body,
-                   v0_body_hat,
-                   g0_body,
-                   a0_body,
-                   wet_mass0,
-                   dry_mass0,
-                   CA0,
-                   CNB0,
-                   q_bar0,
-                   lift0,
-                   slip0,
-                   drag0,
-                   accel0,
-                   rho0,
-                   ])
-omega_n = omega_n
-zeta = zeta
-K_phi = K_phi
-omega_p = omega_p
-phi_c = phi_c
-T_r = T_r
-is_boosting = 0
-stage = 1
-is_launched = 0
+inits = dict(
+        q_0=quat_launcher[0],
+        q_1=quat_launcher[1],
+        q_2=quat_launcher[2],
+        q_3=quat_launcher[3],
+        r_i_x=r0_eci[0],
+        r_i_y=r0_eci[1],
+        r_i_z=r0_eci[2],
+        v_i_x=v0_eci[0],
+        v_i_y=v0_eci[1],
+        v_i_z=v0_eci[2],
 
-simobj.init_static([
-    omega_n,
-    zeta,
-    K_phi,
-    omega_p,
-    phi_c,
-    T_r,
-    is_boosting,
-    stage,
-    is_launched,
-    ])
+        alpha=0,
+        alpha_dot=0,
+        beta=0,
+        beta_dot=0,
+        p=0,
+        wet_mass=50,
+        dry_mass=10,
+
+        omega_n=50,     # natural frequency
+        zeta=0.7,       # damping ratio
+        K_phi=1,        # roll gain
+        omega_p=20,     # natural frequency (roll)
+        phi_c=0,        # roll angle command
+        T_r=0.5,        # roll autopilot time constant
+        is_boosting=0,
+        stage=0,
+        is_launched=1)
+
+simobj.init(inits)
+# -------------------------------------------------------------------------
 
 
-def input_func(*args, simobj: mmd.SimObject):
-    # X = args[1]
-    mass_dot = -10.
-    if simobj.wet_mass <= 10.0:
-        simobj.wet_mass = 10.0
-        mass_dot = 0.
+# omega_n = omega_n
+# zeta = zeta
+# K_phi = K_phi
+# omega_p = omega_p
+# phi_c = phi_c
+# T_r = T_r
+# is_boosting = 0
+# stage = 0
+# is_launched = 1
+
+# simobj.init_static([
+#     omega_n,
+#     zeta,
+#     K_phi,
+#     omega_p,
+#     phi_c,
+#     T_r,
+#     is_boosting,
+#     stage,
+#     is_launched,
+#     ])
+
+
+def input_func(t, X, U, S, dt, simobj: mmd.SimObject):
+    thrust = 0
+    if t < 1:
+        thrust = 5_000
+
     U = np.array([0.,          # alpha_c
                   0,           # beta_c
-                  0,           # a_c_y
+                  1.,           # a_c_y
                   0,           # a_c_z
-                  50000,          # thrust
-                  mass_dot,           # mass_dot
-                  9.81],       # gacc
+                  thrust,          # thrust
+                  -10,           # mass_dot
+                  -9.81],       # gacc
                  dtype=float)
     return U
 
@@ -267,7 +273,7 @@ simobj.plot.set_config({
     #        "yaxis": simobj.r_u},
     })
 
-sim = Sim(t_span=[0, 5], dt=0.01, simobjs=[simobj])
+sim = Sim(t_span=[0, 10], dt=0.05, simobjs=[simobj])
 
 plotter = PyQtGraphPlotter(figsize=[10, 10],
                            frame_rate=30,
@@ -278,9 +284,8 @@ plotter = PyQtGraphPlotter(figsize=[10, 10],
                            # quiet=True,
                            )
 
-plotter.animate(sim).show()
-# print("done")
-# sim.run()
-sim.profiler.print_info()
+# plotter.animate(sim).show()
+sim.run()
+# sim.profiler.print_info()
 print(simobj.Y[:, 55].__len__())
 # print(np.where(simobj.Y[:, 55] < 10))
