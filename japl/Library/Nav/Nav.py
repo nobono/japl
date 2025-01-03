@@ -771,7 +771,7 @@ if __name__ == "__main__":
     #                  is_symmetric=False,
     #                  by_reference=innov)
 
-    profile(gen.create_module)(module_name="cpp_ekf", path="./")
+    profile(gen.create_module)(module_name="ekf", path="./")
     quit()
 
     ##################################################
