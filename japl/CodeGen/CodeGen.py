@@ -265,7 +265,7 @@ class Pybind:
             # -------------------------------------------------------------
             if class_name == "Model":  # TODO: do this better
                 sets_gets_class_name = tramp_class_name
-                class_properties = ["aerotable", "atmosphere"]
+                class_properties = ["aerotable", "masstable", "atmosphere"]
             else:
                 sets_gets_class_name = class_name
                 class_properties = []
@@ -473,7 +473,7 @@ class ModuleBuilder(Builder):
     JAPL_EXT_MODULE_INIT_HEADER__ = "# __JAPL_EXTENSION_MODULE__\n"
     CXX_STD = 17
 
-    class_properties = ["aerotable", "atmosphere"]
+    class_properties = ["aerotable", "masstable", "atmosphere"]
 
     def __init__(self, name: str, contents: FileBuilder|list|tuple = [], *args, **kwargs) -> None:
         super().__init__(name, contents, *args, **kwargs)
@@ -516,6 +516,7 @@ class ModuleBuilder(Builder):
                      "import linterp",
                      "import datatable",
                      "import aerotable",
+                     "import masstable",
                      "import atmosphere",
                      f"from {module_name}.model import {module_name} as Model",
                      f"from {module_name}.simobj import {module_name} as SimObject"])
@@ -628,6 +629,7 @@ class ModuleBuilder(Builder):
                                                         f"{install_dir}/libs/src/atmosphere_speed_of_sound.o",
                                                         f"{install_dir}/libs/src/atmosphere.o",
                                                         f"{install_dir}/libs/src/aerotable.o",
+                                                        f"{install_dir}/libs/src/masstable.o",
                                                         f"{install_dir}/libs/src/model.o"],
                                        include_dirs=[Path(install_dir, "include")],
         """f"""
