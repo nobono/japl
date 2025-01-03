@@ -829,6 +829,33 @@ class Model:
                                                    use_parallel=use_parallel)
 
 
+    def create_module(self, name: str, path: str|Path = "./"):
+        """Create a module and specify a target-lang via argparse."""
+        import argparse
+        parser = argparse.ArgumentParser()
+        parser.add_argument("-py", "--python",
+                            action="store_true",
+                            help="selects python target language")
+        parser.add_argument("-c", "--c",
+                            action="store_true",
+                            help="selects c++ target language")
+        parser.add_argument("-mat", "--matlab",
+                            action="store_true",
+                            help="selects octave / matlab target language")
+        args = parser.parse_args()
+
+        if args.python:
+            self.create_py_module(name=name, path=path)
+        elif args.c:
+            self.create_c_module(name=name, path=path)
+        elif args.octave:
+            raise Exception("not yet implemented")
+        else:
+            print("no target language specified; defaulting to python.")
+            self.create_py_module(name=name, path=path)
+
+
+
     def create_c_module(self, name: str, path: str|Path = "./"):
         """
         Creates a c-lang module.

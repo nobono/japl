@@ -150,6 +150,8 @@ def find_src_models(start_dir: str = '.', max_depth: int = 20) -> dict:
 def build_model(found_models: dict, **kwargs):
     model_id = kwargs.get("id")
     model_name = kwargs.get("name")
+    target_lang = kwargs.get("target_lang", "-py")
+
     if model_id is not None:
         src_path = Path([*found_models.values()][model_id])
     elif model_name is not None:
@@ -159,7 +161,7 @@ def build_model(found_models: dict, **kwargs):
     # import_first = '.'.join(src_path.parts[:-1])
     # import_second = src_path.parts[-1].split('.')[0]
     # load_module_str = f"from {import_first} import {import_second}"
-    os.system(f"python {src_path}")  # run model source file
+    os.system(f"python {src_path} {target_lang}")  # run model source file
 
 
 def show(found_models: dict):
@@ -187,6 +189,12 @@ def main():
                               type=str,
                               nargs="?",
                               help="Name of available models to build")
+    build_parser.add_argument("-py", "--python",
+                              action="store_true",
+                              help="target language")
+    build_parser.add_argument("-c", "--c",
+                              action="store_true",
+                              help="target language")
     build_parser.add_argument("-n", "--name",
                               default=None,
                               type=str,
@@ -218,7 +226,16 @@ def main():
             found_models = find_src_models(args.path)
             show(found_models)
             if (args.id is not None) or (args.name is not None):
-                kwargs = {"id": args.id}
+
+                # choose target language to build
+                if args.python:
+                    target_lang = "--py"
+                elif args.c:
+                    target_lang = "-c"
+                else:
+                    target_lang = "-py"
+
+                kwargs = {"id": args.id, "target_lang": target_lang}
                 build_model(found_models, **kwargs)
 
         case _:

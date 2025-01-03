@@ -556,6 +556,15 @@ lam = 1e-3
 q_m_norm = ((q_m.T * q_m)**0.5)[0]
 q_m_dot_reg = q_m_dot - lam * (q_m_norm - 1.0) * q_m
 
+
+##################################################
+# Some boundaries / limitations
+##################################################
+
+_mass_dot = Piecewise((mass_dot, wet_mass > dry_mass),
+                      (0.0, True))
+
+
 ##################################################
 # Definitions
 ##################################################
@@ -579,7 +588,7 @@ defs = (
        (v_b_e_m.diff(t), v_b_e_dot),
        (v_b_e_m_hat.diff(t), v_b_e_hat_dot),
 
-       (wet_mass.diff(t), mass_dot),
+       (wet_mass.diff(t), _mass_dot),
 
        # (omega_n, 20),  # natural frequency
        # (zeta, 0.7),    # damping ratio
@@ -797,5 +806,4 @@ if __name__ == "__main__":
     ##################################################
     # C++ CodeGen
     ##################################################
-    model.create_c_module(name="mmd", path="./")
-    # model.create_py_module(name="mmd", path="./")
+    model.create_module(name="mmd", path="./")
