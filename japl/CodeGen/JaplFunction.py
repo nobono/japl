@@ -491,7 +491,7 @@ class JaplFunction(Function):
         if code_type == "c":
             return f"{self.class_name}::{self.name}" if self.class_name else self.name
         elif code_type == "py":
-            return f"{self.class_name}.{self.name}" if self.class_name else self.name
+            return f"{self.name}" if self.class_name else self.name
         elif code_type == "octave":
             return f"{self.class_name}.{self.name}" if self.class_name else self.name
         else:
