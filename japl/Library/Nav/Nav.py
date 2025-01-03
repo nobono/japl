@@ -13,10 +13,11 @@ from japl.BuildTools.DirectUpdate import DirectUpdate
 from japl import JAPL_HOME_DIR
 from japl.Util.Util import profile
 from japl import Model
-from japl.BuildTools.CCodeGenerator import CCodeGenerator
+import japl as jp
+# from japl.BuildTools.CCodeGenerator import CCodeGenerator
 
 from japl.Library.Earth.Earth import Earth
-from japl.BuildTools.BuildTools import to_pycode
+# from japl.BuildTools.BuildTools import to_pycode
 # from japl.Sim.Integrate import runge_kutta_4_symbolic, runge_kutta_4
 
 
@@ -720,6 +721,64 @@ if __name__ == "__main__":
             dynamics_expr=X_dot,
             )
 
+    std_args = (t, X, U, S, dt)
+
+    class x_predict(jp.JaplFunction):
+        class_name = "Model"
+        expr = X_new
+
+    class p_predict(jp.JaplFunction):
+        class_name = "Model"
+        expr = P_new
+
+    # class x_accel_update(jp.JaplFunction):
+    #     class_name = "Model"
+    #     expr = X_accel_update
+
+    # class p_accel_update(jp.JaplFunction):
+    #     class_name = "Model"
+    #     expr = X_accel_update
+
+    # class x_gps_update(jp.JaplFunction):
+    #     class_name = "Model"
+    #     expr = X_gps_update
+
+    # class p_gps_update(jp.JaplFunction):
+    #     class_name = "Model"
+    #     expr = P_gps_update
+
+    # class dynamics(jp.JaplFunction):
+    #     # use_std_args = True  # should be a thing
+    #     class_name = "Model"
+    #     expr = X_dot
+
+    class state_updates(jp.JaplFunction):
+        class_name = "Model"
+        expr = Matrix([x_predict(*std_args), p_predict(*std_args)])
+
+
+    # class myfunc(jp.JaplFunction):
+    #     class_name = "Model"
+    #     expr = dynamics(*std_args) + input_updates(*std_args)
+
+    # class x_updates(jp.JaplFunction):
+    #     class_name = "Model"
+    #     expr = X_new
+
+    # class input_updates(jp.JaplFunction):
+    #     class_name = "Model"
+    #     expr = X_new
+
+    # class x_update(jp.JaplFunction):
+    #     class_name = "Model"
+    #     expr =
+
+
+    model.create_module("ekf", methods=[
+                                        # dynamics(*std_args),
+                                        state_updates(*std_args),
+                                        ])
+
     # gen = CCodeGenerator()
     # params = [t, X, U, model.static_vars, dt]
     # gen.add_function(expr=model.dynamics_expr,
@@ -729,16 +788,16 @@ if __name__ == "__main__":
     # gen.create_module(module_name="test_nav", path="./")
     # quit()
 
-    gen = CCodeGenerator()
+    # gen = CCodeGenerator()
     # gen.add_function(expr=X_dot,
     #                  params=params,
     #                  function_name="x_dynamics",
     #                  return_name="X_dot")
 
-    gen.add_function(expr=X_new,
-                     params=params,
-                     function_name="x_predict",
-                     return_name="X_new")
+    # gen.add_function(expr=X_new,
+    #                  params=params,
+    #                  function_name="x_predict",
+    #                  return_name="X_new")
 
     # gen.add_function(expr=P_new,
     #                  params=params,
@@ -771,7 +830,7 @@ if __name__ == "__main__":
     #                  is_symmetric=False,
     #                  by_reference=innov)
 
-    profile(gen.create_module)(module_name="ekf", path="./")
+    # profile(gen.create_module)(module_name="ekf", path="./")
     quit()
 
     ##################################################
